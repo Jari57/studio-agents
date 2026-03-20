@@ -546,7 +546,7 @@ const checkCreditsFor = (featureType) => {
     }
 
     // Skip credit check for admin users
-    if (ADMIN_EMAILS.includes(req.user.email)) {
+    if (ADMIN_EMAILS.includes((req.user.email || '').toLowerCase())) {
       logger.info(`✅ Admin user ${req.user.email} - skipping credit check`);
       return next();
     }
@@ -659,7 +659,7 @@ async function fetchWithRetry(url, options = {}, { timeoutMs = 30000, maxRetries
       if (response.status >= 500 && attempt < maxRetries) {
         lastError = new Error(`Server error ${response.status}`);
         const delay = baseDelay * Math.pow(2, attempt);
-        console.log(`[fetchWithRetry] Attempt ${attempt + 1} failed with ${response.status}, retrying in ${delay}ms`);
+        logger.debug(`[fetchWithRetry] Attempt ${attempt + 1} failed with ${response.status}, retrying in ${delay}ms`);
         await new Promise(r => setTimeout(r, delay));
         continue;
       }
@@ -671,7 +671,7 @@ async function fetchWithRetry(url, options = {}, { timeoutMs = 30000, maxRetries
       }
       if (attempt < maxRetries) {
         const delay = baseDelay * Math.pow(2, attempt);
-        console.log(`[fetchWithRetry] Attempt ${attempt + 1} failed: ${lastError.message}, retrying in ${delay}ms`);
+        logger.debug(`[fetchWithRetry] Attempt ${attempt + 1} failed: ${lastError.message}, retrying in ${delay}ms`);
         await new Promise(r => setTimeout(r, delay));
       }
     }
@@ -777,7 +777,15 @@ const validatePromptSafety = (prompt) => {
     /switch\s+to|act\s+as|pretend\s+to\s+be/i,
     /execute\s+code|run\s+this|eval|exec/i,
     /system\s+prompt|secret\s+instructions?|hidden\s+rules/i,
-    /leak|dump|exfiltrate|extract.*secret/i
+    /leak|dump|exfiltrate|extract.*secret/i,
+    // Jailbreak patterns
+    /\nSystem:/i,
+    /<\|im_start\|>\s*system/i,
+    /roleplay\s+as/i,
+    /DAN\s+mode/i,
+    /jailbreak/i,
+    /\[INST\]|\[\/INST\]/i,
+    /<\/?s>\s*\[INST\]/i
   ];
   
   for (const pattern of injectionPatterns) {
@@ -894,7 +902,6 @@ logger.info(`isDevelopment: ${isDevelopment}`);
 
 // In development, only serve dashboard and API - frontend runs on Vite (port 5173)
 if (isDevelopment) {
-  app.use(morgan('dev'));
   
   // Root shows a simple API status page in dev mode
   app.get('/', (req, res) => {
@@ -1696,9 +1703,8 @@ app.post('/api/investor-access/request', apiLimiter, async (req, res) => {
       }
     }
     
-    // Check if email is pre-approved
-    const isApproved = APPROVED_INVESTOR_EMAILS.includes(normalizedEmail) || 
-                       APPROVED_INVESTOR_EMAILS.some(approved => normalizedEmail.endsWith(approved));
+    // Check if email is pre-approved (exact match only — endsWith is a spoofing vector)
+    const isApproved = APPROVED_INVESTOR_EMAILS.includes(normalizedEmail);
     
     if (isApproved) {
       // Log successful access
@@ -1747,8 +1753,7 @@ app.get('/api/investor-access/check', apiLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Email required' });
     }
     
-    const isApproved = APPROVED_INVESTOR_EMAILS.includes(email) || 
-                       APPROVED_INVESTOR_EMAILS.some(approved => email.endsWith(approved));
+    const isApproved = APPROVED_INVESTOR_EMAILS.includes(email);
     
     res.json({ approved: isApproved });
   } catch (err) {
@@ -8163,7 +8168,16 @@ app.post('/api/amo/orchestrate', verifyFirebaseToken, requireAuth, generationLim
 function getAgentSystemPrompt(agent, session) {
   const baseContext = session ? `Session context: BPM=${session.bpm || 120}, Key=${session.key || 'C major'}, Style=${session.style || 'contemporary'}, Bars=${session.musicalBars || 8}.` : '';
   
+  // Map both agent IDs and legacy display names to prompts so callers can pass either
   const agentPrompts = {
+    // By ID (primary — what callers actually send)
+    'ghost': `You are the Ghostwriter AI, an elite lyricist and songwriter. ${baseContext} Write compelling, emotionally resonant lyrics with clever wordplay. Ensure lyrics flow perfectly at the specified BPM and song length. IMPORTANT: Return ONLY the lyrics with [Verse], [Chorus], [Bridge] etc. structure tags. Do NOT include any preamble, introduction, explanation, or commentary. Start directly with the first structure tag.`,
+    'beat': `You are the Beat Architect AI, a master producer and beatmaker. ${baseContext} Create detailed beat concepts and drum patterns. Prefer 100% professional musicality. Reference the specified BPM and exact Bar count (${session?.musicalBars || 8} bars) in your creative decisions for rhythm and timing.`,
+    'visual': `You are the Visual Vibe AI, a music video and artwork conceptualist. ${baseContext} Design compelling visual concepts, color palettes, and mood boards for music.`,
+    'sound': `You are the Soundscape Designer AI, an ambient and texture specialist. ${baseContext} Create atmospheric soundscapes, textures, and ambient elements.`,
+    'melody': `You are the Melody Maker AI, a melodic composition expert. ${baseContext} Compose memorable melodies, hooks, and harmonic progressions that sync with the specified BPM.`,
+    'arrange': `You are the Arranger Pro AI, a song structure and arrangement specialist. ${baseContext} Design song structures, transitions, and dynamic arrangements based on the ${session?.musicalBars || 8} bars provided.`,
+    // Legacy display-name aliases (kept for backward compatibility)
     'Ghostwriter': `You are the Ghostwriter AI, an elite lyricist and songwriter. ${baseContext} Write compelling, emotionally resonant lyrics with clever wordplay. Ensure lyrics flow perfectly at the specified BPM and song length. IMPORTANT: Return ONLY the lyrics with [Verse], [Chorus], [Bridge] etc. structure tags. Do NOT include any preamble, introduction, explanation, or commentary. Start directly with the first structure tag.`,
     'BeatArchitect': `You are the Beat Architect AI, a master producer and beatmaker. ${baseContext} Create detailed beat concepts and drum patterns. Prefer 100% professional musicality. Reference the specified BPM and exact Bar count (${session?.musicalBars || 8} bars) in your creative decisions for rhythm and timing.`,
     'VisualVibe': `You are the Visual Vibe AI, a music video and artwork conceptualist. ${baseContext} Design compelling visual concepts, color palettes, and mood boards for music.`,
@@ -9696,8 +9710,20 @@ app.get('/api/twitter/callback', async (req, res) => {
 
     logger.info('🐦 Twitter OAuth successful', { username });
 
+    // Validate returnUrl to prevent open redirect attacks
+    const allowedHosts = new Set([
+      req.get('host'),
+      'localhost:5173', 'localhost:3000',
+      ...(process.env.FRONTEND_URL ? [new URL(process.env.FRONTEND_URL).host] : [])
+    ]);
+    let safeReturnPath = '/';
+    try {
+      const parsedReturn = new URL(session.returnUrl || '/', req.protocol + '://' + req.get('host'));
+      if (allowedHosts.has(parsedReturn.host)) safeReturnPath = parsedReturn.pathname + parsedReturn.search + parsedReturn.hash;
+    } catch (_) { /* keep '/' */ }
+
     // Return tokens to frontend via redirect with fragment (safer than query params)
-    const returnUrl = new URL(session.returnUrl || '/', req.protocol + '://' + req.get('host'));
+    const returnUrl = new URL(safeReturnPath, req.protocol + '://' + req.get('host'));
     returnUrl.searchParams.set('twitter_connected', 'true');
     returnUrl.searchParams.set('twitter_username', username);
     
@@ -9799,7 +9825,19 @@ app.get('/api/meta/callback', async (req, res) => {
 
     logger.info('♾️ Meta OAuth successful', { name });
 
-    const returnUrl = new URL(session.returnUrl || '/', req.protocol + '://' + req.get('host'));
+    // Validate returnUrl to prevent open redirect attacks
+    const allowedHostsMeta = new Set([
+      req.get('host'),
+      'localhost:5173', 'localhost:3000',
+      ...(process.env.FRONTEND_URL ? [new URL(process.env.FRONTEND_URL).host] : [])
+    ]);
+    let safeReturnPathMeta = '/';
+    try {
+      const parsedReturnMeta = new URL(session.returnUrl || '/', req.protocol + '://' + req.get('host'));
+      if (allowedHostsMeta.has(parsedReturnMeta.host)) safeReturnPathMeta = parsedReturnMeta.pathname + parsedReturnMeta.search + parsedReturnMeta.hash;
+    } catch (_) { /* keep '/' */ }
+
+    const returnUrl = new URL(safeReturnPathMeta, req.protocol + '://' + req.get('host'));
     returnUrl.searchParams.set('meta_connected', 'true');
     returnUrl.searchParams.set('meta_name', name);
     
@@ -10004,6 +10042,25 @@ const STRIPE_CREDIT_PACKS = {
 // Firebase Admin is already initialized at the top of the file via getFirestoreDb()
 // No need for a second initialization here
 
+// Safe redirect URL validator — only allows our own origins to prevent attacker-controlled redirects
+const ALLOWED_REDIRECT_ORIGINS = new Set([
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://studioagents.ai',
+  'https://www.studioagents.ai'
+].filter(Boolean));
+
+const isSafeRedirectUrl = (url) => {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return ALLOWED_REDIRECT_ORIGINS.has(`${parsed.protocol}//${parsed.host}`);
+  } catch {
+    return false;
+  }
+};
+
 // POST /api/stripe/create-checkout-session - Create a Stripe Checkout session
 app.post('/api/stripe/create-checkout-session', verifyFirebaseToken, requireAuth, async (req, res) => {
   if (!stripe) {
@@ -10035,8 +10092,8 @@ app.post('/api/stripe/create-checkout-session', verifyFirebaseToken, requireAuth
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: tier === 'lifetime' ? 'payment' : 'subscription',
-      success_url: successUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=cancelled`,
+      success_url: (successUrl && isSafeRedirectUrl(successUrl)) ? successUrl : `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: (cancelUrl && isSafeRedirectUrl(cancelUrl)) ? cancelUrl : `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=cancelled`,
       client_reference_id: userId,
       metadata: {
         userId,
@@ -10097,8 +10154,8 @@ app.post('/api/stripe/create-checkout-session', verifyFirebaseToken, requireAuth
         payment_method_types: ['card'],
         line_items: [{ price: priceId, quantity: 1 }],
         mode: 'payment', // Credits are one-time payments
-        success_url: successUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=success&type=credits&amount=${amount}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: cancelUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=cancelled`,
+        success_url: (successUrl && isSafeRedirectUrl(successUrl)) ? successUrl : `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=success&type=credits&amount=${amount}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: (cancelUrl && isSafeRedirectUrl(cancelUrl)) ? cancelUrl : `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=cancelled`,
         client_reference_id: userId,
         metadata: {
           userId,

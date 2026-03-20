@@ -148,6 +148,68 @@ const GENRE_PRESETS = {
 
 const ALL_GENRES = Object.keys(GENRE_PRESETS);
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTO-GENRE DETECTION — Scans prompt text for genre keywords
+// Returns the best-matching GENRE_PRESETS key, or null if no strong match
+// ═══════════════════════════════════════════════════════════════════════════════
+const GENRE_KEYWORDS = {
+  'Trap':             ['trap', 'trap beat', '808s', 'hi-hats'],
+  'Drill':            ['drill', 'uk drill', 'ny drill', 'chicago drill', 'slide'],
+  'Modern Hip-Hop':   ['hip hop', 'hip-hop', 'rap', 'bars', 'freestyle', 'cypher'],
+  '90s Boom Bap':     ['boom bap', 'boom-bap', '90s hip hop', 'old school rap', 'golden age', 'sample chop'],
+  'R&B / Soul':       ['r&b', 'rnb', 'r and b', 'soul', 'slow jam', 'smooth'],
+  'Pop':              ['pop song', 'pop music', 'pop hit', 'pop vibe', 'catchy pop', 'mainstream'],
+  'Rock':             ['rock', 'guitar riff', 'rock band', 'hard rock', 'alternative rock', 'grunge'],
+  'Electronic / EDM': ['edm', 'electronic', 'house music', 'techno', 'dance music', 'rave', 'bass drop', 'dubstep', 'trance'],
+  'Lo-Fi':            ['lo-fi', 'lofi', 'lo fi', 'chill beats', 'study beats'],
+  'Afrobeat':         ['afrobeat', 'afrobeats', 'afro beat'],
+  'Reggaeton':        ['reggaeton', 'perreo', 'dembow'],
+  'K-Pop':            ['k-pop', 'kpop', 'k pop', 'korean pop'],
+  'J-Pop':            ['j-pop', 'jpop', 'j pop', 'japanese pop'],
+  'Amapiano':         ['amapiano', 'piano house'],
+  'Phonk':            ['phonk', 'drift phonk', 'memphis'],
+  'Dancehall':        ['dancehall', 'dance hall'],
+  'Latin Trap':       ['latin trap', 'spanish trap'],
+  'Country':          ['country', 'country song', 'Nashville', 'honky tonk', 'bluegrass', 'cowboy'],
+  'Jazz':             ['jazz', 'smooth jazz', 'bebop', 'swing', 'jazz fusion'],
+  'Classical':        ['classical', 'orchestra', 'symphony', 'concerto', 'piano sonata', 'chamber music'],
+  'Gospel':           ['gospel', 'praise', 'worship', 'church', 'hymn'],
+  'Reggae':           ['reggae', 'ska', 'dub', 'rasta', 'jamaican'],
+  'Metal':            ['metal', 'heavy metal', 'death metal', 'black metal', 'thrash'],
+  'Punk':             ['punk', 'punk rock', 'hardcore punk', 'pop punk'],
+  'Funk':             ['funk', 'funky', 'groove', 'slap bass'],
+  'Disco':            ['disco', 'disco ball', 'dancefloor', 'studio 54'],
+  'Synthwave':        ['synthwave', 'retrowave', 'outrun', 'cyberpunk', 'neon'],
+  'Indie':            ['indie', 'indie rock', 'indie pop', 'bedroom pop'],
+  'Acoustic':         ['acoustic', 'unplugged', 'campfire', 'acoustic guitar'],
+  'Bollywood':        ['bollywood', 'hindi song', 'desi beat'],
+  'Afro-Pop':         ['afro-pop', 'afro pop', 'afropop'],
+  'Cumbia':           ['cumbia'],
+};
+
+function detectGenreFromPrompt(text) {
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const [genre, keywords] of Object.entries(GENRE_KEYWORDS)) {
+    for (const kw of keywords) {
+      // Word-boundary-aware match to avoid false positives (e.g. "trapped" != "trap")
+      const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      if (regex.test(lower)) {
+        // Longer keyword = more specific = higher score
+        const score = kw.length;
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = genre;
+        }
+      }
+    }
+  }
+  return bestMatch;
+}
+
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ALL LANGUAGES - Global coverage
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -2856,6 +2918,18 @@ export default function StudioOrchestratorV2({
     if (!songIdea.trim()) {
       toast.error(creatorMode === 'creator' ? 'Please enter a content idea' : 'Please enter a song idea', { id: 'orch-no-idea' });
       return;
+    }
+
+    // ── Auto-detect genre from prompt and apply if different ──
+    const detectedGenre = detectGenreFromPrompt(songIdea);
+    if (detectedGenre && detectedGenre !== style) {
+      applyGenrePreset(detectedGenre);
+      setQuickGenre(detectedGenre);
+      toast(`Genre auto-set to ${detectedGenre} based on your prompt`, {
+        icon: '🎵',
+        duration: 4000,
+        style: { borderLeft: '4px solid #8b5cf6' }
+      });
     }
     
     const activeSlots = Object.entries(selectedAgents).filter(([, v]) => v);
