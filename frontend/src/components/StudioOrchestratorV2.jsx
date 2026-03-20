@@ -3608,7 +3608,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           speakerUrl: voiceStyle === 'cloned' && !clonedVoiceId ? voiceSampleUrl : null,
           elevenLabsVoiceId: voiceStyle === 'cloned'
             ? (clonedVoiceId || null)  // Only send a real cloned voice ID, never a generic fallback
-            : ((vocalQuality === 'premium') ? elevenLabsVoiceId : null),
+            : (elevenLabsVoiceId || null), // Send resolved voice ID from previous gen for consistency
+          // Lock to the same provider that worked last time for voice consistency
+          preferredProvider: generationProviders.vocals || null,
           // Pass voice sample as reference for tone/style analysis even when not cloning
           referenceSongUrl: voiceSampleUrl || null,
           // Advanced vocal synthesis parameters
@@ -3638,11 +3640,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         };
         setMediaUrls(prev => ({ ...prev, ...vocalUpdate }));
         mediaUrlsRef.current = { ...mediaUrlsRef.current, ...vocalUpdate }; // Sync ref for pipeline reads
-        setGenerationProviders(prev => ({ ...prev, lyrics: data.provider || 'ai' }));
+        setGenerationProviders(prev => ({ ...prev, vocals: data.provider || 'ai' }));
         // If backend returned a persisted clonedVoiceId, save it so future generations skip re-cloning
         if (data.clonedVoiceId && !clonedVoiceId) {
           setClonedVoiceId(data.clonedVoiceId);
           setElevenLabsVoiceId(data.clonedVoiceId);
+        }
+        // Pin the resolved ElevenLabs voice ID for consistency across re-generations
+        if (data.resolvedVoiceId && !clonedVoiceId) {
+          setElevenLabsVoiceId(data.resolvedVoiceId);
+          localStorage.setItem('studio_elevenlabs_voice_id', data.resolvedVoiceId);
         }
         // Ensure outputs.vocals is set so the asset is included in the project save
         setOutputs(prev => ({ 
@@ -3674,9 +3681,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               voiceStyle: voiceStyle,
               vocalQuality: vocalQuality,
               outputFormat: outputFormat,
-              elevenLabsVoiceId: elevenLabsVoiceId || null,
+              elevenLabsVoiceId: data.resolvedVoiceId || elevenLabsVoiceId || null,
               voiceSampleUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
               provider: data.provider || 'unknown',
+              resolvedVoiceId: data.resolvedVoiceId || null,
               referencedAudioId: voiceStyle === 'cloned' ? voiceSampleUrl : null
             },
             createdAt: new Date().toISOString()

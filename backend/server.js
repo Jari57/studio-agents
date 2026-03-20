@@ -4830,7 +4830,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
       duration = 30,      // Requested length
       outputFormat = 'social', // social, podcast, tv, music
       backingTrackUrl = null, // Backing track for vocal mixing (optional)
-      referenceSongUrl = null // Reference song for tone/warmth/vibe matching
+      referenceSongUrl = null, // Reference song for tone/warmth/vibe matching
+      preferredProvider = null // Lock to a specific provider for consistency (suno, elevenlabs-premium, bark-singing, etc.)
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
@@ -4870,6 +4871,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
     let audioUrl = null;
     let provider = null;
     let persistedCloneId = null; // Tracks the ElevenLabs voice_id for cloned voices (cached or newly created)
+    let resolvedElevenLabsVoiceId = null; // Tracks the resolved voice ID for consistency across re-generations
     let systemCreditIssue = false;
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
@@ -4878,6 +4880,10 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
     // Determine vocal style category for routing
     const isSingingStyle = style.includes('singer');
     const isRapStyle = style.includes('rapper');
+
+    // Provider preference — skip non-preferred providers for vocal consistency
+    const wantProvider = preferredProvider || null;
+    if (wantProvider) logger.info('🔒 Preferred provider requested', { preferredProvider: wantProvider });
 
     // ═══════════════════════════════════════════════════════════════
     // REFERENCE SONG ANALYSIS — Analyze uploaded reference for tone/warmth/depth/vibe
@@ -4975,7 +4981,8 @@ Return ONLY valid JSON, no markdown.`;
     // Activated for: singers, rappers, and premium quality requests.
     // ═══════════════════════════════════════════════════════════════
     const useSunoForVocals = isSingingStyle || isRapStyle || req.body.quality === 'premium';
-    if (sunoApiKey && !audioUrl && useSunoForVocals) {
+    const skipSuno = wantProvider && wantProvider !== 'suno';
+    if (sunoApiKey && !audioUrl && useSunoForVocals && !skipSuno) {
       try {
         logger.info('🎵 Using Suno API for real musical vocals', { style, genre, isRap: isRapStyle, isSinging: isSingingStyle });
         emit('vocals', 'suno-starting');
@@ -5085,7 +5092,8 @@ Return ONLY valid JSON, no markdown.`;
     // PRIORITY 1 (SINGERS): Bark SINGING mode — produces actual melody
     // Bark with music note markers generates pitched vocal melody, not flat TTS
     // ═══════════════════════════════════════════════════════════════
-    if (replicateKey && !audioUrl && isSingingStyle) {
+    const skipBarkSinging = wantProvider && wantProvider !== 'bark-singing';
+    if (replicateKey && !audioUrl && isSingingStyle && !skipBarkSinging) {
       try {
         logger.info('🎵 Using Bark SINGING mode', { style, langCode, genre });
         let speakerHistory;
@@ -5483,7 +5491,8 @@ Return ONLY valid JSON, no markdown.`;
     // ELEVENLABS: Primary for rappers/narrators, fallback for singers
     // Skip if style is 'cloned' without elevenLabsVoiceId (handled above)
     // ═══════════════════════════════════════════════════════════════
-if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVoiceId)) {
+    const skipElevenLabs = wantProvider && !wantProvider.startsWith('elevenlabs');
+    if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVoiceId) && !skipElevenLabs) {
       try {
         // Voice ID logic: user-provided > rapStyle-aware mapping > style fallback
         let voiceId = req.body.elevenLabsVoiceId;
@@ -5583,6 +5592,8 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
           voiceId = styleMap[subKey] || styleMap['default'] || 'VR6AewLTigWG4xSOukaG';
         }
 
+        resolvedElevenLabsVoiceId = voiceId; // Track for response so frontend can lock this voice
+
         logger.info('🎤 Using ElevenLabs V3.5 High-Fidelity', { voiceId, quality: req.body.quality, style, outputFormat });
 
         // ── BILLBOARD-GRADE VOCAL PREPROCESSING ──
@@ -5621,26 +5632,27 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
 
         // ── BILLBOARD-GRADE VOICE SETTINGS ──
         // When voice DNA (cloned voice or speakerUrl) is active, maximize fidelity
+        // TIGHT settings = consistent voice identity + cadence across regenerations
         const hasDnaVoice = !!(speakerUrl || req.body.elevenLabsVoiceId);
         const voiceSettings = {
-          stability: hasDnaVoice ? 0.85 : (style.includes('rapper') ? 0.60 : 0.65),       // DNA: high stability = consistent voice identity
-          similarity_boost: hasDnaVoice ? 1.0 : 0.92,                                      // DNA: max similarity = exact voice clone
-          style: hasDnaVoice ? 0.92 : (style.includes('rapper') ? 0.70 : 0.50),            // DNA: high style = preserve delivery character
+          stability: hasDnaVoice ? 0.88 : (style.includes('rapper') ? 0.75 : 0.78),       // High stability = same voice + cadence every time
+          similarity_boost: hasDnaVoice ? 1.0 : 0.95,                                      // High similarity = locked voice character
+          style: hasDnaVoice ? 0.92 : (style.includes('rapper') ? 0.55 : 0.40),            // Lower style = less delivery randomness
           use_speaker_boost: true
         };
 
         // Output format specializations
         if (outputFormat === 'tv') {
-          voiceSettings.stability = 0.70;
-          voiceSettings.style = 0.35;
-        } else if (outputFormat === 'podcast') {
           voiceSettings.stability = 0.75;
+          voiceSettings.style = 0.30;
+        } else if (outputFormat === 'podcast') {
+          voiceSettings.stability = 0.80;
           voiceSettings.similarity_boost = 0.95;
-          voiceSettings.style = 0.25;
+          voiceSettings.style = 0.20;
         } else if (outputFormat === 'music') {
-          voiceSettings.style = Math.min(voiceSettings.style + 0.10, 0.90);  // Boost expressiveness for music
-          voiceSettings.stability = Math.max(voiceSettings.stability - 0.05, 0.55); // Slight looseness but still coherent
-          // Keep similarity_boost unchanged — don't degrade voice identity for music
+          // Music: keep stability HIGH for consistent voice, allow modest expressiveness
+          voiceSettings.style = Math.min(voiceSettings.style + 0.05, 0.65);
+          // Do NOT reduce stability for music — consistency > expressiveness
         }
 
         // ── REFERENCE SONG VOICE TUNING ──
@@ -5653,14 +5665,14 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
 
           if (hasDnaVoice) {
             // DNA EXACT-CLONE: Reference tunes delivery but voice identity stays locked
-            voiceSettings.stability = Math.max(0.80, Math.min(0.92, 0.82 + (warmth * 0.01)));
-            voiceSettings.style = Math.max(0.80, Math.min(0.95, 0.82 + (energy * 0.013)));
+            voiceSettings.stability = Math.max(0.83, Math.min(0.92, 0.85 + (warmth * 0.007)));
+            voiceSettings.style = Math.max(0.82, Math.min(0.95, 0.84 + (energy * 0.011)));
             voiceSettings.similarity_boost = Math.max(0.98, Math.min(1.0, 0.98 + (depth * 0.002)));
           } else {
-            // No DNA: standard reference tuning with wider range
-            voiceSettings.stability = Math.max(0.35, Math.min(0.85, 0.40 + (warmth * 0.05)));
-            voiceSettings.style = Math.max(0.25, Math.min(0.95, 0.30 + (energy * 0.065)));
-            voiceSettings.similarity_boost = Math.max(0.75, Math.min(0.98, 0.80 + (depth * 0.018)));
+            // No DNA: reference tuning but keep stability HIGH for consistency
+            voiceSettings.stability = Math.max(0.65, Math.min(0.85, 0.68 + (warmth * 0.017)));
+            voiceSettings.style = Math.max(0.25, Math.min(0.65, 0.30 + (energy * 0.035)));
+            voiceSettings.similarity_boost = Math.max(0.88, Math.min(0.98, 0.90 + (depth * 0.008)));
           }
 
           // Prepend vocal direction to the processed prompt for delivery guidance
@@ -5729,7 +5741,8 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
     // NOTE: No longer blocked by backingTrackUrl — TTS fallback is better than 503.
     // The separate /api/create-final-mix step will overlay vocals on beat later.
     // ═══════════════════════════════════════════════════════════════
-    if (replicateKey && !audioUrl && !isSingingStyle && style !== 'cloned') {
+    const skipBarkSpoken = wantProvider && wantProvider !== 'bark';
+    if (replicateKey && !audioUrl && !isSingingStyle && style !== 'cloned' && !skipBarkSpoken) {
       try {
         logger.info('🎤 Using Bark for expressive vocal generation', { style, langCode });
         
@@ -5833,7 +5846,8 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
     // NOTE: No longer blocked by backingTrackUrl — degraded output beats a 503.
     // ═══════════════════════════════════════════════════════════════
     const geminiKey = process.env.GEMINI_API_KEY;
-    if (!audioUrl && geminiKey) {
+    const skipGemini = wantProvider && wantProvider !== 'gemini-tts';
+    if (!audioUrl && geminiKey && !skipGemini) {
       try {
         logger.info('🎤 Using Gemini TTS fallback');
         let geminiVoice = 'Kore';
@@ -5875,7 +5889,8 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
       ? `Basic ${Buffer.from(`${uberduckKey}:${uberduckSecret}`).toString('base64')}`
       : (uberduckKey?.includes(':') ? `Basic ${Buffer.from(uberduckKey).toString('base64')}` : `Bearer ${uberduckKey}`);
     
-    if (!audioUrl && uberduckKey) {
+    const skipUberduck = wantProvider && wantProvider !== 'uberduck-tts';
+    if (!audioUrl && uberduckKey && !skipUberduck) {
       try {
         logger.info('🔄 Final fallback to Uberduck TTS');
         let selectedVoice = style.includes('female') ? 'azure_en-US-JennyNeural' : 'azure_en-US-GuyNeural';
@@ -6128,6 +6143,7 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
         temporaryUrl: permanentUrl ? audioUrl : null,
         mimeType: audioUrl.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mpeg',
         provider,
+        resolvedVoiceId: resolvedElevenLabsVoiceId || null,
         clonedVoiceId: persistedCloneId || null,
         wasMixed,
         style,
