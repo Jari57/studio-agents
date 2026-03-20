@@ -4980,19 +4980,25 @@ Return ONLY valid JSON, no markdown.`;
         logger.info('🎵 Using Suno API for real musical vocals', { style, genre, isRap: isRapStyle, isSinging: isSingingStyle });
         emit('vocals', 'suno-starting');
 
-        // Build Suno tags — adapt for singing vs rapping
+        // Build Suno tags — adapt for singing vs rapping, enforce language
         const vocalGender = style.includes('female') ? 'female vocals' : 'male vocals';
         const rapStyle = req.body.rapStyle || '';
+        // Language enforcement: Suno uses tags to determine language
+        const langTag = (langCode !== 'en' && language !== 'English') ? `${language || langCode} language, sung in ${language || langCode},` : '';
         let sunoTags;
         if (isRapStyle) {
           // Rap-specific Suno tags for authentic delivery
-          sunoTags = `${genre || 'hip-hop'}, rap, ${rapStyle || 'aggressive'}, ${vocalGender}, bars, rhythmic flow, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`;
+          sunoTags = `${langTag} ${genre || 'hip-hop'}, rap, ${rapStyle || 'aggressive'}, ${vocalGender}, bars, rhythmic flow, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
         } else {
-          sunoTags = `${genre}, ${vocalGender}, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`;
+          sunoTags = `${langTag} ${genre}, ${vocalGender}, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
         }
         
-        // Clean lyrics for Suno — strip structure tags, keep only singable text
+        // Clean lyrics for Suno — strip AI preamble + structure tags, keep only singable text
         let sunoLyrics = prompt
+          // Strip everything before the first song structure tag (AI preamble, descriptions, meta)
+          .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\b)/i, '')
+          // If no structure tags, strip common AI preambles
+          .replace(/^(Sure!?|Okay!?|Here('s| is| are)|I've written|I wrote|I created|Let me|Below|These lyrics|This song|Title:|Genre:|Style:|Tempo:|Key:|Mood:|About:|Description:)[^\n]*\n/gim, '')
           .replace(/\[Verse[^\]]*\]/gi, '[Verse]')
           .replace(/\[Chorus[^\]]*\]/gi, '[Chorus]')
           .replace(/\[Bridge[^\]]*\]/gi, '[Bridge]')
@@ -5003,9 +5009,11 @@ Return ONLY valid JSON, no markdown.`;
           .replace(/\[Ad-lib:[^\]]*\]/gi, '')  // Strip ad-lib direction tags
           .replace(/\[(?!Verse|Chorus|Bridge|Pre-Chorus|Hook|Outro|Intro)[^\]]*\]/gi, '')  // Strip ALL non-standard bracketed tags
           .replace(/^\s*\n/gm, '')  // Remove empty lines left by stripped tags
+          .trim()
           .substring(0, 2999);
         
-        let sunoTitle = (prompt.split('\n').find(l => l.trim()) || 'Studio Track').substring(0, 80);
+        // Extract a real title from the lyrics (first non-empty line after cleaning, fallback to songIdea)
+        let sunoTitle = (sunoLyrics.replace(/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\]/gi, '').split('\n').find(l => l.trim()) || req.body.title || 'Studio Track').substring(0, 80);
         
         if (refSongAnalysis) {
           // Override tags with reference-derived characteristics
@@ -5013,7 +5021,7 @@ Return ONLY valid JSON, no markdown.`;
           const refMood = refSongAnalysis.mood || '';
           const refTone = refSongAnalysis.tone || '';
           const refGenreTags = refSongAnalysis.genre_tags || '';
-          sunoTags = `${refTags}, ${refGenreTags}, ${refMood}, ${refTone} tone, ${style.includes('female') ? 'female vocals' : 'male vocals'}, professional studio recording`.replace(/,\s*,/g, ',').replace(/^,\s*/, '');
+          sunoTags = `${langTag} ${refTags}, ${refGenreTags}, ${refMood}, ${refTone} tone, ${style.includes('female') ? 'female vocals' : 'male vocals'}, professional studio recording`.replace(/,\s*,/g, ',').replace(/^,\s*/, '').trim();
           logger.info('🎵 Suno tags enhanced with reference analysis', { tags: sunoTags.substring(0, 100) });
         }
 
@@ -5506,20 +5514,60 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
               'hype':         'AZnzlk1XvdvUeBnXmlld', // Domi — animated
               'default':      'jsCqWAovK2LkecY7zXl4'  // Freya as default female rapper
             },
-            // Male Singers
+            // Male Singers — expanded with genre-appropriate voices
             'singer': {
               'r&b':          'ErXwobaYiN019PkySvjV', // Antoni — warm, soulful
               'pop':          'TX3LPaxmHKxFdv7VOQHJ', // Liam — clean, bright
               'hip-hop':      'TxGEqnHWrfWFTfGW9XjX', // Josh — versatile
               'soul':         'JBFqnCBsd6RMkjVDRZzb', // George — rich, warm
+              'country':      'JBFqnCBsd6RMkjVDRZzb', // George — warm, rich (country twang)
+              'rock':         'VR6AewLTigWG4xSOukaG', // Arnold — powerful, commanding
+              'metal':        'VR6AewLTigWG4xSOukaG', // Arnold — deep, aggressive
+              'punk':         'N2lVS1w4EtoT3dr4eOWO', // Callum — energetic, raw
+              'jazz':         'JBFqnCBsd6RMkjVDRZzb', // George — warm, smooth
+              'gospel':       'JBFqnCBsd6RMkjVDRZzb', // George — rich, powerful
+              'reggae':       'cjVigY5qzO86Huf0OWal', // Eric — relaxed, smooth
+              'dancehall':    'TxGEqnHWrfWFTfGW9XjX', // Josh — dynamic energy
+              'reggaeton':    'TxGEqnHWrfWFTfGW9XjX', // Josh — rhythmic energy
+              'latin-trap':   'TxGEqnHWrfWFTfGW9XjX', // Josh — dynamic
+              'afrobeat':     'TxGEqnHWrfWFTfGW9XjX', // Josh — versatile
+              'amapiano':     'ErXwobaYiN019PkySvjV', // Antoni — smooth, melodic
+              'electronic':   'TX3LPaxmHKxFdv7VOQHJ', // Liam — clean, modern
+              'indie':        'cjVigY5qzO86Huf0OWal', // Eric — relaxed, natural
+              'acoustic':     'JBFqnCBsd6RMkjVDRZzb', // George — warm, intimate
+              'funk':         'N2lVS1w4EtoT3dr4eOWO', // Callum — energetic, groovy
+              'disco':        'TX3LPaxmHKxFdv7VOQHJ', // Liam — bright, clean
+              'bollywood':    'ErXwobaYiN019PkySvjV', // Antoni — expressive, warm
+              'k-pop':        'TX3LPaxmHKxFdv7VOQHJ', // Liam — clean, bright pop
+              'j-pop':        'TX3LPaxmHKxFdv7VOQHJ', // Liam — clean, bright pop
               'default':      'ErXwobaYiN019PkySvjV'  // Antoni as default singer
             },
-            // Female Singers
+            // Female Singers — expanded with genre-appropriate voices
             'singer-female': {
               'r&b':          '21m00Tcm4TlvDq8ikWAM', // Rachel — warm, emotional
               'pop':          'EXAVITQu4vr4xnSDxMaL', // Bella — sweet, clear
               'soul':         'FGY2WhTYpPnrIDTdsKH5', // Laura — powerful, warm
               'hip-hop':      'cgSgspJ2msm6clMCkdW9', // Jessica — expressive
+              'country':      'FGY2WhTYpPnrIDTdsKH5', // Laura — warm, powerful (country soul)
+              'rock':         'jsCqWAovK2LkecY7zXl4', // Freya — powerful, dynamic
+              'metal':        'jsCqWAovK2LkecY7zXl4', // Freya — powerful, aggressive
+              'punk':         'AZnzlk1XvdvUeBnXmlld', // Domi — bold energy
+              'jazz':         '21m00Tcm4TlvDq8ikWAM', // Rachel — warm, smooth
+              'gospel':       'FGY2WhTYpPnrIDTdsKH5', // Laura — powerful, soulful
+              'reggae':       '21m00Tcm4TlvDq8ikWAM', // Rachel — warm, relaxed
+              'dancehall':    'cgSgspJ2msm6clMCkdW9', // Jessica — expressive
+              'reggaeton':    'cgSgspJ2msm6clMCkdW9', // Jessica — expressive
+              'latin-trap':   'cgSgspJ2msm6clMCkdW9', // Jessica — expressive
+              'afrobeat':     'cgSgspJ2msm6clMCkdW9', // Jessica — expressive
+              'amapiano':     '21m00Tcm4TlvDq8ikWAM', // Rachel — smooth, warm
+              'electronic':   'EXAVITQu4vr4xnSDxMaL', // Bella — clean, modern
+              'indie':        '21m00Tcm4TlvDq8ikWAM', // Rachel — warm, natural
+              'acoustic':     '21m00Tcm4TlvDq8ikWAM', // Rachel — intimate, warm
+              'funk':         'AZnzlk1XvdvUeBnXmlld', // Domi — bold, groovy
+              'disco':        'EXAVITQu4vr4xnSDxMaL', // Bella — bright, sweet
+              'bollywood':    '21m00Tcm4TlvDq8ikWAM', // Rachel — warm, expressive
+              'k-pop':        'EXAVITQu4vr4xnSDxMaL', // Bella — sweet, clear pop
+              'j-pop':        'EXAVITQu4vr4xnSDxMaL', // Bella — sweet, clear pop
               'default':      '21m00Tcm4TlvDq8ikWAM'  // Rachel as default female singer
             },
             // Narration
@@ -5678,9 +5726,10 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
     // ═══════════════════════════════════════════════════════════════
     // BARK SPOKEN - General speech fallback (singers already handled above)
     // Skip for cloned voices — Bark can't clone, would produce gibberish
-    // Skip when backing track provided — TTS should never sync with a beat
+    // NOTE: No longer blocked by backingTrackUrl — TTS fallback is better than 503.
+    // The separate /api/create-final-mix step will overlay vocals on beat later.
     // ═══════════════════════════════════════════════════════════════
-    if (replicateKey && !audioUrl && !isSingingStyle && style !== 'cloned' && !backingTrackUrl) {
+    if (replicateKey && !audioUrl && !isSingingStyle && style !== 'cloned') {
       try {
         logger.info('🎤 Using Bark for expressive vocal generation', { style, langCode });
         
@@ -5781,10 +5830,10 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
 
     // ═══════════════════════════════════════════════════════════════
     // PRIORITY 2: Gemini TTS (Robust Fallback)
-    // Skip when backing track provided — TTS should never sync with a beat
+    // NOTE: No longer blocked by backingTrackUrl — degraded output beats a 503.
     // ═══════════════════════════════════════════════════════════════
     const geminiKey = process.env.GEMINI_API_KEY;
-    if (!audioUrl && geminiKey && !backingTrackUrl) {
+    if (!audioUrl && geminiKey) {
       try {
         logger.info('🎤 Using Gemini TTS fallback');
         let geminiVoice = 'Kore';
@@ -5818,7 +5867,7 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
 
     // ═══════════════════════════════════════════════════════════════
     // PRIORITY 3: Uberduck TTS (Final Fallback)
-    // Skip when backing track provided — TTS should never sync with a beat
+    // NOTE: No longer blocked by backingTrackUrl — degraded output beats a 503.
     // ═══════════════════════════════════════════════════════════════
     const uberduckKey = process.env.UBERDUCK_API_KEY;
     const uberduckSecret = process.env.UBERDUCK_API_SECRET;
@@ -5826,7 +5875,7 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
       ? `Basic ${Buffer.from(`${uberduckKey}:${uberduckSecret}`).toString('base64')}`
       : (uberduckKey?.includes(':') ? `Basic ${Buffer.from(uberduckKey).toString('base64')}` : `Bearer ${uberduckKey}`);
     
-    if (!audioUrl && uberduckKey && !backingTrackUrl) {
+    if (!audioUrl && uberduckKey) {
       try {
         logger.info('🔄 Final fallback to Uberduck TTS');
         let selectedVoice = style.includes('female') ? 'azure_en-US-JennyNeural' : 'azure_en-US-GuyNeural';
@@ -5855,6 +5904,9 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
       } catch (err) { logger.error('Uberduck final fallback failed', { error: err.message }); }
     }
 
+    // Track whether the backend actually mixed vocals+beat during generation
+    let wasMixed = false;
+
     if (audioUrl) {
       logger.info('🎤 Vocal generation successful', { provider });
 
@@ -5862,7 +5914,8 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
       let storagePath = null;
 
       // MIX WITH BACKING TRACK IF PROVIDED
-      // Only mix with real vocal providers — never TTS (robotic voices ruin songs)
+      // Only mix with real vocal providers — TTS providers return dry vocals
+      // and the separate /api/create-final-mix step handles mixing later.
       const isTtsProvider = ['bark', 'gemini-tts', 'uberduck-tts'].includes(provider);
       if (backingTrackUrl && !isTtsProvider) {
         try {
@@ -5953,6 +6006,7 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
             // Read mixed audio and convert to base64
             const mixedAudioBuffer = fs.readFileSync(mixResult.outputPath);
             audioUrl = `data:audio/mpeg;base64,${mixedAudioBuffer.toString('base64')}`;
+            wasMixed = true;
             logger.info('✅ Vocal successfully mixed with backing track (billboard-ready)');
 
             // Clean up temp file
@@ -6075,6 +6129,7 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
         mimeType: audioUrl.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mpeg',
         provider,
         clonedVoiceId: persistedCloneId || null,
+        wasMixed,
         style,
         isRealGeneration: true,
         referenceAnalysis: refSongAnalysis || null,
@@ -6093,10 +6148,7 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
         });
       }
       
-      const detail = backingTrackUrl 
-        ? 'No real vocal provider available for beat sync. TTS fallbacks are skipped when syncing with a beat — only Suno, ElevenLabs, or voice cloning can create song-quality vocals.'
-        : 'Check API key configuration or system quota';
-      res.status(503).json({ error: 'Vocal generation failed', details: detail });
+      res.status(503).json({ error: 'Vocal generation failed', details: 'All vocal providers failed. Check API key configuration or system quota.' });
     }
   } catch (error) {
     logger.error('Vocal generation error', { error: error.message });

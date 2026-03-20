@@ -2185,6 +2185,38 @@ export default function StudioOrchestratorV2({
     setMood(preset.mood);
     setStructure(preset.structure);
     setDuration(preset.duration);
+
+    // ── Sync vocal genre with the selected music genre ──
+    // Map display genre names to the vocal genre string the backend expects
+    const genreLower = genreName.toLowerCase();
+    const vocalGenreMap = {
+      'trap': 'trap', 'drill': 'drill', 'modern hip-hop': 'hip-hop', '90s boom bap': 'boom-bap',
+      'r&b / soul': 'r&b', 'pop': 'pop', 'rock': 'rock', 'electronic / edm': 'electronic',
+      'lo-fi': 'lo-fi', 'afrobeat': 'afrobeat', 'reggaeton': 'reggaeton', 'k-pop': 'k-pop',
+      'j-pop': 'j-pop', 'amapiano': 'amapiano', 'phonk': 'phonk', 'dancehall': 'dancehall',
+      'latin trap': 'latin-trap', 'country': 'country', 'jazz': 'jazz', 'classical': 'classical',
+      'gospel': 'gospel', 'reggae': 'reggae', 'metal': 'metal', 'punk': 'punk', 'funk': 'funk',
+      'disco': 'disco', 'synthwave': 'synthwave', 'indie': 'indie', 'acoustic': 'acoustic',
+      'bollywood': 'bollywood', 'afro-pop': 'afro-pop', 'cumbia': 'cumbia'
+    };
+    setGenre(vocalGenreMap[genreLower] || genreLower.split('/')[0].trim());
+
+    // ── Auto-select a sensible voice style for the genre ──
+    // Singing genres get a singer, rap genres get a rapper, etc.
+    // Never override if user has a cloned voice active
+    const singerGenres = ['r&b / soul', 'pop', 'rock', 'country', 'jazz', 'classical', 'gospel',
+      'reggae', 'funk', 'disco', 'synthwave', 'indie', 'acoustic', 'bollywood', 'afro-pop',
+      'cumbia', 'k-pop', 'j-pop', 'amapiano', 'afrobeat', 'electronic / edm', 'lo-fi', 'metal', 'punk'];
+    const rapperGenres = ['trap', 'drill', 'modern hip-hop', '90s boom bap', 'phonk', 'latin trap'];
+    const dancehallGenres = ['dancehall', 'reggaeton'];
+
+    setVoiceStyle(prev => {
+      if (prev === 'cloned') return prev; // Never override cloned voice
+      if (singerGenres.includes(genreLower)) return 'singer';
+      if (rapperGenres.includes(genreLower)) return 'rapper';
+      if (dancehallGenres.includes(genreLower)) return 'singer';
+      return prev;
+    });
   }, []);
 
   const applyOutputPreset = useCallback((presetName) => {
@@ -2901,14 +2933,15 @@ Include: camera angles, text overlays, transition types, music cues, and engagem
         ${slot === 'lyrics' ? `LYRICS AGENT INSTRUCTIONS:
 Write ONLY the lyrics with clear section labels: [Verse 1], [Pre-Chorus], [Chorus], [Verse 2], [Bridge], [Outro].
 SONG STRUCTURE: ${songStructure === 'single' ? 'SHORT FORMAT — 1 Verse + 1 Chorus + 1 Verse (radio single, ~2 minutes)' : songStructure === 'extended' ? 'EXTENDED FORMAT — 3 Verses + 2 Choruses + Bridge + Outro (full album track, ~4 minutes)' : 'FULL TRACK — 2 Verses + Chorus + Bridge + Final Chorus (standard release, ~3 minutes)'}
+LANGUAGE: ${language} — ALL lyrics MUST be written entirely in ${language}. Every word, every line.${language !== 'English' ? ` Do NOT write in English. The song is in ${language}.` : ''}
 REQUIREMENTS:
+- START your response with [Verse 1] or [Intro] — no preamble, no title, no description
 - The CHORUS/HOOK must be catchy enough to get stuck in someone's head after one listen
 - Use multi-syllable rhyme schemes (AABB or ABAB), internal rhymes, and wordplay
 - Every line must have rhythmic cadence that locks to the beat's groove
 - Use vivid metaphors, emotional specificity, and cultural references — zero generic filler
 - Match the flow and delivery style of current chart-topping ${style} artists
-- NO intro text, NO commentary, NO explanations — ONLY lyrics with section labels
-- Do NOT include performance direction tags, vocal cues, or production notes inside the lyrics — only the words to be spoken/sung` : ''}
+- FORBIDDEN: Do NOT write any intro text, title lines, genre labels, commentary, descriptions, or explanations. Output ONLY singable/rappable lyrics with [Section] labels.` : ''}
         ${slot === 'audio' ? `BEAT DNA AGENT INSTRUCTIONS:
 Describe a Billboard-ready instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}, BPM: ${projectBpm}).
 REQUIREMENTS:
@@ -3188,7 +3221,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           ${slot === 'audio' ? `Briefly describe background music or sound design (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Focus on mood, energy, and platform fit. Keep it under 80 words.` : ''}`
             : `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} song about: "${songIdea}". Be creative and fresh.
           ${(slot !== 'lyrics' && outputs.lyrics) ? `HERE ARE THE CURRENT LYRICS - USE THEM FOR CONTEXT: "${outputs.lyrics.substring(0, 500)}"` : ''}
-          ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse] or [Chorus]. No intro fluff.' : ''}
+          ${slot === 'lyrics' ? `Write ONLY the lyrics in ${language} (verses, hooks, chorus) with clear labels like [Verse] or [Chorus]. START with [Verse 1] — no title, no intro text, no descriptions.${language !== 'English' ? ` ALL lyrics MUST be in ${language}.` : ''}` : ''}
           ${slot === 'audio' ? `Briefly describe a high-quality beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Focus on mood, instrumentation, and energy. Keep it under 80 words for an AI music generator.` : ''}`,
           model: modelId,
           duration: duration,
@@ -3483,9 +3516,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       // Aggressively strip AI preamble even in fallback to prevent prompt context in vocals
       let cleanLyrics = lyricsOnly || lyricsText;
       cleanLyrics = cleanLyrics
-        .replace(/^(Sure!?|Okay!?|Absolutely!?|Here('s| is| are))[^\n]*\n/i, '')
-        .replace(/^(I've written|I wrote|I created|Let me|Below are|These lyrics)[^\n]*\n/i, '')
-        .replace(/^(Here('s| is| are) (a|the|your|some))[^\n]*\n/i, '')
+        // Strip multi-line AI preamble (everything before the first song structure tag)
+        .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\b)/i, '')
+        // If no structure tags found, strip common preamble patterns (multi-line)
+        .replace(/^(Sure!?|Okay!?|Absolutely!?|Here('s| is| are)|I've written|I wrote|I created|Let me|Below are|These lyrics|This song)[^\n]*\n/gim, '')
+        // Strip meta lines: Title:, Genre:, Style:, Tempo:, Key:, Mood:, About:, Description:
+        .replace(/^(Title|Genre|Style|Tempo|Key|Mood|About|Description|Inspired by|Written for|This (song|track|piece))[^\n]*\n/gim, '')
         .replace(/\[Ad-lib:[^\]]*\]/gi, '')  // Strip ad-lib direction tags
         .replace(/\[(?!Verse|Chorus|Bridge|Pre-Chorus|Hook|Outro|Intro)[^\]]*\]/gi, '')  // Strip non-standard performance/direction tags
         .replace(/^\s*\n/gm, '')  // Remove empty lines left by stripped tags
@@ -3535,7 +3571,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           voice: selectedVoice,
           style: backendStyle,
           rapStyle: backendRapStyle,
-          genre: voiceStyle === 'singer-pop' ? 'pop' : (voiceStyle === 'singer-female-pop' ? 'pop' : genre),
+          genre: voiceStyle === 'singer-pop' ? 'pop' : (voiceStyle === 'singer-female-pop' ? 'pop' : (genre || style.toLowerCase().split('/')[0].trim())),
           language: language || 'English',
           duration: actualBeatDurationRef.current || duration || 30, // Align with actual beat length
           quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
@@ -3565,12 +3601,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       }
 
       if (response.ok && data.audioUrl) {
-        // If beat URL was provided, vocals come back already mixed — store as mixedAudio too
-        const hadBeatForMix = !!mediaUrlsRef.current.audio;
+        // Only mark as mixedAudio if backend explicitly confirms it mixed vocal+beat
         const vocalUpdate = {
           vocals: data.audioUrl,
           lyricsVocal: data.audioUrl,
-          ...(hadBeatForMix ? { mixedAudio: data.audioUrl } : {})
+          ...(data.wasMixed ? { mixedAudio: data.audioUrl } : {})
         };
         setMediaUrls(prev => ({ ...prev, ...vocalUpdate }));
         mediaUrlsRef.current = { ...mediaUrlsRef.current, ...vocalUpdate }; // Sync ref for pipeline reads
@@ -4594,8 +4629,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     }
 
     // Need at least vocals or beat
-    const hasVocals = !!(mediaUrls.vocals || mediaUrls.lyricsVocal);
-    const hasBeat = !!mediaUrls.audio;
+    // Use refs for latest state — closure mediaUrls may be stale when called from handleGenerate pipeline
+    const currentMediaUrls = mediaUrlsRef.current;
+    const hasVocals = !!(currentMediaUrls.vocals || currentMediaUrls.lyricsVocal);
+    const hasBeat = !!currentMediaUrls.audio;
 
     if (!hasVocals && !hasBeat) {
       toast.error('Generate vocals and/or beat first');
@@ -4617,8 +4654,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           method: 'POST',
           headers,
           body: JSON.stringify({
-            vocalUrl: mediaUrls.vocals || mediaUrls.lyricsVocal,
-            beatUrl: mediaUrls.audio,
+            vocalUrl: currentMediaUrls.vocals || currentMediaUrls.lyricsVocal,
+            beatUrl: currentMediaUrls.audio,
             style: voiceStyle || 'rapper',
             outputFormat: outputFormat || 'music',
             genre: genre || style,
@@ -4652,7 +4689,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       // If only one track available, use it as the "mix"
       if (!finalAudioUrl) {
-        finalAudioUrl = mediaUrls.vocals || mediaUrls.lyricsVocal || mediaUrls.audio;
+        finalAudioUrl = currentMediaUrls.vocals || currentMediaUrls.lyricsVocal || currentMediaUrls.audio;
       }
 
       // Compile all outputs into the final product
@@ -4666,23 +4703,23 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           lyrics: {
             content: outputs.lyrics,
             agent: AGENTS.find(a => a.id === selectedAgents.lyrics)?.name || 'Ghostwriter',
-            vocalUrl: mediaUrls.lyricsVocal || null
+            vocalUrl: currentMediaUrls.lyricsVocal || null
           },
           audio: {
             content: outputs.audio,
             agent: AGENTS.find(a => a.id === selectedAgents.audio)?.name || 'Beat Maker',
-            audioUrl: mediaUrls.audio || null,
+            audioUrl: currentMediaUrls.audio || null,
             mixedAudioUrl: finalAudioUrl || null
           },
           visual: {
             content: outputs.visual,
             agent: AGENTS.find(a => a.id === selectedAgents.visual)?.name || 'Designer',
-            imageUrl: mediaUrls.image || null
+            imageUrl: currentMediaUrls.image || null
           },
           video: {
             content: outputs.video,
             agent: AGENTS.find(a => a.id === selectedAgents.video)?.name || 'Video Creator',
-            videoUrl: musicVideoUrl || mediaUrls.video || null,
+            videoUrl: musicVideoUrl || currentMediaUrls.video || null,
             musicVideoUrl: musicVideoUrl || null,
             isSynced: !!musicVideoUrl
           }
