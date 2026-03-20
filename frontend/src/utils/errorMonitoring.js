@@ -104,8 +104,10 @@ export function captureException(error, context = {}) {
     Sentry.captureException(error, { extra: context });
   }
 
-  // Local logging
-  console.error('🚨 Error captured:', errorData);
+  // Local logging (only in dev to avoid leaking PII)
+  if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+    console.error('🚨 Error captured:', errorData);
+  }
   
   // Add to queue
   errorQueue.push(errorData);
@@ -191,7 +193,9 @@ export function startTransaction(name, op = 'task') {
   return {
     finish: () => {
       const duration = performance.now() - start;
-      console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`);
+      if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+        console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`);
+      }
       addBreadcrumb(`Finished: ${name}`, 'performance', { op, duration });
     },
   };

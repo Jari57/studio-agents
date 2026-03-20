@@ -14,6 +14,7 @@ async function enterStudio(page: Page) {
     localStorage.setItem('studio_guest_mode', 'true');
     localStorage.setItem('studio_user_id', 'test-playwright');
     localStorage.setItem('studio_onboarding_v3', 'true');
+    localStorage.setItem('studio_onboarding_v4', 'true');
     localStorage.setItem('cookie_consent', 'true');
   });
   await page.goto(`${URL}/#/studio/agents`);

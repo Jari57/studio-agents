@@ -100,7 +100,7 @@ export async function uploadFile(file, userId, folder = 'assets', filename = nul
   const snapshot = await uploadBytes(storageRef, file);
   const url = await getDownloadURL(snapshot.ref);
   
-  console.log('📤 File uploaded:', path);
+  // File uploaded successfully
   return { url, path };
 }
 
@@ -128,7 +128,7 @@ export async function uploadBase64(base64Data, userId, folder = 'assets', conten
   const snapshot = await uploadString(storageRef, dataUrl, 'data_url');
   const url = await getDownloadURL(snapshot.ref);
   
-  console.log('📤 Base64 uploaded:', path);
+  // Base64 uploaded successfully
   return { url, path };
 }
 
@@ -142,7 +142,7 @@ export async function deleteFile(path) {
   try {
     const storageRef = ref(storage, path);
     await deleteObject(storageRef);
-    console.log('🗑️ File deleted:', path);
+    // File deleted successfully
   } catch (err) {
     console.warn('Failed to delete file:', path, err.message);
   }

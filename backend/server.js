@@ -682,7 +682,7 @@ async function fetchWithRetry(url, options = {}, { timeoutMs = 30000, maxRetries
 const app = express();
 // Trust the first proxy (Railway load balancer)
 // Increased to 3 to handle potential multiple proxy layers in production
-app.set('trust proxy', 3); 
+app.set('trust proxy', 1); 
 const PORT = process.env.PORT || 3001;
 
 // ⚡ PERFORMANCE: Compression - Gzip/Brotli for JSON responses
@@ -3268,6 +3268,12 @@ app.post('/api/user/projects', verifyFirebaseToken, async (req, res) => {
       return res.status(400).json({ error: 'Name and data are required' });
     }
     
+    // Validate payload size to prevent storage abuse (max 500KB for project data)
+    const dataSize = JSON.stringify(data).length;
+    if (dataSize > 500_000) {
+      return res.status(413).json({ error: 'Project data too large. Maximum size is 500KB.' });
+    }
+    
     const project = {
       name: name.slice(0, 200),
       type: type || 'song', // 'song', 'beat', 'lyrics', 'mix'
@@ -4827,7 +4833,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
       genre = 'hip-hop', // hip-hop, r&b, pop, soul, trap, drill, boom-bap
       language = 'en',   // en, es, fr, de, it, pt, ja, ko, zh
       speakerUrl = null, // Reference audio for voice cloning (XTTS)
-      duration = 30,      // Requested length
+      duration: durationRaw = 30,      // Requested length
       outputFormat = 'social', // social, podcast, tv, music
       backingTrackUrl = null, // Backing track for vocal mixing (optional)
       referenceSongUrl = null, // Reference song for tone/warmth/vibe matching
@@ -4835,6 +4841,9 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
+    
+    // Cap duration to prevent abuse (max 5 minutes)
+    const duration = Math.min(Math.max(Number(durationRaw) || 30, 5), 300);
     
     // SSE pipeline progress (if client provided session ID)
     const pipelineSession = req.headers['x-pipeline-session'];
@@ -7289,7 +7298,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
     // SYNC AUGMENTATION: If audio or vocals are provided, enhance the prompt to ensure the video engine "sees" the sound
     let enhancedPrompt = prompt;
     if (audioUrl || vocalUrl) {
-      enhancedPrompt = `${prompt}. Synchronize movements and energy with a ${req.body.style || 'dynamic'} beat. The video should feel like a high-fidelity Billboard-ready music video performance with rhythmic cuts, cinematic lighting, professional color grading, and energetic motion matching the audio flow accurately. Righteous quality, superior visual fidelity.`;
+      enhancedPrompt = `${prompt}. Synchronize movements and energy with a ${sanitizeInput(req.body.style || 'dynamic')} beat. The video should feel like a high-fidelity Billboard-ready music video performance with rhythmic cuts, cinematic lighting, professional color grading, and energetic motion matching the audio flow accurately. Righteous quality, superior visual fidelity.`;
       logger.info('🎬 Augmenting video prompt for audio synchronization', { hasAudio: !!audioUrl, hasVocals: !!vocalUrl });
     }
 
@@ -7650,6 +7659,13 @@ function _generateDemoVideoUrl(prompt) {
 
 // ── Video proxy: store authed URLs in a short-lived map, serve via /api/video-proxy/:id ──
 const videoProxyMap = new Map(); // id → { url, expiresAt }
+// Periodic cleanup for videoProxyMap (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, entry] of videoProxyMap) {
+    if (now > entry.expiresAt) videoProxyMap.delete(id);
+  }
+}, 5 * 60 * 1000);
 // crypto already imported at top of file
 
 // ── Replace video audio track with user's music using ffmpeg ──

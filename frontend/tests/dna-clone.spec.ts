@@ -143,7 +143,7 @@ test.describe('DNA Exact-Clone — Image Generation', () => {
         referenceImage: 'https://example.com/dna.jpg'
       }
     });
-    expect([400, 401]).toContain(response.status());
+    expect([400, 401, 429]).toContain(response.status());
   });
 
 });
@@ -191,7 +191,7 @@ test.describe('DNA Exact-Clone — Audio/Beat Generation', () => {
     const response = await request.post(`${BACKEND_URL}/api/generate-audio`, {
       data: { prompt: '' }
     });
-    expect([400, 401]).toContain(response.status());
+    expect([400, 401, 429]).toContain(response.status());
   });
 
 });

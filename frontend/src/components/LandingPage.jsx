@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import toast from 'react-hot-toast';
 import { Sparkles, ArrowRight, Zap, Music, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Clock, Headphones, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LogIn, LogOut } from 'lucide-react';
-import { AGENTS } from '../constants';
+import { AGENTS, BACKEND_URL } from '../constants';
 import { auth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
 import { AGENT_WHITEPAPER, DEFAULT_WHITEPAPER } from '../data/agentWhitepapers';
 
@@ -331,14 +331,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   const [accessLoading, setAccessLoading] = useState(false);
   const [accessPending, setAccessPending] = useState(false);
   
-  // Detect local development environment
-  const isLocal = typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port === '5173');
-  
   // Backend API for investor access validation
-  const INVESTOR_API_URL = isLocal 
-    ? 'http://localhost:3001/api/investor-access'
-    : '/api/investor-access';
+  const INVESTOR_API_URL = `${BACKEND_URL}/api/investor-access`;
   
   const handleInvestorAccessSubmit = async () => {
     const email = investorEmail.trim().toLowerCase();

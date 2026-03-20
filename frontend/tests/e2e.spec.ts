@@ -33,8 +33,8 @@ test.describe('Generation Flow - Text Mode', () => {
       const data = await response.json();
       expect(data).toHaveProperty('output');
       expect(data.output.length).toBeGreaterThan(10);
+      console.log(`Generation output: ${data.output.substring(0, 100)}...`);
     }
-    console.log(`Generation output: ${data.output.substring(0, 100)}...`);
   });
 
   test('AMO orchestrator processes multi-agent request', async ({ request }) => {

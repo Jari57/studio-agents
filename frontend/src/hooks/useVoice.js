@@ -79,7 +79,6 @@ export function useVoice(options = {}) {
       
       if (lastResult.isFinal) {
         const transcript = lastResult[0].transcript;
-        console.log('Voice transcript:', transcript);
         
         // Call the callback or the onResult option
         if (callback && typeof callback === 'function') {

@@ -60,6 +60,8 @@ const ProjectHub = React.lazy(() => import('./ProjectHubV3')); // CapCut/Caption
 const NewsHub = React.lazy(() => import('./NewsHub'));
 const AdminAnalytics = React.lazy(() => import('./AdminAnalytics'));
 const GuidedTour = React.lazy(() => import('./GuidedTour'));
+const StudioOnboarding = React.lazy(() => import('./StudioOnboarding'));
+import AchievementBadges, { useBadgeTracker } from './AchievementBadges';
 
 // -------------------------------------------------------------------------------
 // PRODUCTION PIPELINE STAGES - Journey from idea to master
@@ -1313,6 +1315,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       const result = await response.json();
       devLog(`[TRACE:${traceId}] Project saved via API:`, project.id, result);
 
+      // Track project save for badges
+      badgeTracker.trackProjectSave();
+
       // Cancel pending debounced sync to prevent stale bulk sync from overwriting
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
@@ -1809,6 +1814,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [_onboardingStep, setOnboardingStep] = useState(0);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
+  const [showBadges, setShowBadges] = useState(false);
+
+  // Badge/Achievement tracking
+  const badgeTracker = useBadgeTracker(user?.uid);
 
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
   const [showResourceContent, setShowResourceContent] = useState(null); // For Legal & Business docs
@@ -2014,7 +2023,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
   // Check for first visit
   useEffect(() => {
-    const hasSeenOnboarding = localStorage.getItem('studio_onboarding_v3');
+    const hasSeenOnboarding = localStorage.getItem('studio_onboarding_v4');
     if (!hasSeenOnboarding && !startWizard) {
       setShowOnboarding(true);
     }
@@ -2028,7 +2037,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   }, [startTour]);
 
   const completeOnboarding = () => {
-    localStorage.setItem('studio_onboarding_v3', 'true');
+    localStorage.setItem('studio_onboarding_v4', 'true');
     setShowOnboarding(false);
     
     // Go straight to agents tab - no project creation, no complexity
@@ -2037,7 +2046,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   };
 
   const handleSkipOnboarding = () => {
-    localStorage.setItem('studio_onboarding_v3', 'true');
+    localStorage.setItem('studio_onboarding_v4', 'true');
     setShowOnboarding(false);
     setActiveTab('agents');
   };
@@ -5091,6 +5100,9 @@ const fetchUserCredits = useCallback(async (uid) => {
       // Success toast (error cases already returned early above)
       toast.success(`Generation complete! Review your result.`, { id: toastId });
       
+      // Track successful generation for badges
+      badgeTracker.trackGeneration(targetAgentSnapshot.id);
+      
       // Track successful generation
       Analytics.contentGenerated(targetAgentSnapshot.id, newItem.type || 'text');
 
@@ -6186,7 +6198,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     if (selectedAgent && activeTab !== 'agents') {
       const Icon = typeof selectedAgent.icon === 'function' ? selectedAgent.icon : Sparkles;
       return (
-        <div className="agent-active-view animate-fadeInUp" style={{ position: 'relative', paddingBottom: '80px' }}>
+        <div className="agent-active-view animate-fadeInUp" style={{ position: 'relative' }}>
           {/* Onboarding Nudge */}
           {showNudge && selectedAgent.onboarding && (
             <div className="agent-nudge-overlay animate-fadeInDown">
@@ -6373,7 +6385,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         </button>
                         
                         {showVoiceHelp && (
-                          <div className="voice-settings-dropdown animate-fadeInUp" style={{ width: isMobile ? '92vw' : '380px', right: isMobile ? '-60px' : '40px', maxHeight: '70vh', overflowY: 'auto', padding: '16px' }}>
+                          <div className="voice-settings-dropdown animate-fadeInUp" style={{ width: isMobile ? '92vw' : '380px', right: isMobile ? '0' : '40px', maxHeight: '70vh', overflowY: 'auto', padding: '16px' }}>
                             <div style={{ marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                               <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: '700', color: 'white', fontFamily: 'Georgia, serif' }}>Vocal Creation Guide</h4>
                               <p style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>Everything you can do with AI vocals</p>
@@ -7996,7 +8008,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           const Icon = typeof selectedAgent.icon === 'function' ? selectedAgent.icon : Sparkles;
           
           return (
-            <div className="agent-active-view animate-fadeInUp" style={{ position: 'relative', paddingBottom: '80px' }}>
+            <div className="agent-active-view animate-fadeInUp" style={{ position: 'relative' }}>
               {/* Onboarding Nudge */}
               {showNudge && selectedAgent.onboarding && (
                 <div className="agent-nudge-overlay animate-fadeInDown" style={{ marginBottom: '24px' }}>
@@ -9061,7 +9073,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       }
       case 'marketing':
         return (
-          <div className="marketing-view animate-fadeInUp" style={{ paddingBottom: '80px' }}>
+          <div className="marketing-view animate-fadeInUp">
             {/* Hero Section - Pitch content moved from landing page */}
             <div className="marketing-hero" style={{ 
               textAlign: 'center', 
@@ -9324,7 +9336,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         ];
         const socialSubTab = activitySection || 'connections';
         return (
-          <div className="music-hub-view animate-fadeInUp" style={{ paddingBottom: '100px' }}>
+          <div className="music-hub-view animate-fadeInUp">
             {/* Social Media Hub Header */}
             <div className="orchestrator-header" style={{
               background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(6, 182, 212, 0.15) 50%, rgba(236, 72, 153, 0.15) 100%)',
@@ -11126,6 +11138,25 @@ const fetchUserCredits = useCallback(async (uid) => {
             >
               <Sparkles size={20} />
               <span className="desktop-only">Tour</span>
+            </button>
+            <button 
+              className="action-button secondary haptic-press"
+              onClick={() => setShowBadges(true)}
+              title="Achievements"
+              style={{ position: 'relative' }}
+            >
+              <Award size={20} />
+              <span className="desktop-only">Badges</span>
+              {badgeTracker.totalEarned > 0 && (
+                <span style={{
+                  position: 'absolute', top: '-2px', right: '-2px',
+                  minWidth: '16px', height: '16px', borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #f59e0b, #a855f7)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.6rem', fontWeight: 800, color: '#fff',
+                  padding: '0 4px', border: '1px solid var(--card-bg)',
+                }}>{badgeTracker.totalEarned}</span>
+              )}
             </button>
             <button 
               data-tour="header-help"
@@ -14929,80 +14960,28 @@ const fetchUserCredits = useCallback(async (uid) => {
         </div>
       )}
 
-      {/* Onboarding Modal - Simple Welcome */}
+      {/* Onboarding Modal - Multi-step A&R Suite walkthrough */}
       {showOnboarding && (
-        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content onboarding-modal" style={{
-            maxWidth: '500px',
-            width: '90%',
-            position: 'relative'
-          }}>
-            <button
-              onClick={handleSkipOnboarding}
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'white',
-                padding: 0,
-                zIndex: 10
-              }}
-            >
-              <X size={20} />
-            </button>
+        <Suspense fallback={null}>
+          <StudioOnboarding
+            userName={user?.displayName}
+            onComplete={completeOnboarding}
+            onSkip={handleSkipOnboarding}
+            onStartTour={() => setShowGuidedTour(true)}
+            isMobile={window.innerWidth < 768}
+          />
+        </Suspense>
+      )}
 
-            <div className="modal-body" style={{ padding: window.innerWidth < 768 ? '24px' : '40px', textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎧</div>
-              <h2 style={{ fontSize: '1.75rem', marginBottom: '12px' }}>
-                {user?.displayName ? `Welcome, ${user.displayName.split(' ')[0]}!` : onboardingSteps[0].title}
-              </h2>
-              <p style={{ fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '8px', lineHeight: '1.6' }}>
-                {onboardingSteps[0].content}
-              </p>
-              <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                {onboardingSteps[0].detail}
-              </p>
-
-              <button
-                className="cta-button-premium"
-                onClick={completeOnboarding}
-                style={{ width: '100%', padding: '16px', fontSize: '1.1rem', marginTop: '32px' }}
-              >
-                Enter Studio
-              </button>
-              <button
-                onClick={() => { completeOnboarding(); setTimeout(() => setShowGuidedTour(true), 300); }}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  fontSize: '1rem',
-                  marginTop: '12px',
-                  background: 'rgba(168, 85, 247, 0.1)',
-                  border: '1px solid rgba(168, 85, 247, 0.3)',
-                  borderRadius: '14px',
-                  color: 'rgba(168, 85, 247, 0.9)',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                }}
-              >
-                <Sparkles size={16} /> Take a Guided Tour
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Achievement Badges Modal */}
+      {showBadges && (
+        <Suspense fallback={null}>
+          <AchievementBadges
+            earnedBadges={badgeTracker.earnedBadges}
+            onClose={() => setShowBadges(false)}
+            isMobile={window.innerWidth < 768}
+          />
+        </Suspense>
       )}
 
       {/* Project Type Choice Modal - Studio Creation vs AI Pipeline */}
@@ -16948,7 +16927,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         <Suspense fallback={null}>
           <GuidedTour
             active={showGuidedTour}
-            onClose={() => setShowGuidedTour(false)}
+            onClose={() => { setShowGuidedTour(false); badgeTracker.trackTourComplete(); }}
             onNavigate={(tab) => { setActiveTab(tab); setSelectedAgent(null); }}
           />
         </Suspense>
