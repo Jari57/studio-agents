@@ -4399,9 +4399,9 @@ async function generateVocalsInternal(options, logger) {
   const voiceId = voiceIdMap[style] || voiceIdMap['rapper'];
 
   const voiceSettings = {
-    stability: style.includes('rapper') ? 0.45 : 0.55,
-    similarity_boost: 0.95,
-    style: style.includes('rapper') ? 0.75 : 0.45,
+    stability: style.includes('rapper') ? 0.82 : 0.85,
+    similarity_boost: 0.97,
+    style: style.includes('rapper') ? 0.35 : 0.25,
     use_speaker_boost: true
   };
 
@@ -5123,27 +5123,27 @@ Return ONLY valid JSON, no markdown.`;
         }
         if (!truncatedSinging) truncatedSinging = singingPrompt.substring(0, 270);
         const barkSingingPrompt = `\u266A ${truncatedSinging} \u266A`;
-        // Adjust Bark temperature based on reference analysis
-        let barkTextTemp = 0.7;
-        let barkWaveformTemp = 0.7;
+        // Bark singing temps — LOCKED LOW for consistent cadence
+        let barkTextTemp = 0.45;
+        let barkWaveformTemp = 0.45;
         if (refSongAnalysis) {
           const energy = parseInt(refSongAnalysis.energy) || 5;
           const warmth = parseInt(refSongAnalysis.warmth) || 5;
           if (speakerUrl) {
             // DNA EXACT-CLONE: Minimize variation for faithful voice reproduction
-            barkTextTemp = Math.max(0.3, Math.min(0.5, 0.35 + (energy * 0.015)));
-            barkWaveformTemp = Math.max(0.3, Math.min(0.5, 0.45 - (warmth * 0.015)));
+            barkTextTemp = Math.max(0.25, Math.min(0.40, 0.28 + (energy * 0.012)));
+            barkWaveformTemp = Math.max(0.25, Math.min(0.40, 0.35 - (warmth * 0.01)));
             logger.info('🧬 Bark DNA exact-clone temps', { barkTextTemp, barkWaveformTemp });
           } else {
-            // Higher energy = more variation; warmer tone = lower waveform temp
-            barkTextTemp = Math.max(0.4, Math.min(0.9, 0.5 + (energy * 0.04)));
-            barkWaveformTemp = Math.max(0.4, Math.min(0.9, 0.8 - (warmth * 0.03)));
+            // Reference tuning but still tight — consistency > expressiveness
+            barkTextTemp = Math.max(0.35, Math.min(0.55, 0.38 + (energy * 0.017)));
+            barkWaveformTemp = Math.max(0.35, Math.min(0.55, 0.50 - (warmth * 0.015)));
             logger.info('🎵 Bark temps tuned from reference', { barkTextTemp, barkWaveformTemp });
           }
         } else if (speakerUrl) {
           // DNA without reference analysis: lock down temperatures for exact clone
-          barkTextTemp = 0.35;
-          barkWaveformTemp = 0.35;
+          barkTextTemp = 0.28;
+          barkWaveformTemp = 0.28;
           logger.info('🧬 Bark DNA exact-clone mode (no ref analysis)', { barkTextTemp, barkWaveformTemp });
         }
         const response = await fetch('https://api.replicate.com/v1/predictions', {
@@ -5252,17 +5252,17 @@ Return ONLY valid JSON, no markdown.`;
           const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
           const cloneVoiceSettings = {
-            stability: 0.85,
+            stability: 0.90,
             similarity_boost: 1.0,
-            style: 0.85,
+            style: 0.45,
             use_speaker_boost: true
           };
 
           if (refSongAnalysis) {
             const energy = parseInt(refSongAnalysis.energy) || 5;
             const warmth = parseInt(refSongAnalysis.warmth) || 5;
-            cloneVoiceSettings.stability = Math.max(0.82, Math.min(0.92, 0.83 + (warmth * 0.009)));
-            cloneVoiceSettings.style = Math.max(0.80, Math.min(0.95, 0.82 + (energy * 0.013)));
+            cloneVoiceSettings.stability = Math.max(0.87, Math.min(0.94, 0.88 + (warmth * 0.006)));
+            cloneVoiceSettings.style = Math.max(0.30, Math.min(0.55, 0.35 + (energy * 0.02)));
           }
 
           const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${persistedCloneId}?output_format=mp3_44100_192`, {
@@ -5365,17 +5365,17 @@ Return ONLY valid JSON, no markdown.`;
             const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
             const cloneVoiceSettings = {
-              stability: 0.85,
+              stability: 0.90,
               similarity_boost: 1.0,
-              style: 0.85,
+              style: 0.45,
               use_speaker_boost: true
             };
 
             if (refSongAnalysis) {
               const energy = parseInt(refSongAnalysis.energy) || 5;
               const warmth = parseInt(refSongAnalysis.warmth) || 5;
-              cloneVoiceSettings.stability = Math.max(0.82, Math.min(0.92, 0.83 + (warmth * 0.009)));
-              cloneVoiceSettings.style = Math.max(0.80, Math.min(0.95, 0.82 + (energy * 0.013)));
+              cloneVoiceSettings.stability = Math.max(0.87, Math.min(0.94, 0.88 + (warmth * 0.006)));
+              cloneVoiceSettings.style = Math.max(0.30, Math.min(0.55, 0.35 + (energy * 0.02)));
             }
 
             const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${clonedVoiceId}?output_format=mp3_44100_192`, {
@@ -5441,7 +5441,7 @@ Return ONLY valid JSON, no markdown.`;
                 speaker: targetSpeaker,
                 cleanup_voice: true,
                 speed: 1.0,
-                temperature: 0.35
+                temperature: 0.25
               }
             })
           });
@@ -5633,27 +5633,22 @@ Return ONLY valid JSON, no markdown.`;
         // ── BILLBOARD-GRADE VOICE SETTINGS ──
         // When voice DNA (cloned voice or speakerUrl) is active, maximize fidelity
         // TIGHT settings = consistent voice identity + cadence across regenerations
+        // ── AGGRESSIVE CONSISTENCY: Lock voice identity tight ──
         const hasDnaVoice = !!(speakerUrl || req.body.elevenLabsVoiceId);
         const voiceSettings = {
-          stability: hasDnaVoice ? 0.88 : (style.includes('rapper') ? 0.75 : 0.78),       // High stability = same voice + cadence every time
-          similarity_boost: hasDnaVoice ? 1.0 : 0.95,                                      // High similarity = locked voice character
-          style: hasDnaVoice ? 0.92 : (style.includes('rapper') ? 0.55 : 0.40),            // Lower style = less delivery randomness
+          stability: hasDnaVoice ? 0.92 : (style.includes('rapper') ? 0.82 : 0.85),       // HIGH stability = identical cadence every generation
+          similarity_boost: hasDnaVoice ? 1.0 : 0.97,                                      // Near-max similarity = locked voice character
+          style: hasDnaVoice ? 0.45 : (style.includes('rapper') ? 0.35 : 0.25),            // LOW style = minimal delivery randomness
           use_speaker_boost: true
         };
 
-        // Output format specializations
+        // Output format: NEVER loosen stability, only reduce style for non-music
         if (outputFormat === 'tv') {
-          voiceSettings.stability = 0.75;
-          voiceSettings.style = 0.30;
-        } else if (outputFormat === 'podcast') {
-          voiceSettings.stability = 0.80;
-          voiceSettings.similarity_boost = 0.95;
           voiceSettings.style = 0.20;
-        } else if (outputFormat === 'music') {
-          // Music: keep stability HIGH for consistent voice, allow modest expressiveness
-          voiceSettings.style = Math.min(voiceSettings.style + 0.05, 0.65);
-          // Do NOT reduce stability for music — consistency > expressiveness
+        } else if (outputFormat === 'podcast') {
+          voiceSettings.style = 0.15;
         }
+        // Music format: settings stay as-is — already optimized for consistency
 
         // ── REFERENCE SONG VOICE TUNING ──
         // If reference analysis exists, tune ElevenLabs settings to match the reference's characteristics
@@ -5664,15 +5659,15 @@ Return ONLY valid JSON, no markdown.`;
           const depth = parseInt(refSongAnalysis.depth) || 5;
 
           if (hasDnaVoice) {
-            // DNA EXACT-CLONE: Reference tunes delivery but voice identity stays locked
-            voiceSettings.stability = Math.max(0.83, Math.min(0.92, 0.85 + (warmth * 0.007)));
-            voiceSettings.style = Math.max(0.82, Math.min(0.95, 0.84 + (energy * 0.011)));
-            voiceSettings.similarity_boost = Math.max(0.98, Math.min(1.0, 0.98 + (depth * 0.002)));
+            // DNA EXACT-CLONE: Minimal tuning — voice identity LOCKED
+            voiceSettings.stability = Math.max(0.88, Math.min(0.95, 0.90 + (warmth * 0.005)));
+            voiceSettings.style = Math.max(0.30, Math.min(0.50, 0.35 + (energy * 0.015)));
+            voiceSettings.similarity_boost = Math.max(0.99, Math.min(1.0, 0.99 + (depth * 0.001)));
           } else {
-            // No DNA: reference tuning but keep stability HIGH for consistency
-            voiceSettings.stability = Math.max(0.65, Math.min(0.85, 0.68 + (warmth * 0.017)));
-            voiceSettings.style = Math.max(0.25, Math.min(0.65, 0.30 + (energy * 0.035)));
-            voiceSettings.similarity_boost = Math.max(0.88, Math.min(0.98, 0.90 + (depth * 0.008)));
+            // No DNA: reference tuning but TIGHT — stability never below 0.78
+            voiceSettings.stability = Math.max(0.78, Math.min(0.90, 0.80 + (warmth * 0.01)));
+            voiceSettings.style = Math.max(0.20, Math.min(0.45, 0.22 + (energy * 0.023)));
+            voiceSettings.similarity_boost = Math.max(0.93, Math.min(0.99, 0.94 + (depth * 0.005)));
           }
 
           // Prepend vocal direction to the processed prompt for delivery guidance
@@ -5798,8 +5793,8 @@ Return ONLY valid JSON, no markdown.`;
             version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
             input: {
               prompt: barkPrompt,
-              text_temp: 0.7,
-              waveform_temp: 0.7,
+              text_temp: 0.45,
+              waveform_temp: 0.45,
               history_prompt: speakerHistory
             }
           })
