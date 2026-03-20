@@ -1509,24 +1509,26 @@ function ProductionControlHub({
         </div>
       )}
 
-      {/* ── MIXING CONSOLE ── appears when beat or vocals are ready */}
-      {(hasBeat || hasVocalMedia) && (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(0,0,0,0.6), rgba(20,20,35,0.6))',
-          borderRadius: '16px',
-          padding: isMobile ? '16px' : '24px',
-          border: '1px solid rgba(99, 102, 241, 0.25)',
-          marginBottom: '24px',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.3)'
-        }}>
-          {/* Mixing Header with Instructions */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-            <div>
-              <h4 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: '700', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                🎛️ Mixing Console
-              </h4>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.5', maxWidth: '500px' }}>
-                {hasBeat && hasVocalMedia 
+      {/* ── MIXING CONSOLE ── always visible with guidance */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(0,0,0,0.6), rgba(20,20,35,0.6))',
+        borderRadius: '16px',
+        padding: isMobile ? '16px' : '24px',
+        border: `1px solid ${(hasBeat || hasVocalMedia) ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255,255,255,0.08)'}`,
+        marginBottom: '24px',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+        opacity: (hasBeat || hasVocalMedia) ? 1 : 0.7
+      }}>
+        {/* Mixing Header with Instructions */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+          <div>
+            <h4 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: '700', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              🎛️ Mixing Console
+            </h4>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.5', maxWidth: '500px' }}>
+              {!hasBeat && !hasVocalMedia
+                ? 'Generate a beat and vocals above to unlock the mixing console. Your tracks will be combined and mastered here.'
+                : hasBeat && hasVocalMedia 
                   ? 'Choose a preset → adjust the sliders → hit "Create Mix" to combine your beat and vocals into a mastered track.'
                   : hasBeat 
                     ? 'Beat audio is ready. Generate vocals to unlock mixing, or create a mix with beat-only.'
@@ -1726,91 +1728,113 @@ function ProductionControlHub({
               )}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── VIDEO SYNC SECTION ── */}
-      {isSyncAvailable && (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.06), rgba(236, 72, 153, 0.02))',
-          borderRadius: '14px',
-          padding: '16px 20px',
-          border: '1px solid rgba(236, 72, 153, 0.2)',
-          marginBottom: '16px',
-          display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
-          alignItems: isMobile ? 'stretch' : 'center',
-          justifyContent: 'space-between',
-          gap: '12px'
-        }}>
-          <div>
-            <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#f472b6', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              🎬 Music Video Sync
-              {isSyncComplete && <CheckCircle2 size={14} color="#22c55e" />}
-            </div>
-            <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.4' }}>
-              {isSyncComplete 
-                ? 'Your video is synced with your audio. You can re-sync if you updated the mix.'
-                : 'Combine your album art or generated video with your mixed audio into a shareable music video.'}
+        {/* Empty state when no audio */}
+        {!hasBeat && !hasVocalMedia && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '24px 16px',
+            gap: '12px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '2rem', opacity: 0.4 }}>🎚️</div>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', maxWidth: '400px', lineHeight: '1.5' }}>
+              Generate a beat and vocals from the cards above, then come back here to mix, master, and export your professional track.
             </p>
           </div>
-          <button
-            onClick={handleGenerateProfessionalMusicVideo}
-            disabled={generatingMusicVideo}
-            style={{
-              padding: '12px 24px',
-              borderRadius: '12px',
-              background: isSyncComplete ? 'rgba(34, 197, 94, 0.1)' : 'rgba(236, 72, 153, 0.15)',
-              border: `1px solid ${isSyncComplete ? 'rgba(34, 197, 94, 0.3)' : 'rgba(236, 72, 153, 0.3)'}`,
-              color: isSyncComplete ? '#4ade80' : '#f472b6',
-              fontWeight: '700',
-              fontSize: '0.85rem',
-              cursor: generatingMusicVideo ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              whiteSpace: 'nowrap',
-              minHeight: '44px'
-            }}
-          >
-            {generatingMusicVideo ? (
-              <><RefreshCw size={16} className="spin" /> Syncing...</>
-            ) : isSyncComplete ? (
-              <><VideoIcon size={16} /> Re-Sync Video</>
-            ) : (
-              <><VideoIcon size={16} /> Create Music Video</>
-            )}
-          </button>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* ── DISTRIBUTE & GO VIRAL ── */}
-      {(finalMixPreview || mediaUrls.mixedAudio) && (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.06), rgba(234, 88, 12, 0.02))',
-          borderRadius: '14px',
-          padding: '16px 20px',
-          border: '1px solid rgba(249, 115, 22, 0.2)',
-          marginBottom: '16px'
-        }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+      {/* ── VIDEO SYNC SECTION ── always visible */}
+      <div style={{
+        background: isSyncAvailable 
+          ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.06), rgba(236, 72, 153, 0.02))'
+          : 'rgba(20, 20, 30, 0.4)',
+        borderRadius: '14px',
+        padding: '16px 20px',
+        border: `1px solid ${isSyncAvailable ? 'rgba(236, 72, 153, 0.2)' : 'rgba(255,255,255,0.06)'}`,
+        marginBottom: '16px',
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        opacity: isSyncAvailable ? 1 : 0.6
+      }}>
+        <div>
+          <div style={{ fontSize: '0.9rem', fontWeight: '700', color: isSyncAvailable ? '#f472b6' : 'rgba(255,255,255,0.4)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            🎬 Music Video Sync
+            {isSyncComplete && <CheckCircle2 size={14} color="#22c55e" />}
+          </div>
+          <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.4' }}>
+            {!isSyncAvailable
+              ? `Need a beat${!hasBeat ? '' : ' ✓'} + image or video${!(hasVideo || hasVisual || !!outputs?.video) ? '' : ' ✓'} to create a music video.`
+              : isSyncComplete 
+                ? 'Your video is synced with your audio. You can re-sync if you updated the mix.'
+                : 'Combine your album art or generated video with your mixed audio into a shareable music video.'}
+          </p>
+        </div>
+        <button
+          onClick={isSyncAvailable ? handleGenerateProfessionalMusicVideo : () => toast('Generate a beat and image/video first to create a music video', { icon: '🎬' })}
+          disabled={generatingMusicVideo || !isSyncAvailable}
+          style={{
+            padding: '12px 24px',
+            borderRadius: '12px',
+            background: !isSyncAvailable ? 'rgba(255,255,255,0.04)' : isSyncComplete ? 'rgba(34, 197, 94, 0.1)' : 'rgba(236, 72, 153, 0.15)',
+            border: `1px solid ${!isSyncAvailable ? 'rgba(255,255,255,0.1)' : isSyncComplete ? 'rgba(34, 197, 94, 0.3)' : 'rgba(236, 72, 153, 0.3)'}`,
+            color: !isSyncAvailable ? 'rgba(255,255,255,0.3)' : isSyncComplete ? '#4ade80' : '#f472b6',
+            fontWeight: '700',
+            fontSize: '0.85rem',
+            cursor: (generatingMusicVideo || !isSyncAvailable) ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            whiteSpace: 'nowrap',
+            minHeight: '44px'
+          }}
+        >
+          {generatingMusicVideo ? (
+            <><RefreshCw size={16} className="spin" /> Syncing...</>
+          ) : isSyncComplete ? (
+            <><VideoIcon size={16} /> Re-Sync Video</>
+          ) : (
+            <><VideoIcon size={16} /> Create Music Video</>
+          )}
+        </button>
+      </div>
+
+      {/* ── DISTRIBUTE & GO VIRAL ── always visible */}
+      <div style={{
+        background: (finalMixPreview || mediaUrls.mixedAudio) 
+          ? 'linear-gradient(135deg, rgba(249, 115, 22, 0.06), rgba(234, 88, 12, 0.02))'
+          : 'rgba(20, 20, 30, 0.4)',
+        borderRadius: '14px',
+        padding: '16px 20px',
+        border: `1px solid ${(finalMixPreview || mediaUrls.mixedAudio) ? 'rgba(249, 115, 22, 0.2)' : 'rgba(255,255,255,0.06)'}`,
+        marginBottom: '16px',
+        opacity: (finalMixPreview || mediaUrls.mixedAudio) ? 1 : 0.6
+      }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Globe size={13} /> Share & Distribute
           </div>
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
             {/* SoundCloud */}
             <button
-              onClick={handleDistributeToSoundCloud}
-              disabled={!!distributing}
+              onClick={(finalMixPreview || mediaUrls.mixedAudio) ? handleDistributeToSoundCloud : () => toast('Create a final mix first before distributing', { icon: '🎚️' })}
+              disabled={!!distributing || !(finalMixPreview || mediaUrls.mixedAudio)}
               style={{
                 padding: '12px 20px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, #ff5500, #ff7700)',
-                border: 'none',
-                color: 'white',
+                background: (finalMixPreview || mediaUrls.mixedAudio) ? 'linear-gradient(135deg, #ff5500, #ff7700)' : 'rgba(255,255,255,0.04)',
+                border: (finalMixPreview || mediaUrls.mixedAudio) ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                color: (finalMixPreview || mediaUrls.mixedAudio) ? 'white' : 'rgba(255,255,255,0.3)',
                 fontWeight: '700',
                 fontSize: '0.85rem',
-                cursor: distributing ? 'not-allowed' : 'pointer',
+                cursor: (distributing || !(finalMixPreview || mediaUrls.mixedAudio)) ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
@@ -1830,17 +1854,17 @@ function ProductionControlHub({
 
             {/* Share Link */}
             <button
-              onClick={handleCreateShareLink}
-              disabled={!!distributing}
+              onClick={(finalMixPreview || mediaUrls.mixedAudio) ? handleCreateShareLink : () => toast('Create a final mix first', { icon: '🎚️' })}
+              disabled={!!distributing || !(finalMixPreview || mediaUrls.mixedAudio)}
               style={{
                 padding: '12px 20px',
                 borderRadius: '12px',
-                background: 'rgba(99, 102, 241, 0.15)',
-                border: '1px solid rgba(99, 102, 241, 0.3)',
-                color: '#818cf8',
+                background: (finalMixPreview || mediaUrls.mixedAudio) ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${(finalMixPreview || mediaUrls.mixedAudio) ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.1)'}`,
+                color: (finalMixPreview || mediaUrls.mixedAudio) ? '#818cf8' : 'rgba(255,255,255,0.3)',
                 fontWeight: '700',
                 fontSize: '0.85rem',
-                cursor: distributing ? 'not-allowed' : 'pointer',
+                cursor: (distributing || !(finalMixPreview || mediaUrls.mixedAudio)) ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
@@ -1966,8 +1990,13 @@ function ProductionControlHub({
               <ExternalLink size={14} /> View on SoundCloud →
             </a>
           )}
+          {/* No mix guidance */}
+          {!(finalMixPreview || mediaUrls.mixedAudio) && (
+            <div style={{ textAlign: 'center', padding: '8px', color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>
+              Create a final mix above to unlock distribution
+            </div>
+          )}
         </div>
-      )}
 
       {/* Mini Progress Bar in footer */}
       {!allComplete && (
@@ -7017,11 +7046,40 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     outline: 'none'
                   }}
                 >
-                  <optgroup label="🎶 Genre">
+                  <optgroup label="🎶 Popular">
                     <option value="r&b">💜 R&B / Soul</option>
                     <option value="pop">🌟 Pop</option>
                     <option value="hip-hop">🔥 Hip-Hop</option>
                     <option value="soul">🎷 Gospel/Soul</option>
+                    <option value="country">🤠 Country</option>
+                    <option value="rock">🎸 Rock</option>
+                    <option value="indie">🌿 Indie</option>
+                    <option value="acoustic">🎶 Acoustic</option>
+                  </optgroup>
+                  <optgroup label="🌍 World & Latin">
+                    <option value="afrobeat">🥁 Afrobeat</option>
+                    <option value="amapiano">🇿🇦 Amapiano</option>
+                    <option value="reggae">🟢 Reggae</option>
+                    <option value="dancehall">🔊 Dancehall</option>
+                    <option value="reggaeton">💃 Reggaeton</option>
+                    <option value="latin-trap">🌴 Latin Trap</option>
+                    <option value="bollywood">🎬 Bollywood</option>
+                    <option value="k-pop">🇰🇷 K-Pop</option>
+                    <option value="j-pop">🇯🇵 J-Pop</option>
+                  </optgroup>
+                  <optgroup label="🎹 Electronic & Dance">
+                    <option value="electronic">⚡ Electronic / EDM</option>
+                    <option value="disco">🪩 Disco</option>
+                    <option value="funk">🕺 Funk</option>
+                  </optgroup>
+                  <optgroup label="🎵 Classic & Jazz">
+                    <option value="jazz">🎺 Jazz</option>
+                    <option value="gospel">⛪ Gospel</option>
+                    <option value="classical">🎻 Classical</option>
+                  </optgroup>
+                  <optgroup label="🤘 Heavy">
+                    <option value="metal">🤘 Metal</option>
+                    <option value="punk">💀 Punk</option>
                   </optgroup>
                 </select>
               )}
