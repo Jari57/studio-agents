@@ -5070,6 +5070,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
   // EXPORT ALL â€” Download complete project as ZIP bundle
   // Includes: master mix, beat, vocals, cover art, video, lyrics, metadata
   // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // CRC-32 for ZIP integrity (required by ZIP spec)
+  const _crc32 = (data) => {
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < data.length; i++) {
+      crc ^= data[i];
+      for (let j = 0; j < 8; j++) crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  };
+
   const handleExportAll = async () => {
     const assets = [];
     const baseName = (songIdea || 'project').replace(/[^a-zA-Z0-9 _-]/g, '').substring(0, 50);
@@ -5159,7 +5169,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         view.setUint16(8, 0, true);            // Compression: stored (no compression)
         view.setUint16(10, 0, true);           // Mod time
         view.setUint16(12, 0, true);           // Mod date
-        view.setUint32(14, 0, true);           // CRC-32 (0 for stored)
+        view.setUint32(14, _crc32(fileData), true); // CRC-32 (RFC 1952)
         view.setUint32(18, fileData.length, true); // Compressed size
         view.setUint32(22, fileData.length, true); // Uncompressed size
         view.setUint16(26, nameBytes.length, true); // File name length
@@ -5179,7 +5189,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         cdView.setUint16(10, 0, true);           // Compression
         cdView.setUint16(12, 0, true);           // Mod time
         cdView.setUint16(14, 0, true);           // Mod date
-        cdView.setUint32(16, 0, true);           // CRC-32
+        cdView.setUint32(16, _crc32(fileData), true);  // CRC-32
         cdView.setUint32(20, fileData.length, true);
         cdView.setUint32(24, fileData.length, true);
         cdView.setUint16(28, nameBytes.length, true);
@@ -5226,6 +5236,40 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
   // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // DISTRIBUTION â€” Push to SoundCloud & generate share links
   // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  const handleDownloadStemsPack = async () => {
+    const beatUrl = mediaUrls.audio;
+    const vocalsUrl = mediaUrls.vocals || mediaUrls.lyricsVocal;
+    const masterUrl = mediaUrls.mixedAudio || finalMixPreview?.mixedAudioUrl;
+    if (!beatUrl && !vocalsUrl && !masterUrl) {
+      toast.error('Generate a beat, vocals, or mix first', { id: 'stems-pack' });
+      return;
+    }
+    toast.loading('Preparing WAV stems for DAW import...', { id: 'stems-pack' });
+    try {
+      const headers = await getHeaders();
+      const projectName = (songIdea || 'Studio Project').replace(/[^a-zA-Z0-9 _-]/g, '').substring(0, 50);
+      const response = await fetch(BACKEND_URL + '/api/export-stems-zip', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ beatUrl, vocalsUrl, masterUrl, projectName, bpm: projectBpm })
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || ('Server error ' + response.status));
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = projectName + ' - Stems Pack.zip';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Stems Pack ready - import into Pro Tools, Logic, or Ableton', { id: 'stems-pack', duration: 6000 });
+    } catch (err) {
+      devWarn('[StemsPack] Error:', err.message);
+      toast.error('Stems export failed: ' + err.message, { id: 'stems-pack' });
+    }
+  };
 
   const handleDistributeToSoundCloud = async () => {
     const mixUrl = mediaUrls.mixedAudio || finalMixPreview?.mixedAudioUrl;
@@ -7928,6 +7972,27 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             >
               <Download size={16} />
               Export All (.zip)
+            </button>
+
+            <button
+              onClick={handleDownloadStemsPack}
+              style={{
+                padding: '12px 20px',
+                borderRadius: '12px',
+                background: 'rgba(139,92,246,0.12)',
+                border: '1px solid rgba(139,92,246,0.35)',
+                color: '#c4b5fd',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '0.9rem'
+              }}
+              title="Convert all audio to 24-bit WAV and download as a ZIP for Pro Tools, Logic, Ableton"
+            >
+              <Download size={16} />
+              Stems Pack (WAV)
             </button>
             
             <button

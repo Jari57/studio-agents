@@ -8248,8 +8248,40 @@ app.post('/api/master-audio', verifyFirebaseToken, requireAuth, generationLimite
     }
 
     // Decode base64 audio
-    const audioBuffer = Buffer.from(audioBase64, 'base64');
-    
+    let audioBuffer = Buffer.from(audioBase64, 'base64');
+
+    // Detect MP3 input (ID3 tag 0x494433, or MPEG sync 0xFFEx/0xFFEx)
+    const isMp3Input = (audioBuffer[0] === 0x49 && audioBuffer[1] === 0x44 && audioBuffer[2] === 0x33) ||
+                       (audioBuffer[0] === 0xFF && (audioBuffer[1] & 0xE0) === 0xE0);
+
+    if (isMp3Input) {
+      logger.info('Detected MP3 input for mastering — converting to WAV via ffmpeg');
+      const os = require('os');
+      const ffmpegStatic = require('ffmpeg-static');
+      const ffmpegLib = require('fluent-ffmpeg');
+      ffmpegLib.setFfmpegPath(ffmpegStatic);
+      const tmpMp3 = path.join(os.tmpdir(), `master_in_${Date.now()}.mp3`);
+      const tmpWav = path.join(os.tmpdir(), `master_wav_${Date.now()}.wav`);
+      try {
+        fs.writeFileSync(tmpMp3, audioBuffer);
+        await new Promise((resolve, reject) => {
+          ffmpegLib(tmpMp3)
+            .audioCodec('pcm_s16le')
+            .audioFrequency(44100)
+            .audioChannels(2)
+            .format('wav')
+            .on('end', resolve)
+            .on('error', reject)
+            .save(tmpWav);
+        });
+        audioBuffer = fs.readFileSync(tmpWav);
+        logger.info('MP3 → WAV conversion complete for mastering');
+      } finally {
+        try { fs.unlinkSync(tmpMp3); } catch {}
+        try { if (fs.existsSync(tmpWav)) fs.unlinkSync(tmpWav); } catch {}
+      }
+    }
+
     // Load WAV file
     const wav = new WaveFile(audioBuffer);
     
@@ -8351,6 +8383,167 @@ app.post('/api/master-audio', verifyFirebaseToken, requireAuth, generationLimite
   } catch (error) {
     logger.error('Audio mastering error', { error: error.message });
     res.status(500).json({ error: 'Audio mastering failed', details: safeErrorDetail(error) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// STEMS ZIP EXPORT - DAW-Ready WAV Pack Download
+// Downloads beat + vocals + master mix, converts all to 24-bit WAV,
+// bundles into a standards-compliant ZIP for Pro Tools / Logic / Ableton
+// ═══════════════════════════════════════════════════════════════════
+
+// CRC-32 for ZIP integrity (RFC 1952)
+function _crc32(buf) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) {
+    crc ^= buf[i];
+    for (let j = 0; j < 8; j++) crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function _buildZip(files) {
+  // files: [{ name: string, data: Buffer }]
+  const parts = [];
+  const cds = [];
+  let offset = 0;
+  const now = new Date();
+  const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2);
+
+  for (const { name, data } of files) {
+    const nameBytes = Buffer.from(name, 'utf8');
+    const crc = _crc32(data);
+
+    const lh = Buffer.alloc(30 + nameBytes.length);
+    lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4);
+    lh.writeUInt16LE(0, 6);           lh.writeUInt16LE(0, 8); // stored
+    lh.writeUInt16LE(dosTime, 10);    lh.writeUInt16LE(dosDate, 12);
+    lh.writeUInt32LE(crc, 14);        lh.writeUInt32LE(data.length, 18);
+    lh.writeUInt32LE(data.length, 22); lh.writeUInt16LE(nameBytes.length, 26);
+    lh.writeUInt16LE(0, 28);          nameBytes.copy(lh, 30);
+    parts.push(lh, data);
+
+    const cd = Buffer.alloc(46 + nameBytes.length);
+    cd.writeUInt32LE(0x02014b50, 0);  cd.writeUInt16LE(20, 4);
+    cd.writeUInt16LE(20, 6);          cd.writeUInt16LE(0, 8);
+    cd.writeUInt16LE(0, 10);          cd.writeUInt16LE(dosTime, 12);
+    cd.writeUInt16LE(dosDate, 14);    cd.writeUInt32LE(crc, 16);
+    cd.writeUInt32LE(data.length, 20); cd.writeUInt32LE(data.length, 24);
+    cd.writeUInt16LE(nameBytes.length, 28); cd.writeUInt16LE(0, 30);
+    cd.writeUInt16LE(0, 32);          cd.writeUInt16LE(0, 34);
+    cd.writeUInt16LE(0, 36);          cd.writeUInt32LE(0, 38);
+    cd.writeUInt32LE(offset, 42);     nameBytes.copy(cd, 46);
+    cds.push(cd);
+    offset += lh.length + data.length;
+  }
+
+  const cdBuf = Buffer.concat(cds);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0); eocd.writeUInt16LE(0, 4);
+  eocd.writeUInt16LE(0, 6);          eocd.writeUInt16LE(files.length, 8);
+  eocd.writeUInt16LE(files.length, 10); eocd.writeUInt32LE(cdBuf.length, 12);
+  eocd.writeUInt32LE(offset, 16);    eocd.writeUInt16LE(0, 20);
+  return Buffer.concat([...parts, cdBuf, eocd]);
+}
+
+app.post('/api/export-stems-zip', verifyFirebaseToken, requireAuth, generationLimiter, async (req, res) => {
+  const { beatUrl, vocalsUrl, masterUrl, projectName = 'Studio Project', bpm = 90 } = req.body;
+
+  const stemDefs = [
+    { url: masterUrl, label: 'Master Mix' },
+    { url: beatUrl,   label: 'Beat (Instrumental)' },
+    { url: vocalsUrl, label: 'Vocals (Dry)' }
+  ].filter(s => s.url);
+
+  if (stemDefs.length === 0) {
+    return res.status(400).json({ error: 'Provide at least one of: beatUrl, vocalsUrl, masterUrl' });
+  }
+
+  const os = require('os');
+  const ffmpegStatic = require('ffmpeg-static');
+  const ffmpegLib = require('fluent-ffmpeg');
+  ffmpegLib.setFfmpegPath(ffmpegStatic);
+
+  const tmpDir = path.join(os.tmpdir(), `stems_${Date.now()}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+
+  const cleanup = () => {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+  };
+
+  try {
+    const zipFiles = [];
+    const safe = (s) => s.replace(/[^a-zA-Z0-9 ._-]/g, '_').substring(0, 60);
+
+    for (const stem of stemDefs) {
+      try {
+        const response = await fetchWithTimeout(stem.url, {}, 30000);
+        if (!response.ok) { logger.warn(`Stem fetch failed: ${stem.label}`, { status: response.status }); continue; }
+        const buf = Buffer.from(await response.arrayBuffer());
+
+        const inPath  = path.join(tmpDir, `in_${Date.now()}.tmp`);
+        const outName = `${safe(projectName)} - ${stem.label}.wav`;
+        const outPath = path.join(tmpDir, outName);
+        fs.writeFileSync(inPath, buf);
+
+        await new Promise((resolve, reject) => {
+          ffmpegLib(inPath)
+            .audioCodec('pcm_s24le')
+            .audioFrequency(44100)
+            .audioChannels(2)
+            .format('wav')
+            .on('end', resolve)
+            .on('error', reject)
+            .save(outPath);
+        });
+        try { fs.unlinkSync(inPath); } catch {}
+
+        zipFiles.push({ name: outName, data: fs.readFileSync(outPath) });
+        logger.info(`✅ Stem converted: ${stem.label}`);
+      } catch (stemErr) {
+        logger.warn(`Stem conversion failed: ${stem.label}`, { error: stemErr.message });
+      }
+    }
+
+    if (zipFiles.length === 0) {
+      return res.status(422).json({ error: 'All stem conversions failed — check that audio URLs are accessible' });
+    }
+
+    // README with DAW import instructions
+    const readme = [
+      `Project: ${projectName}`,
+      `BPM: ${bpm}`,
+      `Exported: ${new Date().toISOString()}`,
+      ``,
+      `Files (24-bit PCM WAV, 44.1 kHz stereo):`,
+      ...zipFiles.map(f => `  - ${f.name}`),
+      ``,
+      `DAW Import:`,
+      `  Pro Tools  — File > Import > Audio, select all .wav files`,
+      `  Logic Pro  — File > Import > Audio File, or drag into timeline`,
+      `  Ableton    — Drag .wav files into Session or Arrangement view`,
+      `  GarageBand — Drag onto an empty track`,
+      `  FL Studio  — Drag into the Channel Rack or Playlist`,
+      ``,
+      `All stems are sync-aligned from bar 1. Set your DAW BPM to ${bpm}.`,
+    ].join('\n');
+    zipFiles.push({ name: 'README.txt', data: Buffer.from(readme, 'utf8') });
+
+    const zipBuf = _buildZip(zipFiles);
+    const zipName = `${safe(projectName)} - Stems Pack.zip`;
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+    res.setHeader('Content-Length', zipBuf.length);
+    res.send(zipBuf);
+
+    logger.info('✅ Stems ZIP exported', { files: zipFiles.length, bytes: zipBuf.length });
+  } catch (err) {
+    logger.error('Stems ZIP export error', { error: err.message });
+    res.status(500).json({ error: 'Stems export failed', details: safeErrorDetail(err) });
+  } finally {
+    cleanup();
   }
 });
 
