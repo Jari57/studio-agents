@@ -17,6 +17,17 @@ const EXPRESSION_PRESETS = [
   { id: 'hype', label: 'Hype', desc: 'High-energy, ad-lib heavy', icon: '⚡' },
 ];
 
+const VOCAL_POLISH_PRESETS = [
+  { id: 'trap-hard', label: '🔥 Trap Hard', desc: 'Aggressive, deep, punchy delivery', voice: 'rapper', rap: 'aggressive', pitch: -2, speed: 1.0, vibrato: 0, expr: 'aggressive' },
+  { id: 'melodic-rap', label: '🎶 Melodic Rap', desc: 'Sing-rap hybrid, smooth autotune feel', voice: 'rapper-melodic', rap: 'melodic', pitch: 2, speed: 0.9, vibrato: 30, expr: 'passionate' },
+  { id: 'drill-energy', label: '💀 Drill', desc: 'Sliding hi-hats, dark energy', voice: 'rapper-young', rap: 'aggressive', pitch: -1, speed: 1.1, vibrato: 0, expr: 'hype' },
+  { id: 'rnb-smooth', label: '💜 R&B Smooth', desc: 'Warm, soulful vocal tone', voice: 'singer', rap: 'melodic', pitch: 0, speed: 0.9, vibrato: 40, expr: 'gentle' },
+  { id: 'pop-clean', label: '✨ Pop Clean', desc: 'Bright, radio-ready clarity', voice: 'singer-pop', rap: 'melodic', pitch: 1, speed: 1.0, vibrato: 20, expr: 'neutral' },
+  { id: 'hype-anthem', label: '⚡ Hype Anthem', desc: 'Festival energy, big crowd feel', voice: 'rapper', rap: 'aggressive', pitch: 0, speed: 1.2, vibrato: 10, expr: 'hype' },
+  { id: 'lo-fi-chill', label: '🌊 Lo-Fi Chill', desc: 'Relaxed, warm, nostalgic', voice: 'singer', rap: 'laid-back', pitch: -1, speed: 0.8, vibrato: 25, expr: 'melancholic' },
+  { id: 'spoken-word', label: '🎙️ Spoken Word', desc: 'Poetic, intimate narration', voice: 'narrator', rap: 'storytelling', pitch: 0, speed: 0.9, vibrato: 5, expr: 'passionate' },
+];
+
 export default function VocalSynthControls({
   pitchShift = 0,        // semitones (-12 to +12)
   speed = 1.0,           // playback speed (0.5 to 2.0)
@@ -26,6 +37,10 @@ export default function VocalSynthControls({
   onSpeedChange,
   onVibratoChange,
   onExpressionChange,
+  voiceStyle,            // current voiceStyle (optional)
+  rapStyle,              // current rapStyle (optional)
+  onVoiceStyleChange,    // setter for voiceStyle (optional)
+  onRapStyleChange,      // setter for rapStyle (optional)
   isMobile = false
 }) {
   return (
@@ -72,6 +87,62 @@ export default function VocalSynthControls({
           </p>
         </div>
       </div>
+
+      {/* Vocal Polish Presets — one-click genre presets */}
+      {onVoiceStyleChange && onRapStyleChange && (
+        <div style={{ marginBottom: '14px' }}>
+          <span style={{
+            fontSize: '0.65rem',
+            fontWeight: '700',
+            color: 'rgba(255,255,255,0.5)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            marginBottom: '8px',
+            display: 'block'
+          }}>
+            Vocal Polish Presets
+          </span>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+            gap: '6px'
+          }}>
+            {VOCAL_POLISH_PRESETS.map(preset => {
+              const isActive = voiceStyle === preset.voice && rapStyle === preset.rap
+                && pitchShift === preset.pitch && speed === preset.speed;
+              return (
+                <button
+                  key={preset.id}
+                  onClick={() => {
+                    onVoiceStyleChange(preset.voice);
+                    onRapStyleChange(preset.rap);
+                    onPitchShiftChange(preset.pitch);
+                    onSpeedChange(preset.speed);
+                    onVibratoChange(preset.vibrato);
+                    onExpressionChange(preset.expr);
+                  }}
+                  title={preset.desc}
+                  style={{
+                    padding: '10px 8px',
+                    borderRadius: '10px',
+                    background: isActive ? 'rgba(139, 92, 246, 0.15)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${isActive ? 'rgba(139, 92, 246, 0.4)' : 'rgba(255,255,255,0.06)'}`,
+                    color: isActive ? '#a78bfa' : 'rgba(255,255,255,0.5)',
+                    fontSize: '0.7rem',
+                    fontWeight: isActive ? '700' : '500',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <div style={{ fontSize: '0.85rem', marginBottom: '2px' }}>{preset.label}</div>
+                  <div style={{ fontSize: '0.55rem', opacity: 0.6, lineHeight: '1.3' }}>{preset.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Controls Grid */}
       <div style={{

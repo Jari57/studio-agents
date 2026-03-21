@@ -1732,7 +1732,7 @@ function ProductionControlHub({
             <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               {hasBeat && hasVocalMedia ? 'Step 3: Export Your Mix' : 'Export'}
             </div>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', flexWrap: 'wrap' }}>
               <button
                 onClick={() => {
                   if (hasBeat || hasVocalMedia) {
@@ -1789,6 +1789,30 @@ function ProductionControlHub({
                   }}
                 >
                   <Download size={18} /> Download Mix
+                </button>
+              )}
+
+              {/* DAW Export — Stems Pack for Pro Tools / Logic / Ableton */}
+              {(hasBeat || hasVocalMedia) && (
+                <button
+                  onClick={handleDownloadStemsPack}
+                  style={{
+                    padding: '14px 18px',
+                    borderRadius: '14px',
+                    background: 'rgba(139, 92, 246, 0.08)',
+                    border: '1px solid rgba(139, 92, 246, 0.25)',
+                    color: '#c4b5fd',
+                    fontWeight: '700',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    minHeight: '50px'
+                  }}
+                  title="Export 24-bit WAV stems with BPM metadata for Pro Tools, Logic, Ableton, FL Studio"
+                >
+                  <Download size={16} /> DAW Stems (WAV)
                 </button>
               )}
             </div>
@@ -1917,7 +1941,7 @@ function ProductionControlHub({
             <Globe size={13} /> Share & Distribute
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
             {/* SoundCloud */}
             <button
               onClick={(finalMixPreview || mediaUrls.mixedAudio) ? handleDistributeToSoundCloud : () => toast('Create a final mix first before distributing', { icon: '🎚️' })}
@@ -2226,6 +2250,7 @@ export default function StudioOrchestratorV2({
   const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
   const [showCoverEditor, setShowCoverEditor] = useState(false); // Cover art editor overlay
   const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max view toggle for preview
+  const [imageHistory, setImageHistory] = useState([]); // Previous image variations for comparison
   const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
   const [distributing, setDistributing] = useState(null); // 'soundcloud' | 'share' | null
   const [shareLink, setShareLink] = useState(null); // Generated share link data
@@ -4372,6 +4397,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         }
         
         if (imageData) {
+          // Save current image to history before replacing
+          if (mediaUrls.image) {
+            setImageHistory(prev => [...prev.slice(-7), mediaUrls.image]); // Keep last 8 variations
+          }
           setMediaUrls(prev => ({ ...prev, image: imageData }));
           mediaUrlsRef.current = { ...mediaUrlsRef.current, image: imageData }; // Sync ref for pipeline reads
           setGenerationProviders(prev => ({ ...prev, visual: data.model || data.source || 'ai' }));
@@ -7294,6 +7323,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   onSpeedChange={setVocalSpeed}
                   onVibratoChange={setVocalVibrato}
                   onExpressionChange={setVocalExpression}
+                  voiceStyle={voiceStyle}
+                  rapStyle={rapStyle}
+                  onVoiceStyleChange={setVoiceStyle}
+                  onRapStyleChange={setRapStyle}
                   isMobile={isMobile}
                 />
               </Suspense>
@@ -9065,6 +9098,95 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     </div>
                   )}
                 </div>
+
+                {/* Refine & Variation Controls */}
+                {safeMediaUrls.image && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <button
+                      onClick={() => handleGenerateImage()}
+                      disabled={generatingMedia.image}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: generatingMedia.image ? 'rgba(236, 72, 153, 0.15)' : 'rgba(236, 72, 153, 0.2)',
+                        border: '1px solid rgba(236, 72, 153, 0.3)',
+                        color: '#f472b6',
+                        fontSize: '0.75rem',
+                        fontWeight: '600',
+                        cursor: generatingMedia.image ? 'wait' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      {generatingMedia.image ? <Loader2 size={12} className="spin" /> : <RefreshCw size={12} />}
+                      {generatingMedia.image ? 'Generating...' : 'New Variation'}
+                    </button>
+                    <button
+                      onClick={() => setShowCoverEditor(true)}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        color: 'rgba(255,255,255,0.6)',
+                        fontSize: '0.75rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Edit3 size={12} />
+                      Edit
+                    </button>
+                  </div>
+                )}
+
+                {/* Image History Thumbnails */}
+                {imageHistory.length > 0 && (
+                  <div style={{ marginTop: '8px' }}>
+                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: '6px', fontWeight: '600' }}>
+                      Previous Variations ({imageHistory.length})
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+                      {imageHistory.map((imgUrl, idx) => (
+                        <img
+                          key={idx}
+                          src={formatImageSrc(imgUrl)}
+                          alt={`Variation ${idx + 1}`}
+                          onClick={() => {
+                            // Swap: move current to history, restore clicked one
+                            setImageHistory(prev => {
+                              const next = [...prev];
+                              next[idx] = mediaUrls.image;
+                              return next;
+                            });
+                            setMediaUrls(prev => ({ ...prev, image: imgUrl }));
+                            mediaUrlsRef.current = { ...mediaUrlsRef.current, image: imgUrl };
+                          }}
+                          style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '6px',
+                            objectFit: 'cover',
+                            cursor: 'pointer',
+                            border: '2px solid rgba(236, 72, 153, 0.3)',
+                            opacity: 0.7,
+                            transition: 'all 0.15s',
+                            flexShrink: 0
+                          }}
+                          onMouseEnter={(e) => { e.target.style.opacity = '1'; e.target.style.borderColor = '#f472b6'; }}
+                          onMouseLeave={(e) => { e.target.style.opacity = '0.7'; e.target.style.borderColor = 'rgba(236, 72, 153, 0.3)'; }}
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Video Preview - Safe video handling */}
