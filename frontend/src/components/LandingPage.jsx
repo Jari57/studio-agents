@@ -499,7 +499,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             <span className="gradient-text-vibrant">The Studio Agents</span>
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
-            16 AI agents orchestrate your entire release — lyrics, beats, cover art, video — from a single prompt.
+            16 AI agents accelerate your creative process — generate lyrics, beats, cover art, and video in seconds, then refine and export to your DAW.
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '20px', flexWrap: 'wrap' }}>
             <button
@@ -621,7 +621,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               </div>
               <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '8px', color: 'white' }}>Our Mission</h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                Democratize professional music production. Every artist deserves a full production teamAI makes it possible for everyone.
+                Accelerate every stage of music creation. AI generates your starting points in seconds — you iterate, refine, and make it yours.
               </p>
             </div>
             <div style={{
@@ -649,7 +649,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               </div>
               <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '8px', color: 'white' }}>The Future</h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                We're building toward a world where talent is the only barrier to entry. AI handles the restproduction, distribution, marketing, analytics.
+                We're building toward a world where talent is the only barrier to entry. AI accelerates the rest — draft production, visual concepts, marketing strategy — so you can focus on your art.
               </p>
             </div>
           </div>
@@ -661,10 +661,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
             {[
-              { icon: Music, color: '#a855f7', title: 'The Problem', text: 'Making music is easy\u2014releasing it professionally shouldn\'t require a record label. Independent artists deserve better tools.' },
-              { icon: Sparkles, color: '#06b6d4', title: 'The Solution', text: '16 specialized AI agents handle everything: lyrics, beats, mastering, video, marketing\u2014your full production team in one app.' },
-              { icon: Cpu, color: '#22c55e', title: 'Pro Workflows', text: 'Every agent is trained on professional workflows, not generic AI. The same pipeline major labels use\u2014at a fraction of the cost.' },
-              { icon: Users, color: '#ec4899', title: 'For Everyone', text: 'Bedroom producer or touring artist\u2014Studio Agents gives you 24/7 access to a world-class production pipeline.' }
+              { icon: Music, color: '#a855f7', title: 'The Problem', text: 'Starting from scratch takes forever. Independent artists need faster ways to generate ideas, draft beats, and build visual identity.' },
+              { icon: Sparkles, color: '#06b6d4', title: 'The Solution', text: '16 specialized AI agents generate your starting points — lyrics, beats, visuals, video — in seconds. Iterate until you love it, then export to your DAW.' },
+              { icon: Cpu, color: '#22c55e', title: 'Pro Workflows', text: 'Every agent is built on professional workflows. Generate a 30-second beat, load it into your DAW, and turn it into a 3-minute track.' },
+              { icon: Users, color: '#ec4899', title: 'For Everyone', text: 'Bedroom producer or touring artist — Studio Agents accelerates your creative process so you spend less time starting and more time finishing.' }
             ].map((card, i) => {
               const CardIcon = card.icon;
               return (
@@ -806,7 +806,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               Experience <span className="gradient-text-cyan-blue">Parallel Intelligence</span>
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '600px', margin: '0 auto' }}>
-              Watch our specialized agents work in sync to build your entire release package in seconds.
+              Watch our specialized agents work in sync to generate your creative foundation in seconds — ready for you to refine.
             </p>
           </div>
           <Suspense fallback={<div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
@@ -1061,7 +1061,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           Stop Waiting for <span className="gradient-text-purple-pink">Permission.</span>
         </h2>
         <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.2rem', marginBottom: '32px', fontWeight: '500' }}>
-          Your global rollout starts here. No major label required.
+          Your next hit starts here. Generate, iterate, and export — no label required.
         </p>
         <button
           onClick={() => setShowWorkflowModal(true)}
@@ -2259,12 +2259,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       lineHeight: '1.3',
                       marginBottom: '16px'
                     }}>
-                      Replace Record Labels with AI Agents
+                      Accelerate Your Music with AI Agents
                     </h3>
                     <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
-                      We're building the world's first <strong style={{ color: 'white' }}>AI-native record label</strong> -
-                      a platform where 16 specialized AI agents handle everything from songwriting to distribution, 
-                      giving independent artists the firepower of a major label at 1/100th the cost.
+                      We're building the world's first <strong style={{ color: 'white' }}>AI-powered creative accelerator</strong> —
+                      a platform where 16 specialized AI agents generate your starting points in seconds, 
+                      so you can focus on refining and finishing your art instead of starting from scratch.
                     </p>
                   </div>
 
@@ -2275,9 +2275,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     marginBottom: '28px'
                   }}>
                     {[
-                      { title: 'The Problem', desc: 'Labels take 80-90% of revenue, control artists for 7+ years, and 97% of signed artists never recoup', color: '#ef4444' },
-                      { title: 'Our Solution', desc: '16 AI agents replace the entire label infrastructure -A&R, production, marketing, distribution -at $60/year', color: '#22c55e' },
-                      { title: 'The Vision', desc: 'Become the default platform for independent music creation, making labels obsolete within 10 years', color: '#8b5cf6' }
+                      { title: 'The Problem', desc: 'Starting from scratch is slow. Artists waste hours on first drafts instead of perfecting their sound', color: '#ef4444' },
+                      { title: 'Our Solution', desc: '16 AI agents generate your creative starting points in seconds — lyrics, beats, visuals, marketing — ready to iterate and export to your DAW', color: '#22c55e' },
+                      { title: 'The Vision', desc: 'Become the default creative accelerator for independent music — turning 30-second AI generations into 3-minute hits in your DAW', color: '#8b5cf6' }
                     ].map((item, i) => (
                       <div key={i} style={{
                         padding: '20px',

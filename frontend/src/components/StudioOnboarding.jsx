@@ -16,13 +16,13 @@ const ONBOARDING_STEPS = [
     title: 'Welcome to Studio Agents',
     subtitle: 'Your AI-powered A&R Suite',
     emoji: '🎧',
-    content: 'Think of this as your personal A&R team — 16 AI agents that write, produce, mix, master, and market your music. From lyrics to release, it\'s all here.',
+    content: 'Think of this as your creative accelerator — 16 AI agents that generate lyrics, beats, visuals, and video in seconds. Iterate until you love it, then export to your DAW to finish your track.',
     visual: 'hero',
   },
   {
     id: 'how-it-works',
     title: 'How It Works',
-    subtitle: '3 simple steps to a finished track',
+    subtitle: '3 steps to your next creative breakthrough',
     emoji: '⚡',
     content: null, // Custom render
     visual: 'steps',

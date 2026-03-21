@@ -32,9 +32,9 @@ export const AGENTS = [
       description: 'AI lyricist creating bars with Udio-style structure',
       capabilities: ['Udio/Suno Structural Tags', 'Rhyme Scheme Analysis', 'Metaphor Generator', 'Flow Mapping'],
       examples: ['[Intro] [Verse 1] [Chorus]: Write a summer pop anthem', 'Create a 16-bar verse about Brooklyn in the style of 90s boom bap'],
-      howToUse: 'Enter your topic and mood. Use Suno-style tags like [Bridge] or [Outro] to define the flow. The AI understands structural context for a professional songwriting experience.',
+      howToUse: 'Enter your topic and mood. Use Suno-style tags like [Bridge] or [Outro] to define the flow. Generate a draft, iterate on lines you want to change, then export to your project.',
       explanation: 'Ghostwriter 2.0 uses a Large Language Model fine-tuned on professional song structures. It recognizes structural markers and translates your prompt into rhythmic, era-accurate bars.',
-      helpTips: 'Pro Tip: Use structural tags (e.g., [Drop], [Hook]) to guide the AI. Combine with Music GPT for a full end-to-end production.',
+      helpTips: 'Pro Tip: Use structural tags (e.g., [Drop], [Hook]) to guide the AI. Generate multiple drafts until you\'re happy, then combine with Music GPT.',
       onboarding: [
         "Select a genre and mood to set the creative direction and vocabulary set.",
         "Provide a 'Seed Phrase' or topic for the AI to expand upon into full verses.",
@@ -127,7 +127,7 @@ export const AGENTS = [
       colorClass: 'agent-red', 
       tier: 'free', // FREE TIER
       isBeta: true,
-      description: 'Generate viral-ready video concepts for TikTok, Reels, YouTube Shorts, and social platforms.',
+      description: 'Generate video drafts for TikTok, Reels, YouTube Shorts — iterate and refine until you\'re happy.',
       capabilities: ['Frame-Perfect Beat Sync', 'Platform-Specific Strategies', 'Hook and CTA suggestions', '4K Cinematic Renders'],
       features: [
         'Voice input for content goals',
@@ -153,7 +153,7 @@ export const AGENTS = [
         "Preview the 'Beat-Map' and adjust transition intensity.",
         "Render in 4K for YouTube and Vertical for TikTok/Reels."
       ],
-      howTo: 'Sync video to beat or describe a scene. AI does the rest.',
+      howTo: 'Sync video to beat or describe a scene. Generate, iterate, and export.',
       example: 'Scene: "Infinite Tunnel", Sync: "Heavy"',
       getStarted: 'Sync Video'
     },
@@ -392,7 +392,7 @@ export const AGENTS = [
       ],
       examples: ['Master stems for a transparent mix', 'Collaboratively review master chain with community creators'],
       howToUse: 'Upload your Full Mix or individual Stems. The AI uses BandLab-style cloud logic to allow for collaborative A/B testing and precision stem-level leveling.',
-      explanation: 'Mastering Lab 2.0 isn\'t just a final limiter. It understands the relationship between your DAW stems (Drums, Bass, Vocals) and applies "Contextual Glue" to ensure your track sounds professional on everything from phone speakers to club systems.',
+      explanation: 'Mastering Lab 2.0 analyzes the relationship between your DAW stems (Drums, Bass, Vocals) and generates a mastering starting point. Export the result to your DAW for final polish and tweaking.',
       helpTips: 'Pro Tip: Upload your Stems separately for a "Stem Master." This allows the AI to apply compression to the drums without affecting the clarity of the vocals.',
       onboarding: [
         "Upload stems (Drums, Bass, Leads, Vocals) for granular control.",
@@ -400,7 +400,7 @@ export const AGENTS = [
         "Enable 'Collaborative Mode' to invite BandLab/Mureaka creators to review your master.",
         "Export high-fidelity WAV or MP3 files for global distribution."
       ],
-      howTo: 'Upload stems or full mix. AI provides the professional finish.',
+      howTo: 'Upload stems or full mix. AI generates a mastering starting point — iterate and export.',
       example: 'Mode: "Stem Master", Target: "Streaming High"',
       getStarted: 'Pro Master'
     },
@@ -413,7 +413,7 @@ export const AGENTS = [
       tier: 'monthly', // MONTHLY TIER
       colorClass: 'agent-emerald', 
       hasSocials: true,
-      description: 'Analyze viral trends and hashtag performance in real-time.',
+      description: 'Analyze trending sounds and hashtag performance to inform your creative direction.',
       capabilities: ['Viral Sound Analysis', 'Hashtag Strategy', 'Competitor Tracking', 'Engagement Metrics'],
       features: [
         'Real-time TikTok Sound Analysis',
@@ -450,7 +450,7 @@ export const AGENTS = [
       tier: 'monthly', // MONTHLY TIER
       colorClass: 'agent-cyan', 
       hasSocials: true,
-      description: 'Create augmented reality experience concepts for your music.',
+      description: 'Generate augmented reality experience concepts to elevate your music marketing.',
       capabilities: ['Voice input for track descriptions', 'Text-to-speech AR concept readouts', '6 unique AR experience ideas', 'Mobile-ready implementation suggestions'],
       features: [
         'Spatial Audio AR mapping',
@@ -603,7 +603,7 @@ export const CREATOR_MODES = {
     label: 'Artist',
     icon: '🎵',
     description: 'Music production — songs, beats, vocals, albums',
-    promptContext: `You are working in a professional music studio. All output should be geared towards creating Billboard-standard songs, beats, vocals, and album art. Think major-label quality — Grammy-worthy, chart-topping, radio-ready.`,
+    promptContext: `You are working in a professional music studio. All output should be geared towards generating high-quality creative starting points — songs, beats, vocals, and album art that artists can iterate on and export to their DAW. Think production-quality foundations that accelerate the creative process.`,
     studioLabel: 'Music Studio',
     ideaSuggestions: [
       'Trap banger about success',
@@ -636,7 +636,7 @@ export const CREATOR_MODES = {
     label: 'Content Creator',
     icon: '📱',
     description: 'Social media, YouTube, podcasts, marketing content',
-    promptContext: `You are working in a professional content creation studio. All output should be geared towards creating viral social media content, YouTube videos, podcast scripts, marketing copy, short-form content (Reels, Shorts, TikTok), memes, and brand assets. Think platform-optimized, engagement-driven, trend-aware content that maximizes reach and audience growth.`,
+    promptContext: `You are working in a professional content creation studio. All output should be geared towards generating high-quality creative starting points for social media content, YouTube videos, podcast scripts, marketing copy, short-form content (Reels, Shorts, TikTok), and brand assets. Think platform-optimized drafts that creators can iterate on and refine for maximum reach and audience growth.`,
     studioLabel: 'Creator Studio',
     ideaSuggestions: [
       'YouTube video script about tech trends',

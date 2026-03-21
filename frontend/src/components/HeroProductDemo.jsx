@@ -557,7 +557,7 @@ export default function HeroProductDemo({ onTryIt }) {
                     <CheckCircle size={20} style={{ color: '#22c55e' }} />
                     <span style={{
                       fontSize: '1rem', fontWeight: '700', color: 'white',
-                    }}>Release Package Ready</span>
+                    }}>Creative Package Generated</span>
                   </div>
                   <div style={{
                     display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap',

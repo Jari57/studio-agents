@@ -4860,11 +4860,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         finalAudioUrl = currentMediaUrls.vocals || currentMediaUrls.lyricsVocal || currentMediaUrls.audio;
       }
 
-      // Compile all outputs into the final product
+      // Compile all outputs into the creative package
       const finalMix = {
         id: `mix-${crypto.randomUUID()}`,
         title: `${songIdea} - Complete Mix`,
-        description: `Full production of "${songIdea}" with lyrics, beat, visual, and video`,
+        description: `Creative package for "${songIdea}" — lyrics, beat, visual, and video drafts ready to refine`,
         created: new Date().toISOString(),
         mixedAudioUrl: finalAudioUrl,
         components: {
