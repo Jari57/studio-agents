@@ -2824,8 +2824,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       The Endgame
                     </h4>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
-                      By 2030, we aim to be the <strong style={{ color: 'white' }}>default infrastructure</strong> for 
-                      independent music -replacing the need for labels, distributors, and traditional production companies entirely.
+                      By 2030, we aim to be the <strong style={{ color: 'white' }}>default creative accelerator</strong> for 
+                      independent music — giving artists the tools to generate, iterate, and export faster than ever before.
                     </p>
                   </div>
                 </div>
@@ -3348,7 +3348,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                           </h4>
                         </div>
                         <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6', margin: 0 }}>
-                          {agent.name} automates this workflow with AI, delivering professional results in minutes instead of days.
+                          {agent.name} accelerates this workflow with AI, generating creative drafts in minutes instead of days — ready for you to iterate and refine.
                         </p>
                       </div>
                     </div>

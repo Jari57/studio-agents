@@ -408,7 +408,7 @@ The goal: Let you focus on creating while we handle the complexity of staying co
           content: `${agent.name} is a specialized AI agent designed to excel at ${agent.description?.toLowerCase() || agent.desc?.toLowerCase()}.
 
 **Primary Function:**
-${agent.name} combines cutting-edge language models with domain-specific training to deliver professional-grade results in its area of expertise.
+${agent.name} combines cutting-edge language models with domain-specific training to accelerate creative workflows — generating high-quality starting points you can iterate on and refine.
 
 **Typical Use Cases:**
 • ${agent.name === 'Ghostwriter' ? 'Songwriting and lyric generation\n• Hook and chorus development\n• Verse structuring and rhyme schemes\n• Genre-specific lyric styling' : 

@@ -139,8 +139,8 @@ const CAMPAIGN_DAYS = [
     strategy: 'The Official Drop',
     icon: Sparkles,
     color: ACCENT,
-    post: 'Instagram carousel: high-res cover art → artist quote about the song\'s meaning → screenshot of the track live on Spotify/Apple Music.',
-    caption: '"Out now everywhere. Link in bio."',
+    post: 'Instagram carousel: high-res cover art → artist quote about the song\'s meaning → streaming link preview.',
+    caption: '"New music. Link in bio."',
     platforms: ['Instagram (Carousel)', 'X', 'YouTube Community'],
     assets: ['Cover art (1:1)', 'Artist quote card', 'Streaming screenshot', 'All links'],
     tip: 'Release day is about accessibility. Make it dead simple to find and play the track.'
@@ -262,8 +262,8 @@ export default function ContentMultiplicationPage({ onBack }) {
             color: '#9ca3af', fontSize: '1.1rem', maxWidth: '650px',
             margin: '0 auto 32px', lineHeight: '1.7'
           }}>
-            The exact blueprint for turning a single finished track into a full week of high-converting
-            social media collateral — minimizing manual labor and maximizing reach.
+            The exact blueprint for turning a single track into a full week of high-converting
+            social media collateral — accelerate your marketing with AI-generated assets.
           </p>
 
           {/* Quick stats */}

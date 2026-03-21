@@ -10,8 +10,8 @@ import {
 } from 'lucide-react';
 
 // ============================================================
-// BILLBOARD BLUEPRINT — How to Make a Chart-Ready Record
-// Step-by-step production guide using Studio Agents AI
+// BILLBOARD BLUEPRINT — How to Accelerate Your Record
+// Step-by-step creative workflow using Studio Agents AI
 // ============================================================
 
 const ACCENT = '#a855f7';
@@ -31,7 +31,7 @@ const PRODUCTION_PHASES = [
     duration: '2 minutes',
     color: ACCENT,
     icon: Brain,
-    description: 'Every hit starts with a clear concept. Define your song idea, genre, mood, and target audience before touching a single control.',
+    description: 'Every great record starts with a clear concept. Define your song idea, genre, mood, and target audience before touching a single control.',
     steps: [
       {
         action: 'Write Your Song Concept',
@@ -82,18 +82,18 @@ const PRODUCTION_PHASES = [
       {
         action: 'Preview & Evaluate',
         detail: 'The built-in player lets you scrub through the full track. Listen for: intro quality, verse-chorus transitions, bridge energy, outro feel.',
-        tip: 'A chart-ready beat needs dynamic contrast — quiet verses, loud choruses. If it\'s too flat, add "dynamic contrast" to your prompt.'
+        tip: 'Great beats need dynamic contrast — quiet verses, loud choruses. If it\'s too flat, add "dynamic contrast" to your prompt.'
       }
     ]
   },
   {
     phase: 3,
     title: 'The Lyrics',
-    subtitle: 'Write Chart-Worthy Bars',
+    subtitle: 'Draft Your Bars',
     duration: '15 seconds',
     color: ACCENT,
     icon: FileText,
-    description: 'Ghostwriter generates professionally structured lyrics with Udio/Suno structural tags — verse, chorus, bridge, ad-libs — all formatted for vocal generation.',
+    description: 'Ghostwriter generates structured lyric drafts with Udio/Suno structural tags — verse, chorus, bridge, ad-libs — iterate until you love them, then feed to vocals.',
     steps: [
       {
         action: 'Upload Lyrics DNA (Optional)',
@@ -155,7 +155,7 @@ const PRODUCTION_PHASES = [
     duration: '20 seconds',
     color: ORANGE,
     icon: Image,
-    description: 'Album Artist 2.0 generates vibe-aligned artwork via Flux 1.1 Pro — the same Replicate model used by professional design studios.',
+    description: 'Album Artist 2.0 generates vibe-aligned artwork concepts via Flux 1.1 Pro. Iterate on variations until you find your visual identity, then export for final design.',
     steps: [
       {
         action: 'Upload Visual DNA (Optional)',
@@ -196,7 +196,7 @@ const PRODUCTION_PHASES = [
       {
         action: 'Mux Audio + Video',
         detail: 'The platform automatically combines your final mix audio with the generated video via FFmpeg. Codec matching and format optimization happen automatically.',
-        tip: 'The mux engine handles up to 200MB output. For social media, the auto-compression produces platform-ready files.'
+        tip: 'The mux engine handles up to 200MB output. For social media, the auto-compression optimizes file size for upload.'
       }
     ]
   },
@@ -207,7 +207,7 @@ const PRODUCTION_PHASES = [
     duration: '30 seconds',
     color: EMERALD,
     icon: Sliders,
-    description: 'Render Master combines your vocal track with your instrumental via FFmpeg — professional mixing with preset profiles for different release formats.',
+    description: 'Render Master combines your vocal track with your instrumental via FFmpeg — quick mix presets to preview your track. Export stems to your DAW for final mixing.',
     steps: [
       {
         action: 'Select Mix Preset',
@@ -233,7 +233,7 @@ const PRODUCTION_PHASES = [
     duration: '1 minute',
     color: GOLD,
     icon: Share2,
-    description: 'Download your complete package — audio master, artwork, video, and lyrics — ready for distribution to all major platforms.',
+    description: 'Download your creative package — audio stems, artwork concepts, video drafts, and lyrics — ready to take into your DAW and pro tools for final polish.',
     steps: [
       {
         action: 'Download All Assets',
@@ -371,8 +371,8 @@ export default function BillboardBlueprintPage({ onBack }) {
           fontSize: 'clamp(1.1rem, 2vw, 1.35rem)', color: '#9ca3af',
           maxWidth: '760px', margin: '0 auto 24px', lineHeight: '1.7'
         }}>
-          A complete 2:30 song — <strong style={{ color: 'white' }}>instrumental, vocals, artwork, and music video</strong> — produced
-          entirely with AI in under 10 minutes. No studio. No label. No limits.
+          Generate a full 2:30 creative package — <strong style={{ color: 'white' }}>instrumental, vocals, artwork, and music video</strong> — in
+          under 10 minutes. Iterate until you love it, then export to your DAW to finish your record.
         </p>
 
         <div style={{
@@ -481,7 +481,7 @@ export default function BillboardBlueprintPage({ onBack }) {
             From Idea to Release
           </h2>
           <p style={{ color: '#9ca3af', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
-            Eight phases. One session. Every asset you need for a complete release — beat, lyrics, vocals, artwork, video, mix, master, and export.
+            Eight phases. One session. Generate every creative asset — beat, lyrics, vocals, artwork, video — then iterate and export to your DAW.
           </p>
         </div>
 
