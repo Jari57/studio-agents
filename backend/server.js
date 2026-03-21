@@ -7292,6 +7292,9 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
     let { prompt, referenceImage, durationSeconds = 30, audioUrl = null, vocalUrl = null, audioDuration = null } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
+    // Clamp duration to valid range regardless of source
+    durationSeconds = Math.min(Math.max(parseInt(durationSeconds) || 30, 8), 120);
+
     // If audio/vocals are provided, match their duration (up to 60s for beat-sync videos)
     if ((audioUrl || vocalUrl) && audioDuration) {
       durationSeconds = Math.min(Math.max(audioDuration, 8), 60); // 8-60 seconds for beat-synced videos
@@ -10905,9 +10908,11 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
       videoUrl,
       referenceImage,
       songTitle = 'Untitled',
-      duration = 30, // 30, 60, or 180 seconds
+      duration: rawDuration = 30, // 30, 60, or 180 seconds
       style = 'cinematic'
     } = req.body;
+
+    const duration = Math.min(Math.max(parseInt(rawDuration) || 30, 8), 300);
 
     // Use artist reference image as the imageUrl for video generation if provided
     const effectiveImageUrl = referenceImage || imageUrl;
