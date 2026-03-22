@@ -109,7 +109,7 @@ async function validateReceipt(transactionId, userId) {
         'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ transactionId, userId }),
-      signal: AbortSignal.timeout(15000),
+      signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 15000); return c.signal; })(),
     });
 
     const data = await response.json();

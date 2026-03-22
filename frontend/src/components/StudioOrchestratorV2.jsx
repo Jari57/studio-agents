@@ -18,6 +18,15 @@ import { Analytics } from '../utils/analytics';
 const devLog = import.meta.env.DEV ? (...args) => console.log(...args) : () => {};
 const devWarn = import.meta.env.DEV ? (...args) => console.warn(...args) : () => {};
 
+// Safe timeout signal — polyfill for browsers without AbortSignal.timeout()
+function createTimeoutSignal(ms) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  // Allow cleanup if fetch resolves before timeout
+  controller.signal.addEventListener('abort', () => clearTimeout(id), { once: true });
+  return controller.signal;
+}
+
 // Lazy load modals and heavy sub-sections (standardizing to React.lazy to prevent 'lazy is not defined' error)
 const PreviewModal = React.lazy(() => import('./PreviewModal'));
 const RealtimePreviewMixer = React.lazy(() => import('./RealtimePreviewMixer'));
@@ -3406,7 +3415,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           duration: duration,
           language: language
         }),
-        signal: AbortSignal.timeout(90000)
+        signal: createTimeoutSignal(90000)
       });
       
       let data;
@@ -3540,7 +3549,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           seed: seed,
           stem: stemType
         }),
-        signal: AbortSignal.timeout(120000)
+        signal: createTimeoutSignal(120000)
       });
       
       devLog('[handleGenerateAudio] Response status:', response.status);
@@ -3773,7 +3782,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           // Pass beat URL so backend mixes vocal+beat during generation (no extra credit cost)
           backingTrackUrl: mediaUrlsRef.current.audio || null
         }),
-        signal: AbortSignal.timeout(120000)
+        signal: createTimeoutSignal(120000)
       });
 
       let data;
@@ -4381,7 +4390,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             : `Iconic Billboard-standard album cover art, hyper-detailed, professional photography or elite digital art, righteous quality, award-winning composition: ${visualPrompt.substring(0, 600)}${contextHint}`,
           referenceImage: visualDnaUrl
         }),
-        signal: AbortSignal.timeout(60000)
+        signal: createTimeoutSignal(60000)
       });
       
       let data;
@@ -4656,7 +4665,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           style: style || 'cinematic',
           duration: Math.round(videoDuration)
         }),
-        signal: AbortSignal.timeout(300000)
+        signal: createTimeoutSignal(300000)
       });
 
         if (!response.ok) {
