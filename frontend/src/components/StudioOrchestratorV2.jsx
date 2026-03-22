@@ -2392,6 +2392,8 @@ export default function StudioOrchestratorV2({
   // Reusable helper: mux audio into silent video, with 1 retry and toast feedback
   const autoMuxVideoWithAudio = useCallback(async (videoUrl, audioUrl, headers) => {
     const attemptMux = async () => {
+      const muxController = new AbortController();
+      const muxTimeout = setTimeout(() => muxController.abort(), 60000);
       const resp = await fetch(`${BACKEND_URL}/api/mux-audio-video`, {
         method: 'POST',
         headers,
@@ -2399,8 +2401,10 @@ export default function StudioOrchestratorV2({
           audioUrl,
           videoUrl,
           title: (songIdea || 'song').substring(0, 50)
-        })
+        }),
+        signal: muxController.signal
       });
+      clearTimeout(muxTimeout);
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         throw new Error(err.error || `Mux failed (${resp.status})`);
@@ -3126,6 +3130,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         devLog(`[handleGenerate] Starting generation for ${slot} with agent:`, agent.name);
         
         try {
+          const genController = new AbortController();
+          const genTimeout = setTimeout(() => genController.abort(), 90000);
           const response = await fetch(`${BACKEND_URL}/api/generate`, {
             method: 'POST',
             headers,
@@ -3139,8 +3145,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                             slot === 'audio' ? audioDnaUrl :
                             slot === 'visual' ? visualDnaUrl :
                             slot === 'video' ? videoDnaUrl : null
-            })
+            }),
+            signal: genController.signal
           });
+          clearTimeout(genTimeout);
           
           if (response.ok) {
             const data = await response.json();
@@ -3242,8 +3250,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         return true;
       });
 
-      // Run audio + visual in parallel
-      await Promise.all(parallelToGenerate.map(([slot, agentId]) => generateForSlot(slot, agentId, lyricsResult)));
+      // Run audio + visual in parallel (tolerant — one failure doesn't kill the other)
+      const parallelResults = await Promise.allSettled(parallelToGenerate.map(([slot, agentId]) => generateForSlot(slot, agentId, lyricsResult)));
+      const failedSlots = parallelResults
+        .map((r, i) => r.status === 'rejected' ? parallelToGenerate[i][0] : null)
+        .filter(Boolean);
+      if (failedSlots.length > 0) {
+        toast.error(`Failed to generate: ${failedSlots.join(', ')}. Other slots continued.`, { duration: 5000 });
+      }
 
       // Now generate video description WITH the visual description as context
       // so the video storyboard matches the album art aesthetic
@@ -3391,7 +3405,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           model: modelId,
           duration: duration,
           language: language
-        })
+        }),
+        signal: AbortSignal.timeout(90000)
       });
       
       let data;
@@ -3524,7 +3539,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           highMusicality: highMusicality, // Send Udio-style musicality flag
           seed: seed,
           stem: stemType
-        })
+        }),
+        signal: AbortSignal.timeout(120000)
       });
       
       devLog('[handleGenerateAudio] Response status:', response.status);
@@ -3756,7 +3772,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           expression: vocalExpression !== 'neutral' ? vocalExpression : undefined,
           // Pass beat URL so backend mixes vocal+beat during generation (no extra credit cost)
           backingTrackUrl: mediaUrlsRef.current.audio || null
-        })
+        }),
+        signal: AbortSignal.timeout(120000)
       });
 
       let data;
@@ -4363,7 +4380,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             ? `Scroll-stopping YouTube thumbnail or social media graphic, bold colors, clean typography, eye-catching composition, professional digital art: ${visualPrompt.substring(0, 600)}${contextHint}`
             : `Iconic Billboard-standard album cover art, hyper-detailed, professional photography or elite digital art, righteous quality, award-winning composition: ${visualPrompt.substring(0, 600)}${contextHint}`,
           referenceImage: visualDnaUrl
-        })
+        }),
+        signal: AbortSignal.timeout(60000)
       });
       
       let data;
@@ -4637,7 +4655,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           songTitle: songIdea || 'Untitled',
           style: style || 'cinematic',
           duration: Math.round(videoDuration)
-        })
+        }),
+        signal: AbortSignal.timeout(300000)
       });
 
         if (!response.ok) {

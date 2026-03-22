@@ -3,15 +3,40 @@ import { Toaster } from 'react-hot-toast';
 import './App.css';
 import { AGENTS } from './constants';
 
-// Lazy load heavy components (standardizing to React.lazy to prevent 'lazy is not defined' error)
-const LandingPage = React.lazy(() => import('./components/LandingPage'));
-const StudioView = React.lazy(() => import('./components/StudioView'));
-const WhitepapersPage = React.lazy(() => import('./components/WhitepapersPage'));
-const LegalResourcesPage = React.lazy(() => import('./components/LegalResourcesPage'));
-const DnaResourcePage = React.lazy(() => import('./components/DnaResourcePage'));
-const VocalsResourcePage = React.lazy(() => import('./components/VocalsResourcePage'));
-const BillboardBlueprintPage = React.lazy(() => import('./components/BillboardBlueprintPage'));
-const ContentMultiplicationPage = React.lazy(() => import('./components/ContentMultiplicationPage'));
+// Retry wrapper for lazy imports — handles chunk load failures (stale cache, deploy mid-session)
+const lazyWithRetry = (importFn) => React.lazy(() =>
+  importFn().catch(() => {
+    // First retry after 1s (cache might be stale)
+    return new Promise(resolve => setTimeout(resolve, 1000))
+      .then(() => importFn())
+      .catch(() => {
+        // Final retry — force reload if chunks are truly broken
+        if (!sessionStorage.getItem('chunk_reload')) {
+          sessionStorage.setItem('chunk_reload', '1');
+          window.location.reload();
+        }
+        // If we already reloaded once, surface the error
+        return { default: () => (
+          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0f', color: 'white', flexDirection: 'column', gap: '16px' }}>
+            <p>Failed to load. Please refresh the page.</p>
+            <button onClick={() => { sessionStorage.removeItem('chunk_reload'); window.location.reload(); }} style={{ padding: '8px 24px', borderRadius: '8px', background: '#a855f7', color: 'white', border: 'none', cursor: 'pointer' }}>Refresh</button>
+          </div>
+        )};
+      });
+  })
+);
+
+// Clear chunk reload flag on successful load
+if (sessionStorage.getItem('chunk_reload')) sessionStorage.removeItem('chunk_reload');
+
+const LandingPage = lazyWithRetry(() => import('./components/LandingPage'));
+const StudioView = lazyWithRetry(() => import('./components/StudioView'));
+const WhitepapersPage = lazyWithRetry(() => import('./components/WhitepapersPage'));
+const LegalResourcesPage = lazyWithRetry(() => import('./components/LegalResourcesPage'));
+const DnaResourcePage = lazyWithRetry(() => import('./components/DnaResourcePage'));
+const VocalsResourcePage = lazyWithRetry(() => import('./components/VocalsResourcePage'));
+const BillboardBlueprintPage = lazyWithRetry(() => import('./components/BillboardBlueprintPage'));
+const ContentMultiplicationPage = lazyWithRetry(() => import('./components/ContentMultiplicationPage'));
 
 // Loading fallback component with skeleton shimmer
 const StudioLoadingFallback = () => (

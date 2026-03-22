@@ -21,11 +21,20 @@ class ErrorBoundary extends React.Component {
     if (isChunkError) {
       console.warn("🔄 Version mismatch (ChunkLoadError) detected. Refreshing for latest version...");
       
-      // Use sessionStorage to prevent infinite reload loops if really unreachable
+      // Use sessionStorage to prevent infinite reload loops
+      const reloadCount = parseInt(sessionStorage.getItem('chunk_reload_count') || '0');
       const lastReload = sessionStorage.getItem('last_version_reload');
       const now = Date.now();
       
-      if (!lastReload || (now - parseInt(lastReload)) > 5000) {
+      // Give up after 3 reload attempts — show error screen instead of looping
+      if (reloadCount >= 3) {
+        console.warn('\uD83D\uDED1 Chunk reload failed 3 times. Showing error screen.');
+        return;
+      }
+      
+      const backoff = Math.min(5000 * Math.pow(2, reloadCount), 30000);
+      if (!lastReload || (now - parseInt(lastReload)) > backoff) {
+        sessionStorage.setItem('chunk_reload_count', String(reloadCount + 1));
         sessionStorage.setItem('last_version_reload', now.toString());
         window.location.reload();
         return;
@@ -65,6 +74,8 @@ class ErrorBoundary extends React.Component {
   }
 
   handleRetry = () => {
+    // Clear chunk reload counter on manual retry so user gets fresh attempts
+    sessionStorage.removeItem('chunk_reload_count');
     this.setState({ hasError: false, error: null, errorInfo: null });
   };
 

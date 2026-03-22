@@ -92,6 +92,11 @@ export async function uploadFile(file, userId, folder = 'assets', filename = nul
     throw new Error('Storage not initialized or user not authenticated');
   }
   
+  const MAX_SIZE = 100 * 1024 * 1024; // 100MB
+  if (file.size > MAX_SIZE) {
+    throw new Error(`File too large (${Math.round(file.size / 1024 / 1024)}MB). Maximum is 100MB.`);
+  }
+  
   const ext = file.name?.split('.').pop() || 'bin';
   const name = filename || `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${ext}`;
   const path = `users/${userId}/${folder}/${name}`;
@@ -137,14 +142,15 @@ export async function uploadBase64(base64Data, userId, folder = 'assets', conten
  * @param {string} path - Full storage path
  */
 export async function deleteFile(path) {
-  if (!storage || !path) return;
+  if (!storage || !path) return false;
   
   try {
     const storageRef = ref(storage, path);
     await deleteObject(storageRef);
-    // File deleted successfully
+    return true;
   } catch (err) {
     console.warn('Failed to delete file:', path, err.message);
+    return false;
   }
 }
 

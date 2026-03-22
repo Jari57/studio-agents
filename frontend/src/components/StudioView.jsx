@@ -551,7 +551,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [userPlan, setUserPlan] = useState(() => localStorage.getItem('studio_user_plan') || 'Free');
   const [freeGenerationsUsed, setFreeGenerationsUsed] = useState(() => {
     const uid = localStorage.getItem('studio_user_id') || 'guest';
-    return parseInt(localStorage.getItem(`studio_free_gens_${uid}`) || '0');
+    const val = parseInt(localStorage.getItem(`studio_free_gens_${uid}`) || '0');
+    return isNaN(val) ? 0 : val;
   });
 
   // --- NAVIGATION & UI ---
@@ -915,7 +916,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   useEffect(() => {
     const fetchElVoices = async () => {
       try {
-        const response = await fetch(`${BACKEND_URL}/api/v2/voices`);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const response = await fetch(`${BACKEND_URL}/api/v2/voices`, { signal: controller.signal });
+        clearTimeout(timeout);
         if (response.ok) {
           const data = await response.json();
           // Handle both object {voices: []} and direct array [] responses
@@ -1073,8 +1077,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           try {
             const lastResort = pruneLargeProjectData(projects.slice(0, 5));
             localStorage.setItem(`studio_projects_${uid}`, JSON.stringify(lastResort));
+            toast('Storage full — only recent projects kept locally. Your data is safe in the cloud.', { icon: '⚠️', id: 'quota-warning', duration: 5000 });
           } catch(lastErr) {
             devWarn('[StudioView] Critical storage failure:', lastErr);
+            toast.error('Local storage full. Please delete old projects to free space.', { id: 'quota-error', duration: 6000 });
           }
         }
       } else {
@@ -1254,8 +1260,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       // This prevents 401 errors when auth.currentUser hasn't rehydrated yet
       if (!authToken) {
         devWarn(`[TRACE:${traceId}] No auth token available - Firebase may still be loading`);
-        // Don't show error toast here - this is expected during page load
-        // The debounced sync will retry in 3 seconds when auth is ready
+        // Show toast only if user is logged in (token expected) — skip during initial page load
+        if (auth?.currentUser) {
+          toast.error('Save failed — please sign in again', { id: 'save-auth-error', duration: 4000 });
+        }
         return false;
       }
       
@@ -2093,30 +2101,38 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     }
   }, [initialTab]);
   
-  // System Health Check
+  // System Health Check (with retry tolerance — 3 consecutive failures before maintenance)
+  const healthFailCountRef = useRef(0);
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/health`);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const res = await fetch(`${BACKEND_URL}/api/health`, { signal: controller.signal });
+        clearTimeout(timeout);
         if (!res.ok) throw new Error('Backend unreachable');
         const data = await res.json();
+        healthFailCountRef.current = 0;
         setSystemStatus({ 
           status: 'healthy', 
           message: 'All Systems Operational',
           details: data 
         });
       } catch (err) {
-        devWarn("Health check failed:", err);
-        setSystemStatus({ 
-          status: 'maintenance', 
-          message: 'System Under Maintenance',
-          details: err.message
-        });
+        healthFailCountRef.current += 1;
+        devWarn(`Health check failed (${healthFailCountRef.current}/3):`, err);
+        if (healthFailCountRef.current >= 3) {
+          setSystemStatus({ 
+            status: 'maintenance', 
+            message: 'System Under Maintenance',
+            details: err.message
+          });
+        }
       }
     };
     
     checkHealth();
-    const interval = setInterval(checkHealth, 60000); // Check every minute
+    const interval = setInterval(checkHealth, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -2588,9 +2604,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           if (token) {
             try {
               devLog('[Auth] Checking admin status for:', currentUser.email);
+              const adminController = new AbortController();
+              const adminTimeout = setTimeout(() => adminController.abort(), 10000);
               const adminRes = await fetch(`${BACKEND_URL}/api/user/admin-status`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${token}` },
+                signal: adminController.signal
               });
+              clearTimeout(adminTimeout);
               if (adminRes.ok) {
                 const adminData = await adminRes.json();
                 adminStatus = adminData.isAdmin === true;
@@ -10636,6 +10656,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         );
       }
       default:
+        setActiveTab('agents');
         return null;
     }
   };
