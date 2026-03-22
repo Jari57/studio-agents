@@ -11,7 +11,8 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
-    scheme: 'Studio Agents'
+    scheme: 'Studio Agents',
+    backgroundColor: '#0a0a0a'
   },
   android: {
     allowMixedContent: false
@@ -19,9 +20,12 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
+      launchShowDuration: 2000,
       androidScaleType: 'CENTER_CROP',
+      iosSpinnerStyle: 'small',
       showSpinner: false,
-      backgroundColor: '#0a0a0a'
+      backgroundColor: '#0a0a0a',
+      splashImmersive: true
     },
     Keyboard: {
       resize: 'body',

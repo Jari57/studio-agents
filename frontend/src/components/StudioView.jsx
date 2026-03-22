@@ -34,6 +34,8 @@ import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_
 import { Analytics, trackPageView } from '../utils/analytics';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '../utils/errorMonitoring';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
+import { shouldUseAppleIAP, isIOS } from '../utils/nativePlatform';
+import { purchaseProduct, restorePurchases, initStoreKit } from '../utils/storeKit';
 
 // Dev-only logger — no-ops in production builds (tree-shaken by Vite/terser)
 const __DEV__ = import.meta.env.DEV;
@@ -2985,6 +2987,21 @@ const fetchUserCredits = useCallback(async (uid) => {
       return;
     }
 
+    // iOS native → use Apple In-App Purchase (StoreKit) instead of Stripe
+    if (shouldUseAppleIAP()) {
+      const productKey = `credits_${amount}`;
+      const toastId = toast.loading(`Processing purchase of ${amount} credits...`);
+      const result = await purchaseProduct(productKey, user.uid);
+      toast.dismiss(toastId);
+      if (result.success) {
+        toast.success(`${amount} credits added!`);
+        fetchUserCredits(user.uid);
+      } else if (result.error !== 'Purchase cancelled') {
+        toast.error(result.error || 'Purchase failed');
+      }
+      return;
+    }
+
     const toastId = toast.loading(`Redirecting to secure checkout for ${amount} credits...`);
 
     try {
@@ -3363,7 +3380,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       }
     }, [user, fetchUserCredits]);
 
-  // --- STRIPE CHECKOUT ---
+  // --- STRIPE / STOREKIT CHECKOUT ---
   async function handleCheckoutRedirect(plan) {
     if (!isLoggedIn || !user) {
       toast.error('Please log in first');
@@ -3377,6 +3394,20 @@ const fetchUserCredits = useCallback(async (uid) => {
       'Lifetime Access': 'lifetime'
     };
     const tier = tierMap[plan.name] || 'creator';
+
+    // iOS native → use Apple In-App Purchase (StoreKit) instead of Stripe
+    if (shouldUseAppleIAP()) {
+      const toastId = toast.loading('Processing purchase...');
+      const result = await purchaseProduct(tier, user.uid);
+      toast.dismiss(toastId);
+      if (result.success) {
+        toast.success('Subscription activated!');
+        fetchUserCredits(user.uid);
+      } else if (result.error !== 'Purchase cancelled') {
+        toast.error(result.error || 'Purchase failed');
+      }
+      return;
+    }
 
     try {
       toast.loading('Redirecting to checkout...');
@@ -13884,7 +13915,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </button>
                   {' '}and{' '}
                   <button 
-                    onClick={() => { setShowLoginModal(false); window.location.hash = '#/legal'; }}
+                    onClick={() => { setShowLoginModal(false); window.open('/privacy.html', '_blank'); }}
                     style={{ background: 'none', border: 'none', color: 'var(--color-purple)', cursor: 'pointer', padding: 0, fontSize: '0.75rem', textDecoration: 'underline' }}
                   >
                    Privacy Policy
@@ -14495,7 +14526,8 @@ const fetchUserCredits = useCallback(async (uid) => {
               </div>
             </div>
 
-            <div className="modal-footer" style={{ borderTop: '1px solid var(--glass-border)', padding: '1rem 1.25rem', flexShrink: 0, display: 'flex', gap: '0.75rem' }}>
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--glass-border)', padding: '1rem 1.25rem', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button 
                 className="cta-button-secondary" 
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -14517,6 +14549,26 @@ const fetchUserCredits = useCallback(async (uid) => {
               >
                 <Rocket size={18} style={{ marginRight: '6px' }} /> Create Project
               </button>
+              </div>
+              {shouldUseAppleIAP() && (
+                <button
+                  style={{ width: '100%', padding: '8px', background: 'none', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.8rem' }}
+                  onClick={async () => {
+                    const toastId = toast.loading('Restoring purchases...');
+                    const txns = await restorePurchases();
+                    toast.dismiss(toastId);
+                    if (txns.length > 0) {
+                      toast.success(`Restored ${txns.length} purchase(s)`);
+                      if (user) fetchUserCredits(user.uid);
+                    } else {
+                      toast('No previous purchases found');
+                    }
+                  }}
+                >
+                  <RefreshCw size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                  Restore Purchases
+                </button>
+              )}
             </div>
           </div>
         </div>
