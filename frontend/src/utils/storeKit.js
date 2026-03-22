@@ -1,12 +1,14 @@
 /**
- * StoreKit 2 integration for iOS In-App Purchases.
- * Routes through Capacitor's InAppPurchase plugin when running on iOS native.
+ * StoreKit 2 integration for iOS In-App Purchases via RevenueCat.
+ * Routes through RevenueCat SDK when running on iOS native.
  * Falls back gracefully to Stripe on web.
+ *
+ * Install before iOS build: npm install @revenuecat/purchases-capacitor
  */
 
 import { shouldUseAppleIAP } from './nativePlatform';
 
-// StoreKit product IDs — must match App Store Connect configuration
+// StoreKit product IDs — must match App Store Connect + RevenueCat configuration
 const PRODUCT_IDS = {
   creator: 'com.studioagents.app.creator.monthly',
   studio: 'com.studioagents.app.studio.monthly',
@@ -16,18 +18,19 @@ const PRODUCT_IDS = {
   credits_500: 'com.studioagents.app.credits.500',
 };
 
-let _iapPlugin = null;
+let _purchases = null;
 
 /**
- * Initialize the IAP plugin (call once on app startup when on iOS).
+ * Initialize RevenueCat (call once on app startup when on iOS).
  */
 export async function initStoreKit() {
   if (!shouldUseAppleIAP()) return false;
 
   try {
-    const { InAppPurchase } = await import('@capacitor-community/in-app-purchases');
-    _iapPlugin = InAppPurchase;
-    await _iapPlugin.initialize();
+    const { Purchases } = await import('@revenuecat/purchases-capacitor');
+    _purchases = Purchases;
+    // Configure with your RevenueCat API key (set in App Store Connect → RevenueCat dashboard)
+    await _purchases.configure({ apiKey: 'appl_REPLACE_WITH_REVENUECAT_KEY' });
     return true;
   } catch (err) {
     console.warn('[StoreKit] Failed to initialize:', err.message);
@@ -39,13 +42,11 @@ export async function initStoreKit() {
  * Fetch available products from the App Store.
  */
 export async function getProducts() {
-  if (!_iapPlugin) return [];
+  if (!_purchases) return [];
 
   try {
-    const { products } = await _iapPlugin.getProducts({
-      productIds: Object.values(PRODUCT_IDS),
-    });
-    return products;
+    const offerings = await _purchases.getOfferings();
+    return offerings.current?.availablePackages || [];
   } catch (err) {
     console.warn('[StoreKit] Failed to fetch products:', err.message);
     return [];
@@ -59,7 +60,7 @@ export async function getProducts() {
  * @returns {Promise<{success: boolean, transactionId?: string, error?: string}>}
  */
 export async function purchaseProduct(productKey, userId) {
-  if (!_iapPlugin) {
+  if (!_purchases) {
     return { success: false, error: 'StoreKit not initialized' };
   }
 
@@ -69,20 +70,22 @@ export async function purchaseProduct(productKey, userId) {
   }
 
   try {
-    const result = await _iapPlugin.purchaseProduct({
-      productId,
-      appAccountToken: userId, // Links Apple transaction to Firebase UID
+    // Set Firebase UID as the RevenueCat app user ID for receipt → user linking
+    await _purchases.logIn({ appUserID: userId });
+
+    const { customerInfo } = await _purchases.purchaseProduct({
+      productIdentifier: productId,
     });
 
-    if (result.transactionId) {
-      // Validate receipt server-side to grant credits/subscription
-      const validated = await validateReceipt(result.transactionId, userId);
+    if (customerInfo) {
+      // RevenueCat validates receipts automatically — notify our backend
+      const validated = await validateReceipt(customerInfo.originalAppUserId, userId);
       return validated;
     }
 
     return { success: false, error: 'Purchase cancelled' };
   } catch (err) {
-    if (err.code === 'USER_CANCELLED') {
+    if (err.code === 'PURCHASE_CANCELLED_ERROR' || err.userCancelled) {
       return { success: false, error: 'Purchase cancelled' };
     }
     console.error('[StoreKit] Purchase failed:', err);
@@ -127,11 +130,12 @@ async function validateReceipt(transactionId, userId) {
  * Restore previous purchases (required by Apple for subscription apps).
  */
 export async function restorePurchases() {
-  if (!_iapPlugin) return [];
+  if (!_purchases) return [];
 
   try {
-    const { transactions } = await _iapPlugin.restorePurchases();
-    return transactions || [];
+    const { customerInfo } = await _purchases.restorePurchases();
+    const txns = Object.keys(customerInfo?.entitlements?.active || {});
+    return txns;
   } catch (err) {
     console.warn('[StoreKit] Restore failed:', err.message);
     return [];
