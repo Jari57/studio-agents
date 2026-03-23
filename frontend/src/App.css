@@ -1885,9 +1885,15 @@ select optgroup {
 
 .agents-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 1.25rem;
   width: 100%;
+}
+
+@media (max-width: 768px) {
+  .agents-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Meet the Agents team grid: 2x2 on web, 1x1 on mobile */
@@ -4027,10 +4033,10 @@ select optgroup {
   box-sizing: border-box;
 }
 
-/* Agent tier grids — centered, responsive columns */
+/* Agent tier grids — 2x2 on desktop, 1x1 on mobile */
 .agent-tier-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 18px;
   width: 100%;
 }
@@ -8519,11 +8525,11 @@ html, body {
     width: 100% !important;
   }
   
-  /* Force 2-column grid layout with equal height rows */
+  /* Force 1-column grid layout on mobile with equal height rows */
   .agents-scroll-container .agents-grid,
   .agents-grid {
     display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-columns: 1fr !important;
     grid-auto-rows: 1fr !important;
     gap: 10px !important;
     width: 100% !important;

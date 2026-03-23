@@ -9201,7 +9201,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               </div>
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+                gridTemplateColumns: 'repeat(2, 1fr)', 
                 gap: '16px' 
               }}>
                 {(AGENTS || []).slice(0, 8).map(agent => {
