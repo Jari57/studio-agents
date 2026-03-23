@@ -34,6 +34,7 @@ import toast from 'react-hot-toast';
 const AdminAnalytics = ({ BACKEND_URL = '', auth }) => {
   const [stats, setStats] = useState(null);
   const [healthData, setHealthData] = useState(null);
+  const [agentStats, setAgentStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [lastRefresh, setLastRefresh] = useState(null);
@@ -49,9 +50,10 @@ const AdminAnalytics = ({ BACKEND_URL = '', auth }) => {
       }
       const headers = { 'Authorization': `Bearer ${token}` };
       
-      const [statsRes, healthRes] = await Promise.allSettled([
+      const [statsRes, healthRes, agentRes] = await Promise.allSettled([
         fetch(`${BACKEND_URL}/api/admin/stats`, { headers }),
-        fetch(`${BACKEND_URL}/api/admin/health-deep`, { headers })
+        fetch(`${BACKEND_URL}/api/admin/health-deep`, { headers }),
+        fetch(`${BACKEND_URL}/api/admin/stats/agents`, { headers })
       ]);
 
       if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
@@ -59,6 +61,9 @@ const AdminAnalytics = ({ BACKEND_URL = '', auth }) => {
       }
       if (healthRes.status === 'fulfilled' && healthRes.value.ok) {
         setHealthData(await healthRes.value.json());
+      }
+      if (agentRes.status === 'fulfilled' && agentRes.value.ok) {
+        setAgentStats(await agentRes.value.json());
       }
       setLastRefresh(new Date());
       toast.success('Dashboard refreshed');
@@ -176,6 +181,7 @@ const AdminAnalytics = ({ BACKEND_URL = '', auth }) => {
         <TabButton id="users" label="Users & Growth" icon={Users} />
         <TabButton id="infrastructure" label="Infrastructure" icon={Server} />
         <TabButton id="security" label="Security & Compliance" icon={Shield} />
+        <TabButton id="agents" label="Agent Performance" icon={Music} />
       </div>
 
       {/* ============================================== */}
@@ -185,7 +191,7 @@ const AdminAnalytics = ({ BACKEND_URL = '', auth }) => {
         <>
           {/* KPI Row */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-            <StatCard title="Total Creators" value={fmt(s.users?.total)} icon={Users} color="#8b5cf6" subtitle={`${fmt(s.users?.newToday)} new today`} />
+            <StatCard title="Total Creators" value={fmt(s.users?.total)} icon={Users} color="#8b5cf6" subtitle={`${fmt(s.users?.newToday)} new today`} trend={s.growth?.wowUserGrowth} />
             <StatCard title="MRR" value={fmtUSD(s.revenue?.mrr)} icon={DollarSign} color="#10b981" subtitle={`ARR: ${fmtUSD(s.revenue?.arr)}`} />
             <StatCard title="Conversion Rate" value={`${s.revenue?.conversionRate || 0}%`} icon={Target} color="#f59e0b" subtitle={`${fmt(s.users?.paid)} paid users`} />
             <StatCard title="DAU Estimate" value={fmt(s.users?.dauEstimate)} icon={Activity} color="#06b6d4" subtitle={`WAU: ${fmt(s.users?.wauEstimate)}`} />
@@ -338,6 +344,31 @@ const AdminAnalytics = ({ BACKEND_URL = '', auth }) => {
             </Panel>
           </div>
 
+          {/* Revenue by Tier */}
+          {s.revenue?.revenueByTier && (
+            <Panel style={{ marginBottom: '24px' }}>
+              <SectionHeader icon={PieChart} title="Revenue Breakdown by Tier" color="#a855f7" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {Object.entries(s.revenue.revenueByTier).filter(([,v]) => v > 0).map(([tier, amount]) => {
+                  const total = Object.values(s.revenue.revenueByTier).reduce((a, b) => a + b, 0);
+                  const pct = total > 0 ? ((amount / total) * 100).toFixed(1) : 0;
+                  const colors = { creator: '#06b6d4', studio: '#8b5cf6', lifetime: '#f59e0b' };
+                  return (
+                    <div key={tier}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '5px' }}>
+                        <span style={{ textTransform: 'capitalize', fontWeight: '600' }}>{tier}</span>
+                        <span style={{ fontWeight: '700' }}>{fmtUSD(amount)} <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: '500' }}>({pct}%)</span></span>
+                      </div>
+                      <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: colors[tier] || '#8b5cf6', borderRadius: '4px', transition: 'width 0.5s' }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Panel>
+          )}
+
           {/* Credit Costs per Feature */}
           <Panel style={{ marginBottom: '24px' }}>
             <SectionHeader icon={Zap} title="Credit Costs per Feature (Margin Analysis)" color="#06b6d4" />
@@ -409,6 +440,7 @@ const AdminAnalytics = ({ BACKEND_URL = '', auth }) => {
             <StatCard title="Monthly Growth" value={`${s.growth?.monthlyRate || 0}%`} icon={TrendingUp} color="#f59e0b" />
             <StatCard title="Projected CAGR" value={`${s.growth?.projectedCAGR || 0}%`} icon={ArrowUpRight} color="#ec4899" subtitle="Based on current monthly growth" />
             <StatCard title="Credits in Circulation" value={fmt(s.credits?.totalInCirculation)} icon={Zap} color="#a855f7" subtitle={`Avg ${fmt(s.credits?.averagePerUser)}/user`} />
+            <StatCard title="Est. Churn Rate" value={`${s.users?.estimatedChurnRate ?? '—'}%`} icon={ArrowDown} color="#ef4444" subtitle={`${fmt(s.users?.churningPaidUsers)} paid users inactive >30d`} />
           </div>
 
           {/* Signups Trend Chart */}
@@ -671,6 +703,72 @@ const AdminAnalytics = ({ BACKEND_URL = '', auth }) => {
               </div>
             </div>
           </Panel>
+        </>
+      )}
+
+      {/* ============================================== */}
+      {/* ══ AGENTS TAB ══ */}
+      {/* ============================================== */}
+      {activeTab === 'agents' && (
+        <>
+          {!agentStats ? (
+            <Panel>
+              <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>
+                <Music size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
+                <p style={{ margin: 0 }}>Agent usage data unavailable — no generations logged yet or index pending.</p>
+              </div>
+            </Panel>
+          ) : (
+            <>
+              {/* Summary KPIs */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                <StatCard title="Total Generations Sampled" value={fmt(agentStats.total)} icon={BarChart3} color="#8b5cf6" subtitle="Up to last 5,000 records" />
+                <StatCard title="Unique Agents Used" value={fmt(Object.keys(agentStats.byAgent || {}).length)} icon={Music} color="#06b6d4" />
+                <StatCard title="Top Agent" value={Object.entries(agentStats.byAgent || {})[0]?.[0] || '—'} icon={Zap} color="#10b981" subtitle={`${fmt(Object.entries(agentStats.byAgent || {})[0]?.[1])} uses`} />
+              </div>
+
+              {/* Per-agent breakdown */}
+              <Panel style={{ marginBottom: '24px' }}>
+                <SectionHeader icon={BarChart3} title="Usage by Agent" color="#8b5cf6" />
+                {agentStats.byAgent && Object.keys(agentStats.byAgent).length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {Object.entries(agentStats.byAgent).map(([agent, count]) => {
+                      const pct = agentStats.total > 0 ? ((count / agentStats.total) * 100).toFixed(1) : 0;
+                      return (
+                        <div key={agent}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '5px' }}>
+                            <span style={{ fontWeight: '600' }}>{agent}</span>
+                            <span style={{ fontWeight: '700' }}>{fmt(count)} <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: '500' }}>({pct}%)</span></span>
+                          </div>
+                          <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg, #8b5cf6, #06b6d4)', borderRadius: '4px', transition: 'width 0.5s' }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '20px', color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem' }}>No agent data yet</div>
+                )}
+              </Panel>
+
+              {/* By type */}
+              <Panel>
+                <SectionHeader icon={Activity} title="Usage by Generation Type" color="#06b6d4" />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+                  {agentStats.byType && Object.entries(agentStats.byType).map(([type, count]) => (
+                    <div key={type} style={{ padding: '12px', borderRadius: '10px', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{type}</div>
+                      <div style={{ fontSize: '1.3rem', fontWeight: '800', marginTop: '4px' }}>{fmt(count)}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
+                        {agentStats.total > 0 ? ((count / agentStats.total) * 100).toFixed(1) : 0}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+            </>
+          )}
         </>
       )}
 

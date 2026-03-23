@@ -1967,6 +1967,7 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
     const now = new Date();
     const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(now - 14 * 24 * 60 * 60 * 1000);
     const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
     
     let totalCredits = 0;
@@ -1980,6 +1981,8 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
     const tierCounts = { free: 0, creator: 0, studio: 0, pro: 0, lifetime: 0 };
     const signupsByDay = {};
     const creditDistribution = { '0': 0, '1-10': 0, '11-50': 0, '51-100': 0, '100+': 0 };
+    let newUsersPrevWeek = 0;
+    let churningPaidUsers = 0;
     
     usersSnapshot.forEach(doc => {
       const data = doc.data();
@@ -2004,6 +2007,7 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
         if (createdAt > oneDayAgo) newUsersToday++;
         if (createdAt > sevenDaysAgo) newUsersWeek++;
         if (createdAt > thirtyDaysAgo) newUsersMonth++;
+        if (createdAt >= fourteenDaysAgo && createdAt < sevenDaysAgo) newUsersPrevWeek++;
         const dayKey = new Date(createdAt).toISOString().split('T')[0];
         signupsByDay[dayKey] = (signupsByDay[dayKey] || 0) + 1;
       }
@@ -2013,6 +2017,7 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
       if (lastActive) {
         if (lastActive > oneDayAgo) activeUsersDay++;
         if (lastActive > sevenDaysAgo) activeUsersWeek++;
+        if (tier !== 'free' && lastActive < thirtyDaysAgo) churningPaidUsers++;
       }
     });
 
@@ -2032,6 +2037,13 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
     // Annualized from lifetime (amortize over 24 months)
     const lifetimeAmortized = (tierCounts.lifetime * SUB_PRICES.lifetime) / 24;
     mrr += lifetimeAmortized;
+
+    // Revenue split by tier (for admin breakdown view)
+    const revenueByTier = {
+      creator: parseFloat((tierCounts.creator * SUB_PRICES.creator).toFixed(2)),
+      studio: parseFloat((tierCounts.studio * SUB_PRICES.studio).toFixed(2)),
+      lifetime: parseFloat(lifetimeAmortized.toFixed(2))
+    };
     
     const arr = mrr * 12;
     const conversionRate = totalUsers > 0 ? ((paidUsers / totalUsers) * 100).toFixed(1) : 0;
@@ -2055,6 +2067,14 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
     // CAGR projection based on monthly growth
     const monthlyGRate = parseFloat(monthlyGrowthRate) / 100;
     const projectedCAGR = (Math.pow(1 + monthlyGRate, 12) - 1) * 100;
+    // WoW new-user acquisition growth (this week vs prev week)
+    const wowUserGrowth = newUsersPrevWeek > 0
+      ? parseFloat(((newUsersWeek - newUsersPrevWeek) / newUsersPrevWeek * 100).toFixed(1))
+      : (newUsersWeek > 0 ? 100 : 0);
+    // Estimated churn: paid users whose lastActive is >30 days ago
+    const estimatedChurnRate = paidUsers > 0
+      ? parseFloat((churningPaidUsers / paidUsers * 100).toFixed(1))
+      : 0;
 
     // ── 5. SYSTEM HEALTH ──
     const memUsage = process.memoryUsage();
@@ -2119,7 +2139,9 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
         newThisMonth: newUsersMonth,
         dauEstimate: activeUsersDay,
         wauEstimate: activeUsersWeek,
-        creditDistribution
+        creditDistribution,
+        estimatedChurnRate,
+        churningPaidUsers
       },
       
       // Financial
@@ -2131,7 +2153,8 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
         conversionRate: parseFloat(conversionRate),
         projectedCAGR: parseFloat(projectedCAGR.toFixed(1)),
         subscriptionPrices: SUB_PRICES,
-        creditPackPrices: CREDIT_PRICE_MAP
+        creditPackPrices: CREDIT_PRICE_MAP,
+        revenueByTier
       },
       
       // Unit economics
@@ -2163,6 +2186,7 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
         weeklyRate: parseFloat(weeklyGrowthRate),
         monthlyRate: parseFloat(monthlyGrowthRate),
         projectedCAGR: parseFloat(projectedCAGR.toFixed(1)),
+        wowUserGrowth,
         signupsTrend
       },
       
@@ -2203,6 +2227,38 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
   } catch (error) {
     logger.error('Admin stats failed:', error);
     res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+// GET /api/admin/stats/agents - Per-agent usage breakdown (last 5000 generations)
+app.get('/api/admin/stats/agents', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  const db = getFirestoreDb();
+  if (!db) return res.status(503).json({ error: 'Database unavailable' });
+
+  try {
+    const snapshot = await db.collectionGroup('generations').limit(5000).get();
+    const byAgent = {};
+    const byType = {};
+    let total = 0;
+
+    snapshot.forEach(doc => {
+      const { agent, type } = doc.data();
+      const agentKey = agent || 'unknown';
+      const typeKey = type || 'unknown';
+      byAgent[agentKey] = (byAgent[agentKey] || 0) + 1;
+      byType[typeKey] = (byType[typeKey] || 0) + 1;
+      total++;
+    });
+
+    // Sort agents by usage descending
+    const sortedAgents = Object.entries(byAgent)
+      .sort((a, b) => b[1] - a[1])
+      .reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {});
+
+    res.json({ byAgent: sortedAgents, byType, total, sampleSize: total });
+  } catch (err) {
+    logger.error('Agent stats error:', err);
+    res.status(500).json({ error: 'Failed to fetch agent stats', details: safeErrorDetail(err) });
   }
 });
 
