@@ -80,7 +80,12 @@ function GuidedTour({ active, onClose, onNavigate }) {
 
   const positionTooltip = useCallback(() => {
     if (!currentStep) return;
-    const el = document.querySelector(currentStep.target);
+    // Find the first visible matching element (handles mobile+desktop duplicates)
+    const allEls = document.querySelectorAll(currentStep.target);
+    const el = Array.from(allEls).find(e => {
+      const r = e.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    }) || null;
     if (!el) {
       // Element not found — try navigating to correct tab
       if (currentStep.tab && onNavigate) {

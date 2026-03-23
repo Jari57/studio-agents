@@ -11042,6 +11042,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
         <nav className="studio-nav-links">
           <button 
+            data-tour="nav-studio"
             className={`nav-link ${activeTab === 'mystudio' ? 'active' : ''}`}
             onClick={() => { setActiveTab('mystudio'); setSelectedAgent(null); }}
           >
@@ -11049,6 +11050,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             <span>My Studio</span>
           </button>
           <button 
+            data-tour="nav-team"
             className={`nav-link ${activeTab === 'agents' ? 'active' : ''}`}
             onClick={() => { setActiveTab('agents'); setSelectedAgent(null); }}
           >
@@ -11056,6 +11058,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             <span>Agents Team</span>
           </button>
           <button 
+            data-tour="nav-projects"
             className={`nav-link ${activeTab === 'hub' ? 'active' : ''}`}
             onClick={() => { setActiveTab('hub'); setSelectedAgent(null); }}
           >
@@ -11070,6 +11073,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             <span>Social Media Hub</span>
           </button>
           <button 
+            data-tour="nav-more"
             className={`nav-link ${activeTab === 'resources' ? 'active' : ''}`}
             onClick={() => { setActiveTab('resources'); setSelectedAgent(null); }}
           >
