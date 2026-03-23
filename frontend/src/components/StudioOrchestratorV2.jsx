@@ -1322,7 +1322,10 @@ function ProductionControlHub({
   handleDownloadMasterMix,
   distributing,
   shareLink,
-  creatorMode = 'artist'
+  creatorMode = 'artist',
+  muxRetryParams,
+  autoMuxVideoWithAudio,
+  getHeaders
 }) {
   // Check completion status
   const completedCount = Object.values(outputs).filter(Boolean).length;
@@ -7954,6 +7957,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         distributing={distributing}
         shareLink={shareLink}
         creatorMode={creatorMode}
+        muxRetryParams={muxRetryParams}
+        autoMuxVideoWithAudio={autoMuxVideoWithAudio}
+        getHeaders={getHeaders}
       />
     </div>
 
