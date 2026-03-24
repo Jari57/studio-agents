@@ -211,30 +211,43 @@ function App() {
       />
       {isWhitepapers ? (
         <Suspense fallback={<StudioLoadingFallback />}>
+          <main>
           <WhitepapersPage onBack={handleBackToLanding} agents={AGENTS} />
+          </main>
         </Suspense>
       ) : isLegal ? (
         <Suspense fallback={<StudioLoadingFallback />}>
+          <main>
           <LegalResourcesPage onBack={handleBackToLanding} />
+          </main>
         </Suspense>
       ) : isDna ? (
         <Suspense fallback={<StudioLoadingFallback />}>
+          <main>
           <DnaResourcePage onBack={handleBackToLanding} />
+          </main>
         </Suspense>
       ) : isVocals ? (
         <Suspense fallback={<StudioLoadingFallback />}>
+          <main>
           <VocalsResourcePage onBack={handleBackToLanding} />
+          </main>
         </Suspense>
       ) : isBillboard ? (
         <Suspense fallback={<StudioLoadingFallback />}>
+          <main>
           <BillboardBlueprintPage onBack={handleBackToLanding} />
+          </main>
         </Suspense>
       ) : isCampaign ? (
         <Suspense fallback={<StudioLoadingFallback />}>
+          <main>
           <ContentMultiplicationPage onBack={handleBackToLanding} />
+          </main>
         </Suspense>
       ) : isStudio ? (
         <Suspense fallback={<StudioLoadingFallback />}>
+          <main>
           <StudioView 
             onBack={handleBackToLanding} 
             startWizard={startWizard} 
@@ -243,14 +256,17 @@ function App() {
             initialPlan={initialPlan}
             initialTab={initialTab}
           />
+          </main>
         </Suspense>
       ) : (
         <Suspense fallback={<StudioLoadingFallback />}>
+          <main>
           <LandingPage 
             onEnter={handleEnterStudio} 
             onStartTour={handleStartTour}
             onSubscribe={handleSubscribe}
           />
+          </main>
         </Suspense>
       )}
     </div>

@@ -402,6 +402,7 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
           <div style={{ flex: 1, minWidth: '150px' }}>
             <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Language</label>
             <select 
+              aria-label="Language"
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
               style={{
@@ -425,6 +426,7 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
           <div style={{ flex: 1, minWidth: '150px' }}>
             <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Style</label>
             <select 
+              aria-label="Style"
               value={style}
               onChange={(e) => setStyle(e.target.value)}
               style={{
@@ -448,6 +450,7 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
           <div style={{ flex: 1, minWidth: '150px' }}>
             <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Model</label>
             <select 
+              aria-label="Model"
               value={model}
               onChange={(e) => setModel(e.target.value)}
               style={{

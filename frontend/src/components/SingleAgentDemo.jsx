@@ -177,6 +177,7 @@ export default function SingleAgentDemo() {
           <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Agent</label>
           <div style={{ position: 'relative' }}>
             <select
+              aria-label="Agent"
               value={selectedAgentId}
               onChange={(e) => { setSelectedAgentId(e.target.value); setOutput(null); setHasStarted(false); }}
               style={{
@@ -205,6 +206,7 @@ export default function SingleAgentDemo() {
         <div style={{ flex: 1, minWidth: '180px' }}>
           <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Style</label>
           <select
+            aria-label="Style"
             value={style}
             onChange={(e) => setStyle(e.target.value)}
             style={{
