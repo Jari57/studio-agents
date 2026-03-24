@@ -106,6 +106,11 @@ function App() {
       // [App] Session detected on mount, skipping landing page');
       setCurrentHash('#/studio/resources');
       window.location.hash = '#/studio/resources';
+      // Auto-trigger guided tour on the first ever studio visit (returning user, fresh browser)
+      if (!localStorage.getItem('studio_tour_shown')) {
+        localStorage.setItem('studio_tour_shown', '1');
+        setStartTour(true);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run ONLY on mount to allow explicit navigation to #/ via handleBackToLanding
@@ -116,7 +121,14 @@ function App() {
     // [App] handleEnterStudio called, shouldStartWizard:', shouldStartWizard, 'startOrchestrator:', startOrchestrator, 'targetTab:', targetTab);
     setStartWizard(shouldStartWizard);
     setStartOrchestrator(startOrchestrator);
-    setStartTour(false);
+    // Auto-trigger guided tour the very first time entering the studio from the landing page
+    const isFirstStudioVisit = !shouldStartWizard && !startOrchestrator && !localStorage.getItem('studio_tour_shown');
+    if (isFirstStudioVisit) {
+      localStorage.setItem('studio_tour_shown', '1');
+      setStartTour(true);
+    } else {
+      setStartTour(false);
+    }
     setInitialPlan(null);
     setInitialTab(targetTab || 'resources');
     

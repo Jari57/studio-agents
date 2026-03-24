@@ -186,16 +186,20 @@ let firebaseInitialized = false;
 // =============================================================================
 // ADMIN ACCOUNTS CONFIGURATION
 // =============================================================================
-// These emails have full admin access for testing and demo purposes
-const ADMIN_EMAILS = [
-  'jari@studioagents.ai',          // Primary admin
-  'jari57@gmail.com',              // Jari personal email
-  'demo@studioagents.ai',          // Demo account for presentations
-  'test@studioagents.ai',          // QA testing account
-  'support@studioagents.ai',       // Support team access
-  'dev@studioagents.ai',           // Developer testing account
-  'info@studioagentsai.com'        // Support/Info account
+// Prefer ADMIN_EMAILS env var (comma-separated) set in Railway/production.
+// Falls back to the hardcoded list so local dev and existing deployments keep working.
+const _hardcodedAdmins = [
+  'jari@studioagents.ai',
+  'jari57@gmail.com',
+  'demo@studioagents.ai',
+  'test@studioagents.ai',
+  'support@studioagents.ai',
+  'dev@studioagents.ai',
+  'info@studioagentsai.com'
 ];
+const ADMIN_EMAILS = process.env.ADMIN_EMAILS
+  ? process.env.ADMIN_EMAILS.split(',').map(e => e.trim()).filter(Boolean)
+  : _hardcodedAdmins;
 
 // Demo accounts with pre-loaded credits for testing
 const DEMO_ACCOUNTS = {
@@ -2288,6 +2292,9 @@ app.get('/api/user/profile', verifyFirebaseToken, async (req, res) => {
         credits: 3,
         tier: 'free',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        // Terms acceptance: implicit at account creation (ToS visible on landing page)
+        termsAcceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+        termsVersion: '1.0',
         preferences: {
           theme: 'dark',
           defaultAgent: null,
