@@ -24,6 +24,14 @@ try {
  * Download file from URL
  */
 function downloadFile(url, destPath) {
+  // Handle base64 data URIs (data:video/mp4;base64,...) — may appear when AI providers return inline data
+  if (typeof url === 'string' && url.startsWith('data:')) {
+    const match = url.match(/^data:[^;]+;base64,(.+)$/s);
+    if (!match) return Promise.reject(new Error('Invalid data URI format in downloadFile'));
+    fs.writeFileSync(destPath, Buffer.from(match[1], 'base64'));
+    return Promise.resolve(destPath);
+  }
+
   return new Promise((resolve, reject) => {
     const protocol = url.startsWith('https') ? https : http;
     const file = fs.createWriteStream(destPath);

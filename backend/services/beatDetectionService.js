@@ -13,6 +13,14 @@ const http = require('http');
  * Download audio file from URL to temporary location
  */
 async function downloadAudio(audioUrl, tempPath) {
+  // Handle base64 data URIs (data:audio/mpeg;base64,...) — common from ElevenLabs/Bark/Gemini TTS
+  if (typeof audioUrl === 'string' && audioUrl.startsWith('data:')) {
+    const match = audioUrl.match(/^data:[^;]+;base64,(.+)$/s);
+    if (!match) throw new Error('Invalid data URI format in downloadAudio');
+    fs.writeFileSync(tempPath, Buffer.from(match[1], 'base64'));
+    return tempPath;
+  }
+
   return new Promise((resolve, reject) => {
     const protocol = audioUrl.startsWith('https') ? https : http;
     const file = fs.createWriteStream(tempPath);

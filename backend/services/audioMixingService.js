@@ -22,9 +22,9 @@ function downloadAudio(url, destPath, maxRedirects = 3) {
     // Handle base64 data URLs (vocals/beats returned as data: URIs from AI providers)
     if (url.startsWith('data:')) {
       try {
-        const base64Data = url.split(',')[1];
-        if (!base64Data) return reject(new Error('Invalid data URL — no base64 payload'));
-        fs.writeFileSync(destPath, Buffer.from(base64Data, 'base64'));
+        const match = url.match(/^data:[^;]+;base64,(.+)$/s);
+        if (!match) return reject(new Error('Invalid data URI — missing base64 payload'));
+        fs.writeFileSync(destPath, Buffer.from(match[1], 'base64'));
         return resolve(destPath);
       } catch (err) {
         return reject(err);

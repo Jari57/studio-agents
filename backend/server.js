@@ -386,9 +386,10 @@ async function uploadToStorage(fileData, userId, fileName, mimeType = 'audio/mpe
       if (!dlRes.ok) throw new Error(`Failed to download from URL: ${dlRes.status}`);
       buffer = Buffer.from(await dlRes.arrayBuffer());
     } else if (fileData.startsWith('data:')) {
-      // Handle data URLs (data:audio/mpeg;base64,...)
-      const base64Data = fileData.split(',')[1];
-      buffer = Buffer.from(base64Data, 'base64');
+      // Handle data URLs (data:audio/mpeg;base64,...) — use regex to safely extract base64
+      const match = fileData.match(/^data:[^;]+;base64,(.+)$/s);
+      if (!match) throw new Error('Invalid data URI — missing base64 payload');
+      buffer = Buffer.from(match[1], 'base64');
     } else {
       buffer = Buffer.from(fileData, 'base64');
     }
@@ -1205,7 +1206,16 @@ app.get('/dashboard', (req, res) => {
 });
 
 // DETAILED HEALTH CHECK
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  // Probe ffmpeg availability
+  let ffmpegStatus = 'unknown';
+  try {
+    const ffmpegStatic = require('ffmpeg-static');
+    ffmpegStatus = ffmpegStatic ? 'available (static)' : 'missing';
+  } catch (_e) {
+    ffmpegStatus = 'missing (ffmpeg-static not installed)';
+  }
+
   const healthStatus = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -1218,8 +1228,9 @@ app.get('/health', (req, res) => {
     apiKey: apiKey ? 'configured' : 'missing',
     sunoApi: process.env.SUNO_API_KEY ? 'configured' : 'missing',
     elevenLabs: process.env.ELEVENLABS_API_KEY ? 'configured' : 'missing',
-    replicate: process.env.REPLICATE_API_TOKEN ? 'configured' : 'missing',
+    replicate: (process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN) ? 'configured' : 'missing',
     stripe: process.env.STRIPE_SECRET_KEY ? 'configured' : 'missing',
+    ffmpeg: ffmpegStatus,
     rateLimiting: 'active',
     nodeVersion: process.version,
     platform: process.platform
@@ -4763,7 +4774,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
         logger.info('Generating image with Nano Banana', { prompt: prompt.substring(0, 50) });
         
         const nanoBananaModel = genAI.getGenerativeModel({ 
-          model: 'gemini-2.5-flash-image',
+          model: 'gemini-2.0-flash-exp',
           safetySettings: GEMINI_SAFETY_SETTINGS
         });
         
@@ -5230,7 +5241,7 @@ Return ONLY valid JSON, no markdown.`;
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
+            model: 'suno-ai/bark',
             input: {
               prompt: barkSingingPrompt,
               text_temp: barkTextTemp,
@@ -5866,8 +5877,7 @@ Return ONLY valid JSON, no markdown.`;
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-
-            version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
+            model: 'suno-ai/bark',
             input: {
               prompt: barkPrompt,
               text_temp: 0.45,
@@ -5925,7 +5935,8 @@ Return ONLY valid JSON, no markdown.`;
         let geminiVoice = 'Kore';
         if (style.includes('female')) geminiVoice = 'Puck';
         
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+        // gemini-2.0-flash supports audio response modality (1.5 does not)
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiKey}`;
         const geminiResponse = await fetch(geminiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -7746,6 +7757,18 @@ try {
   if (ffmpegStatic) ffmpeg.setFfmpegPath(ffmpegStatic);
 } catch (_e) { /* rely on system ffmpeg */ }
 
+// Downloads a URL or decodes a data: URI into a Buffer
+async function fetchBuffer(url) {
+  if (typeof url === 'string' && url.startsWith('data:')) {
+    const match = url.match(/^data:[^;]+;base64,(.+)$/s);
+    if (!match) throw new Error('Invalid data URI format');
+    return Buffer.from(match[1], 'base64');
+  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Download failed: ${res.status} ${res.statusText}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 async function replaceVideoAudio(videoUrl, audioUrl, userId) {
   const tempDir = path.join(__dirname, 'temp');
   if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
@@ -7758,16 +7781,14 @@ async function replaceVideoAudio(videoUrl, audioUrl, userId) {
   try {
     logger.info('🎵 Replacing video audio with user music', { videoUrl: videoUrl.substring(0, 60), audioUrl: audioUrl.substring(0, 60) });
 
-    // Download video and audio in parallel
-    const [vidRes, audRes] = await Promise.all([
-      fetch(videoUrl),
-      fetch(audioUrl)
+    // Download/decode video and audio in parallel (handles both https:// and data: URIs)
+    const [videoBuffer, audioBuffer] = await Promise.all([
+      fetchBuffer(videoUrl),
+      fetchBuffer(audioUrl)
     ]);
-    if (!vidRes.ok) throw new Error(`Video download failed: ${vidRes.status}`);
-    if (!audRes.ok) throw new Error(`Audio download failed: ${audRes.status}`);
 
-    fs.writeFileSync(tempVideo, Buffer.from(await vidRes.arrayBuffer()));
-    fs.writeFileSync(tempAudio, Buffer.from(await audRes.arrayBuffer()));
+    fs.writeFileSync(tempVideo, videoBuffer);
+    fs.writeFileSync(tempAudio, audioBuffer);
 
     // Probe video and audio durations to decide if video needs looping
     const probeDuration = (filePath) => new Promise((resolve) => {
@@ -7824,8 +7845,17 @@ async function replaceVideoAudio(videoUrl, audioUrl, userId) {
 
       cmd.output(outputPath)
         .on('end', resolve)
-        .on('error', reject)
-        .run();
+        .on('error', reject);
+
+      // Safety timeout: kill ffmpeg after 3 minutes to prevent Railway connection exhaustion
+      const ffmpegTimeout = setTimeout(() => {
+        try { cmd.kill('SIGKILL'); } catch (_e) { /* ignore */ }
+        reject(new Error('FFmpeg audio replacement timed out after 3 minutes'));
+      }, 3 * 60 * 1000);
+
+      cmd.on('end', () => clearTimeout(ffmpegTimeout))
+         .on('error', () => clearTimeout(ffmpegTimeout))
+         .run();
     });
 
     // Upload merged video to Firebase Storage

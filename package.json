@@ -19,5 +19,9 @@
     "deploy:dev": "powershell -ExecutionPolicy Bypass -File deploy-dev.ps1",
     "deploy:prod": "powershell -ExecutionPolicy Bypass -File deploy-prod.ps1",
     "deploy": "npm run deploy:prod"
+  },
+  "dependencies": {
+    "chrome-launcher": "^1.2.1",
+    "lighthouse": "^13.0.3"
   }
 }
