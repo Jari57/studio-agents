@@ -642,6 +642,34 @@ const checkCreditsFor = (featureType) => {
 // Legacy middleware for backwards compatibility (1 credit)
 const _checkCredits = checkCreditsFor('default');
 
+// Refund credits when a paid generation fails (best-effort, won't throw)
+async function refundCredits(req, reason = 'generation failed') {
+  if (!req.creditCharged || !req.user || !firebaseInitialized) return;
+  if (ADMIN_EMAILS.includes((req.user.email || '').toLowerCase())) return;
+  const db = getFirestoreDb();
+  if (!db) return;
+  const userRef = db.collection('users').doc(req.user.uid);
+  try {
+    await db.runTransaction(async (t) => {
+      const doc = await t.get(userRef);
+      const credits = doc.exists ? (doc.data().credits || 0) : 0;
+      t.update(userRef, { credits: credits + req.creditCharged });
+      t.create(userRef.collection('credit_history').doc(), {
+        type: 'refund',
+        amount: req.creditCharged,
+        feature: req.featureType,
+        reason,
+        balanceBefore: credits,
+        balanceAfter: credits + req.creditCharged,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    logger.info(`💸 Refunded ${req.creditCharged} credits for ${req.featureType} (user: ${req.user.uid}): ${reason}`);
+  } catch (err) {
+    logger.error('🔥 Credit refund failed:', err.message);
+  }
+}
+
 // Fetch with timeout helper for external API calls
 async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
   const controller = new AbortController();
@@ -4890,6 +4918,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
 
   } catch (error) {
     logger.error('Image generation error', { error: error.message });
+    await refundCredits(req, 'image generation failed');
     res.status(500).json({ error: 'Image generation failed', details: safeErrorDetail(error) });
   }
 });
@@ -6247,10 +6276,12 @@ Return ONLY valid JSON, no markdown.`;
         });
       }
       
+      await refundCredits(req, 'all vocal providers failed');
       res.status(503).json({ error: 'Vocal generation failed', details: 'All vocal providers failed. Check API key configuration or system quota.' });
     }
   } catch (error) {
     logger.error('Vocal generation error', { error: error.message });
+    await refundCredits(req, 'vocal generation failed');
     res.status(500).json({ error: 'Vocal generation failed', details: safeErrorDetail(error) });
   }
 });
@@ -6631,6 +6662,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     }
   } catch (error) {
     logger.error('Global audio error', { error: error.message });
+    await refundCredits(req, 'beat generation failed');
     res.status(500).json({ error: 'Audio generation failed', details: safeErrorDetail(error) });
   }
 });
@@ -7480,7 +7512,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                 
                 // Async operation: store for frontend polling (avoids Vercel proxy timeout)
                 const opId = crypto.randomBytes(16).toString('hex');
-                pendingVideoOps.set(opId, {
+                const veo3FastOp = {
                   operationName: operationData.name,
                   apiKey,
                   source: 'veo-3.0-fast',
@@ -7492,7 +7524,9 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                   error: null,
                   audioUrl: audioUrl || null,
                   userId: req.user?.uid || null
-                });
+                };
+                pendingVideoOps.set(opId, veo3FastOp);
+                _savePendingVideoOp(opId, veo3FastOp);
                 logger.info('Video operation stored for async polling', { opId, operationName: operationData.name });
                 return res.json({ status: 'processing', operationId: opId, source: 'veo-3.0-fast' });
             } else if (response.status === 402 || response.status === 429) {
@@ -7568,7 +7602,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                 
                 // Async operation: store for frontend polling (avoids Vercel proxy timeout)
                 const opId = crypto.randomBytes(16).toString('hex');
-                pendingVideoOps.set(opId, {
+                const veo2Op = {
                   operationName: veo2Data.name,
                   apiKey,
                   source: 'veo-2.0',
@@ -7580,7 +7614,9 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                   error: null,
                   audioUrl: audioUrl || null,
                   userId: req.user?.uid || null
-                });
+                };
+                pendingVideoOps.set(opId, veo2Op);
+                _savePendingVideoOp(opId, veo2Op);
                 logger.info('Video operation stored for async polling (Veo 2.0)', { opId, operationName: veo2Data.name });
                 return res.json({ status: 'processing', operationId: opId, source: 'veo-2.0' });
             } else if (veo2Response.status === 402 || veo2Response.status === 429) {
@@ -7668,7 +7704,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
           
           // Store for async polling (same pattern as Veo)
           const opId = crypto.randomBytes(16).toString('hex');
-          pendingVideoOps.set(opId, {
+          const replicateOp = {
             replicatePredictionId: prediction.id,
             replicateKey: replicateKey,
             source: 'replicate-minimax',
@@ -7680,7 +7716,9 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
             error: null,
             audioUrl: audioUrl || null,
             userId: req.user?.uid || null
-          });
+          };
+          pendingVideoOps.set(opId, replicateOp);
+          _savePendingVideoOp(opId, replicateOp);
           logger.info('Replicate video operation stored for async polling', { opId, predictionId: prediction.id });
           return res.json({ status: 'processing', operationId: opId, source: 'replicate-minimax' });
         }
@@ -7719,6 +7757,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
 
   } catch (error) {
     logger.error('Video generation error', { error: error.message });
+    await refundCredits(req, 'video generation failed');
     res.status(500).json({ error: 'Video generation failed', details: safeErrorDetail(error) });
   }
 });
@@ -7874,6 +7913,61 @@ async function replaceVideoAudio(videoUrl, audioUrl, userId) {
 // ── Async video operations: track Veo polls so frontend can check status ──
 const pendingVideoOps = new Map(); // id → { operationName, apiKey, source, createdAt, attempts, consecutiveErrors, status, result, error }
 
+// Persist a pending video op to Firestore so it survives restarts (best-effort)
+function _savePendingVideoOp(opId, opData) {
+  if (!firebaseInitialized) return;
+  const db = getFirestoreDb();
+  if (!db) return;
+  // Strip sensitive API keys before persisting
+  const { apiKey: _ak, replicateKey: _rk, ...safe } = opData;
+  db.collection('video_ops').doc(opId).set({ ...safe, opId, savedAt: admin.firestore.FieldValue.serverTimestamp() })
+    .catch(err => logger.warn('video_ops persist failed', { opId, error: err.message }));
+}
+
+// Remove a completed/failed/expired video op from Firestore (best-effort)
+function _deletePendingVideoOp(opId) {
+  if (!firebaseInitialized) return;
+  const db = getFirestoreDb();
+  if (!db) return;
+  db.collection('video_ops').doc(opId).delete()
+    .catch(err => logger.warn('video_ops delete failed', { opId, error: err.message }));
+}
+
+// On startup, restore still-live ops from Firestore (re-populate in-memory Map)
+// API keys are not stored, so restored ops can only return cached results or fail gracefully
+async function _restorePendingVideoOps() {
+  if (!firebaseInitialized) return;
+  const db = getFirestoreDb();
+  if (!db) return;
+  try {
+    const tenMinAgo = Date.now() - 10 * 60 * 1000;
+    const snap = await db.collection('video_ops').where('status', '==', 'processing').get();
+    let restored = 0;
+    snap.forEach(doc => {
+      const data = doc.data();
+      if (data.createdAt > tenMinAgo) {
+        // Mark as failed since we lost the API key required to continue polling
+        pendingVideoOps.set(doc.id, {
+          ...data,
+          status: 'failed',
+          error: 'Server restarted while your video was processing. Please regenerate.',
+          apiKey: null,
+          replicateKey: null
+        });
+        _deletePendingVideoOp(doc.id);
+        restored++;
+      } else {
+        // Too old — just clean up Firestore
+        _deletePendingVideoOp(doc.id);
+      }
+    });
+    if (restored > 0) logger.info(`♻️ Restored ${restored} pending video ops from Firestore (marked failed)`);
+  } catch (err) {
+    logger.warn('Failed to restore video ops from Firestore', { error: err.message });
+  }
+}
+_restorePendingVideoOps();
+
 // ── Async format conversions: track MP3→WAV / WAV→MP3 jobs ──
 const pendingConversions = new Map(); // id → { status, convertedUrl?, storagePath?, format, fileSizeBytes?, error?, createdAt }
 let activeConversions = 0;
@@ -7883,7 +7977,10 @@ const MAX_CONCURRENT_CONVERSIONS = 3;
 setInterval(() => {
   const now = Date.now();
   for (const [id, op] of pendingVideoOps) {
-    if (now - op.createdAt > 10 * 60 * 1000) pendingVideoOps.delete(id); // 10 min TTL
+    if (now - op.createdAt > 10 * 60 * 1000) {
+      pendingVideoOps.delete(id); // 10 min TTL
+      _deletePendingVideoOp(id);
+    }
   }
 }, 5 * 60 * 1000);
 
@@ -7962,6 +8059,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
   if (Date.now() - op.createdAt > 10 * 60 * 1000) {
     op.status = 'failed';
     op.error = 'Video generation timed out after 10 minutes';
+    _deletePendingVideoOp(req.params.id);
     return res.status(500).json({ status: 'failed', error: op.error });
   }
 
@@ -8026,11 +8124,13 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
 
         op.status = 'completed';
         op.result = { status: 'completed', output: finalUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: finalUrl };
+        _deletePendingVideoOp(req.params.id);
         return res.json(op.result);
       }
       // Failed or canceled
       op.status = 'failed';
       op.error = pred.error || `Replicate prediction ${pred.status}`;
+      _deletePendingVideoOp(req.params.id);
       return res.status(500).json({ status: 'failed', error: op.error });
     }
 
@@ -8062,6 +8162,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
     if (pollData.error) {
       op.status = 'failed';
       op.error = `Video generation failed: ${JSON.stringify(pollData.error)}`;
+      _deletePendingVideoOp(req.params.id);
       return res.status(500).json({ status: 'failed', error: op.error });
     }
 
@@ -8101,6 +8202,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
 
       op.status = 'completed';
       op.result = { status: 'completed', output: finalUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: finalUrl };
+      _deletePendingVideoOp(req.params.id);
       return res.json(op.result);
     }
 
@@ -8139,12 +8241,14 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
 
       op.status = 'completed';
       op.result = { status: 'completed', output: finalUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: finalUrl };
+      _deletePendingVideoOp(req.params.id);
       return res.json(op.result);
     }
 
     // Unknown format — return raw
     op.status = 'completed';
     op.result = { status: 'completed', output: result, type: 'video', source: op.source };
+    _deletePendingVideoOp(req.params.id);
     return res.json(op.result);
 
   } catch (err) {
@@ -8153,6 +8257,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
     if (op.consecutiveErrors >= 5) {
       op.status = 'failed';
       op.error = `Polling failed: ${err.message}`;
+      _deletePendingVideoOp(req.params.id);
       return res.status(500).json({ status: 'failed', error: op.error });
     }
     return res.json({ status: 'processing', attempt: op.attempts });
@@ -11183,6 +11288,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
         message: 'Music video generated successfully'
       });
     } else {
+      await refundCredits(req, 'synced video generation failed');
       res.status(500).json({
         success: false,
         error: result.error,
@@ -11192,6 +11298,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
 
   } catch (error) {
     logger.error('Synced video generation error', { error: error.message });
+    await refundCredits(req, 'synced video generation failed');
     res.status(500).json({
       error: 'Video generation failed',
       details: safeErrorDetail(error)
@@ -11511,6 +11618,14 @@ const server = app.listen(PORT, HOST, () => {
     platform: process.version
   });
   logger.info(`🚀 Uplink Ready at http://${HOST}:${PORT}`);
+
+  // API key health-check summary
+  const sunoKey = process.env.SUNO_API_KEY;
+  if (sunoKey) {
+    logger.info(`🎵 Suno API key configured (${sunoKey.substring(0, 8)}...)`);
+  } else {
+    logger.warn('🎵 SUNO_API_KEY not set — singing/rapping will fall back to Bark/ElevenLabs');
+  }
 });
 
 // Increase timeout for long-running video generation (10 minutes)

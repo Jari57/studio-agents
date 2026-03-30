@@ -34,6 +34,20 @@ service cloud.firestore {
       match /voices/{voiceId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+
+      // Credit history subcollection (read-only for user, write via Admin SDK only)
+      match /credit_history/{historyId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false; // Admin SDK only — written by server credit middleware
+      }
+    }
+
+    // ==========================================================================
+    // VIDEO OPS - Backend only (Admin SDK bypasses rules)
+    // Stores in-progress video generation state for cross-restart persistence
+    // ==========================================================================
+    match /video_ops/{opId} {
+      allow read, write: if false; // Admin SDK only
     }
     
     // ==========================================================================
