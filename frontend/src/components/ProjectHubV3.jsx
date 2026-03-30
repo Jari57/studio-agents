@@ -247,10 +247,20 @@ function ProjectHubV3({
         <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>This cannot be undone.</span>
         <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
           <button 
-            onClick={() => {
+            onClick={async () => {
               toast.dismiss(t.id);
-              emptyProjects.forEach(p => onDeleteProject?.(p.id, true));
-              toast.success(`${count} empty projects purged!`, { icon: '🔥', style: { background: '#ef4444', color: 'white' } });
+              const previous = projects;
+              const emptyIds = emptyProjects.map(p => p.id);
+              setProjects?.(prev => prev.filter(p => !emptyIds.includes(p.id)));
+
+              try {
+                await Promise.all(emptyProjects.map(p => Promise.resolve(onDeleteProject?.(p.id, true))));
+                toast.success(`${count} empty projects purged!`, { icon: '🔥', style: { background: '#ef4444', color: 'white' } });
+              } catch (err) {
+                console.error('[ProjectHub] Purge failed:', err);
+                setProjects?.(previous);
+                toast.error('Purge failed. Restored local projects.');
+              }
             }}
             style={{ padding: '6px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
           >Purge</button>
@@ -326,7 +336,19 @@ function ProjectHubV3({
         <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>This cannot be undone.</span>
         <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
           <button 
-            onClick={() => { toast.dismiss(t.id); onDeleteProject?.(id, e); }}
+            onClick={async () => {
+              toast.dismiss(t.id);
+              const previous = projects;
+              setProjects?.(prev => prev.filter(p => p.id !== id));
+              try {
+                await Promise.resolve(onDeleteProject?.(id, true));
+                toast.success('Project deleted');
+              } catch (err) {
+                console.error('[ProjectHub] Delete failed:', err);
+                setProjects?.(previous);
+                toast.error('Delete failed. Project restored.');
+              }
+            }}
             style={{ padding: '6px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
           >Delete</button>
           <button 
@@ -364,8 +386,13 @@ function ProjectHubV3({
   const saveRename = (project) => {
     if (!editName.trim()) return;
     const updated = { ...project, name: editName.trim(), updatedAt: new Date().toISOString() };
+    const previous = projects;
     setProjects?.(prev => prev.map(p => p.id === project.id ? updated : p));
-    onSaveProject?.(updated);
+    Promise.resolve(onSaveProject?.(updated)).catch((err) => {
+      console.error('[ProjectHub] Rename save failed:', err);
+      setProjects?.(previous);
+      toast.error('Rename failed. Restored previous name.');
+    });
     setEditingId(null);
     toast.success('Renamed');
   };
@@ -402,7 +429,8 @@ function ProjectHubV3({
   const handleDrop = (e, targetProject) => {
     e.preventDefault();
     if (!draggedProject || draggedProject.id === targetProject.id) return;
-    
+
+    let reordered = null;
     setProjects?.(prev => {
       const newProjects = [...prev];
       const dragIndex = newProjects.findIndex(p => p.id === draggedProject.id);
@@ -413,6 +441,7 @@ function ProjectHubV3({
       // Remove dragged item and insert at new position
       const [removed] = newProjects.splice(dragIndex, 1);
       newProjects.splice(dropIndex, 0, removed);
+      reordered = newProjects;
       
       return newProjects;
     });
@@ -420,6 +449,17 @@ function ProjectHubV3({
     setDraggedProject(null);
     setDragOverProject(null);
     toast.success('Projects reordered', { icon: '✨' });
+
+    if (reordered?.length && onSaveProject) {
+      Promise.all(
+        reordered.map((p, index) =>
+          Promise.resolve(onSaveProject({ ...p, orderIndex: index, updatedAt: new Date().toISOString() }))
+        )
+      ).catch((err) => {
+        console.error('[ProjectHub] Failed to persist reordered projects:', err);
+        toast.error('Reorder saved locally, but cloud sync failed.');
+      });
+    }
   };
 
   // Quick actions
@@ -440,7 +480,11 @@ function ProjectHubV3({
       const template = selectedTemplate || PROJECT_TEMPLATES[0];
       const newProject = createProjectFromTemplate(template, newProjectName.trim());
       setProjects?.(prev => [newProject, ...prev]);
-      onSaveProject?.(newProject)?.catch?.(err => console.warn('Save failed:', err));
+      Promise.resolve(onSaveProject?.(newProject)).catch((err) => {
+        console.error('[ProjectHub] Save failed:', err);
+        setProjects?.(prev => prev.filter(p => p.id !== newProject.id));
+        toast.error('Cloud save failed. Project was removed from local list.');
+      });
       setShowNewProjectModal(false);
       setNewProjectName('');
       setSelectedTemplate(null);
@@ -464,7 +508,10 @@ function ProjectHubV3({
         audioRef.current.src = formattedUrl;
         audioRef.current.play().catch(err => {
           console.error('[ProjectHub] Playback failed:', err);
-          toast.error("Playback failed. Please try again.");
+          const reason = (err?.name === 'NotSupportedError' || err?.name === 'AbortError')
+            ? 'Unsupported or expired media URL'
+            : 'Browser blocked playback';
+          toast.error(`Playback failed: ${reason}. Try re-opening the project asset.`);
         });
         setPlayingAudio(url);
       }
@@ -999,8 +1046,13 @@ function ProjectHubV3({
                       <button onClick={e => {
                         e.stopPropagation();
                         const updated = { ...project, isPublic: !project.isPublic };
+                        const previous = projects;
                         setProjects?.(prev => prev.map(p => p.id === project.id ? updated : p));
-                        onSaveProject?.(updated);
+                        Promise.resolve(onSaveProject?.(updated)).catch((err) => {
+                          console.error('[ProjectHub] Visibility save failed:', err);
+                          setProjects?.(previous);
+                          toast.error('Could not update project visibility.');
+                        });
                         setShowContextMenu(null);
                         toast.success(updated.isPublic ? 'Project is now Public' : 'Project is now Private');
                       }}>

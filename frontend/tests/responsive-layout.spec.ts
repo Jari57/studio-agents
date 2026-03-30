@@ -14,6 +14,9 @@ async function enterStudio(page: Page) {
   await page.evaluate(() => {
     localStorage.setItem('studio_guest_mode', 'true');
     localStorage.setItem('studio_user_id', 'test-playwright');
+    localStorage.setItem('studio_onboarding_v3', 'true');
+    localStorage.setItem('studio_onboarding_v4', 'true');
+    localStorage.setItem('cookie_consent', 'true');
   });
   await page.goto(`${URL}/#/studio/agents`);
   await page.waitForLoadState('networkidle');
@@ -162,10 +165,9 @@ test.describe('Mobile Layout — Studio View', () => {
 
   test('tab bar is visible on mobile', async ({ page }) => {
     await enterStudio(page);
-    // Should have bottom tabs or top nav
-    const tabBar = page.locator('nav, [class*="tab"], [role="tablist"]').first();
-    const visible = await tabBar.isVisible({ timeout: 5000 }).catch(() => false);
-    expect(visible).toBe(true);
+    // Bottom nav bar should be visible on mobile
+    const tabBar = page.locator('nav.bottom-nav').first();
+    await expect(tabBar).toBeVisible({ timeout: 10000 });
   });
 
   test('agent cards are not clipped on mobile', async ({ page }) => {

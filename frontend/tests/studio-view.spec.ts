@@ -116,9 +116,17 @@ test.describe('Studio View — Agent Selection', () => {
 
   test('agent cards show tier badges', async ({ page }) => {
     await enterStudio(page);
-    const badge = page.locator('text=/FREE|PRO|MONTHLY/i').first();
-    const hasBadge = await badge.isVisible({ timeout: 5000 }).catch(() => false);
-    expect(hasBadge).toBe(true);
+    // Tier labels: Free, Creator, Pro — rendered on each agent card
+    const badge = page.locator('[style*="position"] >> text=/Free|Creator|Pro/i').first();
+    const hasBadge = await badge.isVisible({ timeout: 8000 }).catch(() => false);
+    if (!hasBadge) {
+      // Fallback: check if any card text contains a tier word
+      const anyTier = page.locator('text=/Free|Creator|Pro/i').first();
+      const fallback = await anyTier.isVisible({ timeout: 3000 }).catch(() => false);
+      expect(fallback).toBe(true);
+    } else {
+      expect(hasBadge).toBe(true);
+    }
   });
 
   test('search/filter agents works', async ({ page }) => {
@@ -292,9 +300,9 @@ test.describe('Studio View — Internal Pages', () => {
       localStorage.setItem('studio_guest_mode', 'true');
       localStorage.setItem('studio_user_id', 'test-playwright');
     });
-    await page.goto(`${URL}/#/studio/whitepapers`);
+    await page.goto(`${URL}/#/whitepapers`);
     await page.waitForTimeout(3000);
-    const content = page.locator('text=/Whitepaper|Agent|Technical/i').first();
+    const content = page.locator('text=/Whitepaper|Executive|Architecture|Problem/i').first();
     await expect(content).toBeVisible({ timeout: 10000 });
   });
 

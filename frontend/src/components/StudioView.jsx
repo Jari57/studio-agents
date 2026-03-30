@@ -4432,23 +4432,38 @@ const fetchUserCredits = useCallback(async (uid) => {
       //let prompt = textarea.value; -- REPLACED BY promptValue from earlier in function
       let prompt = promptValue;
 
-      // Auto-translate if not English
+      // Build headers with auth token if logged in (hoisted above translate for TDZ safety)
+      const headers = { 'Content-Type': 'application/json' };
+      if (isLoggedIn && auth?.currentUser) {
+        try {
+          const token = await auth.currentUser.getIdToken();
+          headers['Authorization'] = `Bearer ${token}`;
+        } catch (err) {
+          devWarn('Could not get auth token:', err);
+        }
+      }
+
+      // Auto-translate if not English. Translation failures should not block generation.
       if (voiceSettings.language !== 'English') {
-        const translateHeaders = { 'Content-Type': 'application/json' };
-        if (headers['Authorization']) translateHeaders['Authorization'] = headers['Authorization'];
-        const response = await fetch(`${BACKEND_URL}/api/translate`, {
-          method: 'POST',
-          headers: translateHeaders,
-          body: JSON.stringify({
-            text: prompt,
-            targetLanguage: 'English',
-            sourceLanguage: voiceSettings.language
-          })
-        });
-        const data = await response.json();
-        if (data.translatedText) {
-          prompt = data.translatedText;
-          devLog("Auto-translated prompt for AI:", prompt);
+        try {
+          const translateHeaders = { 'Content-Type': 'application/json' };
+          if (headers['Authorization']) translateHeaders['Authorization'] = headers['Authorization'];
+          const response = await fetch(`${BACKEND_URL}/api/translate`, {
+            method: 'POST',
+            headers: translateHeaders,
+            body: JSON.stringify({
+              text: prompt,
+              targetLanguage: 'English',
+              sourceLanguage: voiceSettings.language
+            })
+          });
+          const data = await response.json();
+          if (data.translatedText) {
+            prompt = data.translatedText;
+            devLog("Auto-translated prompt for AI:", prompt);
+          }
+        } catch (translateErr) {
+          devWarn('[Studio] Auto-translate failed, continuing with original prompt:', translateErr);
         }
       }
 
@@ -4522,13 +4537,6 @@ const fetchUserCredits = useCallback(async (uid) => {
 
       let brainBody = {
         prompt: prompt,
-        systemInstruction: `You are ${targetAgentSnapshot?.name || 'AI Assistant'}, a professional AI agent in a ${currentMode.studioLabel}. 
-          ${currentMode.promptContext}
-          Genre/Style: ${detectedGenre}.
-          Category: ${targetAgentSnapshot?.category || 'General'}. 
-          Capabilities: ${(targetAgentSnapshot?.capabilities || []).join(', ')}.
-          ${targetAgentSnapshot?.explanation || ''}
-          ${customInstruction}`,
         model: selectedModel,
         visualDnaUrl,
         audioDnaUrl,
@@ -4536,17 +4544,6 @@ const fetchUserCredits = useCallback(async (uid) => {
         lyricsDnaUrl,
         voiceSampleUrl
       };
-
-      // Build headers with auth token if logged in
-      const headers = { 'Content-Type': 'application/json' };
-      if (isLoggedIn && auth?.currentUser) {
-        try {
-          const token = await auth.currentUser.getIdToken();
-          headers['Authorization'] = `Bearer ${token}`;
-        } catch (err) {
-          devWarn('Could not get auth token:', err);
-        }
-      }
 
       // PHASE 1: BRAIN - Expand concept into creative description with full context
       devLog(`[Studio] Starting Phase 1 (Brain) for:`, targetAgentSnapshot?.name);
@@ -5091,17 +5088,21 @@ const fetchUserCredits = useCallback(async (uid) => {
         // Handle Text Response
         let finalOutput = data.output;
         if (voiceSettings.language !== 'English') {
-          const transResponse = await fetch(`${BACKEND_URL}/api/translate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: finalOutput,
-              targetLanguage: voiceSettings.language,
-              sourceLanguage: 'English'
-            })
-          });
-          const transData = await transResponse.json();
-          if (transData.translatedText) finalOutput = transData.translatedText;
+          try {
+            const transResponse = await fetch(`${BACKEND_URL}/api/translate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text: finalOutput,
+                targetLanguage: voiceSettings.language,
+                sourceLanguage: 'English'
+              })
+            });
+            const transData = await transResponse.json();
+            if (transData.translatedText) finalOutput = transData.translatedText;
+          } catch (translateErr) {
+            devWarn('[Studio] Output translation failed, showing English output:', translateErr);
+          }
         }
         newItem.snippet = finalOutput;
       } else if (data.description || data.message) {
@@ -5727,12 +5728,17 @@ const fetchUserCredits = useCallback(async (uid) => {
         const { conversionId } = await startRes.json();
 
         // Poll for result (max 60s)
+        let pollErrorCount = 0;
         for (let i = 0; i < 20; i++) {
           await new Promise(r => setTimeout(r, 3000));
           const pollRes = await fetch(`${BACKEND_URL}/api/convert-format/${conversionId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
-          if (!pollRes.ok) continue;
+          if (!pollRes.ok) {
+            pollErrorCount += 1;
+            devWarn(`[Studio] WAV poll failed (${pollRes.status}) on attempt ${i + 1}/20`);
+            continue;
+          }
           const data = await pollRes.json();
           if (data.status === 'completed' && data.convertedUrl) {
             toast.success('WAV ready!', { id: toastId });
@@ -5746,6 +5752,9 @@ const fetchUserCredits = useCallback(async (uid) => {
             return;
           }
           if (data.status === 'failed') throw new Error(data.error || 'Conversion failed');
+        }
+        if (pollErrorCount > 0) {
+          devWarn(`[Studio] WAV conversion polling finished with ${pollErrorCount} transient poll errors`);
         }
         throw new Error('Conversion timed out');
       } catch (err) {

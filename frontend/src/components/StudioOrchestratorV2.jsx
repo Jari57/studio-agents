@@ -1320,6 +1320,7 @@ function ProductionControlHub({
   handleDistributeToSoundCloud,
   handleCreateShareLink,
   handleDownloadMasterMix,
+  handleDownloadStemsPack,
   distributing,
   shareLink,
   creatorMode = 'artist',
@@ -3181,10 +3182,20 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             if (slot === 'audio') {
               // Beat description ready → queue beat audio generation (starts immediately)
               updatePipelineStep('beat-audio', 'active');
-              pipelinePromises.beatAudio = handleGenerateAudio(data.output).then(() => updatePipelineStep('beat-audio', 'done')).catch(() => updatePipelineStep('beat-audio', 'error'));
+              pipelinePromises.beatAudio = handleGenerateAudio(data.output)
+                .then(() => updatePipelineStep('beat-audio', 'done'))
+                .catch((err) => {
+                  updatePipelineStep('beat-audio', 'error');
+                  toast.error(`Beat generation failed: ${err?.message || 'Unknown error'}`, { id: 'orch-beat-audio-fail' });
+                });
             } else if (slot === 'visual') {
               updatePipelineStep('image', 'active');
-              pipelinePromises.image = handleGenerateImage(data.output).then(() => updatePipelineStep('image', 'done')).catch(() => updatePipelineStep('image', 'error'));
+              pipelinePromises.image = handleGenerateImage(data.output)
+                .then(() => updatePipelineStep('image', 'done'))
+                .catch((err) => {
+                  updatePipelineStep('image', 'error');
+                  toast.error(`Image generation failed: ${err?.message || 'Unknown error'}`, { id: 'orch-image-fail' });
+                });
             } else if (slot === 'video') {
               // Save video description for later — video gen needs mixed audio first
               pipelinePromises.videoDescription = data.output;
@@ -3314,6 +3325,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         } catch (mixErr) {
           devWarn('[Pipeline] Final mix failed, video will use beat only:', mixErr);
           updatePipelineStep('final', 'error');
+          toast.error('Final mix failed. Continuing with beat-only video.', { id: 'orch-final-mix-fail' });
         }
       } else if (mediaUrlsRef.current.mixedAudio) {
         updatePipelineStep('final', 'done');
@@ -4504,6 +4516,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           devLog('[Orchestrator] Using client-side frame extraction');
           const frameDataUrl = await extractFrameFromVideo(videoUrl);
           setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
+          mediaUrlsRef.current = { ...mediaUrlsRef.current, image: frameDataUrl };
           toast.success('Frame extracted from video!', { id: 'gen-image' });
 
           // AUTO-SYNC TO PROJECT
@@ -4530,6 +4543,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         if (data.output || data.imageData) {
           const imageData = data.output || `data:${data.mimeType || 'image/jpeg'};base64,${data.imageData}`;
           setMediaUrls(prev => ({ ...prev, image: imageData }));
+          mediaUrlsRef.current = { ...mediaUrlsRef.current, image: imageData };
           toast.success('Frame extracted from video!', { id: 'gen-image' });
 
           // AUTO-SYNC TO PROJECT
@@ -4558,6 +4572,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       devLog('[Orchestrator] Server extraction failed, trying client-side');
       const frameDataUrl = await extractFrameFromVideo(videoUrl);
       setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
+      mediaUrlsRef.current = { ...mediaUrlsRef.current, image: frameDataUrl };
       toast.success('Frame extracted from video!', { id: 'gen-image' });
       
     } catch (err) {
@@ -4710,8 +4725,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             }
             const fbVideoUrl = fbData.videoUrl || fbData.output || fbData.video;
             if (fbVideoUrl && typeof fbVideoUrl === 'string' && (fbVideoUrl.startsWith('http') || fbVideoUrl.startsWith('blob:'))) {
+              setMusicVideoUrl(fbVideoUrl);
               setMediaUrls(prev => ({ ...prev, video: fbVideoUrl }));
               mediaUrlsRef.current = { ...mediaUrlsRef.current, video: fbVideoUrl };
+              setOutputs(prev => ({ ...prev, video: prev.video || 'Music video generated from beat sync pipeline' }));
               setGenerationProviders(prev => ({ ...prev, video: fbData.source || 'veo-fallback' }));
               toast.success('Video created! Syncing audio...', { id: 'gen-video' });
 
@@ -4744,8 +4761,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               const statusData = await statusRes.json();
               devLog(`[Orchestrator] Video job poll ${i + 1}:`, statusData.status, statusData.progress);
               if (statusData.status === 'completed' && statusData.videoUrl) {
+                setMusicVideoUrl(statusData.videoUrl);
                 setMediaUrls(prev => ({ ...prev, video: statusData.videoUrl }));
                 mediaUrlsRef.current = { ...mediaUrlsRef.current, video: statusData.videoUrl }; // Sync ref for pipeline reads
+                setOutputs(prev => ({ ...prev, video: prev.video || 'Music video generated from beat sync pipeline' }));
                 setGenerationProviders(prev => ({ ...prev, video: 'synced-music-video' }));
                 toast.success(`Music video created! Syncing audio...`, { id: 'gen-video' });
                 jobSuccess = true;
@@ -4793,8 +4812,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
         if (data.videoUrl) {
           // Inline result (30s videos return immediately)
+          setMusicVideoUrl(data.videoUrl);
           setMediaUrls(prev => ({ ...prev, video: data.videoUrl }));
           mediaUrlsRef.current = { ...mediaUrlsRef.current, video: data.videoUrl }; // Sync ref for pipeline reads
+          setOutputs(prev => ({ ...prev, video: prev.video || 'Music video generated from beat sync pipeline' }));
           setGenerationProviders(prev => ({ ...prev, video: 'synced-music-video' }));
           toast.success(`Music video created! (${data.duration || videoDuration}s, ${data.bpm || '?'} BPM)`, { id: 'gen-video' });
 
@@ -4828,6 +4849,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             try {
               const frameDataUrl = await extractFrameFromVideo(data.videoUrl);
               setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
+              mediaUrlsRef.current = { ...mediaUrlsRef.current, image: frameDataUrl };
             } catch (e) {
               devLog('[Orchestrator] Auto frame extraction failed:', e);
             }
@@ -5054,6 +5076,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           setMusicVideoUrl(data.videoUrl);
           setMediaUrls(prev => ({ ...prev, video: data.videoUrl }));
           mediaUrlsRef.current = { ...mediaUrlsRef.current, video: data.videoUrl };
+          setOutputs(prev => ({ ...prev, video: prev.video || 'Professional synced music video generated' }));
           // Update final mix with music video
           if (finalMixPreview) {
             setFinalMixPreview(prev => ({
@@ -5090,6 +5113,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 setMusicVideoUrl(statusData.videoUrl);
                 setMediaUrls(prev => ({ ...prev, video: statusData.videoUrl }));
                 mediaUrlsRef.current = { ...mediaUrlsRef.current, video: statusData.videoUrl };
+                setOutputs(prev => ({ ...prev, video: prev.video || 'Professional synced music video generated' }));
                 if (finalMixPreview) {
                   setFinalMixPreview(prev => ({
                     ...prev,
@@ -5587,12 +5611,23 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     setArGrades(prev => ({ ...prev, [slot]: null }));
 
     if (slot === 'audio') setMediaUrls(prev => ({ ...prev, audio: null }));
-    if (slot === 'visual') setMediaUrls(prev => ({ ...prev, image: null }));
+    if (slot === 'visual') {
+      setMediaUrls(prev => ({ ...prev, image: null }));
+      mediaUrlsRef.current = { ...mediaUrlsRef.current, image: null };
+      setImageHistory([]);
+    }
     if (slot === 'video') {
       setMediaUrls(prev => ({ ...prev, video: null }));
+      mediaUrlsRef.current = { ...mediaUrlsRef.current, video: null };
       setMusicVideoUrl(null);
     }
-    if (slot === 'lyrics') setMediaUrls(prev => ({ ...prev, vocals: null }));
+    if (slot === 'audio') {
+      mediaUrlsRef.current = { ...mediaUrlsRef.current, audio: null };
+    }
+    if (slot === 'lyrics') {
+      setMediaUrls(prev => ({ ...prev, vocals: null, lyricsVocal: null, mixedAudio: null }));
+      mediaUrlsRef.current = { ...mediaUrlsRef.current, vocals: null, lyricsVocal: null, mixedAudio: null };
+    }
     toast.success('Deleted');
   };
 
@@ -7954,6 +7989,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         handleDistributeToSoundCloud={handleDistributeToSoundCloud}
         handleCreateShareLink={handleCreateShareLink}
         handleDownloadMasterMix={handleDownloadMasterMix}
+        handleDownloadStemsPack={handleDownloadStemsPack}
         distributing={distributing}
         shareLink={shareLink}
         creatorMode={creatorMode}

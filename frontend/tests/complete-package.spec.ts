@@ -11,6 +11,9 @@ import { test, expect } from '@playwright/test';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 
+// API-only tests — run in chromium only to avoid duplicate slow requests
+test.skip(({ browserName }) => browserName !== 'chromium', 'API tests run in chromium only');
+
 // ============================================================================
 // 1. LYRICS GENERATION
 // ============================================================================

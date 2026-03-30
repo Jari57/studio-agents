@@ -498,12 +498,15 @@ test.describe('Billboard Blueprint Page — Frontend', () => {
 
 test.describe('Creator Resources Tab — DNA Cards', () => {
 
-  // Helper: enter guest mode so StudioView renders (bypasses auth gate)
+  // Helper: enter guest mode so StudioView renders (bypasses auth gate + onboarding)
   const enterGuestMode = async (page: import('@playwright/test').Page) => {
     await page.goto(FRONTEND_URL);
     await page.evaluate(() => {
       localStorage.setItem('studio_guest_mode', 'true');
       localStorage.setItem('studio_user_id', 'test-guest');
+      localStorage.setItem('studio_onboarding_v3', 'true');
+      localStorage.setItem('studio_onboarding_v4', 'true');
+      localStorage.setItem('cookie_consent', 'true');
     });
   };
 
@@ -546,42 +549,35 @@ test.describe('Creator Resources Tab — DNA Cards', () => {
     const dnaCard = page.locator('[role="button"]').filter({ hasText: /DNA System/i }).first();
     if (await dnaCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       await dnaCard.click();
-      await page.waitForTimeout(2000);
-      // Should navigate to DNA page
+      await page.waitForURL(url => url.hash.includes('#/dna'), { timeout: 10000 }).catch(() => {});
       expect(page.url()).toContain('#/dna');
     }
   });
 
   test('Vocal Lab card navigates to #/vocals', async ({ page }) => {
+    test.setTimeout(30000);
     await enterGuestMode(page);
     await page.goto(`${FRONTEND_URL}/#/studio/resources`);
     await page.waitForTimeout(3000);
 
-    // Dismiss any modal overlays that might intercept clicks
-    await page.evaluate(() => document.querySelectorAll('.modal-overlay').forEach(el => el.remove()));
-    await page.waitForTimeout(300);
-
     const vocalCard = page.locator('[role="button"]').filter({ hasText: /Vocal Lab/i }).first();
     if (await vocalCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       await vocalCard.click();
-      await page.waitForTimeout(2000);
+      await page.waitForURL(url => url.hash.includes('#/vocals'), { timeout: 10000 }).catch(() => {});
       expect(page.url()).toContain('#/vocals');
     }
   });
 
   test('Billboard Blueprint card navigates to #/billboard', async ({ page }) => {
+    test.setTimeout(30000);
     await enterGuestMode(page);
     await page.goto(`${FRONTEND_URL}/#/studio/resources`);
     await page.waitForTimeout(3000);
 
-    // Dismiss any modal overlays that might intercept clicks
-    await page.evaluate(() => document.querySelectorAll('.modal-overlay').forEach(el => el.remove()));
-    await page.waitForTimeout(300);
-
     const billboardCard = page.locator('[role="button"]').filter({ hasText: /Billboard Blueprint/i }).first();
     if (await billboardCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       await billboardCard.click();
-      await page.waitForTimeout(2000);
+      await page.waitForURL(url => url.hash.includes('#/billboard'), { timeout: 10000 }).catch(() => {});
       expect(page.url()).toContain('#/billboard');
     }
   });

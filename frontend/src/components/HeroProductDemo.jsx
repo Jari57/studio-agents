@@ -218,16 +218,29 @@ export default function HeroProductDemo({ onTryIt }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [cycleCount, setCycleCount] = useState(0);
   const timeoutRef = useRef(null);
+  const containerRef = useRef(null);
+  const isVisibleRef = useRef(false);
+  const hasStartedRef = useRef(false);
   
   const promptText = useTypingAnimation(DEMO_PROMPT, phase === 'typing', 35);
 
-  // Auto-start the demo after mount
-  useEffect(() => {
-    const startTimer = setTimeout(() => startDemo(), 1500);
-    return () => clearTimeout(startTimer);
-  }, []);
+  const clearPendingTimeout = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  const resetDemo = () => {
+    clearPendingTimeout();
+    setPhase('idle');
+    setActiveStep(-1);
+    setCompletedSteps([]);
+    setIsPlaying(false);
+  };
 
   const startDemo = () => {
+    if (!isVisibleRef.current) return;
     setPhase('typing');
     setActiveStep(-1);
     setCompletedSteps([]);
@@ -235,17 +248,20 @@ export default function HeroProductDemo({ onTryIt }) {
 
     // After typing completes, start pipeline
     timeoutRef.current = setTimeout(() => {
+      if (!isVisibleRef.current) { resetDemo(); return; }
       setPhase('generating');
       runPipeline(0);
     }, DEMO_PROMPT.length * 35 + 800);
   };
 
   const runPipeline = (stepIndex) => {
+    if (!isVisibleRef.current) { resetDemo(); return; }
     if (stepIndex >= PIPELINE_STEPS.length) {
       setPhase('done');
       setActiveStep(-1);
       // Loop after showing final state
       timeoutRef.current = setTimeout(() => {
+        if (!isVisibleRef.current) { resetDemo(); return; }
         setCycleCount(c => c + 1);
         startDemo();
       }, 5000);
@@ -254,22 +270,52 @@ export default function HeroProductDemo({ onTryIt }) {
 
     setActiveStep(stepIndex);
     timeoutRef.current = setTimeout(() => {
+      if (!isVisibleRef.current) { resetDemo(); return; }
       setCompletedSteps(prev => [...prev, stepIndex]);
       runPipeline(stepIndex + 1);
     }, PIPELINE_STEPS[stepIndex].duration);
   };
 
+  // Observe visibility — only run demo while in viewport
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisibleRef.current = entry.isIntersecting;
+        if (entry.isIntersecting && !hasStartedRef.current) {
+          // First time in view — start after a short delay
+          hasStartedRef.current = true;
+          timeoutRef.current = setTimeout(() => startDemo(), 800);
+        } else if (entry.isIntersecting && phase === 'idle') {
+          // Scrolled back into view after being paused — restart
+          timeoutRef.current = setTimeout(() => startDemo(), 600);
+        } else if (!entry.isIntersecting && phase !== 'idle') {
+          // Scrolled away — pause immediately
+          resetDemo();
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    observer.observe(el);
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      observer.disconnect();
+      clearPendingTimeout();
     };
+  }, [phase]);
+
+  useEffect(() => {
+    return () => clearPendingTimeout();
   }, []);
 
   return (
-    <div style={{
+    <div ref={containerRef} style={{
       position: 'relative',
       maxWidth: '680px',
       margin: '0 auto',
+      minHeight: '380px',
     }}>
       {/* Cinematic glow background */}
       <div style={{
@@ -369,11 +415,14 @@ export default function HeroProductDemo({ onTryIt }) {
           </div>
         </div>
 
-        {/* Pipeline agents */}
-        {(phase === 'generating' || phase === 'done') && (
+        {/* Pipeline agents — always rendered to prevent layout shift */}
           <div style={{
             padding: '0 24px 20px',
             display: 'flex', flexDirection: 'column', gap: '12px',
+            opacity: (phase === 'generating' || phase === 'done') ? 1 : 0,
+            maxHeight: (phase === 'generating' || phase === 'done') ? '600px' : '0px',
+            overflow: 'hidden',
+            transition: 'opacity 0.4s ease, max-height 0.4s ease',
           }}>
             {/* Agent status bar */}
             <div style={{
@@ -588,7 +637,6 @@ export default function HeroProductDemo({ onTryIt }) {
               )}
             </div>
           </div>
-        )}
 
         {/* Bottom bar — timing */}
         <div style={{
