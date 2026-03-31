@@ -5368,17 +5368,17 @@ Return ONLY valid JSON, no markdown.`;
           const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
           const cloneVoiceSettings = {
-            stability: 0.90,
-            similarity_boost: 1.0,
-            style: 0.45,
+            stability: 0.65,
+            similarity_boost: 0.80,
+            style: 0.60,
             use_speaker_boost: true
           };
 
           if (refSongAnalysis) {
             const energy = parseInt(refSongAnalysis.energy) || 5;
             const warmth = parseInt(refSongAnalysis.warmth) || 5;
-            cloneVoiceSettings.stability = Math.max(0.87, Math.min(0.94, 0.88 + (warmth * 0.006)));
-            cloneVoiceSettings.style = Math.max(0.30, Math.min(0.55, 0.35 + (energy * 0.02)));
+            cloneVoiceSettings.stability = Math.max(0.55, Math.min(0.75, 0.58 + (warmth * 0.017)));
+            cloneVoiceSettings.style = Math.max(0.45, Math.min(0.72, 0.48 + (energy * 0.024)));
           }
 
           const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${persistedCloneId}?output_format=mp3_44100_192`, {
@@ -5481,17 +5481,17 @@ Return ONLY valid JSON, no markdown.`;
             const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
             const cloneVoiceSettings = {
-              stability: 0.90,
-              similarity_boost: 1.0,
-              style: 0.45,
+              stability: 0.65,
+              similarity_boost: 0.80,
+              style: 0.60,
               use_speaker_boost: true
             };
 
             if (refSongAnalysis) {
               const energy = parseInt(refSongAnalysis.energy) || 5;
               const warmth = parseInt(refSongAnalysis.warmth) || 5;
-              cloneVoiceSettings.stability = Math.max(0.87, Math.min(0.94, 0.88 + (warmth * 0.006)));
-              cloneVoiceSettings.style = Math.max(0.30, Math.min(0.55, 0.35 + (energy * 0.02)));
+              cloneVoiceSettings.stability = Math.max(0.55, Math.min(0.75, 0.58 + (warmth * 0.017)));
+              cloneVoiceSettings.style = Math.max(0.45, Math.min(0.72, 0.48 + (energy * 0.024)));
             }
 
             const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${clonedVoiceId}?output_format=mp3_44100_192`, {
