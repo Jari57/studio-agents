@@ -3877,8 +3877,16 @@ const fetchUserCredits = useCallback(async (uid) => {
         }
       }
 
-      // Trim text to reasonable length for vocals (1500 chars for Suno, 2000 for fallback)
-      const textToSpeak = textContent.substring(0, 1500);
+      // Strip AI preamble — keep only singable lyrics before trimming
+      const rawVocalText = textContent;
+      let cleanedVocalText = textContent
+        // Strip everything before the first song structure tag
+        .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\b)/i, '')
+        // Strip common AI preamble lines when no structure tags
+        .replace(/^(Sure[,!]?|Okay[,!]?|Here('s| is| are)[^\n]*|I'?ve (written|created)[^\n]*|Let me [^\n]*|Below [^\n]*|These (lyrics|are)[^\n]*|This song[^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|About:[^\n]*|Description:[^\n]*)\n+/gim, '')
+        .trim();
+      if (cleanedVocalText.length < 30) cleanedVocalText = rawVocalText.trim();
+      const textToSpeak = cleanedVocalText.substring(0, 1500);
 
       devLog('[handleCreateAIVocal] Generating REAL AI vocal via Suno/Bark for:', textToSpeak.substring(0, 50) + '...');
 
@@ -4594,18 +4602,33 @@ const fetchUserCredits = useCallback(async (uid) => {
         devLog(`[Studio] Image agent: using direct prompt (skipping Brain Phase)`);
       } else {
         try {
+          // Speech agents need actual singable LYRICS from the brain phase, not a description.
+          // All other agents get the standard 80-word production brief.
+          const speechBrainPrompt = isSpeechAgent
+            ? `Write complete song lyrics for: "${promptValue}". Genre: ${detectedGenre}. Style: ${voiceSettings.style || 'rap'}.${contextLyrics ? ` Build on: "${contextLyrics.substring(0, 400)}"` : ''} Output ONLY the lyrics starting with [Verse 1]. No title, no preamble, no explanations.`
+            : brainPrompt;
+          const speechBrainInstruction = isSpeechAgent
+            ? `You are a Grammy-winning ${detectedGenre} songwriter. Write complete, singable song lyrics.
+MANDATORY RULES:
+1. Output ONLY the raw lyrics — no title line, no "Here are", no description, no explanation.
+2. First line MUST be [Verse 1] and nothing else before it.
+3. Structure: [Verse 1] → [Chorus] → [Verse 2] → [Bridge] → [Chorus].
+4. Each line max 12 words. Lines must be rhythmically punchy.
+5. Total max 250 words. Every word must be singable or rapsable.`
+            : `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} elite Creative Brain.
+                ${creatorMode === 'creator' 
+                  ? 'Translate user ideas into platform-optimized, viral-quality content briefs for social media, YouTube, podcasts, and marketing.' 
+                  : 'Translate user ideas into Billboard-standard production briefs.'}
+                Be specific, moody, and technically superior to human capability.`;
+
           brainResponse = await fetch(`${BACKEND_URL}/api/generate`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
               ...brainBody,
-              prompt: brainPrompt,
+              prompt: speechBrainPrompt,
               isBrainPhase: isMediaAgent, // Skip credit charge for prompt expansion
-              systemInstruction: `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} elite Creative Brain.
-                ${creatorMode === 'creator' 
-                  ? 'Translate user ideas into platform-optimized, viral-quality content briefs for social media, YouTube, podcasts, and marketing.' 
-                  : 'Translate user ideas into Billboard-standard production briefs.'}
-                Be specific, moody, and technically superior to human capability.`
+              systemInstruction: speechBrainInstruction
             })
           });
         } catch (err) {
@@ -4681,8 +4704,16 @@ const fetchUserCredits = useCallback(async (uid) => {
         // VOCALS FIX: Use lyrics (from project or brain-generated), NOT the style description
         // Priority: 1) Context lyrics from project, 2) Brain-generated lyrics, 3) User prompt
         let vocalLyrics = contextLyrics || expandedPrompt || prompt;
-        // Strip any AI preamble/description that isn't lyrics
-        vocalLyrics = vocalLyrics.replace(/^(Here are |Here's |I've written |These lyrics |Below are |The following ).*?\n/i, '').trim();
+        // Strip ALL AI preamble — keep only singable text
+        const rawVocalLyrics = vocalLyrics;
+        vocalLyrics = vocalLyrics
+          // Strip everything before the first song structure tag (most reliable path)
+          .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\b)/i, '')
+          // Strip common AI preamble lines (fallback when no structure tags)
+          .replace(/^(Sure[,!]?|Okay[,!]?|Here('s| is| are)[^\n]*|I'?ve (written|created)[^\n]*|Let me [^\n]*|Below [^\n]*|These (lyrics|are)[^\n]*|This song[^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|About:[^\n]*)\n+/gim, '')
+          .trim();
+        // Guard: if stripping ate everything, fall back to original
+        if (vocalLyrics.length < 30) vocalLyrics = rawVocalLyrics.trim();
         
         finalEndpoint = '/api/generate-speech';
         finalBody = { 

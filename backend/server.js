@@ -4952,6 +4952,32 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
     
     // Cap duration to prevent abuse (max 5 minutes)
     const duration = Math.min(Math.max(Number(durationRaw) || 30, 5), 300);
+
+    // ── CENTRALIZED LYRICS CLEANING — runs BEFORE all providers ──
+    // Strips AI meta-commentary, title lines, and preamble. Leaves only singable text.
+    function cleanLyricsForVocal(rawText) {
+      let cleaned = String(rawText)
+        // Strip everything before the first song structure tag (most reliable path)
+        .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\b)/i, '')
+        // Strip common AI preamble lines when no structure tags present
+        .replace(/^(Sure[,!]?|Okay[,!]?|Here('s| is| are)[^\n]*|I'?ve (written|created)[^\n]*|Let me [^\n]*|Below [^\n]*|These (lyrics|are)[^\n]*|This song[^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|About:[^\n]*|Description:[^\n]*|Voice Direction:[^\n]*|Musical Notes:[^\n]*)\n+/gim, '')
+        // Normalise section tags to clean bare forms Suno/Bark/ElevenLabs expect
+        .replace(/\[Verse[^\]]*\]/gi, '[Verse]')
+        .replace(/\[Chorus[^\]]*\]/gi, '[Chorus]')
+        .replace(/\[Bridge[^\]]*\]/gi, '[Bridge]')
+        .replace(/\[Pre-Chorus[^\]]*\]/gi, '[Pre-Chorus]')
+        .replace(/\[Hook[^\]]*\]/gi, '[Hook]')
+        .replace(/\[Outro[^\]]*\]/gi, '[Outro]')
+        .replace(/\[Intro[^\]]*\]/gi, '[Intro]')
+        .replace(/\[Ad-lib:[^\]]*\]/gi, '')
+        .replace(/\[(?!Verse|Chorus|Bridge|Pre-Chorus|Hook|Outro|Intro)[^\]]*\]/gi, '')
+        .replace(/^\s*\n/gm, '')
+        .trim();
+      // Guard: if cleaning ate everything, return original trimmed
+      return cleaned.length >= 20 ? cleaned : String(rawText).trim();
+    }
+    const cleanedPrompt = cleanLyricsForVocal(prompt);
+    logger.info('🎤 Lyrics cleaned', { original: prompt.length, cleaned: cleanedPrompt.length, sample: cleanedPrompt.substring(0, 80) });
     
     // SSE pipeline progress (if client provided session ID)
     const pipelineSession = req.headers['x-pipeline-session'];
@@ -5117,24 +5143,8 @@ Return ONLY valid JSON, no markdown.`;
           sunoTags = `${langTag} ${genre}, ${vocalGender}, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
         }
         
-        // Clean lyrics for Suno — strip AI preamble + structure tags, keep only singable text
-        let sunoLyrics = prompt
-          // Strip everything before the first song structure tag (AI preamble, descriptions, meta)
-          .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\b)/i, '')
-          // If no structure tags, strip common AI preambles
-          .replace(/^(Sure!?|Okay!?|Here('s| is| are)|I've written|I wrote|I created|Let me|Below|These lyrics|This song|Title:|Genre:|Style:|Tempo:|Key:|Mood:|About:|Description:)[^\n]*\n/gim, '')
-          .replace(/\[Verse[^\]]*\]/gi, '[Verse]')
-          .replace(/\[Chorus[^\]]*\]/gi, '[Chorus]')
-          .replace(/\[Bridge[^\]]*\]/gi, '[Bridge]')
-          .replace(/\[Pre-Chorus[^\]]*\]/gi, '[Pre-Chorus]')
-          .replace(/\[Hook[^\]]*\]/gi, '[Hook]')
-          .replace(/\[Outro[^\]]*\]/gi, '[Outro]')
-          .replace(/\[Intro[^\]]*\]/gi, '[Intro]')
-          .replace(/\[Ad-lib:[^\]]*\]/gi, '')  // Strip ad-lib direction tags
-          .replace(/\[(?!Verse|Chorus|Bridge|Pre-Chorus|Hook|Outro|Intro)[^\]]*\]/gi, '')  // Strip ALL non-standard bracketed tags
-          .replace(/^\s*\n/gm, '')  // Remove empty lines left by stripped tags
-          .trim()
-          .substring(0, 2999);
+        // Use centralised cleanedPrompt — preamble already stripped at route entry
+        let sunoLyrics = cleanedPrompt.substring(0, 2999);
         
         // Extract a real title from the lyrics (first non-empty line after cleaning, fallback to songIdea)
         let sunoTitle = (sunoLyrics.replace(/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\]/gi, '').split('\n').find(l => l.trim()) || req.body.title || 'Studio Track').substring(0, 80);
@@ -5219,14 +5229,9 @@ Return ONLY valid JSON, no markdown.`;
         } else {
           speakerHistory = `v2/${langCode}_speaker_7`;
         }
-        const singingPrompt = prompt
-          .replace(/\[Verse[^\]]*\]/gi, '')
-          .replace(/\[Chorus[^\]]*\]/gi, '')
-          .replace(/\[Bridge[^\]]*\]/gi, '')
-          .replace(/\[Pre-Chorus[^\]]*\]/gi, '')
-          .replace(/\[Hook[^\]]*\]/gi, '')
-          .replace(/\[Outro[^\]]*\]/gi, '')
-          .replace(/\[Ad-lib:[^\]]*\]/gi, '')
+        // Use centralised cleanedPrompt; strip remaining structure tags for Bark (it reads them literally)
+        const singingPrompt = cleanedPrompt
+          .replace(/\[(Verse|Chorus|Bridge|Pre-Chorus|Hook|Outro|Intro)\]/gi, '')
           .replace(/\[([^\]]*)\]/g, '')
           .replace(/\n{2,}/g, '\n')
           .trim();
@@ -5321,17 +5326,11 @@ Return ONLY valid JSON, no markdown.`;
     // ═══════════════════════════════════════════════════════════════
     if (!audioUrl && (speakerUrl || style === 'cloned') && !req.body.elevenLabsVoiceId) {
       // Clean prompt for cloning engines (same as ElevenLabs preprocessing)
-      const clonePrompt = prompt
-        .replace(/\[Verse[^\]]*\]/gi, '')
-        .replace(/\[Chorus[^\]]*\]/gi, '')
-        .replace(/\[Bridge[^\]]*\]/gi, '')
-        .replace(/\[Pre-Chorus[^\]]*\]/gi, '')
-        .replace(/\[Hook[^\]]*\]/gi, '')
-        .replace(/\[Outro[^\]]*\]/gi, '')
-        .replace(/\[Intro[^\]]*\]/gi, '')
+      // Uses cleanedPrompt — preamble/section tags already stripped by cleanLyricsForVocal
+      const clonePrompt = cleanedPrompt
         .replace(/\[Ad-lib:[^\]]*\]/gi, (m) => m.replace(/\[Ad-lib:\s*/, '').replace(']', '!'))
-        .replace(/\[([^\]]*)\]/g, '')
-        .replace(/\.(?!\d)/g, '... ')
+        .replace(/\[([^\]]*)\]/g, '')   // Strip remaining section tags
+        .replace(/\.(?!\d)/g, '... ')   // Add natural pause dots at sentence ends
         .replace(/!+/g, '! ')
         .replace(/\n{2,}/g, '\n')
         .trim();
@@ -5714,35 +5713,30 @@ Return ONLY valid JSON, no markdown.`;
         logger.info('🎤 Using ElevenLabs V3.5 High-Fidelity', { voiceId, quality: req.body.quality, style, outputFormat });
 
         // ── BILLBOARD-GRADE VOCAL PREPROCESSING ──
-        let processedPrompt = prompt;
+        // Uses cleanedPrompt (preamble already stripped) — only strip remaining structural tags
+        let processedPrompt = cleanedPrompt;
 
         if (style.includes('rapper')) {
-          // Rap delivery: rhythmic pauses, emphasis for punchlines
-          processedPrompt = prompt
-            .replace(/\[Verse[^\]]*\]/gi, '')  // Strip section labels (not spoken)
-            .replace(/\[Chorus[^\]]*\]/gi, '')
-            .replace(/\[Bridge[^\]]*\]/gi, '')
-            .replace(/\[Pre-Chorus[^\]]*\]/gi, '')
-            .replace(/\[Hook[^\]]*\]/gi, '')
+          // Rap delivery: rhythmic pauses, exclamations for punchlines
+          processedPrompt = cleanedPrompt
             .replace(/\[Ad-lib:[^\]]*\]/gi, (m) => m.replace(/\[Ad-lib:\s*/, '').replace(']', '!')) // Convert ad-libs to exclamations
-            .replace(/\[([^\]]*)\]/g, '')  // Strip remaining performance tags
+            .replace(/\[([^\]]*)\]/g, '')  // Strip all remaining section tags
             .replace(/!+/g, '! ')          // Normalize exclamations
             .replace(/\n{2,}/g, '\n')      // Collapse blank lines
             .trim();
         } else if (style.includes('singer')) {
-          // Singing delivery: preserve line structure for natural phrasing
-          processedPrompt = prompt
-            .replace(/\[Verse[^\]]*\]/gi, '')
-            .replace(/\[Chorus[^\]]*\]/gi, '')
-            .replace(/\[Bridge[^\]]*\]/gi, '')
-            .replace(/\[Pre-Chorus[^\]]*\]/gi, '')
-            .replace(/\[Hook[^\]]*\]/gi, '')
-            .replace(/\[([^\]]*)\]/g, '')  // Strip tags
+          // Singing delivery: preserve line structure, add comma pauses for cadence
+          processedPrompt = cleanedPrompt
+            .replace(/\[([^\]]*)\]/g, '')  // Strip all section tags
             .replace(/\n{3,}/g, '\n\n')    // Collapse excessive blank lines
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean)
+            .join(',\n')                   // Comma after each line = ElevenLabs cadence pause
             .trim();
         } else {
           // General cleanup for any style
-          processedPrompt = prompt
+          processedPrompt = cleanedPrompt
             .replace(/\[([^\]]*)\]/g, '')
             .trim();
         }
@@ -5753,9 +5747,9 @@ Return ONLY valid JSON, no markdown.`;
         // ── AGGRESSIVE CONSISTENCY: Lock voice identity tight ──
         const hasDnaVoice = !!(speakerUrl || req.body.elevenLabsVoiceId);
         const voiceSettings = {
-          stability: hasDnaVoice ? 0.92 : (style.includes('rapper') ? 0.82 : 0.85),       // HIGH stability = identical cadence every generation
+          stability: hasDnaVoice ? 0.92 : (style.includes('rapper') ? 0.85 : 0.90),       // Singers: 0.90 = locked tempo + pitch across regenerations
           similarity_boost: hasDnaVoice ? 1.0 : 0.97,                                      // Near-max similarity = locked voice character
-          style: hasDnaVoice ? 0.45 : (style.includes('rapper') ? 0.35 : 0.25),            // LOW style = minimal delivery randomness
+          style: hasDnaVoice ? 0.30 : (style.includes('rapper') ? 0.15 : 0.08),            // Singers: 0.08 = near-zero delivery randomness (most consistent)
           use_speaker_boost: true
         };
 
