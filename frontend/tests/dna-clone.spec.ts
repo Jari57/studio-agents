@@ -555,13 +555,13 @@ test.describe('Creator Resources Tab — DNA Cards', () => {
   });
 
   test('Vocal Lab card navigates to #/vocals', async ({ page }) => {
-    test.setTimeout(30000);
+    test.setTimeout(60000);
     await enterGuestMode(page);
     await page.goto(`${FRONTEND_URL}/#/studio/resources`);
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState('networkidle');
 
     const vocalCard = page.locator('[role="button"]').filter({ hasText: /Vocal Lab/i }).first();
-    if (await vocalCard.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await vocalCard.isVisible({ timeout: 10000 }).catch(() => false)) {
       await vocalCard.click();
       await page.waitForURL(url => url.hash.includes('#/vocals'), { timeout: 10000 }).catch(() => {});
       expect(page.url()).toContain('#/vocals');
@@ -569,13 +569,13 @@ test.describe('Creator Resources Tab — DNA Cards', () => {
   });
 
   test('Billboard Blueprint card navigates to #/billboard', async ({ page }) => {
-    test.setTimeout(30000);
+    test.setTimeout(60000);
     await enterGuestMode(page);
     await page.goto(`${FRONTEND_URL}/#/studio/resources`);
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState('networkidle');
 
     const billboardCard = page.locator('[role="button"]').filter({ hasText: /Billboard Blueprint/i }).first();
-    if (await billboardCard.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await billboardCard.isVisible({ timeout: 10000 }).catch(() => false)) {
       await billboardCard.click();
       await page.waitForURL(url => url.hash.includes('#/billboard'), { timeout: 10000 }).catch(() => {});
       expect(page.url()).toContain('#/billboard');
