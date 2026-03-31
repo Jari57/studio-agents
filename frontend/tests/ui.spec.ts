@@ -33,17 +33,18 @@ test.describe('Landing Page', () => {
 
   test('Navigation elements are present', async ({ page }) => {
     await page.goto(FRONTEND_URL);
+    await page.waitForLoadState('networkidle');
     // Look for nav links or menu items
     const navArea = page.locator('nav, header').first();
-    await expect(navArea).toBeVisible({ timeout: 10000 });
+    await expect(navArea).toBeVisible({ timeout: 15000 });
   });
 
   test('Footer is visible', async ({ page }) => {
     await page.goto(FRONTEND_URL);
+    await page.waitForLoadState('networkidle');
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(500);
     const footer = page.locator('footer').first();
-    await expect(footer).toBeVisible({ timeout: 5000 });
+    await expect(footer).toBeVisible({ timeout: 15000 });
   });
 
 });

@@ -592,8 +592,8 @@ test.describe('Landing Page — DNA/Vocals/Billboard Footer Links', () => {
 
   test('Footer has DNA System link', async ({ page }) => {
     await page.goto(FRONTEND_URL);
+    await page.waitForLoadState('networkidle');
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(1000);
 
     const dnaLink = page.locator('footer, [class*="footer"]').locator('text=/DNA System/i').first();
     const isVisible = await dnaLink.isVisible({ timeout: 5000 }).catch(() => false);
@@ -604,8 +604,8 @@ test.describe('Landing Page — DNA/Vocals/Billboard Footer Links', () => {
 
   test('Footer has Vocal Lab link', async ({ page }) => {
     await page.goto(FRONTEND_URL);
+    await page.waitForLoadState('networkidle');
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(1000);
 
     const vocalLink = page.locator('footer, [class*="footer"]').locator('text=/Vocal Lab/i').first();
     const isVisible = await vocalLink.isVisible({ timeout: 5000 }).catch(() => false);
@@ -616,8 +616,8 @@ test.describe('Landing Page — DNA/Vocals/Billboard Footer Links', () => {
 
   test('Footer has Billboard Blueprint link', async ({ page }) => {
     await page.goto(FRONTEND_URL);
+    await page.waitForLoadState('networkidle');
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(1000);
 
     const billboardLink = page.locator('footer, [class*="footer"]').locator('text=/Billboard Blueprint/i').first();
     const isVisible = await billboardLink.isVisible({ timeout: 5000 }).catch(() => false);

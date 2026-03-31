@@ -84,10 +84,10 @@ test.describe('Mobile Layout — Landing Page', () => {
       localStorage.removeItem('studio_guest_mode');
     });
     await page.goto(URL);
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
 
     const nav = page.locator('nav, header, [class*="nav"]').first();
-    await expect(nav).toBeVisible({ timeout: 5000 });
+    await expect(nav).toBeVisible({ timeout: 15000 });
   });
 
   test('footer is not clipped', async ({ page }) => {

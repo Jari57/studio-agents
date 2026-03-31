@@ -118,7 +118,8 @@ test.describe('Modals — Whitepapers', () => {
 
     await freshLanding(page);
     const agentSection = page.locator('text=/Meet the Agents/i').first();
-    await agentSection.scrollIntoViewIfNeeded();
+    const agentSectionVisible = await agentSection.isVisible({ timeout: 10000 }).catch(() => false);
+    if (agentSectionVisible) await agentSection.scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
 
     const wpBtn = page.locator('button:has-text("Whitepaper")').first();

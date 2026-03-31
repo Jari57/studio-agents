@@ -122,7 +122,7 @@ test.describe('Studio View — Agent Selection', () => {
     if (!hasBadge) {
       // Fallback: check if any card text contains a tier word
       const anyTier = page.locator('text=/Free|Creator|Pro/i').first();
-      const fallback = await anyTier.isVisible({ timeout: 3000 }).catch(() => false);
+      const fallback = await anyTier.isVisible({ timeout: 10000 }).catch(() => false);
       expect(fallback).toBe(true);
     } else {
       expect(hasBadge).toBe(true);

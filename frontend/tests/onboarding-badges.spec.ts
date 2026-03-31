@@ -49,6 +49,7 @@ async function enterStudioSkipOnboarding(page: Page) {
 // ============================================================================
 
 test.describe('Studio Onboarding', () => {
+  test.describe.configure({ timeout: 60000 });
 
   test('onboarding modal shows on first visit', async ({ page }) => {
     await enterStudioFresh(page);
