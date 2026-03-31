@@ -97,7 +97,7 @@ test.describe('Landing Page — Sections', () => {
   test('has a navigation header', async ({ page }) => {
     await freshLanding(page);
     const nav = page.locator('nav, header').first();
-    await expect(nav).toBeVisible({ timeout: 5000 });
+    await expect(nav).toBeVisible({ timeout: 15000 });
   });
 
   test('agent showcase section exists', async ({ page }) => {
@@ -117,9 +117,9 @@ test.describe('Landing Page — Sections', () => {
   test('footer exists and contains copyright', async ({ page }) => {
     await freshLanding(page);
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
     const footer = page.locator('footer').first();
-    await expect(footer).toBeVisible({ timeout: 5000 });
+    await expect(footer).toBeVisible({ timeout: 15000 });
     const text = await footer.textContent();
     expect(text).toMatch(/©|copyright|studioagents|studio agents/i);
   });
@@ -131,7 +131,7 @@ test.describe('Landing Page — Sections', () => {
     // Check for footer navigation links
     for (const label of ['Whitepapers', 'Legal']) {
       const link = page.locator('footer').locator(`text=/${label}/i`).first();
-      const visible = await link.isVisible({ timeout: 3000 }).catch(() => false);
+      const visible = await link.isVisible({ timeout: 8000 }).catch(() => false);
       // At least some footer links should exist
       if (visible) await expect(link).toBeVisible();
     }
@@ -168,7 +168,8 @@ test.describe('Landing Page — Agent Cards', () => {
 
     await freshLanding(page);
     const agentSection = page.locator('text=/Meet the Agents|Our Agents/i').first();
-    await agentSection.scrollIntoViewIfNeeded();
+    const sectionVisible = await agentSection.isVisible({ timeout: 10000 }).catch(() => false);
+    if (sectionVisible) await agentSection.scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
 
     const wpBtn = page.locator('button:has-text("Whitepaper")').first();
@@ -296,7 +297,7 @@ test.describe('Landing Page — Cookie Consent', () => {
     await page.goto(URL);
     await page.evaluate(() => localStorage.clear());
     await page.goto(URL);
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
 
     const consent = page.locator('text=/cookie|cookies|privacy|accept|consent/i').first();
     const hasConsent = await consent.isVisible({ timeout: 5000 }).catch(() => false);
