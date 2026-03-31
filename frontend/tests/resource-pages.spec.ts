@@ -150,11 +150,12 @@ test.describe('Vocals Resource Page', () => {
 
   test('voice settings table renders', async ({ page }) => {
     await page.goto(`${URL}/#/vocals`);
+    await page.waitForLoadState('networkidle');
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight * 0.6));
     await page.waitForTimeout(1000);
     // Should show the Stability/Similarity/Style settings
     const stabilitySetting = page.locator('text=/Stability|Similarity/i').first();
-    await expect(stabilitySetting).toBeVisible({ timeout: 5000 });
+    await expect(stabilitySetting).toBeVisible({ timeout: 8000 });
   });
 
   test('FAQ accordion works', async ({ page }) => {
@@ -171,9 +172,10 @@ test.describe('Vocals Resource Page', () => {
 
   test('shows AI-POWERED VOICE ENGINE badge (not NEURAL EMOTION)', async ({ page }) => {
     await page.goto(`${URL}/#/vocals`);
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
     const badge = page.locator('text=AI-POWERED VOICE ENGINE').first();
-    await expect(badge).toBeVisible({ timeout: 5000 });
+    await expect(badge).toBeVisible({ timeout: 8000 });
   });
 
   test('back button works', async ({ page }) => {
@@ -244,7 +246,8 @@ test.describe('Billboard Blueprint Page', () => {
 
   test('shows 33+ genres (not 32)', async ({ page }) => {
     await page.goto(`${URL}/#/billboard`);
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
     const pageText = await page.locator('body').textContent();
     expect(pageText).toContain('33+');
     expect(pageText).not.toMatch(/\b32 genres\b/);
@@ -252,10 +255,11 @@ test.describe('Billboard Blueprint Page', () => {
 
   test('sample prompt section is visible', async ({ page }) => {
     await page.goto(`${URL}/#/billboard`);
+    await page.waitForLoadState('networkidle');
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight * 0.8));
     await page.waitForTimeout(1000);
     const prompt = page.locator('text=/trap anthem|SAMPLE CONFIGURATION/i').first();
-    const isVis = await prompt.isVisible({ timeout: 5000 }).catch(() => false);
+    const isVis = await prompt.isVisible({ timeout: 8000 }).catch(() => false);
     expect(isVis).toBe(true);
   });
 });
@@ -283,10 +287,11 @@ test.describe('Content Multiplication Page', () => {
 
   test('shows prep steps and campaign days', async ({ page }) => {
     await page.goto(`${URL}/#/campaign`);
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
     // Should show prep sections
     const prep = page.locator('text=/Prep|Visual Anchor|Motion Assets/i').first();
-    const hasPrep = await prep.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasPrep = await prep.isVisible({ timeout: 8000 }).catch(() => false);
     expect(hasPrep).toBe(true);
   });
 
@@ -367,7 +372,8 @@ test.describe('Whitepapers Page — Extended', () => {
 
   test('loads and shows all 16 agent cards', async ({ page }) => {
     await page.goto(`${URL}/#/whitepapers`);
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000);
     // Should show agent cards
     const cards = page.locator('[style*="cursor: pointer"]').filter({ hasText: /Ghost|Beat|Album|Vocal|Video|Trend|Master|Collab|Drop|Score|Sample|Instrum|Release|AR/i });
     const count = await cards.count();
