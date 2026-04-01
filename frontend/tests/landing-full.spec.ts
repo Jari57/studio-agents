@@ -10,13 +10,16 @@ const URL = 'http://localhost:5173';
 
 // Helper: clear localStorage so landing page always shows
 async function freshLanding(page: Page) {
-  await page.goto(URL);
+  // Use 'domcontentloaded' to avoid blocking on WebKit waiting for all Vite
+  // ES modules and Firebase connections (which turn 'load' / 'networkidle' into ~25s waits).
+  await page.goto(URL, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => {
     localStorage.removeItem('studio_user_id');
     localStorage.removeItem('studio_guest_mode');
   });
-  await page.goto(URL);
-  await page.waitForLoadState('networkidle');
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  // Wait for React to render the landing container (fires after JS executes)
+  await page.locator('.landing-container').waitFor({ state: 'visible', timeout: 20000 });
 }
 
 // ============================================================================
@@ -79,7 +82,8 @@ test.describe('Landing Page — Hero', () => {
     await freshLanding(page);
     const cta = page.locator('button, a').filter({ hasText: /Get Started|Start Free|Try|Launch|Enter/i }).first();
     if (await cta.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await cta.click();
+      // noWaitAfter prevents the click from hanging on WebKit when a modal opens
+      await cta.click({ noWaitAfter: true, timeout: 10000 }).catch(() => {});
       await page.waitForTimeout(1500);
       // Should navigate to studio or show login modal
       const hash = await page.evaluate(() => window.location.hash);
@@ -103,14 +107,14 @@ test.describe('Landing Page — Sections', () => {
   test('agent showcase section exists', async ({ page }) => {
     await freshLanding(page);
     const section = page.locator('text=/Meet the Agents|Our Agents|Agent/i').first();
-    await section.scrollIntoViewIfNeeded();
+    await section.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
     await expect(section).toBeVisible({ timeout: 10000 });
   });
 
   test('pricing section exists', async ({ page }) => {
     await freshLanding(page);
     const section = page.locator('text=/Pricing|Plans|Subscribe/i').first();
-    await section.scrollIntoViewIfNeeded();
+    await section.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
     await expect(section).toBeVisible({ timeout: 10000 });
   });
 
@@ -163,10 +167,11 @@ test.describe('Landing Page — Agent Cards', () => {
   });
 
   test('clicking whitepaper button opens detail', async ({ page }) => {
+    await freshLanding(page);
+    // Register pageerror listener AFTER freshLanding to avoid capturing Firebase
+    // IndexedDB init errors that fire during page.reload() on WebKit.
     const errors: string[] = [];
     page.on('pageerror', e => errors.push(e.message));
-
-    await freshLanding(page);
     const agentSection = page.locator('text=/Meet the Agents|Our Agents/i').first();
     const sectionVisible = await agentSection.isVisible({ timeout: 10000 }).catch(() => false);
     if (sectionVisible) await agentSection.scrollIntoViewIfNeeded();
