@@ -5327,13 +5327,17 @@ Return ONLY valid JSON, no markdown.`;
     if (!audioUrl && (speakerUrl || style === 'cloned') && !req.body.elevenLabsVoiceId) {
       // Clean prompt for cloning engines (same as ElevenLabs preprocessing)
       // Uses cleanedPrompt — preamble/section tags already stripped by cleanLyricsForVocal
-      const clonePrompt = cleanedPrompt
+      const clonePromptBase = cleanedPrompt
         .replace(/\[Ad-lib:[^\]]*\]/gi, (m) => m.replace(/\[Ad-lib:\s*/, '').replace(']', '!'))
         .replace(/\[([^\]]*)\]/g, '')   // Strip remaining section tags
         .replace(/\.(?!\d)/g, '... ')   // Add natural pause dots at sentence ends
         .replace(/!+/g, '! ')
         .replace(/\n{2,}/g, '\n')
         .trim();
+      // Prefix tells ElevenLabs the musical intent — without this it reads lyrics as plain speech
+      const clonePrompt = isSingingStyle ? `Sing with natural melody and emotion:\n${clonePromptBase}`
+                        : isRapStyle ? `Rap with rhythmic flow and punch:\n${clonePromptBase}`
+                        : clonePromptBase;
 
       // ── TRY 1: ElevenLabs Instant Voice Clone (PERSISTENT) ──
       // Check Firestore for an existing cloned voice for this speakerUrl before re-cloning.
@@ -5742,14 +5746,12 @@ Return ONLY valid JSON, no markdown.`;
         }
 
         // ── BILLBOARD-GRADE VOICE SETTINGS ──
-        // When voice DNA (cloned voice or speakerUrl) is active, maximize fidelity
-        // TIGHT settings = consistent voice identity + cadence across regenerations
-        // ── AGGRESSIVE CONSISTENCY: Lock voice identity tight ──
+        // When voice DNA (cloned voice or speakerUrl) is active, balance fidelity with expressiveness
         const hasDnaVoice = !!(speakerUrl || req.body.elevenLabsVoiceId);
         const voiceSettings = {
-          stability: hasDnaVoice ? 0.92 : (style.includes('rapper') ? 0.85 : 0.90),       // Singers: 0.90 = locked tempo + pitch across regenerations
-          similarity_boost: hasDnaVoice ? 1.0 : 0.97,                                      // Near-max similarity = locked voice character
-          style: hasDnaVoice ? 0.30 : (style.includes('rapper') ? 0.15 : 0.08),            // Singers: 0.08 = near-zero delivery randomness (most consistent)
+          stability: hasDnaVoice ? 0.65 : (style.includes('rapper') ? 0.72 : 0.68),
+          similarity_boost: hasDnaVoice ? 0.80 : 0.85,
+          style: hasDnaVoice ? 0.60 : (style.includes('rapper') ? 0.38 : 0.52),
           use_speaker_boost: true
         };
 
@@ -5770,15 +5772,15 @@ Return ONLY valid JSON, no markdown.`;
           const depth = parseInt(refSongAnalysis.depth) || 5;
 
           if (hasDnaVoice) {
-            // DNA EXACT-CLONE: Minimal tuning — voice identity LOCKED
-            voiceSettings.stability = Math.max(0.88, Math.min(0.95, 0.90 + (warmth * 0.005)));
-            voiceSettings.style = Math.max(0.30, Math.min(0.50, 0.35 + (energy * 0.015)));
-            voiceSettings.similarity_boost = Math.max(0.99, Math.min(1.0, 0.99 + (depth * 0.001)));
+            // DNA voice: tune expressiveness from reference, keep similarity reasonable
+            voiceSettings.stability = Math.max(0.55, Math.min(0.75, 0.58 + (warmth * 0.017)));
+            voiceSettings.style = Math.max(0.45, Math.min(0.72, 0.48 + (energy * 0.024)));
+            voiceSettings.similarity_boost = Math.max(0.75, Math.min(0.88, 0.76 + (depth * 0.012)));
           } else {
-            // No DNA: reference tuning but TIGHT — stability never below 0.78
-            voiceSettings.stability = Math.max(0.78, Math.min(0.90, 0.80 + (warmth * 0.01)));
-            voiceSettings.style = Math.max(0.20, Math.min(0.45, 0.22 + (energy * 0.023)));
-            voiceSettings.similarity_boost = Math.max(0.93, Math.min(0.99, 0.94 + (depth * 0.005)));
+            // No DNA: expressive range tuned from reference
+            voiceSettings.stability = Math.max(0.55, Math.min(0.78, 0.60 + (warmth * 0.018)));
+            voiceSettings.style = Math.max(0.35, Math.min(0.65, 0.38 + (energy * 0.027)));
+            voiceSettings.similarity_boost = Math.max(0.78, Math.min(0.92, 0.80 + (depth * 0.012)));
           }
 
           // Prepend vocal direction to the processed prompt for delivery guidance
