@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { 
   Plus, X, ChevronUp, ChevronDown, Music, Clock, Layers, 
   Shuffle, RotateCcw, Copy
@@ -134,6 +134,32 @@ export default function ArrangementEditor({
       setInternalSections(result);
     }
   }, [sections, onArrangementChange]);
+
+  // Sync default internal sections to parent on mount (and when genre changes)
+  // so the arrangement is never "null" when the user hits Generate without editing it
+  const didSyncRef = useRef(false);
+  useEffect(() => {
+    if (onArrangementChange && !arrangement) {
+      onArrangementChange(internalSections);
+      didSyncRef.current = true;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // When genre changes and parent hasn't set a custom arrangement, update to the new genre's default
+  const prevGenreRef = useRef(genre);
+  useEffect(() => {
+    if (prevGenreRef.current !== genre) {
+      prevGenreRef.current = genre;
+      if (onArrangementChange && !arrangement) {
+        const genreKey = genre.toLowerCase().replace(/\s+/g, '-').replace(/modern\s*/i, '');
+        const template = GENRE_ARRANGEMENTS[genreKey] || GENRE_ARRANGEMENTS['default'];
+        const newSections = template.map(s => createSection(s.type, s.bars));
+        setInternalSections(newSections);
+        onArrangementChange(newSections);
+      }
+    }
+  }, [genre, arrangement, onArrangementChange]);
 
   const [showAddMenu, setShowAddMenu] = useState(false);
 
