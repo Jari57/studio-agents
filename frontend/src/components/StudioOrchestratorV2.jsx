@@ -2346,6 +2346,8 @@ export default function StudioOrchestratorV2({
   
   // Industrial Strength State Preservation (Fixes closure issues in auto-triggering)
   const outputsRef = useRef(outputs);
+  const pipelineStepsRef = useRef([]); // Ref mirror so finally-block reads latest pipeline steps
+  const mountedRef = useRef(true); // Track mount state to prevent state updates after unmount
   const recognitionRef = useRef(null);
   const vocalAudioRef = useRef(null);
 
@@ -2504,6 +2506,15 @@ export default function StudioOrchestratorV2({
   useEffect(() => {
     outputsRef.current = outputs;
   }, [outputs]);
+
+  useEffect(() => {
+    pipelineStepsRef.current = pipelineSteps;
+  }, [pipelineSteps]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Reset and restore state when switching between projects
   useEffect(() => {
@@ -2733,7 +2744,7 @@ export default function StudioOrchestratorV2({
       subtitle: currentMode.slotSubtitles.lyrics,
       icon: Sparkles,
       color: '#8b5cf6',
-      mediaType: null
+      mediaType: 'audio'
     },
     { 
       key: 'audio', 
@@ -2981,6 +2992,7 @@ export default function StudioOrchestratorV2({
     setVideoDnaUrl(null);
     setLyricsDnaUrl(null);
     setPipelineSteps([]);
+    setIsSaved(false); // New content not yet saved — re-arm the save guard
     skipRegenerateGuard.current = true;
     setTimeout(() => handleGenerateRef.current?.(), 0);
   }, []);
@@ -3338,7 +3350,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         devLog('[Pipeline] Starting vocal generation with beat URL for mixing');
         updatePipelineStep('vocals', 'active');
         await handleGenerateVocals(lyricsResult);
-        updatePipelineStep('vocals', 'done');
+        // Mark done only if vocals were actually produced (handleGenerateVocals returns early on auth fail)
+        if (mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal) {
+          updatePipelineStep('vocals', 'done');
+        } else {
+          updatePipelineStep('vocals', 'error');
+        }
         devLog('[Pipeline] Vocals complete (dry)');
       }
 
@@ -3414,7 +3431,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       setGeneratingMedia({ audio: false, image: false, video: false, vocals: false });
       // Keep pipeline steps visible longer so user can see results/retry errors
       // Only auto-clear if ALL steps succeeded (no errors to retry)
-      const hasErrors = pipelineSteps.some(s => s.status === 'error');
+      const hasErrors = pipelineStepsRef.current.some(s => s.status === 'error');
       if (!hasErrors) {
         setTimeout(() => setPipelineSteps([]), 8000);
       }
@@ -4758,7 +4775,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               audioDuration: Math.round(beatDuration),
               audioUrl: finalAudioSource,
               vocalUrl: latestMedia.mixedAudio ? null : (latestMedia.vocals || latestMedia.lyricsVocal)
-            })
+            }),
+            signal: createTimeoutSignal(180000)
           });
           if (fallbackRes.ok) {
             let fbData = await fallbackRes.json();
@@ -4808,6 +4826,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           const maxPolls = 120; // 120 × 10s = 20 min max
           let jobSuccess = false;
           for (let i = 0; i < maxPolls; i++) {
+            if (!mountedRef.current) break; // Component unmounted — stop polling
             await new Promise(r => setTimeout(r, 10000)); // Poll every 10s
             try {
               const statusRes = await fetch(`${BACKEND_URL}/api/video-job-status/${data.jobId}`, { headers });
@@ -4972,7 +4991,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             // ID3 metadata for professional export
             title: songIdea || 'Untitled',
             artist: 'Studio Agents AI',
-            coverArtUrl: mediaUrls.image || null
+            coverArtUrl: currentMediaUrls.image || null
           })
         });
 
@@ -5157,6 +5176,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           const maxPolls = 120;
           let jobSuccess = false;
           for (let i = 0; i < maxPolls; i++) {
+            if (!mountedRef.current) break; // Component unmounted — stop polling
             await new Promise(r => setTimeout(r, 10000));
             try {
               const statusRes = await fetch(`${BACKEND_URL}/api/video-job-status/${data.jobId}`, { headers });
