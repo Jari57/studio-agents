@@ -1354,7 +1354,9 @@ function ProductionControlHub({
   creatorMode = 'artist',
   muxRetryParams,
   autoMuxVideoWithAudio,
-  getHeaders
+  getHeaders,
+  visualDnaUrl = null,
+  videoDnaUrl = null
 }) {
   // Check completion status
   const completedCount = Object.values(outputs).filter(Boolean).length;
@@ -1369,7 +1371,8 @@ function ProductionControlHub({
   const hasVocals = hasVocalMedia || !!outputs.lyrics;
   const hasVideo = !!mediaUrls.video;
   const hasVisual = !!mediaUrls.image;
-  const isSyncAvailable = hasBeat && (hasVideo || hasVisual || !!outputs?.video);
+  const hasDnaImage = !!(visualDnaUrl || videoDnaUrl);
+  const isSyncAvailable = hasBeat && (hasVideo || hasVisual || !!outputs?.video || hasDnaImage);
   const isSyncComplete = !!musicVideoUrl;
 
   return (
@@ -5084,7 +5087,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       return;
     }
 
-    if (!mediaUrls.audio || (!outputs.video && !mediaUrls.image && !mediaUrls.video)) {
+    if (!mediaUrls.audio || (!outputs.video && !mediaUrls.image && !mediaUrls.video && !visualDnaUrl && !videoDnaUrl)) {
       toast.error('Need beat audio and a video concept or image to sync');
       return;
     }
@@ -8057,6 +8060,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         muxRetryParams={muxRetryParams}
         autoMuxVideoWithAudio={autoMuxVideoWithAudio}
         getHeaders={getHeaders}
+        visualDnaUrl={visualDnaUrl}
+        videoDnaUrl={videoDnaUrl}
       />
     </div>
 
