@@ -4784,6 +4784,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             if (fbData.status === 'processing' && fbData.operationId) {
               toast.loading('Video rendering in progress...', { id: 'gen-video', duration: 300000 });
               for (let i = 0; i < 60; i++) {
+                if (!mountedRef.current) break; // Component unmounted — stop polling
                 await new Promise(r => setTimeout(r, 5000));
                 try {
                   const statusRes = await fetch(`${BACKEND_URL}/api/video-status/${fbData.operationId}`, { headers });
@@ -4917,7 +4918,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           }
 
           // Auto-extract frame if no image
-          if (!mediaUrls.image) {
+          if (!mediaUrlsRef.current.image) {
             try {
               const frameDataUrl = await extractFrameFromVideo(data.videoUrl);
               setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
@@ -5199,7 +5200,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 toast.success(`🎬 Video created! Syncing audio...`, { id: 'prof-video' });
 
                 // Auto-mux audio into video
-                const muxAudio = mediaUrls.mixedAudio || mediaUrls.audio;
+                const muxAudio = mediaUrlsRef.current.mixedAudio || mediaUrlsRef.current.audio;
                 if (muxAudio) {
                   await autoMuxVideoWithAudio(statusData.videoUrl, muxAudio, headers);
                   toast.success('🎬 Music video with audio ready!', { id: 'prof-video' });
