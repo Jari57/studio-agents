@@ -4512,11 +4512,18 @@ async function generateVocalsInternal(options, logger) {
   const voiceId = voiceIdMap[style] || voiceIdMap['rapper'];
 
   const voiceSettings = {
-    stability: style.includes('rapper') ? 0.82 : 0.85,
-    similarity_boost: 0.97,
-    style: style.includes('rapper') ? 0.35 : 0.25,
+    stability: style.includes('rapper') ? 0.70 : 0.65,
+    similarity_boost: 0.82,
+    style: style.includes('rapper') ? 0.40 : 0.52,
     use_speaker_boost: true
   };
+
+  // Prefix tells ElevenLabs the musical intent — without this it reads lyrics as plain speech
+  const isSinging = style.includes('singer');
+  const isRapping = style.includes('rapper');
+  const deliveryPrompt = isSinging ? `Sing with natural melody and emotion:\n${prompt}`
+                       : isRapping ? `Rap with rhythmic flow and punch:\n${prompt}`
+                       : prompt;
 
   // 60-second timeout for ElevenLabs TTS
   const elAbort = new AbortController();
@@ -4531,7 +4538,7 @@ async function generateVocalsInternal(options, logger) {
     },
     signal: elAbort.signal,
     body: JSON.stringify({
-      text: prompt,
+      text: deliveryPrompt,
       model_id: 'eleven_multilingual_v2',
       voice_settings: voiceSettings,
       language_code: language
@@ -5136,11 +5143,45 @@ Return ONLY valid JSON, no markdown.`;
         // Language enforcement: Suno uses tags to determine language
         const langTag = (langCode !== 'en' && language !== 'English') ? `${language || langCode} language, sung in ${language || langCode},` : '';
         let sunoTags;
+        // Rap style → delivery-specific Suno descriptors
+        const RAP_STYLE_TAGS = {
+          'aggressive': 'aggressive delivery, hard punchlines, menacing tone, 808 bass',
+          'melodic':    'melodic rap, auto-tune, emotional hooks, singing rapper',
+          'trap':       'trap flow, ad-libs, mumble rap, hi-hats, swag',
+          'drill':      'drill rap, dark energy, staccato flow, UK/NY drill',
+          'boom-bap':   'boom bap, old school, lyrical, storytelling, samples',
+          'fast':       'fast rap, technical flow, double time, syllable-dense',
+          'chill':      'chill rap, laid-back, conversational, lo-fi vibes',
+          'hype':       'hype rap, energetic, club banger, crowd control',
+        };
+        // Singer genre → delivery-specific Suno descriptors
+        const SINGER_GENRE_TAGS = {
+          'r&b':       'smooth R&B, vocal runs, melismatic, neo-soul, emotional',
+          'pop':       'pop production, bright hooks, radio-ready, catchy melody',
+          'soul':      'raw soul, gospel-influenced, powerhouse vocals, dynamic range',
+          'hip-hop':   'melodic hooks, trap singing, modern R&B, vocal ad-libs',
+          'country':   'country twang, heartfelt storytelling, acoustic warmth',
+          'rock':      'rock vocals, gritty, powerful belt, dynamic contrast',
+          'metal':     'metal screams, intense, aggressive power vocals',
+          'punk':      'punk energy, raw unpolished, attitude, distortion',
+          'jazz':      'jazz phrasing, improvisation, scat, warm swing feel',
+          'gospel':    'gospel choir, spiritual uplift, call and response, powerhouse',
+          'reggae':    'reggae flow, relaxed melody, Island vibe, laid-back hooks',
+          'dancehall': 'dancehall, patois flow, energetic, rhythmic chant',
+          'reggaeton': 'reggaeton, perreo, Latin urban, infectious hook',
+          'afrobeat':  'Afrobeats, polyrhythmic, joyful, groove-forward',
+          'electronic':'electronic vocals, processed, modern production, synth-driven',
+          'indie':     'indie folk, organic, authentic, warm lo-fi texture',
+          'acoustic':  'acoustic warmth, intimate, vulnerable, fingerpicked',
+          'funk':      'funk groove, punchy, call-response, rhythmic phrasing',
+          'default':   'melodic singing, expressive, emotionally resonant delivery',
+        };
         if (isRapStyle) {
-          // Rap-specific Suno tags for authentic delivery
-          sunoTags = `${langTag} ${genre || 'hip-hop'}, rap, ${rapStyle || 'aggressive'}, ${vocalGender}, bars, rhythmic flow, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
+          const rapDescriptors = RAP_STYLE_TAGS[rapStyle] || RAP_STYLE_TAGS['aggressive'];
+          sunoTags = `${langTag} ${genre || 'hip-hop'}, rap, ${rapStyle || 'aggressive'}, ${rapDescriptors}, ${vocalGender}, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
         } else {
-          sunoTags = `${langTag} ${genre}, ${vocalGender}, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
+          const singerDescriptors = SINGER_GENRE_TAGS[(genre || '').toLowerCase()] || SINGER_GENRE_TAGS['default'];
+          sunoTags = `${langTag} ${genre}, ${singerDescriptors}, ${vocalGender}, emotionally expressive, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
         }
         
         // Use centralised cleanedPrompt — preamble already stripped at route entry
