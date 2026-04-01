@@ -2307,6 +2307,8 @@ export default function StudioOrchestratorV2({
   const [quickGenre, setQuickGenre] = useState('Modern Hip-Hop'); // Genre for Quick Create
   const [selectedOutputPreset, setSelectedOutputPreset] = useState('Full Song Release'); // Output format preset
   const [pipelineSteps, setPipelineSteps] = useState([]); // Live progress feed
+  const [retryingStep, setRetryingStep] = useState(null); // ID of pipeline step currently being retried
+  const [mixFailed, setMixFailed] = useState(false); // True when /api/create-final-mix returned an error
   const [voiceSampleUrl, setVoiceSampleUrl] = useState(null); // URL of uploaded voice sample for cloning
   const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState(localStorage.getItem('studio_elevenlabs_voice_id') || '');
   const [isUploadingSample, setIsUploadingSample] = useState(false);
@@ -3060,6 +3062,7 @@ export default function StudioOrchestratorV2({
     }
     
     setIsGenerating(true);
+    setMixFailed(false); // Reset mix failure flag for this run
     toast.loading('Generating content...', { id: 'gen-all' });
 
     // Declare outside try so finally block can close it
@@ -3388,6 +3391,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       // Generate video LAST — uses mixedAudio (vocal+beat) when available, falls back to beat only
       // Use ref for latest state (closure mediaUrls may be stale after async ops)
       if (pipelinePromises.videoDescription && !mediaUrlsRef.current.video) {
+        if (mixFailed) {
+          toast('Generating video with beat-only audio — mix creation failed', { icon: '⚠️', duration: 5000 });
+        }
         devLog('[Pipeline] Starting video generation with mixed audio:', !!mediaUrlsRef.current.mixedAudio);
         updatePipelineStep('video', 'active');
         await handleGenerateVideo(pipelinePromises.videoDescription);
@@ -5016,7 +5022,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         } else {
           const err = await response.json().catch(() => ({}));
           devWarn('[FinalMix] Mixing failed, using individual tracks', err);
-          toast.error(`Mix failed: ${err.error || 'Server error'} — using individual tracks`, { id: 'final-mix' });
+          setMixFailed(true);
+          toast.error(`Mix failed: ${err.error || 'Server error'} — video will use beat-only audio`, { id: 'final-mix', duration: 8000 });
         }
       }
 
@@ -6567,7 +6574,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 )}
                 {step.status === 'error' && (
                   <button
+                    disabled={retryingStep === step.id}
                     onClick={async () => {
+                      if (retryingStep === step.id) return;
+                      setRetryingStep(step.id);
                       updatePipelineStep(step.id, 'active');
                       try {
                         const headers = await getHeaders();
@@ -6591,20 +6601,22 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         console.error('[Orchestrator] Pipeline retry error:', retryErr);
                         updatePipelineStep(step.id, 'error');
                         toast.error(`Retry failed for: ${step.label}`, { id: 'orch-retry' });
+                      } finally {
+                        setRetryingStep(null);
                       }
                     }}
                     style={{
                       padding: '2px 8px',
                       borderRadius: '4px',
-                      background: 'rgba(239, 68, 68, 0.15)',
+                      background: retryingStep === step.id ? 'rgba(239, 68, 68, 0.06)' : 'rgba(239, 68, 68, 0.15)',
                       border: '1px solid rgba(239, 68, 68, 0.3)',
-                      color: '#ef4444',
+                      color: retryingStep === step.id ? 'rgba(239,68,68,0.4)' : '#ef4444',
                       fontSize: '0.65rem',
                       fontWeight: '600',
-                      cursor: 'pointer'
+                      cursor: retryingStep === step.id ? 'not-allowed' : 'pointer'
                     }}
                   >
-                    Retry
+                    {retryingStep === step.id ? '...' : 'Retry'}
                   </button>
                 )}
                 {step.status === 'active' && step.startTime && (
