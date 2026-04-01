@@ -3686,12 +3686,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               createdAt: new Date().toISOString()
             };
 
-            saveFunc({
-              ...existingProject,
-              assets: [audioAsset, ...(existingProject.assets || [])],
-              updatedAt: new Date().toISOString()
-            });
-            setIsSaved(true);
+            try {
+              saveFunc({
+                ...existingProject,
+                assets: [audioAsset, ...(existingProject.assets || [])],
+                updatedAt: new Date().toISOString()
+              });
+              setIsSaved(true);
+            } catch (saveErr) {
+              devWarn('[handleGenerateAudio] Background save failed:', saveErr);
+            }
           }
 
           toast.success('AI beat generated!', { id: 'gen-audio' });
@@ -3915,12 +3919,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             createdAt: new Date().toISOString()
           };
           
-          saveFunc({
-            ...existingProject,
-            assets: [vocalAsset, ...(existingProject.assets || [])],
-            updatedAt: new Date().toISOString()
-          });
-          setIsSaved(true);
+          try {
+            saveFunc({
+              ...existingProject,
+              assets: [vocalAsset, ...(existingProject.assets || [])],
+              updatedAt: new Date().toISOString()
+            });
+            setIsSaved(true);
+          } catch (saveErr) {
+            devWarn('[handleGenerateVocals] Background save failed:', saveErr);
+          }
         }
 
         const engineLabels = {
@@ -4129,7 +4137,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         body: JSON.stringify({
           samples: voiceSamples.map(s => s.base64),
           voiceName: songIdea ? `${songIdea} Voice` : 'My Voice'
-        })
+        }),
+        signal: createTimeoutSignal(60000)
       });
 
       const result = await response.json();
@@ -4993,7 +5002,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             title: songIdea || 'Untitled',
             artist: 'Studio Agents AI',
             coverArtUrl: currentMediaUrls.image || null
-          })
+          }),
+          signal: createTimeoutSignal(120000)
         });
 
         if (response.ok) {
@@ -5163,7 +5173,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           toast.success(`🎬 Video created! Syncing audio...`, { id: 'prof-video' });
 
           // Auto-mux audio into video so it's not silent
-          const muxAudio = mediaUrls.mixedAudio || mediaUrls.audio;
+          const muxAudio = mediaUrlsRef.current.mixedAudio || mediaUrlsRef.current.audio;
           if (muxAudio) {
             await autoMuxVideoWithAudio(data.videoUrl, muxAudio, headers);
             toast.success('🎬 Music video with audio ready!', { id: 'prof-video' });
@@ -8036,7 +8046,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               if (slot.key === 'video') { setVideoDnaUrl(null); clearFields.videoDnaUrl = null; }
               if (slot.key === 'lyrics') { setLyricsDnaUrl(null); clearFields.lyricsDnaUrl = null; }
               if (auth.currentUser?.uid && db && Object.keys(clearFields).length) {
-                updateDoc(doc(db, 'users', auth.currentUser.uid), clearFields).catch(err => devWarn('[Orchestrator] Failed to clear DNA in Firestore:', err));
+                updateDoc(doc(db, 'users', auth.currentUser.uid), clearFields).catch(() => toast.error('Style reference may reappear — check your connection', { duration: 3000 }));
               }
             }}
             onSetAsDna={slot.key === 'visual' && mediaUrls.image ? handleSetImageAsDna : null}
@@ -8226,7 +8236,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       if (slot.key === 'video') { setVideoDnaUrl(null); clearFields.videoDnaUrl = null; }
                       if (slot.key === 'lyrics') { setLyricsDnaUrl(null); clearFields.lyricsDnaUrl = null; }
                       if (auth.currentUser?.uid && db && Object.keys(clearFields).length) {
-                        updateDoc(doc(db, 'users', auth.currentUser.uid), clearFields).catch(err => devWarn('[Orchestrator] Failed to clear DNA in Firestore:', err));
+                        updateDoc(doc(db, 'users', auth.currentUser.uid), clearFields).catch(() => toast.error('Style reference may reappear — check your connection', { duration: 3000 }));
                       }
                     }}
                     onSetAsDna={slot.key === 'visual' && mediaUrls.image ? handleSetImageAsDna : null}
