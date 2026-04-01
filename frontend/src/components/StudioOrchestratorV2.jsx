@@ -5,7 +5,7 @@ import {
   Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
   Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, Lightbulb,
   Settings, CheckCircle2, Lock as LockIcon, User, CircleHelp,
-  ChevronUp, ChevronDown, Upload, Share2, ExternalLink, Globe
+  ChevronUp, ChevronDown, Upload, Share2, ExternalLink, Globe, Dna
 } from 'lucide-react';
 import { BACKEND_URL, AGENTS, getAgentHex, getCreatorMode } from '../constants';
 import toast from 'react-hot-toast';
@@ -284,6 +284,7 @@ function GeneratorCard({
   onMaximize = null,
   onUploadDna = null,
   onClearDna = null,
+  onSetAsDna = null,
   dnaUrl = null,
   isUploadingDna = false,
   provider = null,
@@ -835,6 +836,33 @@ function GeneratorCard({
                           }}
                         >
                           <Edit3 size={11} /> Edit Cover
+                        </button>
+                      )}
+                      {/* Set as DNA button */}
+                      {onSetAsDna && !dnaUrl && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onSetAsDna(); }}
+                          title="Save this image as your Visual DNA reference"
+                          style={{
+                            position: 'absolute',
+                            bottom: '6px',
+                            left: '6px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            background: 'rgba(0,0,0,0.7)',
+                            border: '1px solid rgba(34,197,94,0.4)',
+                            color: '#22c55e',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 2,
+                          }}
+                        >
+                          <Dna size={11} /> Set as DNA
                         </button>
                       )}
                     </div>
@@ -4309,6 +4337,28 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     }
   };
 
+  // Save current generated image as Visual DNA reference
+  const handleSetImageAsDna = useCallback(async () => {
+    const url = mediaUrls.image;
+    if (!url) return;
+    setVisualDnaUrl(url);
+    setVideoDnaUrl(url);
+    toast.success('Image saved as Visual DNA reference!');
+    if (auth.currentUser?.uid && db) {
+      try {
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        await updateDoc(userRef, {
+          visualDnaUrl: url,
+          videoDnaUrl: url,
+          lastDnaUpdate: Date.now()
+        });
+        devLog('[Orchestrator] Persisted generated image as Visual DNA');
+      } catch (err) {
+        devWarn('[Orchestrator] Failed to persist visual DNA:', err);
+      }
+    }
+  }, [mediaUrls.image]);
+
   // Extract frame from video as fallback for image
   const extractFrameFromVideo = (videoUrl) => {
     return new Promise((resolve, reject) => {
@@ -7697,7 +7747,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       }}
                     />
                     <button
-                      onClick={() => { setVisualDnaUrl(null); setVideoDnaUrl(null); }}
+                      onClick={() => {
+                        setVisualDnaUrl(null);
+                        setVideoDnaUrl(null);
+                        if (auth.currentUser?.uid && db) {
+                          updateDoc(doc(db, 'users', auth.currentUser.uid), { visualDnaUrl: null, videoDnaUrl: null }).catch(() => {});
+                        }
+                      }}
                       style={{
                         position: 'absolute',
                         top: '6px',
@@ -7950,11 +8006,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             isUploadingDna={isUploadingDna[slot.key]}
             provider={generationProviders[slot.key] || null}
             onClearDna={() => {
-              if (slot.key === 'visual') setVisualDnaUrl(null);
-              if (slot.key === 'audio') setAudioDnaUrl(null);
-              if (slot.key === 'video') setVideoDnaUrl(null);
-              if (slot.key === 'lyrics') setLyricsDnaUrl(null);
+              const clearFields = {};
+              if (slot.key === 'visual') { setVisualDnaUrl(null); clearFields.visualDnaUrl = null; }
+              if (slot.key === 'audio') { setAudioDnaUrl(null); clearFields.audioDnaUrl = null; }
+              if (slot.key === 'video') { setVideoDnaUrl(null); clearFields.videoDnaUrl = null; }
+              if (slot.key === 'lyrics') { setLyricsDnaUrl(null); clearFields.lyricsDnaUrl = null; }
+              if (auth.currentUser?.uid && db && Object.keys(clearFields).length) {
+                updateDoc(doc(db, 'users', auth.currentUser.uid), clearFields).catch(err => devWarn('[Orchestrator] Failed to clear DNA in Firestore:', err));
+              }
             }}
+            onSetAsDna={slot.key === 'visual' && mediaUrls.image ? handleSetImageAsDna : null}
             onEditCover={slot.key === 'visual' && mediaUrls.image ? () => setShowCoverEditor(true) : null}
           />
         ))}
@@ -8133,11 +8194,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     isUploadingDna={isUploadingDna[slot.key]}
                     provider={generationProviders[slot.key] || null}
                     onClearDna={() => {
-                      if (slot.key === 'visual') setVisualDnaUrl(null);
-                      if (slot.key === 'audio') setAudioDnaUrl(null);
-                      if (slot.key === 'video') setVideoDnaUrl(null);
-                      if (slot.key === 'lyrics') setLyricsDnaUrl(null);
+                      const clearFields = {};
+                      if (slot.key === 'visual') { setVisualDnaUrl(null); clearFields.visualDnaUrl = null; }
+                      if (slot.key === 'audio') { setAudioDnaUrl(null); clearFields.audioDnaUrl = null; }
+                      if (slot.key === 'video') { setVideoDnaUrl(null); clearFields.videoDnaUrl = null; }
+                      if (slot.key === 'lyrics') { setLyricsDnaUrl(null); clearFields.lyricsDnaUrl = null; }
+                      if (auth.currentUser?.uid && db && Object.keys(clearFields).length) {
+                        updateDoc(doc(db, 'users', auth.currentUser.uid), clearFields).catch(err => devWarn('[Orchestrator] Failed to clear DNA in Firestore:', err));
+                      }
                     }}
+                    onSetAsDna={slot.key === 'visual' && mediaUrls.image ? handleSetImageAsDna : null}
                     onEditCover={slot.key === 'visual' && mediaUrls.image ? () => setShowCoverEditor(true) : null}
                   />
                 );
