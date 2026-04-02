@@ -5422,17 +5422,17 @@ Return ONLY valid JSON, no markdown.`;
           const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
           const cloneVoiceSettings = {
-            stability: 0.65,
-            similarity_boost: 0.80,
-            style: 0.60,
+            stability: 0.70,         // consistent pitch while preserving voice character
+            similarity_boost: 0.88,  // high fidelity to cloned voice
+            style: 0.65,             // expressive for musical performance
             use_speaker_boost: true
           };
 
           if (refSongAnalysis) {
             const energy = parseInt(refSongAnalysis.energy) || 5;
             const warmth = parseInt(refSongAnalysis.warmth) || 5;
-            cloneVoiceSettings.stability = Math.max(0.55, Math.min(0.75, 0.58 + (warmth * 0.017)));
-            cloneVoiceSettings.style = Math.max(0.45, Math.min(0.72, 0.48 + (energy * 0.024)));
+            cloneVoiceSettings.stability = Math.max(0.60, Math.min(0.78, 0.62 + (warmth * 0.016)));
+            cloneVoiceSettings.style = Math.max(0.50, Math.min(0.75, 0.52 + (energy * 0.023)));
           }
 
           const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${persistedCloneId}?output_format=mp3_44100_192`, {
@@ -5535,17 +5535,17 @@ Return ONLY valid JSON, no markdown.`;
             const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
             const cloneVoiceSettings = {
-              stability: 0.65,
-              similarity_boost: 0.80,
-              style: 0.60,
+              stability: 0.70,         // consistent pitch while preserving voice character
+              similarity_boost: 0.88,  // high fidelity to cloned voice
+              style: 0.65,             // expressive for musical performance
               use_speaker_boost: true
             };
 
             if (refSongAnalysis) {
               const energy = parseInt(refSongAnalysis.energy) || 5;
               const warmth = parseInt(refSongAnalysis.warmth) || 5;
-              cloneVoiceSettings.stability = Math.max(0.55, Math.min(0.75, 0.58 + (warmth * 0.017)));
-              cloneVoiceSettings.style = Math.max(0.45, Math.min(0.72, 0.48 + (energy * 0.024)));
+              cloneVoiceSettings.stability = Math.max(0.60, Math.min(0.78, 0.62 + (warmth * 0.016)));
+              cloneVoiceSettings.style = Math.max(0.50, Math.min(0.75, 0.52 + (energy * 0.023)));
             }
 
             const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${clonedVoiceId}?output_format=mp3_44100_192`, {
@@ -5779,15 +5779,20 @@ Return ONLY valid JSON, no markdown.`;
             .replace(/\n{2,}/g, '\n')      // Collapse blank lines
             .trim();
         } else if (style.includes('singer')) {
-          // Singing delivery: preserve line structure, add comma pauses for cadence
+          // Singing delivery: strip section tags, preserve natural line structure
+          // NOTE: Do NOT join with commas — commas create unnatural pauses that destroy vocal flow
           processedPrompt = cleanedPrompt
-            .replace(/\[([^\]]*)\]/g, '')  // Strip all section tags
-            .replace(/\n{3,}/g, '\n\n')    // Collapse excessive blank lines
+            .replace(/\[([^\]]*)\]/g, '')   // Strip all section tags
+            .replace(/\n{3,}/g, '\n\n')     // Collapse excessive blank lines (keep verse/chorus separation)
             .split('\n')
             .map(line => line.trim())
             .filter(Boolean)
-            .join(',\n')                   // Comma after each line = ElevenLabs cadence pause
+            .join('\n')                      // Natural newlines for continuous flowing delivery
             .trim();
+          // Add billboard-grade performance direction so ElevenLabs sings, not speaks
+          if (!hasDnaVoice && !processedPrompt.startsWith('[')) {
+            processedPrompt = `[Deliver as a full musical vocal performance — sing on pitch with sustained melody, expressive phrasing, and professional studio quality]\n${processedPrompt}`;
+          }
         } else {
           // General cleanup for any style
           processedPrompt = cleanedPrompt
@@ -5796,12 +5801,15 @@ Return ONLY valid JSON, no markdown.`;
         }
 
         // ── BILLBOARD-GRADE VOICE SETTINGS ──
-        // When voice DNA (cloned voice or speakerUrl) is active, balance fidelity with expressiveness
+        // Target: consistent pitch, rich timbre, professional performance quality
+        // High stability = locked pitch (no wavering) — essential for billboard sound
+        // High similarity_boost = voice stays true to the model character = consistency
+        // High style = musical expressiveness for actual performance delivery
         const hasDnaVoice = !!(speakerUrl || req.body.elevenLabsVoiceId);
         const voiceSettings = {
-          stability: hasDnaVoice ? 0.65 : (style.includes('rapper') ? 0.72 : 0.68),
-          similarity_boost: hasDnaVoice ? 0.80 : 0.85,
-          style: hasDnaVoice ? 0.60 : (style.includes('rapper') ? 0.38 : 0.52),
+          stability:        hasDnaVoice ? 0.70 : (style.includes('rapper') ? 0.72 : 0.82),
+          similarity_boost: hasDnaVoice ? 0.85 : 0.92,
+          style:            hasDnaVoice ? 0.62 : (style.includes('rapper') ? 0.38 : 0.72),
           use_speaker_boost: true
         };
 
@@ -5822,15 +5830,15 @@ Return ONLY valid JSON, no markdown.`;
           const depth = parseInt(refSongAnalysis.depth) || 5;
 
           if (hasDnaVoice) {
-            // DNA voice: tune expressiveness from reference, keep similarity reasonable
-            voiceSettings.stability = Math.max(0.55, Math.min(0.75, 0.58 + (warmth * 0.017)));
-            voiceSettings.style = Math.max(0.45, Math.min(0.72, 0.48 + (energy * 0.024)));
-            voiceSettings.similarity_boost = Math.max(0.75, Math.min(0.88, 0.76 + (depth * 0.012)));
+            // DNA voice: tune expressiveness from reference, keep clone fidelity floors high
+            voiceSettings.stability = Math.max(0.62, Math.min(0.78, 0.64 + (warmth * 0.014)));
+            voiceSettings.style = Math.max(0.52, Math.min(0.75, 0.54 + (energy * 0.021)));
+            voiceSettings.similarity_boost = Math.max(0.82, Math.min(0.92, 0.83 + (depth * 0.009)));
           } else {
-            // No DNA: expressive range tuned from reference
-            voiceSettings.stability = Math.max(0.55, Math.min(0.78, 0.60 + (warmth * 0.018)));
-            voiceSettings.style = Math.max(0.35, Math.min(0.65, 0.38 + (energy * 0.027)));
-            voiceSettings.similarity_boost = Math.max(0.78, Math.min(0.92, 0.80 + (depth * 0.012)));
+            // No DNA: reference-tuned but never drop below billboard quality floors
+            voiceSettings.stability = Math.max(0.72, Math.min(0.90, 0.74 + (warmth * 0.016)));
+            voiceSettings.style = Math.max(0.55, Math.min(0.82, 0.58 + (energy * 0.024)));
+            voiceSettings.similarity_boost = Math.max(0.88, Math.min(0.97, 0.89 + (depth * 0.008)));
           }
 
           // Prepend vocal direction to the processed prompt for delivery guidance
@@ -8415,6 +8423,9 @@ function getAgentSystemPrompt(agent, session) {
   const baseContext = session ? `Session context: BPM=${session.bpm || 120}, Key=${session.key || 'C major'}, Style=${session.style || 'contemporary'}, Bars=${session.musicalBars || 8}.` : '';
   
   // Map both agent IDs and legacy display names to prompts so callers can pass either
+  // Shared vocal performer prompt — used by all vocal agent IDs
+  const VOCAL_PERFORMER_PROMPT = `You are the Vocal Performer AI — a world-class recording artist. ${baseContext} YOU PERFORM. You do NOT describe music, discuss themes, explain songs, or write commentary. When you receive ANY input — a concept, theme, mood, phrase, or partial lyric — you immediately output complete, performance-ready song lyrics structured for live vocal delivery. MANDATORY RULES: 1. Start DIRECTLY with [Verse 1] — absolutely nothing before it. 2. Structure: [Verse 1] → [Pre-Chorus] → [Chorus] → [Verse 2] → [Bridge] → [Chorus] → [Outro]. 3. Each sung line: max 12 words, rhythmically punchy, singable at ${session?.bpm || 120} BPM. 4. Every line must lock to a beat — tight syllable count, natural stresses on downbeats. 5. NEVER write: "Here are your lyrics", "This song is about", "I've written", or ANY explanatory text. 6. You are the performer on stage. Deliver the track. Nothing else.`;
+
   const agentPrompts = {
     // By ID (primary — what callers actually send)
     'ghost': `You are the Ghostwriter AI, an elite lyricist and songwriter. ${baseContext} Write compelling, emotionally resonant lyrics with clever wordplay. Ensure lyrics flow perfectly at the specified BPM and song length. IMPORTANT: Return ONLY the lyrics with [Verse], [Chorus], [Bridge] etc. structure tags. Do NOT include any preamble, introduction, explanation, or commentary. Start directly with the first structure tag.`,
@@ -8423,6 +8434,17 @@ function getAgentSystemPrompt(agent, session) {
     'sound': `You are the Soundscape Designer AI, an ambient and texture specialist. ${baseContext} Create atmospheric soundscapes, textures, and ambient elements.`,
     'melody': `You are the Melody Maker AI, a melodic composition expert. ${baseContext} Compose memorable melodies, hooks, and harmonic progressions that sync with the specified BPM.`,
     'arrange': `You are the Arranger Pro AI, a song structure and arrangement specialist. ${baseContext} Design song structures, transitions, and dynamic arrangements based on the ${session?.musicalBars || 8} bars provided.`,
+    // Vocal performer agent — all IDs that route to vocal synthesis
+    'vocal-arch':        VOCAL_PERFORMER_PROMPT,
+    'vocal-gen':         VOCAL_PERFORMER_PROMPT,
+    'vocal-performer':   VOCAL_PERFORMER_PROMPT,
+    'vocal-performance': VOCAL_PERFORMER_PROMPT,
+    'vocal-lab':         VOCAL_PERFORMER_PROMPT,
+    'vocal-labs':        VOCAL_PERFORMER_PROMPT,
+    'voice-gen':         VOCAL_PERFORMER_PROMPT,
+    'voice-cloner':      VOCAL_PERFORMER_PROMPT,
+    'podcast':           `You are the Podcast Voice AI, a professional narrator and spoken-word performer. ${baseContext} Deliver content in a clear, authoritative, engaging spoken voice. Output ONLY the script to be read. No meta-commentary.`,
+    'voiceover':         `You are the Voiceover AI, a professional voice actor for film, TV, and commercial media. ${baseContext} Output ONLY the exact script to perform. Never describe or explain the content.`,
     // Legacy display-name aliases (kept for backward compatibility)
     'Ghostwriter': `You are the Ghostwriter AI, an elite lyricist and songwriter. ${baseContext} Write compelling, emotionally resonant lyrics with clever wordplay. Ensure lyrics flow perfectly at the specified BPM and song length. IMPORTANT: Return ONLY the lyrics with [Verse], [Chorus], [Bridge] etc. structure tags. Do NOT include any preamble, introduction, explanation, or commentary. Start directly with the first structure tag.`,
     'BeatArchitect': `You are the Beat Architect AI, a master producer and beatmaker. ${baseContext} Create detailed beat concepts and drum patterns. Prefer 100% professional musicality. Reference the specified BPM and exact Bar count (${session?.musicalBars || 8} bars) in your creative decisions for rhythm and timing.`,

@@ -4605,16 +4605,17 @@ const fetchUserCredits = useCallback(async (uid) => {
           // Speech agents need actual singable LYRICS from the brain phase, not a description.
           // All other agents get the standard 80-word production brief.
           const speechBrainPrompt = isSpeechAgent
-            ? `Write complete song lyrics for: "${promptValue}". Genre: ${detectedGenre}. Style: ${voiceSettings.style || 'rap'}.${contextLyrics ? ` Build on: "${contextLyrics.substring(0, 400)}"` : ''} Output ONLY the lyrics starting with [Verse 1]. No title, no preamble, no explanations.`
+            ? `Write complete ${detectedGenre} song lyrics for: "${promptValue}". Style: ${voiceSettings.style || 'rap'}.${contextLyrics ? ` Continue from: "${contextLyrics.substring(0, 400)}"` : ''} Start with [Verse 1] immediately. Output ONLY the lyrics — no title, no introduction, no explanations, nothing before [Verse 1].`
             : brainPrompt;
           const speechBrainInstruction = isSpeechAgent
-            ? `You are a Grammy-winning ${detectedGenre} songwriter. Write complete, singable song lyrics.
-MANDATORY RULES:
-1. Output ONLY the raw lyrics — no title line, no "Here are", no description, no explanation.
-2. First line MUST be [Verse 1] and nothing else before it.
-3. Structure: [Verse 1] → [Chorus] → [Verse 2] → [Bridge] → [Chorus].
-4. Each line max 12 words. Lines must be rhythmically punchy.
-5. Total max 250 words. Every word must be singable or rapsable.`
+            ? `You are a world-class ${detectedGenre} songwriter and performer. YOUR ONLY OUTPUT IS SONG LYRICS — NOTHING ELSE.
+ABSOLUTE RULES (violating any = failure):
+1. First line MUST be [Verse 1] — ZERO text before it. Not a title, not a greeting, not a comment.
+2. Output ONLY the structured lyrics. No "Here are your lyrics", no "This song explores", no explanations, no meta-text of any kind.
+3. Structure: [Verse 1] → [Pre-Chorus] → [Chorus] → [Verse 2] → [Bridge] → [Chorus] → [Outro].
+4. Each sung line: max 12 words. Tight syllables, natural stress on the beat, rhythmically punchy.
+5. Every word must be performable — singable or rapsable. No filler, no essays.
+6. You are a performer writing a track. Write lines the way they will be delivered on stage.`
             : `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} elite Creative Brain.
                 ${creatorMode === 'creator' 
                   ? 'Translate user ideas into platform-optimized, viral-quality content briefs for social media, YouTube, podcasts, and marketing.' 
