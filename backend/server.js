@@ -1013,47 +1013,70 @@ if (isDevelopment) {
 // =============================================================================
 const ANON_FREE_LIMIT = 7; // Free generations for anonymous users (enough for full song + 2 retries)
 const ANON_WINDOW_MS = 24 * 60 * 60 * 1000; // 24-hour window
-const anonGenerationTracker = new Map(); // key: ipHash → { count, expiresAt }
 
-// Clean up expired entries every 30 minutes
+// In-memory fallback (used when Firestore is unavailable)
+const anonGenerationFallback = new Map(); // key: ipHash → { count, expiresAt }
 setInterval(() => {
   const now = Date.now();
-  let cleaned = 0;
-  for (const [key, entry] of anonGenerationTracker) {
-    if (now > entry.expiresAt) {
-      anonGenerationTracker.delete(key);
-      cleaned++;
-    }
+  for (const [key, entry] of anonGenerationFallback) {
+    if (now > entry.expiresAt) anonGenerationFallback.delete(key);
   }
-  if (cleaned > 0) logger.debug(`🧹 Cleaned ${cleaned} expired anon tracking entries`);
 }, 30 * 60 * 1000);
 
-// Check and increment anonymous generation count. Returns { allowed, remaining, used }.
-const checkAnonGenerationLimit = (req) => {
+// Check and increment anonymous generation count via Firestore (survives redeploys).
+// Falls back to in-memory Map when Firestore is not available.
+// Returns { allowed, remaining, used }.
+const checkAnonGenerationLimit = async (req) => {
   const ipHash = ipKeyGenerator(req);
   const now = Date.now();
-  let entry = anonGenerationTracker.get(ipHash);
+  const db = getFirestoreDb();
 
-  if (!entry || now > entry.expiresAt) {
-    entry = { count: 0, expiresAt: now + ANON_WINDOW_MS };
-    anonGenerationTracker.set(ipHash, entry);
+  if (db) {
+    // --- Firestore path (persistent across deploys) ---
+    try {
+      const ref = db.collection('anonRateLimits').doc(ipHash);
+      return await db.runTransaction(async (t) => {
+        const snap = await t.get(ref);
+        let entry = snap.exists ? snap.data() : null;
+
+        if (!entry || now > entry.expiresAt) {
+          entry = { count: 0, expiresAt: now + ANON_WINDOW_MS };
+        }
+
+        if (entry.count >= ANON_FREE_LIMIT) {
+          return { allowed: false, remaining: 0, used: entry.count };
+        }
+
+        entry.count++;
+        t.set(ref, entry);
+        return { allowed: true, remaining: ANON_FREE_LIMIT - entry.count, used: entry.count };
+      });
+    } catch (err) {
+      logger.warn('Firestore anon rate-limit check failed, falling back to in-memory', { error: err.message });
+      // Fall through to in-memory fallback below
+    }
   }
 
+  // --- In-memory fallback ---
+  let entry = anonGenerationFallback.get(ipHash);
+  if (!entry || now > entry.expiresAt) {
+    entry = { count: 0, expiresAt: now + ANON_WINDOW_MS };
+    anonGenerationFallback.set(ipHash, entry);
+  }
   if (entry.count >= ANON_FREE_LIMIT) {
     return { allowed: false, remaining: 0, used: entry.count };
   }
-
   entry.count++;
   return { allowed: true, remaining: ANON_FREE_LIMIT - entry.count, used: entry.count };
 };
 
 // Middleware: require auth OR allow limited anonymous free generations
-const requireAuthOrFreeLimit = (req, res, next) => {
+const requireAuthOrFreeLimit = async (req, res, next) => {
   // Authenticated users pass through (credits handled by checkCreditsFor)
   if (req.user) return next();
 
   // Anonymous: enforce server-side free generation limit
-  const { allowed, remaining, used } = checkAnonGenerationLimit(req);
+  const { allowed, remaining, used } = await checkAnonGenerationLimit(req);
   if (!allowed) {
     logger.warn(`🚫 Anonymous free limit exceeded`, { ip: req.ip, used });
     return res.status(401).json({

@@ -1,6 +1,7 @@
 // Service Worker for Studio Agents PWA
-// IMPORTANT: Increment version when deploying new builds to invalidate old caches
-const CACHE_NAME = 'studio-agents-v11';
+// CACHE_NAME is replaced at build time by vite.config.js (swVersionPlugin).
+// In dev the literal placeholder string is used (no caching impact since SW only activates in production).
+const CACHE_NAME = '__BUILD_VERSION__';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

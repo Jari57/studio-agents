@@ -3,6 +3,40 @@ import react from '@vitejs/plugin-react'
 import { visualizer } from 'rollup-plugin-visualizer'
 import viteCompression from 'vite-plugin-compression'
 import { PurgeCSS } from 'purgecss'
+import { execSync } from 'child_process'
+import { readFileSync, writeFileSync } from 'fs'
+import { resolve } from 'path'
+
+// Derive a stable build ID from the git short SHA, falling back to a timestamp
+function getBuildVersion() {
+  try {
+    const sha = execSync('git rev-parse --short HEAD', { stdio: ['pipe', 'pipe', 'ignore'] })
+      .toString()
+      .trim();
+    return `studio-agents-${sha}`;
+  } catch (_) {
+    return `studio-agents-${Date.now()}`;
+  }
+}
+
+// Vite plugin: rewrites __BUILD_VERSION__ in the copied dist/sw.js after build
+function swVersionPlugin() {
+  return {
+    name: 'sw-version',
+    apply: 'build',
+    closeBundle() {
+      const swPath = resolve(__dirname, 'dist', 'sw.js');
+      try {
+        const version = getBuildVersion();
+        const content = readFileSync(swPath, 'utf8');
+        writeFileSync(swPath, content.replace(/__BUILD_VERSION__/g, version), 'utf8');
+        console.log(`  [sw-version] Cache version set to: ${version}`);
+      } catch (err) {
+        console.warn(`  [sw-version] Could not patch dist/sw.js: ${err.message}`);
+      }
+    }
+  };
+}
 
 // Custom PurgeCSS plugin - removes unused CSS classes from production build
 function purgeCSSPlugin() {
@@ -57,6 +91,7 @@ function purgeCSSPlugin() {
 export default defineConfig({
   plugins: [
     react(),
+    swVersionPlugin(),
     visualizer({
       filename: 'bundle-stats.html',
       open: false,
