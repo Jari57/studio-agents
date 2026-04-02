@@ -8,6 +8,7 @@ import {
   TrendingUp, Disc, Activity, Settings, CheckCircle, Clock, Cpu,
   Layers, Image as ImageIcon, Mail, Download
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { AGENTS, BACKEND_URL } from '../../constants';
 import { auth } from '../../firebase';
 
@@ -1246,7 +1247,7 @@ const DashboardView = ({
                           URL.revokeObjectURL(url);
                         } catch (err) {
                           console.error('Data export failed:', err);
-                          alert('Failed to export data. Please try again.');
+                          toast.error('Failed to export data. Please try again.');
                         }
                       }}
                       style={{

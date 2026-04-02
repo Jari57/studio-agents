@@ -952,9 +952,9 @@ if (isDevelopment) {
   });
 }
 
-// Always serve dashboard at /dashboard
+// Always serve dashboard at /dashboard — admin auth required
 if (fs.existsSync(dashboardPath)) {
-  app.get('/dashboard', (req, res) => {
+  app.get('/dashboard', verifyFirebaseToken, requireAdmin, (req, res) => {
     res.sendFile(dashboardPath);
   });
 }
@@ -1247,21 +1247,10 @@ app.get('/health', async (req, res) => {
   const healthStatus = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
+    uptime: Math.round(process.uptime()) + 's',
     environment: NODE_ENV,
-    memory: {
-      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
-      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
-    },
-    apiKey: apiKey ? 'configured' : 'missing',
-    sunoApi: process.env.SUNO_API_KEY ? 'configured' : 'missing',
-    elevenLabs: process.env.ELEVENLABS_API_KEY ? 'configured' : 'missing',
-    replicate: (process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN) ? 'configured' : 'missing',
-    stripe: process.env.STRIPE_SECRET_KEY ? 'configured' : 'missing',
     ffmpeg: ffmpegStatus,
-    rateLimiting: 'active',
-    nodeVersion: process.version,
-    platform: process.platform
+    rateLimiting: 'active'
   };
   
   logger.debug('Health check requested', { ip: req.ip });
@@ -2754,12 +2743,11 @@ app.post('/api/user/billing/update-payment', verifyFirebaseToken, async (req, re
       return res.status(400).json({ error: 'No billing account found. Please subscribe first.' });
     }
     
-    // Create Stripe Customer Portal session
-    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
     if (!stripe) {
       return res.status(503).json({ error: 'Payment system not configured' });
     }
-    
+
+    // Create Stripe Customer Portal session
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: userDoc.data().stripeCustomerId,
       return_url: req.body.returnUrl || 'https://studioagents.ai/account'
@@ -4731,7 +4719,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
           input.prompt = `EXACT VISUAL CLONE: Replicate this reference image with pixel-perfect fidelity — same face, same style, same colors, same composition, same lighting, same mood, same artistic identity, same textures, same clothing, same pose. Do not deviate, reinterpret, or add creative spin. The output must be indistinguishable from the reference. ${input.prompt}`;
         }
 
-        const response = await fetchWithRetry('https://api.replicate.com/v1/predictions', {
+        const response = await fetchWithRetry('https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${replicateKey}`,
@@ -4739,7 +4727,6 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
             'Prefer': 'wait' // Wait for generation to complete
           },
           body: JSON.stringify({
-            model: "black-forest-labs/flux-1.1-pro",
             input: input
           })
         }, { timeoutMs: 60000 });
@@ -5309,14 +5296,13 @@ Return ONLY valid JSON, no markdown.`;
           barkWaveformTemp = 0.28;
           logger.info('🧬 Bark DNA exact-clone mode (no ref analysis)', { barkTextTemp, barkWaveformTemp });
         }
-        const response = await fetch('https://api.replicate.com/v1/predictions', {
+        const response = await fetch('https://api.replicate.com/v1/models/suno-ai/bark/predictions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${replicateKey}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            model: 'suno-ai/bark',
             input: {
               prompt: barkSingingPrompt,
               text_temp: barkTextTemp,
@@ -5936,14 +5922,13 @@ Return ONLY valid JSON, no markdown.`;
           logger.info('🎤 Bark text truncated for intelligibility', { original: prompt.length, truncated: barkPrompt.length });
         }
         
-        const response = await fetch('https://api.replicate.com/v1/predictions', {
+        const response = await fetch('https://api.replicate.com/v1/models/suno-ai/bark/predictions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${replicateKey}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            model: 'suno-ai/bark',
             input: {
               prompt: barkPrompt,
               text_temp: 0.45,
@@ -10436,7 +10421,7 @@ app.post('/api/stripe/create-checkout-session', verifyFirebaseToken, requireAuth
     try {
       if (!STRIPE_WEBHOOK_SECRET) {
         logger.error('STRIPE_WEBHOOK_SECRET not configured - rejecting webhook');
-        return res.status(500).json({ error: 'Webhook not configured' });
+        return res.status(400).json({ error: 'Webhook not configured' });
       }
       event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
     } catch (err) {
@@ -11619,6 +11604,12 @@ app.get('/api/convert-format/:id', verifyFirebaseToken, requireAuth, (req, res) 
 // ═══════════════════════════════════════════════════════════════════
 // GLOBAL ERROR HANDLER (PRODUCTION HARDENED)
 // ═══════════════════════════════════════════════════════════════════
+
+// 404 handler for unknown /api/* routes (must be before error handler)
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found', path: req.path });
+});
+
 app.use((err, req, res, _next) => {
   const statusCode = err.status || err.statusCode || 500;
   
