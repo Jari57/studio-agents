@@ -1031,7 +1031,7 @@ const checkAnonGenerationLimit = async (req) => {
   const now = Date.now();
   const db = getFirestoreDb();
 
-  if (db) {
+  if (db && ipHash) {
     // --- Firestore path (persistent across deploys) ---
     try {
       const ref = db.collection('anonRateLimits').doc(ipHash);

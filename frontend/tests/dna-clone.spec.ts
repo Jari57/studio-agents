@@ -507,6 +507,9 @@ test.describe('Creator Resources Tab — DNA Cards', () => {
       localStorage.setItem('studio_onboarding_v3', 'true');
       localStorage.setItem('studio_onboarding_v4', 'true');
       localStorage.setItem('cookie_consent', 'true');
+      // Suppress GuidedTour and Orchestrator welcome modal to avoid overlay interference
+      localStorage.setItem('studio_tour_shown', '1');
+      localStorage.setItem('studio_onboarding_complete', 'true');
     });
   };
 

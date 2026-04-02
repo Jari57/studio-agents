@@ -18,10 +18,13 @@ async function enterStudioFresh(page: Page) {
     localStorage.setItem('studio_guest_mode', 'true');
     localStorage.setItem('studio_user_id', 'test-playwright');
     localStorage.setItem('cookie_consent', 'true');
+    // Suppress GuidedTour and Orchestrator welcome modal so only StudioOnboarding shows
+    localStorage.setItem('studio_tour_shown', '1');
+    localStorage.setItem('studio_onboarding_complete', 'true');
   });
   await page.goto(`${URL}/#/studio/agents`);
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(2000);
+  await page.waitForLoadState('domcontentloaded');
+  await page.locator('[role="dialog"][aria-label="Studio Onboarding"]').waitFor({ state: 'visible', timeout: 15000 });
 }
 
 async function enterStudioSkipOnboarding(page: Page) {
@@ -32,16 +35,13 @@ async function enterStudioSkipOnboarding(page: Page) {
     localStorage.setItem('studio_onboarding_v3', 'true');
     localStorage.setItem('studio_onboarding_v4', 'true');
     localStorage.setItem('cookie_consent', 'true');
+    // Suppress GuidedTour and Orchestrator welcome modal
+    localStorage.setItem('studio_tour_shown', '1');
+    localStorage.setItem('studio_onboarding_complete', 'true');
   });
   await page.goto(`${URL}/#/studio/agents`);
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(2000);
-  // Dismiss any remaining overlay
-  const overlay = page.locator('.modal-overlay');
-  if (await overlay.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await overlay.click({ position: { x: 5, y: 5 }, force: true });
-    await page.waitForTimeout(500);
-  }
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForTimeout(1500);
 }
 
 // ============================================================================
@@ -146,7 +146,7 @@ test.describe('Studio Onboarding', () => {
     const skipBtn = page.locator('button').filter({ hasText: /^Skip$/i }).first();
     const closeBtn = page.locator('[aria-label="Close onboarding"]').first();
     if (await skipBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await skipBtn.click();
+      await skipBtn.click({ force: true });
     } else if (await closeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await closeBtn.click();
     }

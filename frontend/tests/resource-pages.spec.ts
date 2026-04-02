@@ -16,7 +16,7 @@ test.describe('DNA Resource Page', () => {
 
   test('loads via #/dna', async ({ page }) => {
     await page.goto(`${URL}/#/dna`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const heading = page.locator('h1, h2').filter({ hasText: /DNA/i }).first();
     await expect(heading).toBeVisible({ timeout: 10000 });
   });
@@ -110,7 +110,7 @@ test.describe('Vocals Resource Page', () => {
 
   test('loads via #/vocals', async ({ page }) => {
     await page.goto(`${URL}/#/vocals`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const heading = page.locator('h1, h2').filter({ hasText: /Vocal|Voice/i }).first();
     await expect(heading).toBeVisible({ timeout: 10000 });
   });
@@ -150,7 +150,7 @@ test.describe('Vocals Resource Page', () => {
 
   test('voice settings table renders', async ({ page }) => {
     await page.goto(`${URL}/#/vocals`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight * 0.6));
     await page.waitForTimeout(1000);
     // Should show the Stability/Similarity/Style settings
@@ -172,7 +172,7 @@ test.describe('Vocals Resource Page', () => {
 
   test('shows AI-POWERED VOICE ENGINE badge (not NEURAL EMOTION)', async ({ page }) => {
     await page.goto(`${URL}/#/vocals`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(500);
     const badge = page.locator('text=AI-POWERED VOICE ENGINE').first();
     await expect(badge).toBeVisible({ timeout: 8000 });
@@ -199,7 +199,7 @@ test.describe('Billboard Blueprint Page', () => {
 
   test('loads via #/billboard', async ({ page }) => {
     await page.goto(`${URL}/#/billboard`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const heading = page.locator('h1').filter({ hasText: /Billboard/i }).first();
     await expect(heading).toBeVisible({ timeout: 10000 });
   });
@@ -246,8 +246,12 @@ test.describe('Billboard Blueprint Page', () => {
 
   test('shows 33+ genres (not 32)', async ({ page }) => {
     await page.goto(`${URL}/#/billboard`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('domcontentloaded');
+    // Wait for lazy-loaded component to finish rendering
+    await page.waitForFunction(
+      () => !document.body.innerText.includes('Loading Studio'),
+      { timeout: 20000 }
+    ).catch(() => {});
     const pageText = await page.locator('body').textContent();
     expect(pageText).toContain('33+');
     expect(pageText).not.toMatch(/\b32 genres\b/);
@@ -255,11 +259,16 @@ test.describe('Billboard Blueprint Page', () => {
 
   test('sample prompt section is visible', async ({ page }) => {
     await page.goto(`${URL}/#/billboard`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    // Wait for lazy-loaded component to finish rendering
+    await page.waitForFunction(
+      () => !document.body.innerText.includes('Loading Studio'),
+      { timeout: 20000 }
+    ).catch(() => {});
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight * 0.8));
     await page.waitForTimeout(1000);
     const prompt = page.locator('text=/trap anthem|SAMPLE CONFIGURATION/i').first();
-    const isVis = await prompt.isVisible({ timeout: 8000 }).catch(() => false);
+    const isVis = await prompt.isVisible({ timeout: 10000 }).catch(() => false);
     expect(isVis).toBe(true);
   });
 });
@@ -272,7 +281,7 @@ test.describe('Content Multiplication Page', () => {
 
   test('loads via #/campaign', async ({ page }) => {
     await page.goto(`${URL}/#/campaign`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const heading = page.locator('h1, h2').filter({ hasText: /Content|Campaign|Multiplication|Engine/i }).first();
     await expect(heading).toBeVisible({ timeout: 10000 });
   });
@@ -287,11 +296,15 @@ test.describe('Content Multiplication Page', () => {
 
   test('shows prep steps and campaign days', async ({ page }) => {
     await page.goto(`${URL}/#/campaign`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('domcontentloaded');
+    // Wait for lazy-loaded component to finish rendering
+    await page.waitForFunction(
+      () => !document.body.innerText.includes('Loading Studio'),
+      { timeout: 20000 }
+    ).catch(() => {});
     // Should show prep sections
     const prep = page.locator('text=/Prep|Visual Anchor|Motion Assets/i').first();
-    const hasPrep = await prep.isVisible({ timeout: 8000 }).catch(() => false);
+    const hasPrep = await prep.isVisible({ timeout: 12000 }).catch(() => false);
     expect(hasPrep).toBe(true);
   });
 
@@ -328,7 +341,7 @@ test.describe('Legal Resources Page', () => {
 
   test('loads via #/legal', async ({ page }) => {
     await page.goto(`${URL}/#/legal`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const heading = page.locator('h1, h2').filter({ hasText: /Legal|Privacy|Terms|Copyright/i }).first();
     await expect(heading).toBeVisible({ timeout: 10000 });
   });
@@ -372,8 +385,8 @@ test.describe('Whitepapers Page — Extended', () => {
 
   test('loads and shows all 16 agent cards', async ({ page }) => {
     await page.goto(`${URL}/#/whitepapers`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(2000);
     // Should show agent cards
     const cards = page.locator('[style*="cursor: pointer"]').filter({ hasText: /Ghost|Beat|Album|Vocal|Video|Trend|Master|Collab|Drop|Score|Sample|Instrum|Release|AR/i });
     const count = await cards.count();

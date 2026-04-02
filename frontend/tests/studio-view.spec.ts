@@ -15,17 +15,18 @@ async function enterStudio(page: Page) {
     localStorage.setItem('studio_user_id', 'test-playwright');
     localStorage.setItem('studio_onboarding_v3', 'true');
     localStorage.setItem('studio_onboarding_v4', 'true');
+    localStorage.setItem('studio_tour_shown', '1');
+    localStorage.setItem('studio_onboarding_complete', 'true');
     localStorage.setItem('cookie_consent', 'true');
   });
   await page.goto(`${URL}/#/studio/agents`);
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(2000);
-  // Dismiss any overlay that may still be visible
-  const overlay = page.locator('.modal-overlay');
-  if (await overlay.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await overlay.click({ position: { x: 5, y: 5 }, force: true });
-    await page.waitForTimeout(500);
-  }
+  await page.waitForLoadState('domcontentloaded');
+  // Wait for studio to finish loading (loading spinner disappears)
+  await page.waitForFunction(
+    () => !document.body.innerText.includes('Loading Studio'),
+    { timeout: 15000 }
+  ).catch(() => {});
+  await page.waitForTimeout(500);
 }
 
 // ============================================================================

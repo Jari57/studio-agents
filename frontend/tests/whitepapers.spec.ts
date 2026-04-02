@@ -20,7 +20,8 @@ test.describe('Whitepapers Page', () => {
 
   test('shows agent cards with expandable sections', async ({ page }) => {
     await page.goto(`${FRONTEND_URL}/#/whitepapers`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(2000);
 
     // Should have multiple agent cards
     const cards = page.locator('[style*="cursor: pointer"]').filter({ hasText: /Ghost|Beat|Album|Social|Hashtag|Video|Pitch|Vocal|Mix/i });

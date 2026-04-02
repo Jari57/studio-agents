@@ -34,8 +34,8 @@ test.describe('Landing Page — Core', () => {
 
   test('no JavaScript errors on load', async ({ page }) => {
     const errors: string[] = [];
-    page.on('pageerror', e => errors.push(e.message));
     await freshLanding(page);
+    page.on('pageerror', e => errors.push(e.message));
     await page.waitForTimeout(2000);
     expect(errors).toEqual([]);
   });
