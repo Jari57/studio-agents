@@ -1,10 +1,20 @@
 import { Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, Book } from 'lucide-react';
 
 // BACKEND CONFIGURATION
-export const BACKEND_URL = (window.location.hostname === 'localhost' || 
-                window.location.hostname === '127.0.0.1' || 
-                window.location.port === '5173' || 
-                window.location.port === '3000') ? 'http://localhost:3001' : ''; 
+// Capacitor native apps (Android/iOS) use the live Railway backend directly —
+// they can't reach localhost:3001 on the dev machine.
+const isCapacitorNative = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+const isLocalDev = !isCapacitorNative && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.port === '5173' ||
+  window.location.port === '3000'
+);
+export const BACKEND_URL = isCapacitorNative
+  ? 'https://web-production-b5922.up.railway.app'
+  : isLocalDev
+    ? 'http://localhost:3001'
+    : ''; 
 
 // AGENTS ordered for logical 2-column pairing on mobile
 // Row 1: Lyrics + Beats (core music creation)

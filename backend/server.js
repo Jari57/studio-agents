@@ -867,6 +867,9 @@ const allowedOrigins = isDevelopment
   'http://localhost:3000', 
   'http://localhost:3001', 
   'http://127.0.0.1:3001',
+  'https://localhost',        // Capacitor Android (androidScheme: https)
+  'capacitor://localhost',    // Capacitor iOS
+  'ionic://localhost',        // Ionic fallback
   'https://studioagentsai.com',
   'https://www.studioagentsai.com',
   'https://studio-agents.vercel.app',
@@ -880,6 +883,9 @@ const allowedOrigins = isDevelopment
   'https://studio-agents-backend-production.up.railway.app',
   'https://web-production-b5922.up.railway.app',
   'https://restored-os-whip-montez-production.up.railway.app',
+  'https://localhost',        // Capacitor Android (androidScheme: https)
+  'capacitor://localhost',    // Capacitor iOS
+  'ionic://localhost',        // Ionic fallback
     ].filter(Boolean);
 
 app.use(cors({
