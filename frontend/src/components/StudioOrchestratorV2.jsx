@@ -3804,9 +3804,20 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       const { content: lyricsOnly } = splitCreativeContent(lyricsText);
       // Aggressively strip AI preamble even in fallback to prevent prompt context in vocals
       let cleanLyrics = lyricsOnly || lyricsText;
+
+      // 🛡️ [NUCLEAR OPTION] Block AI refusals from being "sung"
+      const lowerLower = cleanLyrics.toLowerCase();
+      if (
+        (lowerLower.includes("i'm sorry") || lowerLower.includes("i cannot") || lowerLower.includes("i'm unable to")) &&
+        (lowerLower.includes("generate") || lowerLower.includes("comply") || lowerLower.includes("lyrics"))
+      ) {
+         toast.error("AI refused to generate valid lyrics. Please try a different prompt.", { id: 'gen-vocals' });
+         setGeneratingMedia(prev => ({ ...prev, vocals: false }));
+         return;
+      }
       
       // DEEP CLEANING: Strip everything before the first actual song structure tag.
-      // If AI said "Sure, here is a rap about coding: [Verse 1]", we must start at [Verse 1].
+      // Most reliable path to kill AI chatter before the song starts.
       const firstTagIndex = cleanLyrics.search(/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro|Section)\b/i);
       if (firstTagIndex !== -1) {
         cleanLyrics = cleanLyrics.substring(firstTagIndex);
@@ -3814,18 +3825,22 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       cleanLyrics = cleanLyrics
         // Strip multi-line AI preamble (fallback if no tags found)
-        .replace(/^(Sure!?|Okay!?|Absolutely!?|Certainly!?|Alright!?|Here('s| is| are)|I've written|I wrote|I created|Let me|Below are|These lyrics|This song|I hope you enjoy|Hope this helps)[^\n]*\n/gim, '')
+        .replace(/^(Sure[,!]?|Okay[,!]?|Absolutely[,!]?|Certainly[,!]?|Alright[,!]?|Of course[,!]?|Here('s| is| are)|I'?ve (written|created|generated|prepared)|I wrote|Let me|Below are|These lyrics|This (song|track|piece) is|I hope you enjoy|Hope this helps)[^\n]*\n/gim, '')
         // Strip meta lines: Title:, Genre:, Style:, Tempo:, Key:, Mood:, About:, Description:
-        .replace(/^(Title|Genre|Style|Tempo|Key|Mood|About|Description|Inspired by|Written for|This (song|track|piece))[^\n]*\n/gim, '')
+        .replace(/^(Title|Genre|Style|Tempo|Key|Mood|About|Description|Inspired by|Written for|Artist|Musical Notes|Voice Direction)[^\n]*\n/gim, '')
         .replace(/\[Ad-lib:[^\]]*\]/gi, '')  // Strip ad-lib direction tags
         .replace(/\[(?!Verse|Chorus|Bridge|Pre-Chorus|Hook|Outro|Intro)[^\]]*\]/gi, '')  // Strip non-standard performance/direction tags
         .replace(/^\s*\n/gm, '')  // Remove empty lines left by stripped tags
         .trim();
         
-      // If after cleaning it still starts with "I " or "This ", it's likely still preamble
-      if (/^(I |This |Here )/i.test(cleanLyrics)) {
-        const lines = cleanLyrics.split('\n');
-        if (lines.length > 1) cleanLyrics = lines.slice(1).join('\n').trim();
+      // If after cleaning it still starts with AI filler, it's likely purely meta-commentary
+      if (/^(I'?m |I'?ve |This song |Here are |Sure!)/i.test(cleanLyrics) && cleanLyrics.length < 150) {
+        // If it's short and looks like a description, it's not lyrics
+        if (cleanLyrics.split('\n').length < 3) {
+          toast.error("Generated content contains no singable lyrics. Please re-generate lyrics first.", { id: 'gen-vocals' });
+          setGeneratingMedia(prev => ({ ...prev, vocals: false }));
+          return;
+        }
       }
 
       // Use the same voice mapping as handleGenerateLyricsVocal

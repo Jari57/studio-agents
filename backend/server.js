@@ -4983,27 +4983,51 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
     function cleanLyricsForVocal(rawText) {
       if (!rawText || typeof rawText !== 'string') return '';
       
+      let cleaned = String(rawText).trim();
+
       // 🛡️ [SECURE] Block AI refusals from being "sung"
-      const lowerLower = rawText.toLowerCase();
+      const lowerLower = cleaned.toLowerCase();
       if (
         (lowerLower.includes("i'm sorry") || lowerLower.includes("i cannot") || lowerLower.includes("i'm unable to")) &&
         (lowerLower.includes("generate") || lowerLower.includes("comply") || lowerLower.includes("lyrics"))
       ) {
         logger.warn('🚫 AI refusal detected in lyrics, skipping vocal generation');
-        return ''; // Returning empty will trigger error in caller, preventing credit waste
+        return '';
       }
 
-      // 1. Critical strip: if the AI explains its process or the song, kill it.
-      // Matches "Sure, here are some lyrics...", "This song is about...", etc.
-      let cleaned = String(rawText)
-        .replace(/^(Sure[,!]?|Okay[,!]?|Alright[,!]?|Certainly[,!]?|Here('s| is| are)[^\n]*|I'?ve (written|created|generated)[^\n]*|Let me [^\n]*|Below [^\n]*|These (lyrics|are)[^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|About:[^\n]*|Description:[^\n]*|Voice Direction:[^\n]*|Musical Notes:[^\n]*|I hope you enjoy[^\n]*|Hope this helps[^\n]*)(?:\n+|$)/gim, '')
-        // (Note: Removed "This song[^\n]*" from the regex above to avoid L4984 false positives)
+      // NUCLEAR OPTION: If any structural tags like [Verse], [Chorus], or [Hook] exist, 
+      // DISCARD EVERYTHING before the first tag. This is the most reliable way 
+      // to kill AI "chatty" preamble (e.g. "Certainly! Here is your song: [Verse 1]")
+      // Matches both [Tag] and [Section: Tag] formats.
+      const tagMatch = cleaned.match(/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro|Section|Body|Lyrics)\b/i);
+      if (tagMatch) {
+         logger.info('🛡️ Nuclear Pre-Tag Strip active; discarding everything before line:', { tag: tagMatch[0] });
+         cleaned = cleaned.substring(tagMatch.index);
+      } else {
+         // HEURISTIC: If no tags are found, we'll try to split and discard the "description" part
+         // Split by double newlines and discard any "sentence" that doesn't look like lyrics
+         let lines = cleaned.split('\n');
+         let startIdx = 0;
+         for (let i = 0; i < Math.min(lines.length, 5); i++) {
+           const line = lines[i].trim();
+           if (/^(Certainly|Here|Sure|I'?ve|I'?m|This|Okay|Alright|Below|Absolutely|Of course)/i.test(line) && line.length < 150) {
+             startIdx = i + 1;
+           } else {
+             break;
+           }
+         }
+         if (startIdx > 0) {
+           logger.info('🛡️ Heuristic Pre-Lyric Strip active; skipping narrative lines:', startIdx);
+           cleaned = lines.slice(startIdx).join('\n').trim();
+         }
+      }
+
+      // 1. Heavy strip: Specific AI "chatty" patterns and metadata headers
+      cleaned = cleaned
+        .replace(/^(Sure[,!]?|Okay[,!]?|Alright[,!]?|Certainly[,!]?|Absolutely[,!]?|Of course[,!]?|Here('s| is| are)[^\n]*|I'?ve (written|created|generated|prepared)[^\n]*|Let me [^\n]*|Below [^\n]*|These (lyrics|are)[^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|About:[^\n]*|Description:[^\n]*|Voice Direction:[^\n]*|Musical Notes:[^\n]*|I hope you enjoy[^\n]*|Hope this helps[^\n]*|This song is[^\n]*|This track is[^\n]*)(?:\n+|$)/gim, '')
         // 2. Strip standard Markdown code blocks if any
         .replace(/```[a-z]*\n([\s\S]*?)```/g, '$1')
-        // 3. Strip everything before the first song structure tag (most reliable path)
-        // Only if tags like [Verse] exist. This prevents the AI "describing" the song from being sung.
-        .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\b)/i, '')
-        // 4. Normalise section tags to clean bare forms Suno/Bark/ElevenLabs expect
+        // 3. Normalise section tags to clean bare forms Suno/Bark/ElevenLabs expect
         .replace(/\[Verse[^\]]*\]/gi, '[Verse]')
         .replace(/\[Chorus[^\]]*\]/gi, '[Chorus]')
         .replace(/\[Bridge[^\]]*\]/gi, '[Bridge]')
@@ -5016,16 +5040,23 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
         .replace(/^\s*\n/gm, '')
         .trim();
         
-      // 5. Final safety check: if we didn't find any tags and it still looks like a preamble, 
+      // 4. Final safety check: if we didn't find any tags and it still looks like a preamble, 
       // try to split by double newlines and take the longest chunk (heuristically the actual lyrics)
       if (!/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\]/i.test(cleaned)) {
         const chunks = cleaned.split(/\n\s*\n/).filter(c => c.trim().length > 20);
         if (chunks.length > 1) {
-          // If the first chunk starts with "Sure" or "I", and there are other chunks, skip it.
-          if (/^(I |Sure|Here|This )/i.test(chunks[0]) && !/^(I |This )/.test(chunks[1])) {
+          // If the first chunk starts with "Sure", "I", "Here", "This", skip it.
+          if (/^(I |Sure|Here|This |Okay|Certainly|Alright)/i.test(chunks[0]) && !/^(I |This |Sure|Here|Okay)/i.test(chunks[1])) {
              cleaned = chunks.slice(1).join('\n\n').trim();
           }
         }
+      }
+
+      // Final fallback: if it STILL starts with "I " or "This " or "Here ", it's meta and should likely be trashed
+      if (/^(I'?m |I'?ve |This song |Here are |Sure!)/i.test(cleaned) && cleaned.length < 200) {
+        logger.warn('⚠️ Lyrics still contain preamble after cleaning', { sample: cleaned.substring(0, 50) });
+        // If it's very short and looks like a single narrative sentence, it's likely just a description
+        if (cleaned.split('\n').length < 2) return ''; 
       }
 
       return cleaned;
