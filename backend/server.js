@@ -5186,9 +5186,14 @@ Return ONLY valid JSON, no markdown.`;
     // ═══════════════════════════════════════════════════════════════
     const useSunoForVocals = isSingingStyle || isRapStyle || req.body.quality === 'premium';
     const skipSuno = wantProvider && wantProvider !== 'suno';
+    
+    // Check for "raspy" or "gritty" texture request in the prompt/style
+    const searchSpace = (cleanedPrompt + ' ' + (req.body.style || '') + ' ' + (req.body.genre || '')).toLowerCase();
+    const isRaspyRequested = searchSpace.includes('raspy') || searchSpace.includes('gritty') || searchSpace.includes('gravelly') || searchSpace.includes('rough');
+
     if (sunoApiKey && !audioUrl && useSunoForVocals && !skipSuno) {
       try {
-        logger.info('🎵 Using Suno API for real musical vocals', { style, genre, isRap: isRapStyle, isSinging: isSingingStyle });
+        logger.info('🎵 Using Suno API for real musical vocals', { style, genre, isRap: isRapStyle, isSinging: isSingingStyle, isRaspy: isRaspyRequested });
         emit('vocals', 'suno-starting');
 
         // Build Suno tags — adapt for singing vs rapping, enforce language
@@ -5232,10 +5237,15 @@ Return ONLY valid JSON, no markdown.`;
         };
         if (isRapStyle) {
           const rapDescriptors = RAP_STYLE_TAGS[rapStyle] || RAP_STYLE_TAGS['aggressive'];
-          sunoTags = `${langTag} ${genre || 'hip-hop'}, rap, ${rapStyle || 'aggressive'}, ${rapDescriptors}, ${vocalGender}, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
+          sunoTags = `${langTag} ${genre || 'hip-hop'}, rap, ${rapStyle || 'aggressive'}, ${rapDescriptors}, ${vocalGender}, ${isRaspyRequested ? 'raspy delivery, gritty tone, ' : ''}${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
         } else {
           const singerDescriptors = SINGER_GENRE_TAGS[(genre || '').toLowerCase()] || SINGER_GENRE_TAGS['default'];
-          sunoTags = `${langTag} ${genre}, ${singerDescriptors}, ${vocalGender}, emotionally expressive, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
+          
+          // Dynamic texture detection for Suno
+          const textures = ['raspy', 'gritty', 'breathy', 'gravelly', 'raw', 'unpolished', 'distorted', 'whispered'];
+          const detectedTextures = textures.filter(t => searchSpace.includes(t)).join(', ');
+
+          sunoTags = `${langTag} ${genre}, ${singerDescriptors}, ${vocalGender}${detectedTextures ? ', ' + detectedTextures : ''}, emotionally expressive, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
         }
         
         // Use centralised cleanedPrompt — preamble already stripped at route entry
@@ -5250,7 +5260,7 @@ Return ONLY valid JSON, no markdown.`;
           const refMood = refSongAnalysis.mood || '';
           const refTone = refSongAnalysis.tone || '';
           const refGenreTags = refSongAnalysis.genre_tags || '';
-          sunoTags = `${langTag} ${refTags}, ${refGenreTags}, ${refMood}, ${refTone} tone, ${style.includes('female') ? 'female vocals' : 'male vocals'}, professional studio recording`.replace(/,\s*,/g, ',').replace(/^,\s*/, '').trim();
+          sunoTags = `${langTag} ${refTags}, ${refGenreTags}, ${refMood}, ${refTone} tone, ${style.includes('female') ? 'female vocals' : 'male vocals'}, ${isRaspyRequested ? 'raspy, ' : ''}professional studio recording`.replace(/,\s*,/g, ',').replace(/^,\s*/, '').trim();
           logger.info('🎵 Suno tags enhanced with reference analysis', { tags: sunoTags.substring(0, 100) });
         }
 
@@ -5850,12 +5860,28 @@ Return ONLY valid JSON, no markdown.`;
         // High similarity_boost = voice stays true to the model character = consistency
         // High style = musical expressiveness for actual performance delivery
         const hasDnaVoice = !!(speakerUrl || req.body.elevenLabsVoiceId);
+        
+        // Check for "raspy" or "gritty" texture request in the prompt/style/genre
+        const searchSpaceLower = (cleanedPrompt + ' ' + (req.body.style || '') + ' ' + (req.body.genre || '')).toLowerCase();
+        const textures = ['raspy', 'gritty', 'breathy', 'gravelly', 'raw', 'unpolished', 'distorted', 'whispered', 'rough', 'grainy'];
+        const isRaspyRequested = textures.some(t => searchSpaceLower.includes(t));
+
         const voiceSettings = {
           stability:        hasDnaVoice ? 0.70 : (style.includes('rapper') ? 0.72 : 0.82),
           similarity_boost: hasDnaVoice ? 0.85 : 0.92,
           style:            hasDnaVoice ? 0.62 : (style.includes('rapper') ? 0.38 : 0.72),
           use_speaker_boost: true
         };
+
+        // Texture-based stability adjustment: 
+        // Lower stability (0.40 - 0.55) allows the model to produce "grit" and "rasp" 
+        // rather than smoothing it out into a flat robotic tone.
+        if (isRaspyRequested) {
+          logger.info('🎤 Raspy/Gritty texture requested, dropping ElevenLabs stability to allow grit');
+          voiceSettings.stability = Math.max(0.42, voiceSettings.stability - 0.28);
+          voiceSettings.style = Math.min(0.95, voiceSettings.style + 0.18);
+          voiceSettings.similarity_boost = Math.max(0.75, voiceSettings.similarity_boost - 0.10);
+        }
 
         // Output format: NEVER loosen stability, only reduce style for non-music
         if (outputFormat === 'tv') {
@@ -5883,6 +5909,11 @@ Return ONLY valid JSON, no markdown.`;
             voiceSettings.stability = Math.max(0.72, Math.min(0.90, 0.74 + (warmth * 0.016)));
             voiceSettings.style = Math.max(0.55, Math.min(0.82, 0.58 + (energy * 0.024)));
             voiceSettings.similarity_boost = Math.max(0.88, Math.min(0.97, 0.89 + (depth * 0.008)));
+          }
+
+          // If "raspy" was explicitly in the prompt, override the reference's "warmth" (which usually increases stability)
+          if (isRaspyRequested) {
+             voiceSettings.stability = Math.max(0.42, voiceSettings.stability - 0.25);
           }
 
           // Prepend vocal direction to the processed prompt for delivery guidance
