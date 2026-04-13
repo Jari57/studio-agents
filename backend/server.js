@@ -234,6 +234,8 @@ const CREDIT_COSTS = {
   
   // Vocals (Uberduck ~$0.03-0.05)
   'vocal': 2,
+  'premium-vocal': 10,
+  'standard-vocal': 2,
   'speech': 2,
   'voice': 2,
   

@@ -2751,7 +2751,7 @@ export default function StudioOrchestratorV2({
       title: currentMode.slotTitles.lyrics,
       subtitle: currentMode.slotSubtitles.lyrics,
       icon: Sparkles,
-      color: '#8b5cf6',
+      color: vocalQuality === 'premium' ? '#fbbf24' : '#8b5cf6',
       mediaType: 'audio'
     },
     { 
@@ -2759,7 +2759,7 @@ export default function StudioOrchestratorV2({
       title: currentMode.slotTitles.audio, 
       subtitle: currentMode.slotSubtitles.audio, 
       icon: Zap, 
-      color: '#06b6d4',
+      color: vocalQuality === 'premium' ? '#f59e0b' : '#06b6d4',
       mediaType: 'audio' 
     },
     { 
@@ -6347,10 +6347,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 style={{
                   padding: '14px 28px',
                   borderRadius: '12px',
-                  background: isGenerating ? 'rgba(139, 92, 246, 0.3)' : 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+                  background: isGenerating ? (vocalQuality === 'premium' ? 'rgba(251, 191, 36, 0.3)' : 'rgba(139, 92, 246, 0.3)') : (vocalQuality === 'premium' ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'linear-gradient(135deg, #8b5cf6, #06b6d4)'),
                   border: 'none',
-                  color: 'white',
-                  fontWeight: '700',
+                  color: vocalQuality === 'premium' ? '#000' : 'white',
+                  fontWeight: '800',
                   fontSize: '1rem',
                   cursor: isGenerating || !songIdea.trim() ? 'not-allowed' : 'pointer',
                   display: 'flex',
@@ -6477,10 +6477,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   flex: 1,
                   padding: '14px 24px',
                   borderRadius: '12px',
-                  background: isGenerating ? 'rgba(139, 92, 246, 0.3)' : 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+                  background: isGenerating ? (vocalQuality === 'premium' ? 'rgba(251, 191, 36, 0.3)' : 'rgba(139, 92, 246, 0.3)') : (vocalQuality === 'premium' ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'linear-gradient(135deg, #8b5cf6, #06b6d4)'),
                   border: 'none',
-                  color: 'white',
-                  fontWeight: '700',
+                  color: vocalQuality === 'premium' ? '#000' : 'white',
+                  fontWeight: '800',
                   fontSize: '1rem',
                   cursor: isGenerating || !songIdea.trim() || Object.values(selectedAgents).filter(Boolean).length === 0 ? 'not-allowed' : 'pointer',
                   display: 'flex',
@@ -6581,8 +6581,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           const slotItems = Object.entries(generatingSlots).filter(([, v]) => v);
           // Combine: generatingMedia tracks media synthesis, generatingSlots tracks text generation
           const allActive = [
-            ...activeItems.map(([k]) => ({ key: k, label: `Creating ${mediaLabels[k] || k}...`, color: mediaColors[k] || '#8b5cf6' })),
-            ...slotItems.filter(([k]) => !activeItems.some(([mk]) => mk === k)).map(([k]) => ({ key: `slot-${k}`, label: `Generating ${k} concept...`, color: '#8b5cf6' }))
+            ...activeItems.map(([k]) => ({ key: k, label: `Creating ${mediaLabels[k] || k}...`, color: (k === 'vocals' && vocalQuality === 'premium') ? '#fbbf24' : (mediaColors[k] || '#8b5cf6') })),
+            ...slotItems.filter(([k]) => !activeItems.some(([mk]) => mk === k)).map(([k]) => ({ key: `slot-${k}`, label: `Generating ${k} concept...`, color: (k === 'lyrics' && vocalQuality === 'premium') ? '#fbbf24' : '#8b5cf6' }))
           ];
           if (allActive.length === 0 || (isGenerating && pipelineSteps.length > 0)) return null;
           return (
@@ -6645,12 +6645,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 gap: '10px',
                 padding: '6px 0',
                 opacity: step.status === 'pending' ? 0.4 : 1,
-                transition: 'opacity 0.3s'
+                transition: 'opacity 0.3s',
+                color: (vocalQuality === 'premium' && (step.id === 'vocals' || step.id === 'lyrics')) ? '#fbbf24' : 'inherit'
               }}>
                 {step.status === 'done' ? (
                   <CheckCircle2 size={16} style={{ color: '#22c55e', flexShrink: 0 }} />
                 ) : step.status === 'active' ? (
-                  <Loader2 size={16} className="spin" style={{ color: '#8b5cf6', flexShrink: 0 }} />
+                  <Loader2 size={16} className="spin" style={{ color: vocalQuality === 'premium' ? '#fbbf24' : '#8b5cf6', flexShrink: 0 }} />
                 ) : step.status === 'error' ? (
                   <X size={16} style={{ color: '#ef4444', flexShrink: 0 }} />
                 ) : (
@@ -7571,14 +7572,30 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         <User size={10} />
                         {voice.name || 'Voice'}
                         <X 
-                          size={12} 
+                          size={14} 
                           onClick={(e) => {
                             e.stopPropagation();
                             setDeleteVoiceTarget(voice);
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = 'inherit')}
-                          style={{ marginLeft: '4px', opacity: 0.5, cursor: 'pointer' }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = '#ef4444';
+                            e.currentTarget.style.opacity = '1';
+                            e.currentTarget.style.transform = 'scale(1.2)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = 'inherit';
+                            e.currentTarget.style.opacity = '0.7';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }}
+                          style={{ 
+                            marginLeft: '8px', 
+                            opacity: 0.7, 
+                            cursor: 'pointer',
+                            padding: '2px',
+                            background: 'rgba(0,0,0,0.2)',
+                            borderRadius: '4px',
+                            transition: 'all 0.2s'
+                          }}
                           aria-label={`Delete voice ${voice.name || 'Voice'}`}
                         />
                       </div>

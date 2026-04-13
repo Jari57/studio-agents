@@ -332,7 +332,7 @@ input::placeholder, textarea::placeholder {
 
 /* Mobile Optimizations */
 body.modal-open {
-  overflow: hidden;
+  /* Removed overflow: hidden to prevent Android scroll lock issues when modals close */
   position: fixed;
   width: 100%;
 }

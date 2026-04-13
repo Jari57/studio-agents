@@ -70,11 +70,11 @@ import AchievementBadges, { useBadgeTracker } from './AchievementBadges';
 // -------------------------------------------------------------------------------
 const PRODUCTION_STAGES = [
   { key: 'idea',    label: 'IDEA',    icon: Sparkles,  color: '#a855f7', colorRgb: '168,85,247', assetTypes: [] },
-  { key: 'lyrics',  label: 'LYRICS',  icon: FileText,  color: '#10b981', colorRgb: '16,185,129', assetTypes: ['lyrics', 'text'] },
-  { key: 'beat',    label: 'BEAT',    icon: Music,     color: '#a855f7', colorRgb: '168,85,247', assetTypes: ['audio'] },
-  { key: 'vocals',  label: 'VOCALS',  icon: Mic,       color: '#ec4899', colorRgb: '236,72,153', assetTypes: ['vocal'] },
-  { key: 'artwork', label: 'ARTWORK', icon: ImageIcon,  color: '#f97316', colorRgb: '249,115,22', assetTypes: ['image', 'visual'] },
-  { key: 'video',   label: 'VIDEO',   icon: VideoIcon,  color: '#06b6d4', colorRgb: '6,182,212',  assetTypes: ['video'] },
+  { key: 'lyrics',  label: 'LYRICS',  icon: FileText,  color: '#8b5cf6', colorRgb: '139,92,246', assetTypes: ['lyrics', 'text'] },
+  { key: 'beat',    label: 'BEAT',    icon: Music,     color: '#06b6d4', colorRgb: '6,182,212',  assetTypes: ['audio'] },
+  { key: 'vocals',  label: 'VOCALS',  icon: Mic,       color: '#fbbf24', colorRgb: '251,191,36',  assetTypes: ['vocal', 'lyricsVocal'] },
+  { key: 'artwork', label: 'ARTWORK', icon: ImageIcon,  color: '#ec4899', colorRgb: '236,72,153', assetTypes: ['image', 'visual'] },
+  { key: 'video',   label: 'VIDEO',   icon: VideoIcon,  color: '#f59e0b', colorRgb: '245,158,11',  assetTypes: ['video'] },
   { key: 'master',  label: 'MASTER',  icon: Crown,     color: '#f59e0b', colorRgb: '245,158,11', assetTypes: ['pro'] },
 ];
 
@@ -446,7 +446,7 @@ const MORE_MENU_ITEMS = [
   { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-emerald)' },
   { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-yellow)' },
   { id: 'dna', icon: Layers, label: 'DNA System', desc: 'Visual, audio & lyrics DNA', color: 'var(--color-emerald)', external: true },
-  { id: 'vocals', icon: Mic, label: 'Vocal Lab', desc: '20+ voices & voice cloning', color: 'var(--color-pink)', external: true },
+  { id: 'vocals', icon: Mic, label: 'Vocal Lab', desc: '20+ voices & voice cloning', color: '#fbbf24', external: true },
   { id: 'billboard', icon: Award, label: 'Billboard Blueprint', desc: 'Make a hit record start to finish', color: 'var(--color-yellow)', external: true },
   { id: 'campaign', icon: Share2, label: 'Content Engine', desc: '1 track → 7-day campaign', color: 'var(--color-cyan)', external: true },
 ];
@@ -5812,7 +5812,19 @@ ABSOLUTE RULES (violating any = failure):
     const ext = item.videoUrl ? '.mp4' : item.audioUrl ? '.mp3' : '.png';
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.setAttribute('download', `${item.title.replace(/\s+/g, '_')}_studio_agents${ext}`);
+    const projectTitle = selectedProject?.name || 'studio_agents';
+    const sanitTitle = projectTitle.replace(/\s+/g, '_');
+    
+    let fileName = `${sanitTitle}_output${ext}`;
+    if (item.type === 'vocal' || item.type === 'lyricsVocal') {
+      fileName = `${sanitTitle}_Vocal_Performance.mp3`;
+    } else if (item.type === 'audio') {
+      fileName = `${sanitTitle}_Beat.mp3`;
+    } else if (item.type === 'video') {
+      fileName = `${sanitTitle}_Music_Video.mp4`;
+    }
+    
+    link.setAttribute('download', fileName);
     link.setAttribute('target', '_blank');
     document.body.appendChild(link);
     link.click();
