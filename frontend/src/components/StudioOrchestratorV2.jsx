@@ -5,7 +5,7 @@ import {
   Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
   Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, Lightbulb,
   Settings, CheckCircle2, Lock as LockIcon, User, CircleHelp,
-  ChevronUp, ChevronDown, Upload, Share2, ExternalLink, Globe, Dna
+  ChevronUp, ChevronDown, Upload, Share2, ExternalLink, Globe, Dna, Disc
 } from 'lucide-react';
 import { BACKEND_URL, AGENTS, getAgentHex, getCreatorMode } from '../constants';
 import toast from 'react-hot-toast';
@@ -1861,7 +1861,6 @@ function ProductionControlHub({
               )}
             </div>
           </div>
-        )}
 
         {/* Empty state when no audio */}
         {!hasBeat && !hasVocalMedia && (
@@ -2316,6 +2315,8 @@ export default function StudioOrchestratorV2({
   const [loadingVoices, setLoadingVoices] = useState(false);
   const [elVoices, setElVoices] = useState([]); // ElevenLabs professional voices
   const [loadingElVoices, setLoadingElVoices] = useState(false);
+  const [referenceSongUrl, setReferenceSongUrl] = useState(null); // Reference song for tone/style matching
+  const [isUploadingReferenceSong, setIsUploadingReferenceSong] = useState(false);
 
   // ElevenLabs IVC (Instant Voice Cloning) state
   const [voiceSamples, setVoiceSamples] = useState([]); // [{name, url, base64}, ...]
@@ -2535,7 +2536,7 @@ export default function StudioOrchestratorV2({
     setIsSaved(!!existingProject);
 
     // Restore project settings (useState initializers only run on first mount)
-    setSongIdea(existingProject?.name || '');
+    setSongIdea(existingProject?.songIdea || existingProject?.name || '');
     setLanguage(existingProject?.language || 'English');
     setStyle(existingProject?.style || 'Modern Hip-Hop');
     setDuration(existingProject?.duration || 90);
@@ -2544,11 +2545,16 @@ export default function StudioOrchestratorV2({
     setProjectBpm(existingProject?.bpm || existingProject?.settings?.bpm || 120);
     setMood(existingProject?.mood || 'Energetic');
     setStructure(existingProject?.structure || 'Full Song');
+    
+    // Restore new project metadata
+    setReferenceSongUrl(existingProject?.referenceSongUrl || null);
+    setVocalQuality(existingProject?.vocalQuality || 'standard');
+    setElevenLabsVoiceId(existingProject?.elevenLabsVoiceId || null);
 
     // Then restore from new project's assets
     if (!existingProject?.assets?.length) return;
 
-    const restoredUrls = {};
+    const restoredUrls = existingProject?.mediaUrls ? { ...existingProject.mediaUrls } : {};
     const restoredOutputs = {};
 
     for (const asset of existingProject.assets) {
@@ -2559,7 +2565,7 @@ export default function StudioOrchestratorV2({
       if (asset.type === 'vocal') {
         if (asset.audioUrl && !restoredUrls.vocals) {
           restoredUrls.vocals = asset.audioUrl;
-          restoredUrls.lyricsVocal = asset.audioUrl;
+          if (!restoredUrls.lyricsVocal) restoredUrls.lyricsVocal = asset.audioUrl;
         }
       }
       if (asset.type === 'image' || asset.type === 'cover' || asset.type === 'visual') {
@@ -3033,12 +3039,22 @@ export default function StudioOrchestratorV2({
     skipRegenerateGuard.current = false;
 
     devLog('[handleGenerate] Button clicked, songIdea:', songIdea);
-    devLog('[handleGenerate] selectedAgents:', selectedAgents);
-    devLog('[handleGenerate] BACKEND_URL:', BACKEND_URL);
     
     if (!songIdea.trim()) {
       toast.error(creatorMode === 'creator' ? 'Please enter a content idea' : 'Please enter a song idea', { id: 'orch-no-idea' });
       return;
+    }
+
+    // ── AUTOMATION: SMART DEFAULTS ──
+    // If no agents are selected (common for new users), auto-select the standard suite based on mode
+    const activeSelectedCount = Object.values(selectedAgents).filter(Boolean).length;
+    if (activeSelectedCount === 0) {
+      if (creatorMode === 'creator') {
+        setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' });
+      } else {
+        setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-gen' });
+      }
+      devLog('[handleGenerate] Auto-selected default agents for empty selection');
     }
 
     // ── Auto-detect genre from prompt and apply if different ──
@@ -3053,13 +3069,13 @@ export default function StudioOrchestratorV2({
       });
     }
     
-    const activeSlots = Object.entries(selectedAgents).filter(([, v]) => v);
-    devLog('[handleGenerate] activeSlots:', activeSlots);
+    // Recalculate active slots after auto-selection
+    const currentSelectedAgents = activeSelectedCount === 0 
+      ? (creatorMode === 'creator' ? { lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' } : { lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-gen' })
+      : selectedAgents;
     
-    if (activeSlots.length === 0) {
-      toast.error('Please select at least one agent', { id: 'orch-no-agent' });
-      return;
-    }
+    const activeSlots = Object.entries(currentSelectedAgents).filter(([, v]) => v);
+    devLog('[handleGenerate] Final activeSlots:', activeSlots);
     
     setIsGenerating(true);
     setMixFailed(false); // Reset mix failure flag for this run
@@ -3435,6 +3451,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       setGeneratingSlots({ lyrics: false, audio: false, visual: false, video: false });
       // Reset media generation guards so retries aren't blocked
       setGeneratingMedia({ audio: false, image: false, video: false, vocals: false });
+      
+      // ── AUTOMATION: SCROLL TO RESULTS ──
+      // Focus the user's attention on the generated outputs for a smoother feedback loop
+      if (typeof window !== 'undefined') {
+        const resultsEl = document.getElementById('orchestrator-results-grid');
+        if (resultsEl) {
+          resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
       // Keep pipeline steps visible longer so user can see results/retry errors
       // Only auto-clear if ALL steps succeeded (no errors to retry)
       const hasErrors = pipelineStepsRef.current.some(s => s.status === 'error');
@@ -3778,17 +3804,29 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       const { content: lyricsOnly } = splitCreativeContent(lyricsText);
       // Aggressively strip AI preamble even in fallback to prevent prompt context in vocals
       let cleanLyrics = lyricsOnly || lyricsText;
+      
+      // DEEP CLEANING: Strip everything before the first actual song structure tag.
+      // If AI said "Sure, here is a rap about coding: [Verse 1]", we must start at [Verse 1].
+      const firstTagIndex = cleanLyrics.search(/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro|Section)\b/i);
+      if (firstTagIndex !== -1) {
+        cleanLyrics = cleanLyrics.substring(firstTagIndex);
+      }
+
       cleanLyrics = cleanLyrics
-        // Strip multi-line AI preamble (everything before the first song structure tag)
-        .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\b)/i, '')
-        // If no structure tags found, strip common preamble patterns (multi-line)
-        .replace(/^(Sure!?|Okay!?|Absolutely!?|Here('s| is| are)|I've written|I wrote|I created|Let me|Below are|These lyrics|This song)[^\n]*\n/gim, '')
+        // Strip multi-line AI preamble (fallback if no tags found)
+        .replace(/^(Sure!?|Okay!?|Absolutely!?|Certainly!?|Alright!?|Here('s| is| are)|I've written|I wrote|I created|Let me|Below are|These lyrics|This song|I hope you enjoy|Hope this helps)[^\n]*\n/gim, '')
         // Strip meta lines: Title:, Genre:, Style:, Tempo:, Key:, Mood:, About:, Description:
         .replace(/^(Title|Genre|Style|Tempo|Key|Mood|About|Description|Inspired by|Written for|This (song|track|piece))[^\n]*\n/gim, '')
         .replace(/\[Ad-lib:[^\]]*\]/gi, '')  // Strip ad-lib direction tags
         .replace(/\[(?!Verse|Chorus|Bridge|Pre-Chorus|Hook|Outro|Intro)[^\]]*\]/gi, '')  // Strip non-standard performance/direction tags
         .replace(/^\s*\n/gm, '')  // Remove empty lines left by stripped tags
         .trim();
+        
+      // If after cleaning it still starts with "I " or "This ", it's likely still preamble
+      if (/^(I |This |Here )/i.test(cleanLyrics)) {
+        const lines = cleanLyrics.split('\n');
+        if (lines.length > 1) cleanLyrics = lines.slice(1).join('\n').trim();
+      }
 
       // Use the same voice mapping as handleGenerateLyricsVocal
       const voiceMapping = {
@@ -3846,7 +3884,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           // Lock to the same provider that worked last time for voice consistency
           preferredProvider: generationProviders.vocals || null,
           // Pass voice sample as reference for tone/style analysis even when not cloning
-          referenceSongUrl: voiceSampleUrl || null,
+          referenceSongUrl: referenceSongUrl || voiceSampleUrl || null,
           // Advanced vocal synthesis parameters
           pitchShift: vocalPitchShift !== 0 ? vocalPitchShift : undefined,
           speed: vocalSpeed !== 1.0 ? vocalSpeed : undefined,
@@ -4289,6 +4327,49 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     } catch (err) {
       console.error('[Orchestrator] Reference audio upload error:', err);
       toast.error('Failed to upload audio', { id: loadingId });
+    }
+  };
+
+  // Upload reference song for vocal tone/style matching
+  const handleUploadReferenceSong = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large (max 10MB)');
+      return;
+    }
+    setIsUploadingReferenceSong(true);
+    const loadingId = toast.loading('Uploading reference song...');
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const headers = await getHeaders();
+      const response = await fetch(`${BACKEND_URL}/api/upload-asset`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          data: base64,
+          fileName: `ref-song-${Date.now()}-${file.name.replace(/\s+/g, '-')}`,
+          mimeType: file.type || 'audio/mpeg',
+          assetType: 'audio'
+        })
+      });
+      const result = await response.json();
+      if (response.ok && result.url) {
+        setReferenceSongUrl(result.url);
+        toast.success('Reference song uploaded!', { id: loadingId });
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (err) {
+      console.error('[Orchestrator] Reference song upload error:', err);
+      toast.error('Failed to upload reference', { id: loadingId });
+    } finally {
+      setIsUploadingReferenceSong(false);
     }
   };
 
@@ -5277,7 +5358,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       audio: mediaUrls.audio,
       visual: mediaUrls.image,
       video: mediaUrls.video,
-      lyrics: mediaUrls.vocals
+      lyrics: mediaUrls.vocals || mediaUrls.lyricsVocal
     };
     const mediaUrl = mediaMap[slot];
 
@@ -5779,10 +5860,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     return {
       id: projectId,
       name: projectName || songIdea || existingProject?.name || 'Untitled Project',
+      songIdea: songIdea,
       description: `Created with Studio Orchestrator: "${songIdea}"`,
       category: existingProject?.category || 'Music',
       language, style, model, bpm: projectBpm, structure, duration,
       musicalBars: bars, useBars,
+      referenceSongUrl: referenceSongUrl || null,
+      vocalQuality: vocalQuality || 'standard',
+      elevenLabsVoiceId: elevenLabsVoiceId || null,
       date: existingProject?.date || new Date().toLocaleDateString(),
       createdAt: existingProject?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -5791,6 +5876,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         return agent?.name || id;
       }),
       assets: [...existingFiltered, ...assets],
+      mediaUrls: {
+        ...mediaUrls,
+        ...existingProject?.mediaUrls
+      },
       coverImage: formatImageSrc(mediaUrls.image) || existingProject?.coverImage || null
     };
   };
@@ -5898,11 +5987,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     const project = {
       id: projectId,
       name: projectName || songIdea || existingProject?.name || 'Untitled Project',
+      songIdea: songIdea, // Preserve the prompt/idea separately
       description: `Created with Studio Orchestrator: "${songIdea}"`,
       category: existingProject?.category || 'Music',
       language,
       style,
       model,
+      referenceSongUrl: referenceSongUrl || null,
+      vocalQuality: vocalQuality || 'standard',
+      elevenLabsVoiceId: elevenLabsVoiceId || null,
       bpm: projectBpm,
       structure,
       duration,
@@ -5916,6 +6009,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         return agent?.name || id;
       }),
       assets: [...filteredExisting, ...assets],
+      mediaUrls: {
+        ...mediaUrls,
+        ...existingProject?.mediaUrls // Merge to preserve any previously generated specific keys
+      },
       coverImage: formatImageSrc(mediaUrls.image) || existingProject?.coverImage || null
     };
     
@@ -6078,7 +6175,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     whiteSpace: 'nowrap',
                     display: 'inline-block'
                   }}>
-                    {existingProject.name}
+                    {existingProject?.name || 'Current Project'}
                   </span>
                   {projects.length > 0 && onSwitchProject && (
                     <button
@@ -6949,100 +7046,137 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
 
 
-        {/* Ghostwriter Vocal Generation - appears when lyrics are ready */}
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* VOCAL PERFORMANCE ENGINE — Premium Voice Production Suite       */}
+        {/* ═══════════════════════════════════════════════════════════════ */}
         {outputs.lyrics && (
           <div style={{
-            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%)',
-            borderRadius: '16px',
-            padding: '24px',
-            border: '1px solid rgba(139, 92, 246, 0.4)',
-            marginBottom: '24px'
+            background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.06) 0%, rgba(139, 92, 246, 0.10) 40%, rgba(251, 191, 36, 0.04) 100%)',
+            borderRadius: '20px',
+            padding: isMobile ? '20px' : '28px',
+            border: '1px solid rgba(251, 191, 36, 0.35)',
+            marginBottom: '24px',
+            position: 'relative',
+            overflow: 'hidden'
           }}>
+            {/* Premium shimmer accent line */}
+            <div style={{
+              position: 'absolute',
+              top: 0, left: 0, right: 0, height: '2px',
+              background: 'linear-gradient(90deg, transparent, #fbbf24, #8b5cf6, #fbbf24, transparent)',
+              opacity: 0.7
+            }} />
+
             {/* Header */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '16px'
+              marginBottom: '20px'
             }}>
-              <div>
-                <h4 style={{ 
-                  margin: '0 0 6px', 
-                  fontSize: '1rem', 
-                  fontWeight: '700',
-                  color: '#8b5cf6'
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '40px', height: '40px', borderRadius: '12px',
+                  background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(139, 92, 246, 0.2))',
+                  border: '1px solid rgba(251, 191, 36, 0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>
-                  🎤 Ghostwriter Vocal Performance
-                </h4>
-                <p style={{ 
-                  margin: 0, 
-                  fontSize: '0.85rem', 
-                  color: 'var(--text-secondary)' 
-                }}>
-                  Generate audio of the lyrics being recited or sung by different voice types
-                </p>
+                  <Mic size={20} color="#fbbf24" />
+                </div>
+                <div>
+                  <h4 style={{ 
+                    margin: '0 0 4px', 
+                    fontSize: '1.1rem', 
+                    fontWeight: '800',
+                    background: 'linear-gradient(135deg, #fbbf24, #a855f7)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    letterSpacing: '-0.01em'
+                  }}>
+                    Vocal Performance Engine
+                  </h4>
+                  <p style={{ 
+                    margin: 0, 
+                    fontSize: '0.8rem', 
+                    color: 'rgba(255,255,255,0.5)' 
+                  }}>
+                    AI vocal synthesis with voice cloning, ElevenLabs premium, and reference matching
+                  </p>
+                </div>
+              </div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '4px 10px', borderRadius: '20px',
+                background: 'rgba(251, 191, 36, 0.1)',
+                border: '1px solid rgba(251, 191, 36, 0.25)'
+              }}>
+                <Zap size={12} color="#fbbf24" fill="#fbbf24" />
+                <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Premium</span>
               </div>
             </div>
 
-            {/* Preview Section with Tabs */}
+            {/* ── Preview Section ── */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
+              gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
               gap: '16px',
-              marginBottom: '16px'
+              marginBottom: '20px'
             }}>
-              {/* Text Preview */}
+              {/* Lyrics Preview */}
               <div style={{
-                background: 'rgba(0,0,0,0.3)',
-                borderRadius: '12px',
-                padding: '16px',
-                border: '1px solid rgba(139, 92, 246, 0.3)'
+                background: 'rgba(0,0,0,0.35)',
+                borderRadius: '14px',
+                padding: '18px',
+                border: '1px solid rgba(251, 191, 36, 0.15)'
               }}>
                 <div style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
                   fontSize: '0.7rem',
-                  color: '#8b5cf6',
-                  fontWeight: '600',
+                  color: '#fbbf24',
+                  fontWeight: '700',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
+                  letterSpacing: '0.06em',
                   marginBottom: '12px'
                 }}>
-                  📝 Lyrics Text
+                  <FileText size={12} /> Lyrics Text
                 </div>
                 <div style={{
-                  background: 'rgba(0,0,0,0.2)',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  maxHeight: '150px',
+                  background: 'rgba(0,0,0,0.25)',
+                  borderRadius: '10px',
+                  padding: '14px',
+                  maxHeight: '320px',
                   overflowY: 'auto',
                   fontSize: '0.9rem',
-                  lineHeight: '1.6',
+                  lineHeight: '1.7',
                   color: 'rgba(255,255,255,0.85)',
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
-                  fontFamily: "'Georgia', 'Times New Roman', serif"
+                  fontFamily: "'Georgia', 'Times New Roman', serif",
+                  border: '1px solid rgba(255,255,255,0.04)'
                 }}>
                   {outputs.lyrics}
                 </div>
               </div>
 
-              {/* Audio Preview */}
+              {/* Vocal Audio Preview */}
               <div style={{
-                background: 'rgba(0,0,0,0.3)',
-                borderRadius: '12px',
-                padding: '16px',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
+                background: 'rgba(0,0,0,0.35)',
+                borderRadius: '14px',
+                padding: '18px',
+                border: '1px solid rgba(251, 191, 36, 0.15)',
                 display: 'flex',
                 flexDirection: 'column'
               }}>
                 <div style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
                   fontSize: '0.7rem',
-                  color: '#8b5cf6',
-                  fontWeight: '600',
+                  color: '#fbbf24',
+                  fontWeight: '700',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
+                  letterSpacing: '0.06em',
                   marginBottom: '12px'
                 }}>
-                  🎵 Vocal Audio
+                  <Music size={12} /> Vocal Audio
                 </div>
                 {mediaUrls.lyricsVocal ? (
                   <div style={{
@@ -7051,25 +7185,32 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     gap: '12px',
                     flex: 1
                   }}>
-                    <audio 
-                      src={formatAudioSrc(mediaUrls.lyricsVocal)}
-                      controls
-                      style={{ 
-                        width: '100%',
-                        height: '38px',
-                        borderRadius: '8px'
-                      }}
-                    />
+                    <div style={{
+                      background: 'rgba(251, 191, 36, 0.06)',
+                      borderRadius: '10px',
+                      padding: '14px',
+                      border: '1px solid rgba(251, 191, 36, 0.12)'
+                    }}>
+                      <audio 
+                        src={formatAudioSrc(mediaUrls.lyricsVocal)}
+                        controls
+                        style={{ 
+                          width: '100%',
+                          height: '40px',
+                          borderRadius: '8px'
+                        }}
+                      />
+                    </div>
                     <button
                       onClick={() => setShowVocalFullscreen(true)}
                       style={{
                         padding: '10px 16px',
-                        borderRadius: '8px',
-                        background: 'rgba(139, 92, 246, 0.3)',
-                        border: '1px solid rgba(139, 92, 246, 0.5)',
-                        color: '#8b5cf6',
+                        borderRadius: '10px',
+                        background: 'rgba(139, 92, 246, 0.15)',
+                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                        color: '#a855f7',
                         fontWeight: '600',
-                        fontSize: '0.85rem',
+                        fontSize: '0.8rem',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -7078,28 +7219,83 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       }}
                       aria-label="Open vocal audio fullscreen"
                     >
-                      <Eye size={14} />
-                      Fullscreen
+                      <Maximize2 size={14} />
+                      Open Fullscreen
                     </button>
+
+                    {/* Voice info badge */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 14px',
+                      background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.06), rgba(139, 92, 246, 0.06))',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(251, 191, 36, 0.12)',
+                      flexWrap: 'wrap'
+                    }}>
+                      <Zap size={12} color="#fbbf24" fill="#fbbf24" />
+                      <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)' }}>
+                        {voiceStyle === 'cloned' ? 'Cloned Voice' : voiceStyle.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                      </span>
+                      {elevenLabsVoiceId && (
+                        <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', fontWeight: '700' }}>ElevenLabs</span>
+                      )}
+                      {referenceSongUrl && (
+                        <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: '700' }}>Ref Match</span>
+                      )}
+                      {clonedVoiceId && (
+                        <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.15)', color: '#a855f7', fontWeight: '700' }}>DNA Clone</span>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div style={{
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    minHeight: '80px',
+                    minHeight: '160px',
                     color: 'var(--text-secondary)',
                     fontSize: '0.85rem',
-                    textAlign: 'center'
+                    textAlign: 'center',
+                    gap: '14px',
+                    flex: 1,
+                    background: 'rgba(0,0,0,0.15)',
+                    borderRadius: '10px',
+                    border: '1px dashed rgba(251, 191, 36, 0.15)'
                   }}>
-                    No audio yet • Click "Create Vocal" below
+                    <div style={{
+                      width: '48px', height: '48px', borderRadius: '50%',
+                      background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(139, 92, 246, 0.1))',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <Volume2 size={24} color="rgba(251, 191, 36, 0.4)" />
+                    </div>
+                    <span style={{ fontWeight: '600', color: 'rgba(255,255,255,0.5)' }}>No vocal generated yet</span>
+                    <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', maxWidth: '200px' }}>Configure your voice engine below, then hit Create Vocal</span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Controls */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* ── Voice Engine Controls ── */}
+            <div style={{
+              background: 'rgba(0,0,0,0.2)',
+              borderRadius: '14px',
+              padding: isMobile ? '16px' : '20px',
+              border: '1px solid rgba(251, 191, 36, 0.1)',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                marginBottom: '14px', paddingBottom: '10px',
+                borderBottom: '1px solid rgba(255,255,255,0.04)'
+              }}>
+                <Settings size={14} color="#fbbf24" />
+                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Voice Engine</span>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
               <select
                 value={
                   (voiceStyle === 'cloned' && voiceSampleUrl) 
@@ -7123,7 +7319,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   padding: '10px 14px',
                   borderRadius: '10px',
                   background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid rgba(139, 92, 246, 0.5)',
+                  border: '1px solid rgba(251, 191, 36, 0.3)',
                   color: 'white',
                   fontSize: '0.85rem',
                   cursor: 'pointer',
@@ -7391,6 +7587,122 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 </div>
               )}
               
+              {/* ── ElevenLabs Premium Voice Selector ── */}
+              {elVoices.length > 0 && (
+                <div style={{ width: '100%', marginTop: '4px' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Zap size={10} color="#fbbf24" fill="#fbbf24" /> Premium Voice Engine
+                  </div>
+                  <select
+                    value={elevenLabsVoiceId}
+                    onChange={(e) => {
+                      setElevenLabsVoiceId(e.target.value);
+                      localStorage.setItem('studio_elevenlabs_voice_id', e.target.value);
+                      if (e.target.value) setVoiceSampleUrl(null);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      background: elevenLabsVoiceId ? 'rgba(251, 191, 36, 0.1)' : 'rgba(0,0,0,0.3)',
+                      border: elevenLabsVoiceId ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)',
+                      color: elevenLabsVoiceId ? '#fbbf24' : 'rgba(255,255,255,0.7)',
+                      fontSize: '0.85rem',
+                      fontWeight: '600',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="" style={{ background: '#111', color: '#888' }}>
+                      -- Select Premium Voice --
+                    </option>
+                    {(() => {
+                      const males = elVoices.filter(v => v.labels?.gender === 'male');
+                      const females = elVoices.filter(v => v.labels?.gender === 'female');
+                      const other = elVoices.filter(v => !v.labels?.gender || (v.labels.gender !== 'male' && v.labels.gender !== 'female'));
+                      return (
+                        <>
+                          {males.length > 0 && (
+                            <optgroup label="Male Voices">
+                              {males.map(voice => (
+                                <option key={voice.voice_id} value={voice.voice_id} style={{ background: '#111', color: 'white' }}>
+                                  {voice.name} ({voice.labels?.accent || voice.labels?.use_case || 'Pro'})
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {females.length > 0 && (
+                            <optgroup label="Female Voices">
+                              {females.map(voice => (
+                                <option key={voice.voice_id} value={voice.voice_id} style={{ background: '#111', color: 'white' }}>
+                                  {voice.name} ({voice.labels?.accent || voice.labels?.use_case || 'Pro'})
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {other.length > 0 && (
+                            <optgroup label="Other Voices">
+                              {other.map(voice => (
+                                <option key={voice.voice_id} value={voice.voice_id} style={{ background: '#111', color: 'white' }}>
+                                  {voice.name} ({voice.labels?.accent || voice.labels?.use_case || 'Pro'})
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </select>
+                </div>
+              )}
+
+              {/* ── Reference Song Upload (Tone/Style Matching) ── */}
+              <div style={{
+                width: '100%',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                background: referenceSongUrl ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255,255,255,0.03)',
+                border: referenceSongUrl ? '1px solid rgba(16, 185, 129, 0.4)' : '1px dashed rgba(255,255,255,0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
+                    background: referenceSongUrl ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <Disc size={16} color="#10b981" />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '0.7rem', color: referenceSongUrl ? '#10b981' : 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Reference Song
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {referenceSongUrl ? 'Style reference active' : 'Match tone, warmth & energy'}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                  {referenceSongUrl && (
+                    <button onClick={() => setReferenceSongUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}>
+                      <X size={14} />
+                    </button>
+                  )}
+                  <label style={{
+                    padding: '6px 12px', background: referenceSongUrl ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.05)',
+                    borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer',
+                    color: referenceSongUrl ? '#10b981' : 'white', fontWeight: '600',
+                    display: 'flex', alignItems: 'center', gap: '4px'
+                  }}>
+                    <input type="file" accept="audio/*" style={{ display: 'none' }} onChange={handleUploadReferenceSong} />
+                    {isUploadingReferenceSong ? <Loader2 size={12} className="spin" /> : referenceSongUrl ? '✓ Loaded' : 'Upload'}
+                  </label>
+                </div>
+              </div>
+
               {/* Rap Style Selector - only show for rap voices */}
               {(voiceStyle === 'rapper' || voiceStyle === 'rapper-female' || voiceStyle === 'rapper-melodic' || voiceStyle === 'rapper-young' || voiceStyle === 'rapper-female-melodic') && (
                 <select
@@ -7492,7 +7804,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   isMobile={isMobile}
                 />
               </Suspense>
-              
+              </div>
+            </div>
+
+            {/* ── Action Buttons ── */}
+            <div style={{
+              display: 'flex',
+              gap: '10px',
+              alignItems: 'center',
+              flexWrap: 'wrap'
+            }}>
               <button
                 onClick={() => {
                   devLog('[Create Vocal Button] CLICKED!');
@@ -7500,28 +7821,32 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 }}
                 disabled={generatingMedia.vocals}
                 style={{
-                  padding: '10px 20px',
-                  borderRadius: '10px',
-                  background: generatingMedia.vocals ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.5)',
-                  border: '1px solid rgba(139, 92, 246, 0.6)',
-                  color: '#8b5cf6',
-                  fontWeight: '600',
+                  padding: '12px 28px',
+                  borderRadius: '12px',
+                  background: generatingMedia.vocals
+                    ? 'rgba(251, 191, 36, 0.2)'
+                    : 'linear-gradient(135deg, rgba(251, 191, 36, 0.25), rgba(139, 92, 246, 0.25))',
+                  border: '1px solid rgba(251, 191, 36, 0.5)',
+                  color: '#fbbf24',
+                  fontWeight: '700',
                   fontSize: '0.9rem',
                   cursor: generatingMedia.vocals ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  opacity: generatingMedia.vocals ? 0.7 : 1
+                  opacity: generatingMedia.vocals ? 0.7 : 1,
+                  letterSpacing: '0.02em',
+                  transition: 'all 0.2s'
                 }}
               >
                 {generatingMedia.vocals ? (
                   <>
                     <Loader2 size={16} className="spin" />
-                    Creating...
+                    Generating Vocal...
                   </>
                 ) : (
                   <>
-                    <Volume2 size={16} />
+                    <Zap size={16} fill="#fbbf24" />
                     Create Vocal
                   </>
                 )}
@@ -7994,7 +8319,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         </div>
 
         {/* 4 Generator Cards Grid - 2x2 layout - uses unified CSS */}
-      <div className="generator-grid-unified" style={{
+      <div id="orchestrator-results-grid" className="generator-grid-unified" style={{
         gap: isMobile ? '0.6rem' : '1rem',
         touchAction: 'pan-y'
       }}>

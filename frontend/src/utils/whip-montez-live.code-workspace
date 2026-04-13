@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../../../whip-montez-live"
+		},
+		{
+			"path": "../../.."
+		}
+	],
+	"settings": {
+		"powershell.cwd": "studio-agents"
+	}
+}

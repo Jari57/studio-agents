@@ -3879,12 +3879,19 @@ const fetchUserCredits = useCallback(async (uid) => {
 
       // Strip AI preamble — keep only singable lyrics before trimming
       const rawVocalText = textContent;
-      let cleanedVocalText = textContent
-        // Strip everything before the first song structure tag
-        .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\b)/i, '')
+      let cleanedVocalText = textContent;
+      
+      // DEEP CLEANING: Strip everything before the first actual song structure tag.
+      const firstTagIndex = cleanedVocalText.search(/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro|Section)\b/i);
+      if (firstTagIndex !== -1) {
+        cleanedVocalText = cleanedVocalText.substring(firstTagIndex);
+      }
+
+      cleanedVocalText = cleanedVocalText
         // Strip common AI preamble lines when no structure tags
-        .replace(/^(Sure[,!]?|Okay[,!]?|Here('s| is| are)[^\n]*|I'?ve (written|created)[^\n]*|Let me [^\n]*|Below [^\n]*|These (lyrics|are)[^\n]*|This song[^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|About:[^\n]*|Description:[^\n]*)\n+/gim, '')
+        .replace(/^(Sure[,!]?|Okay[,!)?|Alright!?|Certainly!?|Here('s| is| are)[^\n]*|I'?ve (written|created|generated)[^\n]*|Let me [^\n]*|Below [^\n]*|These (lyrics|are)[^\n]*|This song[^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|About:[^\n]*|Description:[^\n]*|I hope you enjoy[^\n]*)\n+/gim, '')
         .trim();
+        
       if (cleanedVocalText.length < 30) cleanedVocalText = rawVocalText.trim();
       const textToSpeak = cleanedVocalText.substring(0, 1500);
 

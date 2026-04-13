@@ -4979,12 +4979,29 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
     // ── CENTRALIZED LYRICS CLEANING — runs BEFORE all providers ──
     // Strips AI meta-commentary, title lines, and preamble. Leaves only singable text.
     function cleanLyricsForVocal(rawText) {
+      if (!rawText || typeof rawText !== 'string') return '';
+      
+      // 🛡️ [SECURE] Block AI refusals from being "sung"
+      const lowerLower = rawText.toLowerCase();
+      if (
+        (lowerLower.includes("i'm sorry") || lowerLower.includes("i cannot") || lowerLower.includes("i'm unable to")) &&
+        (lowerLower.includes("generate") || lowerLower.includes("comply") || lowerLower.includes("lyrics"))
+      ) {
+        logger.warn('🚫 AI refusal detected in lyrics, skipping vocal generation');
+        return ''; // Returning empty will trigger error in caller, preventing credit waste
+      }
+
+      // 1. Critical strip: if the AI explains its process or the song, kill it.
+      // Matches "Sure, here are some lyrics...", "This song is about...", etc.
       let cleaned = String(rawText)
-        // Strip everything before the first song structure tag (most reliable path)
+        .replace(/^(Sure[,!]?|Okay[,!]?|Alright[,!]?|Certainly[,!]?|Here('s| is| are)[^\n]*|I'?ve (written|created|generated)[^\n]*|Let me [^\n]*|Below [^\n]*|These (lyrics|are)[^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|About:[^\n]*|Description:[^\n]*|Voice Direction:[^\n]*|Musical Notes:[^\n]*|I hope you enjoy[^\n]*|Hope this helps[^\n]*)(?:\n+|$)/gim, '')
+        // (Note: Removed "This song[^\n]*" from the regex above to avoid L4984 false positives)
+        // 2. Strip standard Markdown code blocks if any
+        .replace(/```[a-z]*\n([\s\S]*?)```/g, '$1')
+        // 3. Strip everything before the first song structure tag (most reliable path)
+        // Only if tags like [Verse] exist. This prevents the AI "describing" the song from being sung.
         .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\b)/i, '')
-        // Strip common AI preamble lines when no structure tags present
-        .replace(/^(Sure[,!]?|Okay[,!]?|Here('s| is| are)[^\n]*|I'?ve (written|created)[^\n]*|Let me [^\n]*|Below [^\n]*|These (lyrics|are)[^\n]*|This song[^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|About:[^\n]*|Description:[^\n]*|Voice Direction:[^\n]*|Musical Notes:[^\n]*)\n+/gim, '')
-        // Normalise section tags to clean bare forms Suno/Bark/ElevenLabs expect
+        // 4. Normalise section tags to clean bare forms Suno/Bark/ElevenLabs expect
         .replace(/\[Verse[^\]]*\]/gi, '[Verse]')
         .replace(/\[Chorus[^\]]*\]/gi, '[Chorus]')
         .replace(/\[Bridge[^\]]*\]/gi, '[Bridge]')
@@ -4996,10 +5013,29 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
         .replace(/\[(?!Verse|Chorus|Bridge|Pre-Chorus|Hook|Outro|Intro)[^\]]*\]/gi, '')
         .replace(/^\s*\n/gm, '')
         .trim();
-      // Guard: if cleaning ate everything, return original trimmed
-      return cleaned.length >= 20 ? cleaned : String(rawText).trim();
+        
+      // 5. Final safety check: if we didn't find any tags and it still looks like a preamble, 
+      // try to split by double newlines and take the longest chunk (heuristically the actual lyrics)
+      if (!/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\]/i.test(cleaned)) {
+        const chunks = cleaned.split(/\n\s*\n/).filter(c => c.trim().length > 20);
+        if (chunks.length > 1) {
+          // If the first chunk starts with "Sure" or "I", and there are other chunks, skip it.
+          if (/^(I |Sure|Here|This )/i.test(chunks[0]) && !/^(I |This )/.test(chunks[1])) {
+             cleaned = chunks.slice(1).join('\n\n').trim();
+          }
+        }
+      }
+
+      return cleaned;
     }
     const cleanedPrompt = cleanLyricsForVocal(prompt);
+    
+    // [BLOCKER FIX] prevent calling generation with empty or refused content
+    if (!cleanedPrompt || cleanedPrompt.length < 10) {
+      logger.error('🎤 Vocal generation aborted: Lyrics too short or invalid preamble', { originalLength: prompt.length });
+      return res.status(400).json({ error: 'Lyrics are invalid or contain a refusal message. Please re-generate lyrics first.' });
+    }
+
     logger.info('🎤 Lyrics cleaned', { original: prompt.length, cleaned: cleanedPrompt.length, sample: cleanedPrompt.substring(0, 80) });
     
     // SSE pipeline progress (if client provided session ID)
