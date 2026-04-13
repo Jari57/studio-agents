@@ -5472,17 +5472,18 @@ Return ONLY valid JSON, no markdown.`;
       if (elevenLabsKey && speakerUrl && persistedCloneId) {
         // ── FAST PATH: Generate TTS with the persisted clone voice ──
         try {
+          const isStrict = req.body.quality === 'ultra' || style === 'cloned';
           const cloneAbort = new AbortController();
           const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
           const cloneVoiceSettings = {
-            stability: 0.70,         // consistent pitch while preserving voice character
-            similarity_boost: 0.88,  // high fidelity to cloned voice
-            style: 0.65,             // expressive for musical performance
+            stability: isStrict ? 0.82 : 0.70,
+            similarity_boost: isStrict ? 0.97 : 0.88,
+            style: isStrict ? 0.45 : 0.65,
             use_speaker_boost: true
           };
 
-          if (refSongAnalysis) {
+          if (refSongAnalysis && !isStrict) {
             const energy = parseInt(refSongAnalysis.energy) || 5;
             const warmth = parseInt(refSongAnalysis.warmth) || 5;
             cloneVoiceSettings.stability = Math.max(0.60, Math.min(0.78, 0.62 + (warmth * 0.016)));
@@ -5582,25 +5583,26 @@ Return ONLY valid JSON, no markdown.`;
               }).catch(() => {});
               logger.info('🎤 Clone voice persisted to Firestore', { voiceId: clonedVoiceId });
             }
-            persistedCloneId = clonedVoiceId;
+          persistedCloneId = clonedVoiceId;
 
-            // Generate TTS with the cloned voice
-            const cloneAbort = new AbortController();
-            const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
+          // Generate TTS with the cloned voice
+          const isStrict = req.body.quality === 'ultra' || style === 'cloned';
+          const cloneAbort = new AbortController();
+          const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
-            const cloneVoiceSettings = {
-              stability: 0.70,         // consistent pitch while preserving voice character
-              similarity_boost: 0.88,  // high fidelity to cloned voice
-              style: 0.65,             // expressive for musical performance
-              use_speaker_boost: true
-            };
+          const cloneVoiceSettings = {
+            stability: isStrict ? 0.82 : 0.70,         // higher stability for strict clones
+            similarity_boost: isStrict ? 0.97 : 0.88,  // MAX fidelity for strict clones
+            style: isStrict ? 0.45 : 0.65,             // lower style bleed for strict similarity
+            use_speaker_boost: true
+          };
 
-            if (refSongAnalysis) {
-              const energy = parseInt(refSongAnalysis.energy) || 5;
-              const warmth = parseInt(refSongAnalysis.warmth) || 5;
-              cloneVoiceSettings.stability = Math.max(0.60, Math.min(0.78, 0.62 + (warmth * 0.016)));
-              cloneVoiceSettings.style = Math.max(0.50, Math.min(0.75, 0.52 + (energy * 0.023)));
-            }
+          if (refSongAnalysis && !isStrict) {
+            const energy = parseInt(refSongAnalysis.energy) || 5;
+            const warmth = parseInt(refSongAnalysis.warmth) || 5;
+            cloneVoiceSettings.stability = Math.max(0.60, Math.min(0.78, 0.62 + (warmth * 0.016)));
+            cloneVoiceSettings.style = Math.max(0.50, Math.min(0.75, 0.52 + (energy * 0.023)));
+          }
 
             const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${clonedVoiceId}?output_format=mp3_44100_192`, {
               method: 'POST',
@@ -5665,7 +5667,7 @@ Return ONLY valid JSON, no markdown.`;
                 speaker: targetSpeaker,
                 cleanup_voice: true,
                 speed: 1.0,
-                temperature: 0.25
+                temperature: (req.body.quality === 'ultra' || style === 'cloned') ? 0.01 : 0.25
               }
             })
           });
@@ -5859,64 +5861,57 @@ Return ONLY valid JSON, no markdown.`;
         // High stability = locked pitch (no wavering) — essential for billboard sound
         // High similarity_boost = voice stays true to the model character = consistency
         // High style = musical expressiveness for actual performance delivery
+        const isClonedMode = style === 'cloned' || req.body.isVocalCloned === true;
         const hasDnaVoice = !!(speakerUrl || req.body.elevenLabsVoiceId);
         
-        // Check for "raspy" or "gritty" texture request in the prompt/style/genre
+        // Check for "raspy" or "gritty" texture request
         const searchSpaceLower = (cleanedPrompt + ' ' + (req.body.style || '') + ' ' + (req.body.genre || '')).toLowerCase();
         const textures = ['raspy', 'gritty', 'breathy', 'gravelly', 'raw', 'unpolished', 'distorted', 'whispered', 'rough', 'grainy'];
         const isRaspyRequested = textures.some(t => searchSpaceLower.includes(t));
 
         const voiceSettings = {
-          stability:        hasDnaVoice ? 0.70 : (style.includes('rapper') ? 0.72 : 0.82),
-          similarity_boost: hasDnaVoice ? 0.85 : 0.92,
-          style:            hasDnaVoice ? 0.62 : (style.includes('rapper') ? 0.38 : 0.72),
+          stability:        isClonedMode ? 0.85 : (hasDnaVoice ? 0.70 : (style.includes('rapper') ? 0.72 : 0.82)),
+          similarity_boost: isClonedMode ? 0.98 : (hasDnaVoice ? 0.85 : 0.92),
+          style:            isClonedMode ? 0.45 : (hasDnaVoice ? 0.62 : (style.includes('rapper') ? 0.38 : 0.72)),
           use_speaker_boost: true
         };
 
-        // Texture-based stability adjustment: 
-        // Lower stability (0.40 - 0.55) allows the model to produce "grit" and "rasp" 
-        // rather than smoothing it out into a flat robotic tone.
-        if (isRaspyRequested) {
+        // Texture-based stability adjustment
+        if (isRaspyRequested && !isClonedMode) {
           logger.info('🎤 Raspy/Gritty texture requested, dropping ElevenLabs stability to allow grit');
           voiceSettings.stability = Math.max(0.42, voiceSettings.stability - 0.28);
           voiceSettings.style = Math.min(0.95, voiceSettings.style + 0.18);
           voiceSettings.similarity_boost = Math.max(0.75, voiceSettings.similarity_boost - 0.10);
         }
 
-        // Output format: NEVER loosen stability, only reduce style for non-music
+        // Output format: NEVER loosen stability
         if (outputFormat === 'tv') {
           voiceSettings.style = 0.20;
         } else if (outputFormat === 'podcast') {
           voiceSettings.style = 0.15;
         }
-        // Music format: settings stay as-is — already optimized for consistency
 
         // ── REFERENCE SONG VOICE TUNING ──
-        // If reference analysis exists, tune ElevenLabs settings to match the reference's characteristics
-        // When DNA voice is active, ref analysis fine-tunes but NEVER reduces clone fidelity below DNA floor
-        if (refSongAnalysis) {
+        // Only tune from reference if NOT in strict cloned mode
+        if (refSongAnalysis && !isClonedMode) {
           const warmth = parseInt(refSongAnalysis.warmth) || 5;
           const energy = parseInt(refSongAnalysis.energy) || 5;
           const depth = parseInt(refSongAnalysis.depth) || 5;
 
           if (hasDnaVoice) {
-            // DNA voice: tune expressiveness from reference, keep clone fidelity floors high
             voiceSettings.stability = Math.max(0.62, Math.min(0.78, 0.64 + (warmth * 0.014)));
             voiceSettings.style = Math.max(0.52, Math.min(0.75, 0.54 + (energy * 0.021)));
             voiceSettings.similarity_boost = Math.max(0.82, Math.min(0.92, 0.83 + (depth * 0.009)));
           } else {
-            // No DNA: reference-tuned but never drop below billboard quality floors
             voiceSettings.stability = Math.max(0.72, Math.min(0.90, 0.74 + (warmth * 0.016)));
             voiceSettings.style = Math.max(0.55, Math.min(0.82, 0.58 + (energy * 0.024)));
             voiceSettings.similarity_boost = Math.max(0.88, Math.min(0.97, 0.89 + (depth * 0.008)));
           }
 
-          // If "raspy" was explicitly in the prompt, override the reference's "warmth" (which usually increases stability)
           if (isRaspyRequested) {
              voiceSettings.stability = Math.max(0.42, voiceSettings.stability - 0.25);
           }
 
-          // Prepend vocal direction to the processed prompt for delivery guidance
           if (refSongAnalysis.vocal_direction) {
             processedPrompt = `[${refSongAnalysis.vocal_direction}] ${processedPrompt}`;
           }
@@ -5927,6 +5922,8 @@ Return ONLY valid JSON, no markdown.`;
             similarity_boost: voiceSettings.similarity_boost,
             vocalDirection: refSongAnalysis.vocal_direction?.substring(0, 60)
           });
+        } else if (isClonedMode) {
+          logger.info('🛡️ Strict Clone Enforcement active: similarity_boost maxed at 0.98');
         }
 
         // Use the highest quality model available
