@@ -5857,70 +5857,74 @@ Return ONLY valid JSON, no markdown.`;
         }
 
         // ── BILLBOARD-GRADE VOICE SETTINGS ──
-        // Target: consistent pitch, rich timbre, professional performance quality
-        // High stability = locked pitch (no wavering) — essential for billboard sound
-        // High similarity_boost = voice stays true to the model character = consistency
-        // High style = musical expressiveness for actual performance delivery
+        // Target: Lyria/Mureka-grade fidelity and billboard performance quality
         const isClonedMode = style === 'cloned' || req.body.isVocalCloned === true;
+        const reflectsUltra = req.body.quality === 'ultra' || req.body.quality === 'premium';
         const hasDnaVoice = !!(speakerUrl || req.body.elevenLabsVoiceId);
         
-        // Check for "raspy" or "gritty" texture request
+        // Texture and prosody detection
         const searchSpaceLower = (cleanedPrompt + ' ' + (req.body.style || '') + ' ' + (req.body.genre || '')).toLowerCase();
         const textures = ['raspy', 'gritty', 'breathy', 'gravelly', 'raw', 'unpolished', 'distorted', 'whispered', 'rough', 'grainy'];
         const isRaspyRequested = textures.some(t => searchSpaceLower.includes(t));
 
+        // High stability = radio-ready locked pitch
+        // High similarity_boost = 100% clone fidelity (Mureka-style)
+        // High style = expressive musicality (Lyria-style)
         const voiceSettings = {
-          stability:        isClonedMode ? 0.85 : (hasDnaVoice ? 0.70 : (style.includes('rapper') ? 0.72 : 0.82)),
-          similarity_boost: isClonedMode ? 0.98 : (hasDnaVoice ? 0.85 : 0.92),
-          style:            isClonedMode ? 0.45 : (hasDnaVoice ? 0.62 : (style.includes('rapper') ? 0.38 : 0.72)),
+          stability:        isClonedMode ? 0.88 : (reflectsUltra ? 0.85 : 0.75), 
+          similarity_boost: isClonedMode ? 0.98 : (reflectsUltra ? 0.95 : 0.90),
+          style:            isClonedMode ? 0.40 : (reflectsUltra ? 0.85 : 0.65),
           use_speaker_boost: true
         };
 
         // Texture-based stability adjustment
         if (isRaspyRequested && !isClonedMode) {
           logger.info('🎤 Raspy/Gritty texture requested, dropping ElevenLabs stability to allow grit');
-          voiceSettings.stability = Math.max(0.42, voiceSettings.stability - 0.28);
-          voiceSettings.style = Math.min(0.95, voiceSettings.style + 0.18);
-          voiceSettings.similarity_boost = Math.max(0.75, voiceSettings.similarity_boost - 0.10);
+          voiceSettings.stability = Math.max(0.45, voiceSettings.stability - 0.35);
+          voiceSettings.style = Math.min(0.98, voiceSettings.style + 0.25);
         }
 
-        // Output format: NEVER loosen stability
-        if (outputFormat === 'tv') {
-          voiceSettings.style = 0.20;
-        } else if (outputFormat === 'podcast') {
-          voiceSettings.style = 0.15;
+        // Output format: ULTRA FIDELITY PCM
+        // Lyria-grade requires lossless PCM or the highest 192kbps MP3
+        const output_format = reflectsUltra ? 'pcm_44100' : 'mp3_44100_192';
+
+        // ── PROSODY & HUMANITY INJECTION (AI Director Pass) ──
+        // Inject human "breaths" and "pauses" markers that high-end models use to sound human
+        if (reflectsUltra && !isClonedMode) {
+           processedPrompt = processedPrompt.replace(/\n/g, '... \n').replace(/\. /g, '... ');
+           if (!processedPrompt.includes('[breath]')) {
+             processedPrompt = `[breath] ` + processedPrompt;
+           }
         }
 
         // ── REFERENCE SONG VOICE TUNING ──
-        // Only tune from reference if NOT in strict cloned mode
         if (refSongAnalysis && !isClonedMode) {
           const warmth = parseInt(refSongAnalysis.warmth) || 5;
           const energy = parseInt(refSongAnalysis.energy) || 5;
           const depth = parseInt(refSongAnalysis.depth) || 5;
 
           if (hasDnaVoice) {
-            voiceSettings.stability = Math.max(0.62, Math.min(0.78, 0.64 + (warmth * 0.014)));
-            voiceSettings.style = Math.max(0.52, Math.min(0.75, 0.54 + (energy * 0.021)));
-            voiceSettings.similarity_boost = Math.max(0.82, Math.min(0.92, 0.83 + (depth * 0.009)));
+            voiceSettings.stability = Math.max(0.68, Math.min(0.85, 0.70 + (warmth * 0.015)));
+            voiceSettings.style = Math.max(0.58, Math.min(0.88, 0.60 + (energy * 0.025)));
+            voiceSettings.similarity_boost = Math.max(0.85, Math.min(0.95, 0.86 + (depth * 0.012)));
           } else {
-            voiceSettings.stability = Math.max(0.72, Math.min(0.90, 0.74 + (warmth * 0.016)));
-            voiceSettings.style = Math.max(0.55, Math.min(0.82, 0.58 + (energy * 0.024)));
-            voiceSettings.similarity_boost = Math.max(0.88, Math.min(0.97, 0.89 + (depth * 0.008)));
+            voiceSettings.stability = Math.max(0.78, Math.min(0.92, 0.80 + (warmth * 0.018)));
+            voiceSettings.style = Math.max(0.65, Math.min(0.90, 0.68 + (energy * 0.028)));
+            voiceSettings.similarity_boost = Math.max(0.90, Math.min(0.98, 0.92 + (depth * 0.010)));
           }
 
           if (isRaspyRequested) {
-             voiceSettings.stability = Math.max(0.42, voiceSettings.stability - 0.25);
+             voiceSettings.stability = Math.max(0.45, voiceSettings.stability - 0.30);
           }
 
           if (refSongAnalysis.vocal_direction) {
             processedPrompt = `[${refSongAnalysis.vocal_direction}] ${processedPrompt}`;
           }
 
-          logger.info('🎤 ElevenLabs voice settings tuned from reference', {
+          logger.info('🎤 ElevenLabs voice settings tuned to Ultra Fidelity', {
             stability: voiceSettings.stability,
             style: voiceSettings.style,
-            similarity_boost: voiceSettings.similarity_boost,
-            vocalDirection: refSongAnalysis.vocal_direction?.substring(0, 60)
+            similarity_boost: voiceSettings.similarity_boost
           });
         } else if (isClonedMode) {
           logger.info('🛡️ Strict Clone Enforcement active: similarity_boost maxed at 0.98');

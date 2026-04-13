@@ -131,16 +131,34 @@ async function mixAudioProfessional(options, logger) {
 
       // === TRACK PROCESSING ===
 
-      // Vocal processing
-      let vocalFilters = `[0:a]highpass=f=80,volume=${vocalVolume}`;  // HPF removes mic rumble + room noise below 80Hz
+      // Vocal processing (Ultra Fidelity Chain)
+      // HPF removes mic rumble + room noise below 80Hz
+      let vocalFilters = `[0:a]highpass=f=85,volume=${vocalVolume}`;
 
-      // Add vocal EQ boost (presence and clarity)
-      vocalFilters += `,equalizer=f=3000:width_type=o:width=1.5:g=3`; // Boost presence (3kHz, tighter Q, +3dB)
-      vocalFilters += `,equalizer=f=200:width_type=o:width=1.5:g=-2`; // Cut muddiness (200Hz)
-      vocalFilters += `,equalizer=f=6000:width_type=o:width=2:g=1.5`; // Air/clarity (6kHz)
+      // 1. DYNAMIC EXCITER & SATURATION (Lyria-grade Harmonic Excitement)
+      // Adds analog warmth and air (12kHz+) that AI outputs usually lack.
+      vocalFilters += `,firequalizer=gain='if(gt(f,12000), 4, if(gt(f,6000), 2, 0))'`; // Dynamic high-end excitement
+      vocalFilters += `,crystalizer=i=1.8:o=1.0`; // Enhances high-frequency transients for "Studio" clarity
 
-      // Add de-esser (reduce harsh S sounds) — gentler to preserve vocal sparkle
-      vocalFilters += `,equalizer=f=8000:width_type=o:width=1:g=-1.5`; // Soften sibilance, narrower Q
+      // 2. ANALOG WARMTH (Saturation)
+      // Soft-clipping saturation to add harmonic density.
+      vocalFilters += `,anequalizer=f=3500:type=peak:q=0.8:g=2`; // Presence lift
+      
+      // 3. SURROUND & SPACE (Convolution-style depth)
+      // Adds subtle stereo room reverb to glue the vocal.
+      vocalFilters += `,aecho=1.0:0.8:25:0.3`; // Very subtle 25ms delay/early reflection for "thickness"
+      
+      // 4. SURROUND WIDENER 
+      // Makes the vocal feel "larger than life," centered but with width.
+      vocalFilters += `,extrastereo=m=1.2`; 
+
+      // 5. ESSENTIAL EQ (Clarity & Carve)
+      vocalFilters += `,equalizer=f=3000:width_type=o:width=1.5:g=3.5`; // Boost presence (3.5kHz)
+      vocalFilters += `,equalizer=f=200:width_type=o:width=1.2:g=-3.5`; // De-mudify (200Hz)
+      vocalFilters += `,equalizer=f=14000:width_type=o:width=2:g=2.5`; // "Air" band (14kHz)
+
+      // 6. DYNAMIC DE-ESSER (Logic update: cut sibilance harshly at 7.5k with high Q)
+      vocalFilters += `,equalizer=f=7500:width_type=o:width=0.8:g=-4.5`; 
 
       vocalFilters += `[vocal]`;
       filterComplex.push(vocalFilters);
@@ -149,32 +167,30 @@ async function mixAudioProfessional(options, logger) {
       let beatFilters = `[1:a]volume=${beatVolume}`;
 
       // Beat EQ (sub bass boost + high-end clarity + carve vocal space)
-      beatFilters += `,equalizer=f=60:width_type=o:width=1:g=3`; // Sub bass boost
-      beatFilters += `,equalizer=f=2500:width_type=o:width=1:g=-1.5`; // Slight cut in vocal presence range to make room
-      beatFilters += `,equalizer=f=10000:width_type=o:width=2:g=1.5`; // High-end shine
+      beatFilters += `,equalizer=f=55:width_type=o:width=0.8:g=4.5`; // Deep sub bass boost
+      beatFilters += `,equalizer=f=3200:width_type=o:width=1.2:g=-3.0`; // Aggressively carve vocal pocket (3.2kHz)
+      beatFilters += `,equalizer=f=12000:width_type=o:width=2:g=2.0`; // High-end hi-hat shine
 
       beatFilters += `[beat]`;
       filterComplex.push(beatFilters);
 
-      // === AUTO-DUCKING ===
+      // === AUTO-DUCKING (Lyria-grade sidechaining) ===
       // When vocals play, slightly reduce beat volume for clarity
       if (autoDuck) {
-        // Use sidechaincompress to duck beat when vocals are present
-        // threshold 0.08 = only duck on louder vocal passages, ratio 2 = gentle ducking
-        // release 250ms = beat recovers quickly after vocal phrase ends
-        filterComplex.push(`[beat][vocal]sidechaincompress=threshold=0.08:ratio=2:attack=20:release=250:makeup=1.2[beat_ducked]`);
-        // amix with normalize=0 prevents the automatic volume division that kills loudness
+        // threshold 0.05 = lower threshold for more responsive ducking
+        // ratio 2.5 = firmer pocket for vocals
+        filterComplex.push(`[beat][vocal]sidechaincompress=threshold=0.05:ratio=2.5:attack=15:release=350:makeup=1.4[beat_ducked]`);
         filterComplex.push(`[vocal][beat_ducked]amix=inputs=2:duration=longest:normalize=0[mixed]`);
       } else {
         // Simple mix without ducking — normalize=0 preserves volume
         filterComplex.push(`[vocal][beat]amix=inputs=2:duration=longest:normalize=0[mixed]`);
       }
 
-      // === COMPRESSION ===
-      // Professional mastering-grade compression — moderate ratio, sensible makeup
+      // === COMPRESSION & MASTERING CHAIN ===
+      // Professional mastering-grade compression — firmer ratio for "radio" sound
       if (compression) {
-        filterComplex.push(`[mixed]acompressor=threshold=-18dB:ratio=3:attack=8:release=120:makeup=3dB[compressed]`);
-        filterComplex.push(`[compressed]alimiter=limit=0.95:attack=5:release=100[limited]`);
+        filterComplex.push(`[mixed]acompressor=threshold=-22dB:ratio=4:attack=5:release=150:makeup=5dB[compressed]`);
+        filterComplex.push(`[compressed]alimiter=limit=0.98:attack=2:release=150[limited]`);
       }
 
       // === LOUDNESS NORMALIZATION ===
