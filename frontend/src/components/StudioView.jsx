@@ -588,6 +588,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
   // --- PROJECTS & ASSETS ---
   const [selectedProject, setSelectedProject] = useState(null);
+  const [isProjectsLoading, setIsProjectsLoading] = useState(true);
   const [projects, setProjects] = useState(() => {
     try {
       const uid = localStorage.getItem('studio_user_id') || 'guest';
@@ -1347,6 +1348,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   // Sync all projects to cloud via backend API (individual saves)
   async function syncProjectsToCloud(uid, projectsToSync) {
     if (!uid || !Array.isArray(projectsToSync) || projectsToSync.length === 0) return;
+    
+    // CRITICAL PROTECTION: Never sync while still loading projects from cloud
+    if (isProjectsLoading) {
+      devLog('[Sync] Aborting cloud sync - projects still loading');
+      return;
+    }
+
     setProjectsSyncing(true);
     
     try {
@@ -1383,7 +1391,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   useEffect(() => {
     // CRITICAL: Check both user state AND auth.currentUser to ensure Firebase is ready
     // Also skip if we are currently mid-manual-save to avoid conflicts
-    if (!user?.uid || projects.length === 0 || !auth?.currentUser) return;
+    // AND skip if we are still loading projects from the cloud to prevent overwriting with []
+    if (!user?.uid || projects.length === 0 || !auth?.currentUser || isProjectsLoading) return;
 
     // Skip sync if projects were just loaded from cloud (prevents re-uploading on login)
     if (skipNextSyncRef.current) {
@@ -1411,6 +1420,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   // Flush pending sync on page unload to prevent data loss
   useEffect(() => {
     const handleBeforeUnload = () => {
+      // NEVER SYNC ON UNLOAD IF PROJECTS ARE STILL LOADING - CRITICAL PROTECTION
+      if (isProjectsLoading) {
+        devLog('[Sync] Skipping unload sync - projects still loading');
+        return;
+      }
+
       if (user?.uid && projects.length > 0) {
         // Always persist to localStorage synchronously (guaranteed to complete)
         try {
@@ -1432,7 +1447,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [projects, user?.uid]);
+  }, [projects, user?.uid, isProjectsLoading]);
   
   // Load projects from cloud via backend API
   // Accepts optional firebaseUser param so the caller can pass the already-resolved currentUser
@@ -1508,9 +1523,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   
   // Merge local and cloud projects (cloud takes priority for conflicts)
   const mergeProjects = (localProjects, cloudProjects) => {
+    // CRITICAL PROTECTION: If cloud has 76 projects but local is empty, ENSURE we don't lose the 76.
     const merged = new Map();
-    const local = Array.isArray(localProjects) ? localProjects : [];
-    const cloud = Array.isArray(cloudProjects) ? cloudProjects : [];
+    const local = Array.isArray(localProjects) ? localProjects.filter(p => p && p.id) : [];
+    const cloud = Array.isArray(cloudProjects) ? cloudProjects.filter(p => p && p.id) : [];
     
     // Add all cloud projects first (they take priority)
     for (const project of cloud) {
@@ -1535,12 +1551,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       }
     }
     
-    // Sort by updated time
-    return Array.from(merged.values()).sort((a, b) => {
+    const result = Array.from(merged.values()).sort((a, b) => {
       const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
       const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
       return bTime - aTime;
     });
+
+    devLog(`[Merge] Final project list: ${result.length} items (Local: ${local.length}, Cloud: ${cloud.length})`);
+    return result;
   };
   // Studio Session State (Global Mechanism)
   // History Helpers
@@ -2581,6 +2599,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
             setIsLoggedIn(false);
             setUser(null);
             setAuthChecking(false);
+            setIsProjectsLoading(false);
             return;
           }
 
@@ -2749,6 +2768,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
             }
           } catch (err) {
             devWarn('Failed to load projects from cloud:', err);
+          } finally {
+            setIsProjectsLoading(false); // STOP loading regardless of success or failure
+            devLog('[Auth] isProjectsLoading set to FALSE');
           }
         } else {
           userRef.current = null; // UPDATE REF
@@ -2761,6 +2783,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           const wasGuestMode = localStorage.getItem('studio_guest_mode') === 'true';
           const isIntentionalSignout = localStorage.getItem('studio_signing_out') === 'true';
           
+          // No authenticated user — clear loading flag immediately
+          setIsProjectsLoading(false);
+
           if (isIntentionalSignout) {
             // User clicked sign out — skip retry loop
             localStorage.removeItem('studio_signing_out');
@@ -2827,6 +2852,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     } else {
       // No auth service - mark auth check as complete
       setAuthChecking(false);
+      setIsProjectsLoading(false);
     }
   }, []);
 

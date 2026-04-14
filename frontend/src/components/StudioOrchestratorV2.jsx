@@ -2657,6 +2657,34 @@ export default function StudioOrchestratorV2({
     }
   }, [isOpen]);
 
+  // Delete a voice from ElevenLabs
+  const handleDeleteVoice = async (voiceId) => {
+    if (!voiceId) return;
+    if (!window.confirm("Are you sure you want to delete this cloned voice? This cannot be undone.")) return;
+    
+    try {
+      const headers = await getHeaders();
+      const response = await fetch(`${BACKEND_URL}/api/v2/voices/${voiceId}`, {
+         method: 'DELETE',
+         headers 
+      });
+
+      if (response.ok) {
+        setElVoices(prev => prev.filter(v => v.voice_id !== voiceId));
+        if (elevenLabsVoiceId === voiceId) {
+          setElevenLabsVoiceId('');
+          localStorage.removeItem('studio_elevenlabs_voice_id');
+        }
+      } else {
+        const err = await response.json();
+        alert(`Failed to delete voice: ${err.error || 'Server error'}`);
+      }
+    } catch (err) {
+      console.error('Error deleting voice:', err);
+      alert('Network error while deleting voice');
+    }
+  };
+
   // Load User DNA / Inspiration files for persistence
   useEffect(() => {
     const fetchUserDna = async () => {
@@ -7453,68 +7481,98 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 {/* Premium ElevenLabs Input / Voice Selector */}
                 {voiceStyle === 'cloned' && clonedVoiceId ? (
                   <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(34, 197, 94, 0.1)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)', color: '#22c55e', fontSize: '0.85rem' }}>
-                    Using: Your Cloned Voice
+                    border: '1px solid rgba(34, 197, 94, 0.3)', color: '#22c55e', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Using: Your Cloned Voice</span>
+                    <button 
+                      onClick={() => handleDeleteVoice(clonedVoiceId)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(239, 68, 68, 0.7)', padding: '2px', display: 'flex', transition: 'color 0.2s' }}
+                      onMouseEnter={(e) => e.target.style.color = '#ef4444'}
+                      onMouseLeave={(e) => e.target.style.color = 'rgba(239, 68, 68, 0.7)'}
+                      title="Permanently Delete Cloned Voice"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 ) : (vocalQuality === 'premium' || voiceStyle === 'cloned' || voiceStyle.startsWith('saved-')) && (
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {elVoices.length > 0 ? (
-                      <select
-                        value={elevenLabsVoiceId}
-                        onChange={(e) => {
-                          setElevenLabsVoiceId(e.target.value);
-                          localStorage.setItem('studio_elevenlabs_voice_id', e.target.value);
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '10px 14px',
-                          borderRadius: '10px',
-                          background: 'rgba(0,0,0,0.3)',
-                          border: elevenLabsVoiceId ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)',
-                          color: 'white',
-                          fontSize: '0.85rem',
-                          outline: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <option value="">Auto (Best match for style)</option>
-                        {(() => {
-                          const males = elVoices.filter(v => v.labels?.gender === 'male');
-                          const females = elVoices.filter(v => v.labels?.gender === 'female');
-                          const other = elVoices.filter(v => !v.labels?.gender || (v.labels.gender !== 'male' && v.labels.gender !== 'female'));
-                          return (
-                            <>
-                              {males.length > 0 && (
-                                <optgroup label="Male Voices">
-                                  {males.map(voice => (
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <select
+                          value={elevenLabsVoiceId}
+                          onChange={(e) => {
+                            setElevenLabsVoiceId(e.target.value);
+                            localStorage.setItem('studio_elevenlabs_voice_id', e.target.value);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '10px 42px 10px 14px', // Right padding for trash icon
+                            borderRadius: '10px',
+                            background: 'rgba(0,0,0,0.3)',
+                            border: elevenLabsVoiceId ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)',
+                            color: 'white',
+                            fontSize: '0.85rem',
+                            outline: 'none',
+                            cursor: 'pointer',
+                            appearance: 'none'
+                          }}
+                        >
+                          <option value="">Auto (Best match for style)</option>
+                          {(() => {
+                            // Filter specifically for generated/cloned voices vs library voices if possible
+                            const clonableVoices = elVoices.filter(v => v.category === 'cloned' || v.category === 'generated' || v.labels?.use_case === 'cloned');
+                            const systemVoices = elVoices.filter(v => !clonableVoices.includes(v));
+
+                            const renderGroup = (label, voices) => (
+                              voices.length > 0 && (
+                                <optgroup label={label}>
+                                  {voices.map(voice => (
                                     <option key={voice.voice_id} value={voice.voice_id}>
-                                      {voice.name} ({voice.labels?.accent || voice.labels?.use_case || 'Pro'})
+                                      {voice.name} ({voice.labels?.accent || voice.labels?.use_case || (voice.category === 'cloned' ? 'Personal Clone' : 'Pro')})
                                     </option>
                                   ))}
                                 </optgroup>
-                              )}
-                              {females.length > 0 && (
-                                <optgroup label="Female Voices">
-                                  {females.map(voice => (
-                                    <option key={voice.voice_id} value={voice.voice_id}>
-                                      {voice.name} ({voice.labels?.accent || voice.labels?.use_case || 'Pro'})
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              )}
-                              {other.length > 0 && (
-                                <optgroup label="Other Voices">
-                                  {other.map(voice => (
-                                    <option key={voice.voice_id} value={voice.voice_id}>
-                                      {voice.name} ({voice.labels?.accent || voice.labels?.use_case || 'Pro'})
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </select>
+                              )
+                            );
+
+                            return (
+                              <>
+                                {renderGroup("Your Clones", clonableVoices)}
+                                {renderGroup("Male Voices", systemVoices.filter(v => v.labels?.gender === 'male'))}
+                                {renderGroup("Female Voices", systemVoices.filter(v => v.labels?.gender === 'female'))}
+                                {renderGroup("Other Voices", systemVoices.filter(v => !['male','female'].includes(v.labels?.gender)))}
+                              </>
+                            );
+                          })()}
+                        </select>
+                        
+                        {/* Action Buttons for Select */}
+                        <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {elevenLabsVoiceId && elVoices.find(v => v.voice_id === elevenLabsVoiceId)?.category === 'cloned' && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleDeleteVoice(elevenLabsVoiceId);
+                              }}
+                              style={{ 
+                                background: 'none', 
+                                border: 'none', 
+                                cursor: 'pointer', 
+                                color: 'rgba(239, 68, 68, 0.6)', 
+                                padding: '4px',
+                                display: 'flex', 
+                                transition: 'color 0.2s',
+                                zIndex: 10
+                              }}
+                              onMouseEnter={(e) => e.target.style.color = '#ef4444'}
+                              onMouseLeave={(e) => e.target.style.color = 'rgba(239, 68, 68, 0.6)'}
+                              title="Delete this cloned voice"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                          <ChevronDown size={14} color="rgba(255,255,255,0.4)" style={{ pointerEvents: 'none' }} />
+                        </div>
+                      </div>
                     ) : (
                       <input
                         type="text"

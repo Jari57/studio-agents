@@ -7480,6 +7480,7 @@ app.post('/api/sync/creme-de-la-creme', verifyFirebaseToken, requireAuth, checkC
 // ═══════════════════════════════════════════════════════════════════
 // MUX AUDIO + VIDEO - Combine silent video with mixed audio track
 // ═══════════════════════════════════════════════════════════════════
+app.post('/api/mux-audio-video', verifyFirebaseToken, generationLimiter, async (req, res) => {
   const ffmpegStatic = require('ffmpeg-static');
   const { execFile } = require('child_process');
   const os = require('os');
@@ -10999,6 +11000,46 @@ app.post('/api/stripe/create-portal-session', verifyFirebaseToken, requireAuth, 
 // =============================================================================
 // PROJECT PERSISTENCE (My Studio)
 // =============================================================================
+
+// BATCH SYNC - Handle navigator.sendBeacon or mass save
+app.post('/api/projects/sync', verifyFirebaseToken, async (req, res) => {
+  const { userId, projects } = req.body;
+  const targetUserId = req.user?.uid || userId;
+
+  if (!targetUserId || !Array.isArray(projects)) {
+    return res.status(400).json({ error: 'Target user ID and projects array required' });
+  }
+
+  // Safety: Never sync an empty list if it looks like a transient load failure
+  if (projects.length === 0) {
+    logger.warn('⚠️ Batch sync blocked: projects array is empty. Preventing accidental cloud wipe.', { targetUserId });
+    return res.json({ success: true, message: 'Sync skipped (empty list)' });
+  }
+
+  try {
+    const db = getFirestoreDb();
+    if (!db) return res.status(500).json({ error: 'Firestore unavailable' });
+
+    const batch = db.batch();
+    const userProjectsRef = db.collection('users').doc(targetUserId).collection('projects');
+
+    projects.slice(0, 100).forEach(project => {
+      if (!project.id) return;
+      const ref = userProjectsRef.doc(String(project.id));
+      batch.set(ref, {
+        ...project,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    });
+
+    await batch.commit();
+    logger.info('✅ Batch sync complete', { userId: targetUserId, count: projects.length });
+    res.json({ success: true, count: projects.length });
+  } catch (err) {
+    logger.error('❌ Batch sync error', { error: err.message });
+    res.status(500).json({ error: 'Failed to sync projects' });
+  }
+});
 
 // POST /api/projects - Save a project
 app.post('/api/projects', verifyFirebaseToken, async (req, res) => {

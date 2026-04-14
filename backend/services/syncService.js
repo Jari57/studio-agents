@@ -1,8 +1,5 @@
 const ffmpeg = require('fluent-ffmpeg');
-const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
-const crypto = require('crypto');
 const Replicate = require('replicate');
 
 /**
@@ -112,52 +109,6 @@ async function createBillboardSyncVideo(options, logger) {
               alpha: `if(${flashExpression}, 0.4, 0)`
             },
             inputs: ['base', 'glitched_hue'],
-            outputs: 'v_final'
-          }
-        ], 'v_final')
-        .outputOptions([
-          },
-          {
-            filter: vignette,
-            inputs: 'v_grained',
-            outputs: 'v_vignetted'
-          },
-          {
-            filter: bloom,
-            inputs: 'v_vignetted',
-            outputs: 'v_bloomed'
-          },
-          {
-            filter: 'split',
-            inputs: 'v_bloomed',
-            outputs: ['v_pre_glitch', 'v_glitch_source']
-          },
-          {
-            filter: 'hue',
-            options: 'h=90',
-            inputs: 'v_glitch_source',
-            outputs: 'v_glitch_hued'
-          },
-          {
-            filter: 'scale',
-            options: 'iw/2:ih/2',
-            inputs: 'v_glitch_hued',
-            outputs: 'v_glitch_scaled_down'
-          },
-          {
-            filter: 'scale',
-            options: '1280:720',
-            inputs: 'v_glitch_scaled_down',
-            outputs: 'v_glitch_scaled_up'
-          },
-          {
-            filter: 'overlay',
-            options: {
-              x: `if(${flashExpression}, (random(0)*20)-10, 0)`,
-              y: `if(${flashExpression}, (random(0)*20)-10, 0)`,
-              enable: flashExpression
-            },
-            inputs: ['v_pre_glitch', 'v_glitch_scaled_up'],
             outputs: 'v_final'
           }
         ], 'v_final')
