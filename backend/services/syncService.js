@@ -37,44 +37,130 @@ async function createBillboardSyncVideo(options, logger) {
       const bpmInterval = 60 / bpm; // seconds between beats
       
       // Generate visual pulses based on beats or BPM if beats are missing
-      const pulses = beats.length > 0 ? beats.slice(0, 30) : Array.from({ length: 20 }, (_, i) => i * bpmInterval);
+      const pulses = beats.length > 0 ? beats.slice(0, 50) : Array.from({ length: 40 }, (_, i) => i * bpmInterval);
       
       let flashFilters = [];
-      pulses.forEach((time, index) => {
-        // Apply a subtle brightness + contrast boost on every beat
-        // g=1.1 (10% boost) fading back to 1.0 over 0.15s
+      pulses.forEach((time) => {
+        // Higher energy flash (0.12s duration) for Billboard impact
         const startTime = parseFloat(time).toFixed(3);
-        const endTime = (parseFloat(time) + 0.150).toFixed(3);
+        const endTime = (parseFloat(time) + 0.120).toFixed(3);
         flashFilters.push(`between(t,${startTime},${endTime})`);
       });
 
       const flashExpression = flashFilters.join('+');
-      const brightnessFilter = `eq=brightness='if(${flashExpression}, 0.08, 0)':contrast='if(${flashExpression}, 1.15, 1.0)'`;
+      
+      // ── ULTRA-GRADE CINEMATIC FILTER STRINGS ──
+      // 1. ANAMORPHIC RED/BLUE SHIFT: Nudging blue/red channels for dreamy lens dispersion
+      const chromaticAberration = "chromashift=cbh=2:cbv=1:crh=-2:crv=-1";
 
-      if (logger) logger.info('🎬 Building Billboard Sync Pipeline', { bpm, beats: pulses.length });
+      // 2. KODAK 500T FILM GRAIN: Organic moving temporal noise (not static)
+      const filmGrain = "noise=alls=8:allp=t+u";
+
+      // 3. VIGNETTE & BLOOM: Center focus and soft spreading highlights
+      const vignette = "vignette=PI/4";
+      const bloom = "unsharp=7:7:1.2:7:7:1.0:b=1"; // High-end "pop" sharpening
+
+      // 4. BEAT-SYNCED GLITCH (Digital distortion overlay)
+      // We use a split-and-overlay technique to shift pixels on the beat.
+
+      if (logger) logger.info('🎬 Building "Creme de la Creme" Cinematic Pipeline', { bpm, beats: pulses.length });
 
       ffmpeg()
         .input(videoPath)
         .input(audioPath)
         .complexFilter([
+          // Base Scaling & Cine-Cropping
           {
             filter: 'scale',
             options: '1280:720:force_original_aspect_ratio=increase,crop=1280:720',
             inputs: '0:v',
-            outputs: 'v_scaled'
+            outputs: 'v0'
+          },
+          // 1. Color and Flash Processing
+          {
+            filter: 'eq',
+            options: {
+              brightness: `if(${flashExpression}, 0.12, 0)`,
+              contrast: `if(${flashExpression}, 1.25, 1.0)`,
+              saturation: `if(${flashExpression}, 1.15, 1.0)`
+            },
+            inputs: 'v0',
+            outputs: 'v1'
+          },
+          // 2. Chromatic Aberration & Grain
+          { filter: chromaticAberration, inputs: 'v1', outputs: 'v2' },
+          { filter: filmGrain, inputs: 'v2', outputs: 'v3' },
+          { filter: vignette, inputs: 'v3', outputs: 'v4' },
+          { filter: bloom, inputs: 'v4', outputs: 'v5' },
+          // 3. Digital Glitch (Overlay Layer)
+          {
+            filter: 'split',
+            inputs: 'v5',
+            outputs: ['base', 'glitch']
           },
           {
-            filter: 'format',
-            options: 'yuv420p',
-            inputs: 'v_scaled',
-            outputs: 'v_format'
+            filter: 'hue',
+            options: 'h=90',
+            inputs: 'glitch',
+            outputs: 'glitched_hue'
           },
           {
-            filter: brightnessFilter,
-            inputs: 'v_format',
-            outputs: 'v_pulsed'
+            filter: 'overlay',
+            options: {
+              x: `if(${flashExpression}, (random(0)*30-15), 0)`,
+              y: `if(${flashExpression}, (random(1)*20-10), 0)`,
+              alpha: `if(${flashExpression}, 0.4, 0)`
+            },
+            inputs: ['base', 'glitched_hue'],
+            outputs: 'v_final'
           }
-        ], 'v_pulsed')
+        ], 'v_final')
+        .outputOptions([
+          },
+          {
+            filter: vignette,
+            inputs: 'v_grained',
+            outputs: 'v_vignetted'
+          },
+          {
+            filter: bloom,
+            inputs: 'v_vignetted',
+            outputs: 'v_bloomed'
+          },
+          {
+            filter: 'split',
+            inputs: 'v_bloomed',
+            outputs: ['v_pre_glitch', 'v_glitch_source']
+          },
+          {
+            filter: 'hue',
+            options: 'h=90',
+            inputs: 'v_glitch_source',
+            outputs: 'v_glitch_hued'
+          },
+          {
+            filter: 'scale',
+            options: 'iw/2:ih/2',
+            inputs: 'v_glitch_hued',
+            outputs: 'v_glitch_scaled_down'
+          },
+          {
+            filter: 'scale',
+            options: '1280:720',
+            inputs: 'v_glitch_scaled_down',
+            outputs: 'v_glitch_scaled_up'
+          },
+          {
+            filter: 'overlay',
+            options: {
+              x: `if(${flashExpression}, (random(0)*20)-10, 0)`,
+              y: `if(${flashExpression}, (random(0)*20)-10, 0)`,
+              enable: flashExpression
+            },
+            inputs: ['v_pre_glitch', 'v_glitch_scaled_up'],
+            outputs: 'v_final'
+          }
+        ], 'v_final')
         .outputOptions([
           '-map 1:a', // Take audio from 2nd input
           '-c:v libx264',
