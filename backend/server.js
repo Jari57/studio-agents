@@ -93,6 +93,10 @@ const {
   downloadAudio
 } = require('./services/audioMixingService');
 const {
+  createBillboardSyncVideo,
+  performAILipSync
+} = require('./services/syncService');
+const {
   downloadSource,
   convertAudioToWav,
   convertAudioToMp3,
@@ -7402,10 +7406,80 @@ app.post('/api/distribute/share-link', verifyFirebaseToken, requireAuth, async (
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// MUX AUDIO + VIDEO - Combine silent video with mixed audio track
-// Free — user already paid for video + audio generation
+// CREME DE LA CREME — BILLBOARD SYNC ENGINE
+// Combine mastered audio + video with lip-sync and beat-synced visuals
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/mux-audio-video', verifyFirebaseToken, requireAuth, generationLimiter, async (req, res) => {
+app.post('/api/sync/creme-de-la-creme', verifyFirebaseToken, requireAuth, checkCreditsFor('video'), generationLimiter, async (req, res) => {
+  const os = require('os');
+  const uniqueId = crypto.randomUUID();
+  const tempDir = path.join(os.tmpdir(), 'sync-creme');
+  const tempAudio = path.join(tempDir, `audio_${uniqueId}.mp3`);
+  const tempVideo = path.join(tempDir, `video_${uniqueId}.mp4`);
+  const finalPath = path.join(tempDir, `billboard_${uniqueId}.mp4`);
+
+  try {
+    const { audioUrl, videoUrl, beats = [], bpm = 128, lipSync = false } = req.body;
+    
+    if (!audioUrl || !videoUrl) {
+      return res.status(400).json({ error: 'Both audioUrl and videoUrl are required' });
+    }
+
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+    // 1. PERFORM AI LIP SYNC (If requested and not already synced)
+    let processedVideoUrl = videoUrl;
+    if (lipSync === true || lipSync === 'true') {
+      logger.info('👄 Creme de la Creme: AI Lip Sync requested');
+      try {
+        processedVideoUrl = await performAILipSync(videoUrl, audioUrl, logger);
+      } catch (err) {
+        logger.error('❌ Lip Sync failed, falling back to beat-only sync', { err });
+      }
+    }
+
+    // 2. DOWNLOAD ASSETS FOR FFmpeg PROCESSING
+    await Promise.all([
+      downloadAudio(audioUrl, tempAudio),
+      downloadAudio(processedVideoUrl, tempVideo)
+    ]);
+
+    // 3. APPLY BILLBOARD BEAT-SYNCED VISUALS
+    logger.info('🎬 Applying Billboard visual sync chain...');
+    await createBillboardSyncVideo({
+      audioPath: tempAudio,
+      videoPath: tempVideo,
+      outputPath: finalPath,
+      beats,
+      bpm
+    }, logger);
+
+    // 4. UPLOAD FINAL MASTERPIECE TO STORAGE
+    const bucket = getStorageBucket();
+    const fileName = `creme_de_la_creme_${Date.now()}.mp4`;
+    const result = await uploadToStorage(finalPath, req.user.uid, fileName, 'video/mp4');
+
+    // 5. CLEANUP
+    [tempAudio, tempVideo, finalPath].forEach(f => { if (fs.existsSync(f)) fs.unlinkSync(f); });
+
+    res.json({
+      success: true,
+      url: result.url,
+      gsPath: result.path,
+      type: 'video',
+      mastered: true,
+      synced: true,
+      lipSynced: (lipSync === true)
+    });
+
+  } catch (err) {
+    logger.error('❌ Creme de la Creme failed', { error: err.message });
+    res.status(500).json({ error: 'Sync engine error', details: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// MUX AUDIO + VIDEO - Combine silent video with mixed audio track
+// ═══════════════════════════════════════════════════════════════════
   const ffmpegStatic = require('ffmpeg-static');
   const { execFile } = require('child_process');
   const os = require('os');
