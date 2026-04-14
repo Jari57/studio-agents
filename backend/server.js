@@ -1666,6 +1666,41 @@ app.get('/api/v2/voices', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+// Delete an ElevenLabs voice (cloned voice)
+app.delete('/api/v2/voices/:voiceId', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { voiceId } = req.params;
+    const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+
+    if (!elevenLabsKey) {
+      return res.status(501).json({ error: 'ElevenLabs API key not configured' });
+    }
+
+    if (!voiceId) {
+      return res.status(400).json({ error: 'Voice ID is required' });
+    }
+
+    logger.info('🗑️ Deleting ElevenLabs voice', { voiceId });
+
+    const response = await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, {
+      method: 'DELETE',
+      headers: { 'xi-api-key': elevenLabsKey }
+    });
+
+    if (response.ok) {
+      logger.info('✅ ElevenLabs voice deleted successfully', { voiceId });
+      res.json({ success: true, message: 'Voice deleted successfully' });
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      logger.error('❌ Failed to delete ElevenLabs voice', { voiceId, status: response.status, errorData });
+      res.status(response.status).json({ error: 'Failed to delete voice from ElevenLabs', details: errorData });
+    }
+  } catch (error) {
+    logger.error('❌ Error in delete voice route', { error });
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 // ==================== UBERDUCK VOICES API ====================
 // List available Uberduck voices for rap/speech generation
 app.get('/api/uberduck/voices', verifyFirebaseToken, async (req, res) => {
