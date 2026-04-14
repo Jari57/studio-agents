@@ -140,13 +140,14 @@ async function mixAudioProfessional(options, logger) {
       vocalFilters += `,firequalizer=gain='if(gt(f,12000), 4, if(gt(f,6000), 2, 0))'`; // Dynamic high-end excitement
       vocalFilters += `,crystalizer=i=1.8:o=1.0`; // Enhances high-frequency transients for "Studio" clarity
 
-      // 2. ANALOG WARMTH (Saturation)
-      // Soft-clipping saturation to add harmonic density.
-      vocalFilters += `,anequalizer=f=3500:type=peak:q=0.8:g=2`; // Presence lift
+      // 2. ANALOG WARMTH & POCKETING (Billboard Standard)
+      // Soft-clipping saturation to add harmonic density and presence.
+      vocalFilters += `,anequalizer=f=3200:type=peak:q=1.0:g=4.5`; // Focus presence at Billboard 3.2kHz center
+      vocalFilters += `,acompressor=threshold=-18dB:ratio=4:attack=5:release=50:makeup=3`; // Modern pop compression
       
       // 3. SURROUND & SPACE (Convolution-style depth)
       // Adds subtle stereo room reverb to glue the vocal.
-      vocalFilters += `,aecho=1.0:0.8:25:0.3`; // Very subtle 25ms delay/early reflection for "thickness"
+      vocalFilters += `,aecho=1.0:0.8:20:0.2`; // Tighter early reflection for "thickness" tanpa blur
       
       // 4. SURROUND WIDENER 
       // Makes the vocal feel "larger than life," centered but with width.
@@ -178,8 +179,9 @@ async function mixAudioProfessional(options, logger) {
       // When vocals play, slightly reduce beat volume for clarity
       if (autoDuck) {
         // threshold 0.05 = lower threshold for more responsive ducking
-        // ratio 2.5 = firmer pocket for vocals
-        filterComplex.push(`[beat][vocal]sidechaincompress=threshold=0.05:ratio=2.5:attack=15:release=350:makeup=1.4[beat_ducked]`);
+        // ratio 4.0 = firmer pocket for vocals (Billboard Standard)
+        // attack 5ms = faster ducking to avoid initial clashing
+        filterComplex.push(`[beat][vocal]sidechaincompress=threshold=0.08:ratio=4.0:attack=5:release=250:makeup=1.6[beat_ducked]`);
         filterComplex.push(`[vocal][beat_ducked]amix=inputs=2:duration=longest:normalize=0[mixed]`);
       } else {
         // Simple mix without ducking — normalize=0 preserves volume
@@ -189,14 +191,16 @@ async function mixAudioProfessional(options, logger) {
       // === COMPRESSION & MASTERING CHAIN ===
       // Professional mastering-grade compression — firmer ratio for "radio" sound
       if (compression) {
-        filterComplex.push(`[mixed]acompressor=threshold=-22dB:ratio=4:attack=5:release=150:makeup=5dB[compressed]`);
-        filterComplex.push(`[compressed]alimiter=limit=0.98:attack=2:release=150[limited]`);
+        // Brickwall style mastering for Billboard loudness
+        filterComplex.push(`[mixed]acompressor=threshold=-18dB:ratio=4:attack=2:release=80:makeup=6dB[compressed]`);
+        filterComplex.push(`[compressed]alimiter=limit=0.98:attack=0.1:release=50[limited]`);
       }
 
       // === LOUDNESS NORMALIZATION ===
-      // Normalize to target LUFS for consistent streaming loudness
+      // Normalize to -9 LUFS for Billboard radio-readiness
       const finalOutput = compression ? '[limited]' : '[mixed]';
-      filterComplex.push(`${finalOutput}loudnorm=I=${lufsTarget}:TP=-1.0:LRA=14[normalized]`);
+      const billboardLufs = -9;
+      filterComplex.push(`${finalOutput}loudnorm=I=${billboardLufs}:TP=-1.0:LRA=7[normalized]`);
 
       // === OUTPUT FORMAT SPECIFIC PROCESSING ===
       let finalFilters = '[normalized]';
