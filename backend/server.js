@@ -5963,8 +5963,6 @@ Return ONLY valid JSON, no markdown.`;
 
         // Use the highest quality model available
         const model_id = 'eleven_multilingual_v2';
-        // Request 192kbps MP3 for studio quality
-        const output_format = 'mp3_44100_192';
 
         // 60-second timeout for ElevenLabs TTS
         const elAbort = new AbortController();
