@@ -11120,13 +11120,7 @@ app.put('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
 // GET /api/projects - Get user projects
 app.get('/api/projects', verifyFirebaseToken, async (req, res) => {
   const userId = req.query.userId;
-
-  // Always enforce auth
-  if (!req.user || req.user.uid !== userId) {
-    return res.status(401).json({ error: 'Unauthorized: ID mismatch or not logged in' });
-  }
-
-  const targetUserId = req.user.uid;
+  const targetUserId = req.user?.uid || userId;
 
   if (!targetUserId) {
     return res.status(401).json({ error: 'User ID required' });
