@@ -1705,6 +1705,85 @@ app.delete('/api/v2/voices/:voiceId', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+// ==================== VOICE PREVIEW (TTS SAMPLE) ====================
+// Generate a short TTS sample so users can audition a voice before using it
+app.post('/api/voice-preview', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { voiceId, text } = req.body;
+    if (!voiceId || !text) {
+      return res.status(400).json({ error: 'voiceId and text are required' });
+    }
+
+    // Limit preview text length to prevent abuse
+    const previewText = String(text).slice(0, 300);
+
+    const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+    if (!elevenLabsKey) {
+      // Fallback: Gemini TTS preview
+      const geminiKey = process.env.GEMINI_API_KEY;
+      if (!geminiKey) {
+        return res.status(501).json({ error: 'No TTS provider configured' });
+      }
+
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+      const geminiRes = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: previewText }] }],
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+          }
+        })
+      });
+
+      if (geminiRes.ok) {
+        const geminiData = await geminiRes.json();
+        const audioPart = geminiData?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        if (audioPart) {
+          const audioUrl = `data:${audioPart.inlineData.mimeType || 'audio/wav'};base64,${audioPart.inlineData.data}`;
+          return res.json({ audioUrl, provider: 'gemini' });
+        }
+      }
+      return res.status(500).json({ error: 'Gemini TTS preview failed' });
+    }
+
+    // ElevenLabs TTS
+    logger.info('🎧 Voice preview request', { voiceId: voiceId.substring(0, 12), textLen: previewText.length });
+
+    const ttsRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': elevenLabsKey,
+        'Content-Type': 'application/json',
+        'Accept': 'audio/mpeg'
+      },
+      body: JSON.stringify({
+        text: previewText,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+      })
+    });
+
+    if (!ttsRes.ok) {
+      const errData = await ttsRes.json().catch(() => ({}));
+      logger.error('ElevenLabs TTS preview failed', { status: ttsRes.status, errData });
+      return res.status(ttsRes.status).json({ error: 'Voice preview failed', details: errData });
+    }
+
+    // Convert to base64 data URL for client playback
+    const audioBuffer = Buffer.from(await ttsRes.arrayBuffer());
+    const audioUrl = `data:audio/mpeg;base64,${audioBuffer.toString('base64')}`;
+    
+    logger.info('✅ Voice preview generated', { voiceId: voiceId.substring(0, 12), size: audioBuffer.length });
+    res.json({ audioUrl, provider: 'elevenlabs' });
+  } catch (err) {
+    logger.error('Voice preview error:', err);
+    res.status(500).json({ error: 'Voice preview failed', details: safeErrorDetail(err) });
+  }
+});
+
 // ==================== UBERDUCK VOICES API ====================
 // List available Uberduck voices for rap/speech generation
 app.get('/api/uberduck/voices', verifyFirebaseToken, async (req, res) => {
@@ -5098,6 +5177,22 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
         if (cleaned.split('\n').length < 2) return ''; 
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // NUCLEAR FINAL STEP: Strip ALL structural labels from the text.
+      // TTS engines must NEVER see [Verse], [Chorus], "Verse 1:", "(Chorus)", etc.
+      // If they do, they will literally speak "Verse one" or "Chorus" aloud.
+      // ═══════════════════════════════════════════════════════════════
+      cleaned = cleaned
+        // Bracketed tags: [Verse], [Chorus 2], [Pre-Chorus], [Hook], [Bridge], [Intro], [Outro]
+        .replace(/\[(?:Verse|Chorus|Pre-Chorus|Hook|Bridge|Intro|Outro|Section|Body|Lyrics|Refrain|Interlude|Breakdown|Drop|Tag|End|Coda)[^\]]*\]/gi, '')
+        // Parenthesised tags: (Verse 1), (Chorus), (Bridge)
+        .replace(/\((?:Verse|Chorus|Pre-Chorus|Hook|Bridge|Intro|Outro|Refrain|Interlude)\s*\d*\)/gi, '')
+        // Colon-suffixed labels on their own line: "Verse 1:", "Chorus:", "Bridge:"
+        .replace(/^\s*(?:Verse|Chorus|Pre-Chorus|Hook|Bridge|Intro|Outro|Refrain|Interlude|Breakdown)(?:\s*\d+)?\s*[:.]?\s*$/gim, '')
+        // Collapse resulting blank lines
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
       return cleaned;
     }
     const cleanedPrompt = cleanLyricsForVocal(prompt);
@@ -5250,12 +5345,36 @@ Return ONLY valid JSON, no markdown.`;
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // ARTIST-FIRST ROUTING: Clone > ElevenLabs Curated > everything else
+    // When the artist has cloned their voice, that's THE voice. Period.
+    // When ElevenLabs is configured, use curated realistic voices — skip
+    // Suno/Bark/Gemini/Uberduck TTS entirely (they produce garbage).
+    // ═══════════════════════════════════════════════════════════════
+    const hasClonedVoice = style === 'cloned' || speakerUrl || req.body.elevenLabsVoiceId;
+    const elevenLabsAvailable = !!elevenLabsKey;
+    
+    // If artist has a clone OR ElevenLabs is available, skip Suno and Bark entirely
+    // — jump straight to voice cloning / ElevenLabs curated voices
+    let skipSunoForClone = false;
+    let skipBarkForClone = false;
+    if (hasClonedVoice) {
+      skipSunoForClone = true;
+      skipBarkForClone = true;
+      logger.info('🎙️ ARTIST-FIRST: Cloned voice detected, routing directly to ElevenLabs IVC');
+    } else if (elevenLabsAvailable && !wantProvider) {
+      // ElevenLabs curated voices are realistic — skip Suno/Bark TTS
+      skipSunoForClone = true;
+      skipBarkForClone = true;
+      logger.info('🎙️ ARTIST-FIRST: ElevenLabs available, using curated voices (skipping Suno/Bark)');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // PRIORITY 0: SUNO API — Real AI singing/rapping (when API key configured)
     // Suno produces actual musical performances: singing, rapping, melodic delivery.
     // Activated for: singers, rappers, and premium quality requests.
     // ═══════════════════════════════════════════════════════════════
     const useSunoForVocals = isSingingStyle || isRapStyle || req.body.quality === 'premium';
-    const skipSuno = wantProvider && wantProvider !== 'suno';
+    const skipSuno = skipSunoForClone || (wantProvider && wantProvider !== 'suno');
     
     // Check for "raspy" or "gritty" texture request in the prompt/style
     const searchSpace = (cleanedPrompt + ' ' + (req.body.style || '') + ' ' + (req.body.genre || '')).toLowerCase();
@@ -5394,7 +5513,7 @@ Return ONLY valid JSON, no markdown.`;
     // PRIORITY 1 (SINGERS): Bark SINGING mode — produces actual melody
     // Bark with music note markers generates pitched vocal melody, not flat TTS
     // ═══════════════════════════════════════════════════════════════
-    const skipBarkSinging = wantProvider && wantProvider !== 'bark-singing';
+    const skipBarkSinging = skipBarkForClone || (wantProvider && wantProvider !== 'bark-singing');
     if (replicateKey && !audioUrl && isSingingStyle && !skipBarkSinging) {
       try {
         logger.info('🎵 Using Bark SINGING mode', { style, langCode, genre });
@@ -5495,6 +5614,131 @@ Return ONLY valid JSON, no markdown.`;
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // CLONE QUALITY GATE — Auto-regenerate clones rated below 3.5/5
+    // Uses audio heuristics + optional Gemini evaluation to rate quality.
+    // Returns { score, shouldRegenerate, feedback }
+    // ═══════════════════════════════════════════════════════════════
+    const MIN_CLONE_QUALITY = 3.5;
+    const MAX_CLONE_RETRIES = 2;
+
+    async function evaluateCloneQuality(audioBase64, originalSampleUrl, attempt) {
+      // Heuristic checks first (fast, no API call)
+      const audioBytes = Buffer.from(audioBase64, 'base64');
+      const sizeKB = audioBytes.length / 1024;
+
+      // Too small = silence or garbage
+      if (sizeKB < 5) {
+        return { score: 1.0, shouldRegenerate: true, feedback: 'Audio too small — likely silence or corrupt' };
+      }
+      // Very short for expected vocal content
+      if (sizeKB < 20) {
+        return { score: 2.0, shouldRegenerate: true, feedback: 'Audio suspiciously short for vocal content' };
+      }
+
+      // Gemini quality evaluation (if available)
+      const geminiKey = process.env.GEMINI_API_KEY;
+      if (geminiKey) {
+        try {
+          const evalUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+          const evalResp = await fetch(evalUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: 'audio/mpeg',
+                      data: audioBase64.length > 500000 ? audioBase64.substring(0, 500000) : audioBase64
+                    }
+                  },
+                  {
+                    text: `Rate this AI-generated vocal clone on a scale of 1.0 to 5.0 based on:
+- Voice clarity and intelligibility (can you understand the words?)
+- Natural human-like quality (does it sound like a real person?)
+- Audio quality (no artifacts, glitches, static, or robotic distortion?)
+- Expressiveness (does it have emotion and natural rhythm?)
+
+Respond ONLY with a JSON object: {"score": 4.2, "feedback": "brief reason"}
+Do NOT include any other text.`
+                  }
+                ]
+              }]
+            })
+          });
+
+          if (evalResp.ok) {
+            const evalData = await evalResp.json();
+            const evalText = evalData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            // Extract JSON from response
+            const jsonMatch = evalText.match(/\{[^}]*"score"\s*:\s*([\d.]+)[^}]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              const score = parseFloat(parsed.score);
+              if (!isNaN(score)) {
+                logger.info(`🎯 Clone quality evaluation (attempt ${attempt + 1})`, { score, feedback: parsed.feedback });
+                return {
+                  score,
+                  shouldRegenerate: score < MIN_CLONE_QUALITY,
+                  feedback: parsed.feedback || ''
+                };
+              }
+            }
+          }
+        } catch (evalErr) {
+          logger.warn('Clone quality evaluation failed (non-fatal)', { error: evalErr.message });
+        }
+      }
+
+      // If Gemini eval failed, use size-based heuristic (generous pass)
+      const estimatedScore = Math.min(4.5, 2.5 + (sizeKB / 200));
+      return { score: estimatedScore, shouldRegenerate: estimatedScore < MIN_CLONE_QUALITY, feedback: 'Heuristic estimate (no AI eval)' };
+    }
+
+    // Helper: generate clone TTS with given voice settings, return { audioBase64, byteLength } or null
+    async function generateCloneTTS(voiceId, text, voiceSettings) {
+      const ttsAbort = new AbortController();
+      const ttsTimeout = setTimeout(() => ttsAbort.abort(), 90000);
+      try {
+        const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_192`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'audio/mpeg',
+            'xi-api-key': elevenLabsKey,
+            'Content-Type': 'application/json'
+          },
+          signal: ttsAbort.signal,
+          body: JSON.stringify({
+            text: text.substring(0, 5000),
+            model_id: 'eleven_multilingual_v2',
+            voice_settings: voiceSettings
+          })
+        });
+        clearTimeout(ttsTimeout);
+        if (ttsResp.ok) {
+          const audioBuf = await ttsResp.arrayBuffer();
+          if (audioBuf.byteLength > 1000) {
+            return { audioBase64: Buffer.from(audioBuf).toString('base64'), byteLength: audioBuf.byteLength };
+          }
+        }
+        return null;
+      } catch (e) {
+        clearTimeout(ttsTimeout);
+        return null;
+      }
+    }
+
+    // Helper: bump voice settings for retry attempts (increase strictness each retry)
+    function bumpCloneSettings(settings, attempt) {
+      return {
+        stability: Math.min(0.98, settings.stability + (attempt * 0.08)),
+        similarity_boost: Math.min(0.99, settings.similarity_boost + (attempt * 0.03)),
+        style: Math.max(0.20, settings.style - (attempt * 0.10)),
+        use_speaker_boost: true
+      };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // VOICE CLONING — ElevenLabs Instant Clone + XTTS v2 fallback
     // Must run BEFORE generic ElevenLabs to prevent generic voice override
     // ═══════════════════════════════════════════════════════════════
@@ -5541,12 +5785,11 @@ Return ONLY valid JSON, no markdown.`;
       // Use cached clone if available, otherwise create a new one
       if (elevenLabsKey && speakerUrl && persistedCloneId) {
         // ── FAST PATH: Generate TTS with the persisted clone voice ──
+        // Quality gate: auto-regenerate if clone quality < 3.5/5
         try {
           const isStrict = req.body.quality === 'ultra' || style === 'cloned';
-          const cloneAbort = new AbortController();
-          const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
-          const cloneVoiceSettings = {
+          let cloneVoiceSettings = {
             stability: isStrict ? 0.82 : 0.70,
             similarity_boost: isStrict ? 0.97 : 0.88,
             style: isStrict ? 0.45 : 0.65,
@@ -5560,42 +5803,47 @@ Return ONLY valid JSON, no markdown.`;
             cloneVoiceSettings.style = Math.max(0.50, Math.min(0.75, 0.52 + (energy * 0.023)));
           }
 
-          const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${persistedCloneId}?output_format=mp3_44100_192`, {
-            method: 'POST',
-            headers: {
-              'Accept': 'audio/mpeg',
-              'xi-api-key': elevenLabsKey,
-              'Content-Type': 'application/json'
-            },
-            signal: cloneAbort.signal,
-            body: JSON.stringify({
-              text: clonePrompt.substring(0, 5000),
-              model_id: 'eleven_multilingual_v2',
-              voice_settings: cloneVoiceSettings
-            })
-          });
-          clearTimeout(cloneTimeout);
+          // Generate + evaluate + auto-retry loop
+          for (let attempt = 0; attempt <= MAX_CLONE_RETRIES; attempt++) {
+            const settings = attempt === 0 ? cloneVoiceSettings : bumpCloneSettings(cloneVoiceSettings, attempt);
+            const result = await generateCloneTTS(persistedCloneId, clonePrompt, settings);
 
-          if (ttsResp.ok) {
-            const audioBuf = await ttsResp.arrayBuffer();
-            if (audioBuf.byteLength > 1000) {
-              audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioBuf).toString('base64')}`;
+            if (!result) {
+              logger.warn(`Clone TTS attempt ${attempt + 1} returned no audio`);
+              if (attempt === 0) {
+                // Cached voice may be deleted — clear cache and fall through to re-clone
+                persistedCloneId = null;
+                const db = getFirestoreDb();
+                if (db && req.user?.uid) {
+                  const staleSnap = await db.collection('users').doc(req.user.uid)
+                    .collection('voices')
+                    .where('speakerUrl', '==', speakerUrl)
+                    .where('provider', '==', 'elevenlabs-ivc')
+                    .get();
+                  for (const doc of staleSnap.docs) await doc.ref.delete();
+                }
+                break;
+              }
+              continue;
+            }
+
+            // Quality gate
+            const quality = await evaluateCloneQuality(result.audioBase64, speakerUrl, attempt);
+            
+            if (!quality.shouldRegenerate || attempt === MAX_CLONE_RETRIES) {
+              audioUrl = `data:audio/mpeg;base64,${result.audioBase64}`;
               provider = 'elevenlabs-clone';
-              logger.info('✅ ElevenLabs cloned vocal generated (cached voice)', { voiceId: persistedCloneId, bytes: audioBuf.byteLength });
+              logger.info(`✅ ElevenLabs cloned vocal accepted (attempt ${attempt + 1})`, { 
+                voiceId: persistedCloneId, bytes: result.byteLength, 
+                qualityScore: quality.score, feedback: quality.feedback 
+              });
+              break;
             }
-          } else {
-            // Cached voice may have been deleted externally — clear cache and fall through to re-clone
-            logger.warn('Cached clone voice TTS failed, will re-clone', { status: ttsResp.status });
-            persistedCloneId = null;
-            const db = getFirestoreDb();
-            if (db && req.user?.uid) {
-              const staleSnap = await db.collection('users').doc(req.user.uid)
-                .collection('voices')
-                .where('speakerUrl', '==', speakerUrl)
-                .where('provider', '==', 'elevenlabs-ivc')
-                .get();
-              for (const doc of staleSnap.docs) await doc.ref.delete();
-            }
+
+            logger.info(`🔄 Clone quality ${quality.score.toFixed(1)} < ${MIN_CLONE_QUALITY}, auto-regenerating (attempt ${attempt + 2})`, {
+              feedback: quality.feedback,
+              nextStability: bumpCloneSettings(cloneVoiceSettings, attempt + 1).stability.toFixed(2)
+            });
           }
         } catch (cachedCloneErr) {
           logger.error('Cached clone TTS error:', cachedCloneErr.message);
@@ -5655,15 +5903,13 @@ Return ONLY valid JSON, no markdown.`;
             }
           persistedCloneId = clonedVoiceId;
 
-          // Generate TTS with the cloned voice
+          // Generate TTS with the cloned voice — with quality gate + auto-regen
           const isStrict = req.body.quality === 'ultra' || style === 'cloned';
-          const cloneAbort = new AbortController();
-          const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
-          const cloneVoiceSettings = {
-            stability: isStrict ? 0.82 : 0.70,         // higher stability for strict clones
-            similarity_boost: isStrict ? 0.97 : 0.88,  // MAX fidelity for strict clones
-            style: isStrict ? 0.45 : 0.65,             // lower style bleed for strict similarity
+          let cloneVoiceSettings = {
+            stability: isStrict ? 0.82 : 0.70,
+            similarity_boost: isStrict ? 0.97 : 0.88,
+            style: isStrict ? 0.45 : 0.65,
             use_speaker_boost: true
           };
 
@@ -5674,35 +5920,32 @@ Return ONLY valid JSON, no markdown.`;
             cloneVoiceSettings.style = Math.max(0.50, Math.min(0.75, 0.52 + (energy * 0.023)));
           }
 
-            const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${clonedVoiceId}?output_format=mp3_44100_192`, {
-              method: 'POST',
-              headers: {
-                'Accept': 'audio/mpeg',
-                'xi-api-key': elevenLabsKey,
-                'Content-Type': 'application/json'
-              },
-              signal: cloneAbort.signal,
-              body: JSON.stringify({
-                text: clonePrompt.substring(0, 5000),
-                model_id: 'eleven_multilingual_v2',
-                voice_settings: cloneVoiceSettings
-              })
-            });
-            clearTimeout(cloneTimeout);
+          // Quality gate retry loop
+          for (let attempt = 0; attempt <= MAX_CLONE_RETRIES; attempt++) {
+            const settings = attempt === 0 ? cloneVoiceSettings : bumpCloneSettings(cloneVoiceSettings, attempt);
+            const result = await generateCloneTTS(clonedVoiceId, clonePrompt, settings);
 
-            if (ttsResp.ok) {
-              const audioBuf = await ttsResp.arrayBuffer();
-              if (audioBuf.byteLength > 1000) {
-                audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioBuf).toString('base64')}`;
-                provider = 'elevenlabs-clone';
-                logger.info('✅ ElevenLabs cloned vocal generated', { voiceId: clonedVoiceId, bytes: audioBuf.byteLength });
-              } else {
-                logger.warn('ElevenLabs clone TTS returned suspiciously small audio', { bytes: audioBuf.byteLength });
-              }
-            } else {
-              const ttsErr = await ttsResp.text().catch(() => '');
-              logger.warn('ElevenLabs clone TTS failed', { status: ttsResp.status, error: ttsErr.substring(0, 200) });
+            if (!result) {
+              logger.warn(`New clone TTS attempt ${attempt + 1} returned no audio`);
+              continue;
             }
+
+            const quality = await evaluateCloneQuality(result.audioBase64, speakerUrl, attempt);
+
+            if (!quality.shouldRegenerate || attempt === MAX_CLONE_RETRIES) {
+              audioUrl = `data:audio/mpeg;base64,${result.audioBase64}`;
+              provider = 'elevenlabs-clone';
+              logger.info(`✅ New clone vocal accepted (attempt ${attempt + 1})`, {
+                voiceId: clonedVoiceId, bytes: result.byteLength,
+                qualityScore: quality.score, feedback: quality.feedback
+              });
+              break;
+            }
+
+            logger.info(`🔄 New clone quality ${quality.score.toFixed(1)} < ${MIN_CLONE_QUALITY}, auto-regenerating (attempt ${attempt + 2})`, {
+              feedback: quality.feedback
+            });
+          }
             // Voice is PERSISTED — do NOT delete it
           } else {
             const errBody = await addVoiceResp.text().catch(() => '');
@@ -6051,7 +6294,7 @@ Return ONLY valid JSON, no markdown.`;
     // NOTE: No longer blocked by backingTrackUrl — TTS fallback is better than 503.
     // The separate /api/create-final-mix step will overlay vocals on beat later.
     // ═══════════════════════════════════════════════════════════════
-    const skipBarkSpoken = wantProvider && wantProvider !== 'bark';
+    const skipBarkSpoken = skipBarkForClone || (wantProvider && wantProvider !== 'bark');
     if (replicateKey && !audioUrl && !isSingingStyle && style !== 'cloned' && !skipBarkSpoken) {
       try {
         logger.info('🎤 Using Bark for expressive vocal generation', { style, langCode });
@@ -6161,13 +6404,23 @@ Return ONLY valid JSON, no markdown.`;
         let geminiVoice = 'Kore';
         if (style.includes('female')) geminiVoice = 'Puck';
         
-        // gemini-2.0-flash supports audio response modality (1.5 does not)
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiKey}`;
+        // Build the performance instruction — tell Gemini to PERFORM, not describe
+        const performanceDirection = isSingingStyle
+          ? `Sing the following lyrics with natural melody, emotion, and musical phrasing. Perform it as a real song — do NOT describe, narrate, or add any commentary. Just sing:`
+          : isRapStyle
+          ? `Rap the following lyrics with rhythmic flow, punch, and attitude. Perform it as a real rap performance — do NOT describe, narrate, or add any commentary. Just rap:`
+          : `Read the following lyrics aloud with expressive vocal performance. Do NOT describe, summarize, or add any commentary. Just perform the text exactly as written:`;
+
+        // Use cleanedPrompt (preamble + structural tags already stripped)
+        const ttsText = `${performanceDirection}\n\n${cleanedPrompt}`;
+        
+        // Use stable model — gemini-2.0-flash-exp is retired
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
         const geminiResponse = await fetch(geminiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
+            contents: [{ parts: [{ text: ttsText }] }],
             generationConfig: {
               responseModalities: ['AUDIO'],
               speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: geminiVoice } } }

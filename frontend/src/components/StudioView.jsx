@@ -63,6 +63,7 @@ const NewsHub = React.lazy(() => import('./NewsHub'));
 const AdminAnalytics = React.lazy(() => import('./AdminAnalytics'));
 const GuidedTour = React.lazy(() => import('./GuidedTour'));
 const StudioOnboarding = React.lazy(() => import('./StudioOnboarding'));
+const MediaLibrary = React.lazy(() => import('./MediaLibrary'));
 import AchievementBadges, { useBadgeTracker } from './AchievementBadges';
 
 // -------------------------------------------------------------------------------
@@ -445,6 +446,7 @@ const MORE_MENU_ITEMS = [
   { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-pink)' },
   { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-emerald)' },
   { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-yellow)' },
+  { id: 'media_library', icon: Layers, label: 'Media Library', desc: 'Voices, audio, images & video', color: 'var(--color-pink)' },
   { id: 'dna', icon: Layers, label: 'DNA System', desc: 'Visual, audio & lyrics DNA', color: 'var(--color-emerald)', external: true },
   { id: 'vocals', icon: Mic, label: 'Vocal Lab', desc: '20+ voices & voice cloning', color: '#fbbf24', external: true },
   { id: 'billboard', icon: Award, label: 'Billboard Blueprint', desc: 'Make a hit record start to finish', color: 'var(--color-yellow)', external: true },
@@ -558,7 +560,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   });
 
   // --- NAVIGATION & UI ---
-  const VALID_TABS = ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub', 'whitepapers', 'legal', 'support', 'profile', 'more', 'project_canvas'];
+  const VALID_TABS = ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub', 'whitepapers', 'legal', 'support', 'profile', 'more', 'project_canvas', 'media_library'];
   const [activeTab, _setActiveTab] = useState(() => {
     const hash = window.location.hash;
     if (hash.startsWith('#/studio/')) {
@@ -9117,6 +9119,7 @@ ABSOLUTE RULES (violating any = failure):
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-orange)' },
           { id: 'hub', icon: FolderPlus, label: 'Project Hub', desc: 'Shared by Studio Agent users', color: 'var(--color-blue)' },
           { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-purple)' },
+          { id: 'media_library', icon: Layers, label: 'Media Library', desc: 'Voices, audio, images & video', color: 'var(--color-pink)' },
           { id: 'dna', icon: Layers, label: 'DNA System', desc: 'Visual, audio & lyrics DNA', color: 'var(--color-emerald)', external: true },
           { id: 'vocals', icon: Mic, label: 'Vocal Lab', desc: '20+ voices & voice cloning', color: 'var(--color-pink)', external: true },
           { id: 'billboard', icon: Award, label: 'Billboard Blueprint', desc: 'Make a hit record start to finish', color: 'var(--color-yellow)', external: true },
@@ -10772,6 +10775,17 @@ ABSOLUTE RULES (violating any = failure):
           </div>
         );
       }
+      case 'media_library':
+        return (
+          <Suspense fallback={<div className="p-8 text-center animate-fadeIn"><div style={{ opacity: 0.6 }}>Loading media library...</div></div>}>
+            <MediaLibrary
+              user={user}
+              authToken={userToken}
+              isMobile={isMobile}
+              toast={toast}
+            />
+          </Suspense>
+        );
       default:
         setActiveTab('agents');
         return null;

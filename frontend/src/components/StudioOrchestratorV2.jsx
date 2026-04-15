@@ -7370,36 +7370,23 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   outline: 'none'
                 }}
               >
-                <optgroup label="🔥 Male Rappers">
-                  <option value="rapper">🎤 Rapper (Deep / Aggressive)</option>
-                  <option value="rapper-melodic">🎵 Rapper (Melodic / Smooth)</option>
-                  <option value="rapper-young">⚡ Rapper (Young / Trap)</option>
+                <optgroup label="🎙️ Your Voice">
+                  <option value="cloned" disabled={!voiceSampleUrl && !clonedVoiceId}>
+                    {(voiceSampleUrl || clonedVoiceId) ? '✨ My Cloned Voice' : '✨ My Voice (Upload sample below)'}
+                  </option>
+                  {savedVoices.length > 0 && savedVoices.map(voice => (
+                    <option key={voice.id} value={`saved-${voice.id}`}>🎙️ {voice.name || 'Saved Voice'}</option>
+                  ))}
                 </optgroup>
-                <optgroup label="💜 Female Rappers">
-                  <option value="rapper-female">💜 Female Rapper (Powerful)</option>
-                  <option value="rapper-female-melodic">🎵 Female Rapper (Melodic)</option>
+                <optgroup label="🔥 Sample Voices — Male">
+                  <option value="rapper">Arnold — Deep &amp; Commanding (Rap)</option>
+                  <option value="rapper-melodic">Antoni — Smooth &amp; Melodic (R&amp;B/Rap)</option>
+                  <option value="rapper-young">Josh — Young &amp; Dynamic (Trap)</option>
                 </optgroup>
-                <optgroup label="🎵 Male Singers">
-                  <option value="singer">🎤 Male Singer (R&B/Soul)</option>
-                  <option value="singer-pop">🌟 Male Singer (Pop)</option>
-                </optgroup>
-                <optgroup label="💫 Female Singers">
-                  <option value="singer-female">💫 Female Singer (R&B/Soul)</option>
-                  <option value="singer-female-pop">🌟 Female Singer (Pop)</option>
-                </optgroup>
-                <optgroup label="🗣️ Narration">
-                  <option value="narrator">📢 Narrator (Deep Voice)</option>
-                  <option value="spoken">💬 Spoken Word</option>
-                </optgroup>
-                <optgroup label="🧬 Voice Cloning">
-                  <option value="cloned" disabled={!voiceSampleUrl && !clonedVoiceId}>✨ Cloned Voice {(!voiceSampleUrl && !clonedVoiceId) && '(Upload sample first)'}</option>
-                  {savedVoices.length > 0 && (
-                    <optgroup label="🗄️ Saved Voices">
-                      {savedVoices.map(voice => (
-                        <option key={voice.id} value={`saved-${voice.id}`}>👤 {voice.name || 'Unnamed Voice'}</option>
-                      ))}
-                    </optgroup>
-                  )}
+                <optgroup label="💜 Sample Voices — Female">
+                  <option value="rapper-female">Freya — Powerful &amp; Bold (Rap)</option>
+                  <option value="singer-female">Rachel — Warm &amp; Soulful (R&amp;B)</option>
+                  <option value="singer-female-pop">Bella — Sweet &amp; Clear (Pop)</option>
                 </optgroup>
               </select>
 
