@@ -5439,6 +5439,9 @@ Return ONLY valid JSON, no markdown.`;
         
         // Use centralised cleanedPrompt — preamble already stripped at route entry
         let sunoLyrics = cleanedPrompt.substring(0, 2999);
+        if (cleanedPrompt.length > 2999) {
+          logger.warn('⚠️ Suno lyrics truncated', { original: cleanedPrompt.length, truncated: 2999, lostChars: cleanedPrompt.length - 2999 });
+        }
         
         // Extract a real title from the lyrics (first non-empty line after cleaning, fallback to songIdea)
         let sunoTitle = (sunoLyrics.replace(/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\]/gi, '').split('\n').find(l => l.trim()) || req.body.title || 'Studio Track').substring(0, 80);
@@ -5474,6 +5477,7 @@ Return ONLY valid JSON, no markdown.`;
           const clipId = sunoData.id || sunoData.clip_id || (sunoData.clips && sunoData.clips[0]?.id);
           if (clipId) {
             emit('vocals', 'suno-polling');
+            let sunoTimedOut = true;
             for (let i = 0; i < 60 && !audioUrl; i++) {
               await new Promise(r => setTimeout(r, 3000));
               emit('vocals', `suno-poll-${i + 1}`);
@@ -5484,6 +5488,7 @@ Return ONLY valid JSON, no markdown.`;
                 const clips = await statusResp.json();
                 const clip = Array.isArray(clips) ? clips[0] : clips;
                 if (clip?.status === 'complete' && clip?.audio_url) {
+                  sunoTimedOut = false;
                   const audioResponse = await fetch(clip.audio_url);
                   if (audioResponse.ok) {
                     const audioBuffer = await audioResponse.arrayBuffer();
@@ -5494,10 +5499,14 @@ Return ONLY valid JSON, no markdown.`;
                   }
                   break;
                 } else if (clip?.status === 'error') {
+                  sunoTimedOut = false;
                   logger.warn('Suno generation failed:', clip.error_message);
                   break;
                 }
               }
+            }
+            if (sunoTimedOut && !audioUrl) {
+              logger.error('⏱️ Suno polling timeout after 180s — falling through to next provider', { clipId });
             }
           }
         } else {
@@ -5690,8 +5699,12 @@ Do NOT include any other text.`
         }
       }
 
-      // If Gemini eval failed, use size-based heuristic (generous pass)
-      const estimatedScore = Math.min(4.5, 2.5 + (sizeKB / 200));
+      // If Gemini eval failed, use stricter size-based heuristic
+      // Require at least 50KB for credible vocal content (~2-3 seconds of MP3)
+      if (sizeKB < 50) {
+        return { score: 2.0, shouldRegenerate: true, feedback: 'Audio too short for credible vocal (heuristic)' };
+      }
+      const estimatedScore = Math.min(4.0, 3.0 + (sizeKB / 400));
       return { score: estimatedScore, shouldRegenerate: estimatedScore < MIN_CLONE_QUALITY, feedback: 'Heuristic estimate (no AI eval)' };
     }
 
@@ -5728,12 +5741,13 @@ Do NOT include any other text.`
       }
     }
 
-    // Helper: bump voice settings for retry attempts (increase strictness each retry)
+    // Helper: bump voice settings for retry attempts — loosen stability, boost expressiveness
+    // When quality is low, the clone sounds robotic. Fix = MORE expression, LESS rigidity.
     function bumpCloneSettings(settings, attempt) {
       return {
-        stability: Math.min(0.98, settings.stability + (attempt * 0.08)),
-        similarity_boost: Math.min(0.99, settings.similarity_boost + (attempt * 0.03)),
-        style: Math.max(0.20, settings.style - (attempt * 0.10)),
+        stability: Math.max(0.45, settings.stability - (attempt * 0.10)),
+        similarity_boost: Math.min(0.99, settings.similarity_boost + (attempt * 0.02)),
+        style: Math.min(0.90, settings.style + (attempt * 0.12)),
         use_speaker_boost: true
       };
     }
@@ -5773,8 +5787,26 @@ Do NOT include any other text.`
               .limit(1)
               .get();
             if (!cachedSnap.empty) {
-              persistedCloneId = cachedSnap.docs[0].data().voiceId;
-              logger.info('🎤 Reusing cached ElevenLabs clone', { voiceId: persistedCloneId, speakerUrl: speakerUrl.substring(0, 60) });
+              const candidateId = cachedSnap.docs[0].data().voiceId;
+              // Quick verify the voice still exists on ElevenLabs before using it
+              try {
+                const verifyResp = await fetch(`https://api.elevenlabs.io/v1/voices/${candidateId}`, {
+                  method: 'GET',
+                  headers: { 'xi-api-key': elevenLabsKey }
+                });
+                if (verifyResp.ok) {
+                  persistedCloneId = candidateId;
+                  logger.info('🎤 Reusing cached ElevenLabs clone (verified)', { voiceId: persistedCloneId, speakerUrl: speakerUrl.substring(0, 60) });
+                } else {
+                  logger.warn('🗑️ Cached clone voice no longer exists on ElevenLabs, will re-clone', { voiceId: candidateId });
+                  // Clean up stale Firestore entry
+                  await cachedSnap.docs[0].ref.delete();
+                }
+              } catch (verifyErr) {
+                // Network error verifying — still try to use it
+                persistedCloneId = candidateId;
+                logger.warn('Clone verify request failed, using cached ID anyway', { error: verifyErr.message });
+              }
             }
           }
         } catch (cacheErr) {
@@ -6007,9 +6039,18 @@ Do NOT include any other text.`
                     if (audioResponse.ok) {
                       const audioBuffer = await audioResponse.arrayBuffer();
                       const base64Audio = Buffer.from(audioBuffer).toString('base64');
+
+                      // Quality gate for XTTS clones (same as ElevenLabs path)
+                      const xttsQuality = await evaluateCloneQuality(base64Audio, speakerUrl, 0);
+                      if (xttsQuality.shouldRegenerate) {
+                        logger.warn('XTTS clone quality below threshold', { score: xttsQuality.score, feedback: xttsQuality.feedback });
+                        // Don't accept — let it fall through to next provider
+                        break;
+                      }
+
                       audioUrl = `data:audio/wav;base64,${base64Audio}`;
                       provider = 'xtts-v2-clone';
-                      logger.info('✅ Voice cloned successfully via XTTS v2');
+                      logger.info('✅ Voice cloned successfully via XTTS v2', { qualityScore: xttsQuality.score });
                       break;
                     }
                   }
@@ -6186,9 +6227,15 @@ Do NOT include any other text.`
         const voiceSettings = {
           stability:        isClonedMode ? 0.88 : (reflectsUltra ? 0.85 : 0.75), 
           similarity_boost: isClonedMode ? 0.98 : (reflectsUltra ? 0.95 : 0.90),
-          style:            isClonedMode ? 0.40 : (reflectsUltra ? 0.85 : 0.65),
+          style:            isClonedMode ? 0.55 : (reflectsUltra ? 0.85 : 0.65),
           use_speaker_boost: true
         };
+
+        // Rapper voices need punch and dynamics — never let them sound flat/robotic
+        if (isRapStyle && !isClonedMode) {
+          voiceSettings.style = Math.max(0.72, voiceSettings.style);
+          voiceSettings.stability = Math.min(0.75, voiceSettings.stability);
+        }
 
         // Texture-based stability adjustment
         if (isRaspyRequested && !isClonedMode) {
@@ -6217,11 +6264,12 @@ Do NOT include any other text.`
           const depth = parseInt(refSongAnalysis.depth) || 5;
 
           if (hasDnaVoice) {
-            voiceSettings.stability = Math.max(0.68, Math.min(0.85, 0.70 + (warmth * 0.015)));
+            // Warmth = expressiveness (lower stability), energy = style drive, depth = clone fidelity
+            voiceSettings.stability = Math.max(0.55, Math.min(0.80, 0.80 - (warmth * 0.025)));
             voiceSettings.style = Math.max(0.58, Math.min(0.88, 0.60 + (energy * 0.025)));
             voiceSettings.similarity_boost = Math.max(0.85, Math.min(0.95, 0.86 + (depth * 0.012)));
           } else {
-            voiceSettings.stability = Math.max(0.78, Math.min(0.92, 0.80 + (warmth * 0.018)));
+            voiceSettings.stability = Math.max(0.62, Math.min(0.88, 0.88 - (warmth * 0.026)));
             voiceSettings.style = Math.max(0.65, Math.min(0.90, 0.68 + (energy * 0.028)));
             voiceSettings.similarity_boost = Math.max(0.90, Math.min(0.98, 0.92 + (depth * 0.010)));
           }
@@ -6308,20 +6356,9 @@ Do NOT include any other text.`
           speakerHistory = `v2/${langCode}_speaker_0`;
         }
         
-        let barkPrompt = prompt
-          .replace(/\[Verse[^\]]*\]/gi, '')
-          .replace(/\[Chorus[^\]]*\]/gi, '')
-          .replace(/\[Bridge[^\]]*\]/gi, '')
-          .replace(/\[Pre-Chorus[^\]]*\]/gi, '')
-          .replace(/\[Hook[^\]]*\]/gi, '')
-          .replace(/\[Outro[^\]]*\]/gi, '')
-          .replace(/\[Intro[^\]]*\]/gi, '')
-          .replace(/\[Ad-lib:[^\]]*\]/gi, '')
-          .replace(/\[Hard Hitting[^\]]*\]/gi, '')
-          .replace(/\[Soulful[^\]]*\]/gi, '')
-          .replace(/\[Building[^\]]*\]/gi, '')
-          .replace(/\[Whispered[^\]]*\]/gi, '')
-          .replace(/\[([^\]]*)\]/g, '')  // Strip ALL remaining bracketed tags
+        // Use cleanedPrompt (structural tags already stripped by cleanLyricsForVocal)
+        let barkPrompt = cleanedPrompt
+          .replace(/\[([^\]]*)\]/g, '')  // Strip any residual bracketed tags
           .replace(/\n{2,}/g, '\n')
           .replace(/^\s*\n/gm, '')  // Remove blank lines
           .trim();
@@ -6460,7 +6497,7 @@ Do NOT include any other text.`
         const response = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
           method: 'POST',
           headers: { 'Authorization': uberduckAuth, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: prompt.substring(0, 2000), voice: selectedVoice })
+          body: JSON.stringify({ text: cleanedPrompt.substring(0, 2000), voice: selectedVoice })
         });
         
         if (response.ok) {
