@@ -40,20 +40,28 @@ export default function MediaLibrary({ user, authToken, isMobile, toast }) {
   ];
 
   // --- Fetch assets on category change ---
+  const fetchControllerRef = useRef(null);
+
   useEffect(() => {
     if (!authToken) return;
+    // Abort any in-flight fetch when category changes
+    if (fetchControllerRef.current) fetchControllerRef.current.abort();
+    fetchControllerRef.current = new AbortController();
+
     if (activeCategory === 'voices') {
-      fetchVoices();
+      fetchVoices(fetchControllerRef.current.signal);
     } else {
-      fetchAssets(activeCategory);
+      fetchAssets(activeCategory, fetchControllerRef.current.signal);
     }
+    return () => { if (fetchControllerRef.current) fetchControllerRef.current.abort(); };
   }, [activeCategory, authToken]);
 
-  const fetchAssets = async (type) => {
+  const fetchAssets = async (type, signal) => {
     setLoading(true);
     try {
       const res = await fetch(`${BACKEND_URL}/api/user/assets?assetType=${type}`, {
-        headers: { Authorization: `Bearer ${authToken}` }
+        headers: { Authorization: `Bearer ${authToken}` },
+        signal
       });
       if (res.ok) {
         const data = await res.json();
@@ -62,6 +70,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast }) {
         setAssets([]);
       }
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load assets:', err);
       setAssets([]);
     } finally {
@@ -69,12 +78,13 @@ export default function MediaLibrary({ user, authToken, isMobile, toast }) {
     }
   };
 
-  const fetchVoices = async () => {
+  const fetchVoices = async (signal) => {
     setLoading(true);
     try {
       // Fetch ElevenLabs voices (includes cloned ones)
       const res = await fetch(`${BACKEND_URL}/api/v2/voices`, {
-        headers: { Authorization: `Bearer ${authToken}` }
+        headers: { Authorization: `Bearer ${authToken}` },
+        signal
       });
       if (res.ok) {
         const data = await res.json();
@@ -85,6 +95,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast }) {
         setElVoices(professional);
       }
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load voices:', err);
     } finally {
       setLoading(false);

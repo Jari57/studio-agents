@@ -3940,8 +3940,6 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
     // 🛡️ Validate model name (only allow known Gemini models)
     const allowedModels = [
       'gemini-2.0-flash',
-      'gemini-2.0-flash-exp',
-      'gemini-2.0-pro-exp-02-05',
       'gemini-1.5-flash',
       'gemini-1.5-flash-latest',
       'gemini-1.5-pro',
@@ -6645,6 +6643,7 @@ Do NOT include any other text.`
             const needsProcessing = (pitchShift && pitchShift !== 0) || (vocalSpeed && vocalSpeed !== 1.0) || (vibratoDepth && vibratoDepth > 0);
 
             if (needsProcessing) {
+              const synthTempFiles = [];
               try {
                 logger.info('🎛️ Applying advanced vocal synthesis', { pitchShift, vocalSpeed, vibratoDepth, expressionPreset });
                 const tempDir = path.join(__dirname, 'temp');
@@ -6652,6 +6651,7 @@ Do NOT include any other text.`
 
                 const inputPath = path.join(tempDir, `vocal_input_${Date.now()}.mp3`);
                 const outputPath = path.join(tempDir, `vocal_processed_${Date.now()}.mp3`);
+                synthTempFiles.push(inputPath, outputPath);
 
                 // Write audio data to temp file
                 if (audioUrl.startsWith('data:')) {
@@ -6709,12 +6709,14 @@ Do NOT include any other text.`
                     const processedBuffer = fs.readFileSync(outputPath);
                     audioUrl = `data:audio/mpeg;base64,${processedBuffer.toString('base64')}`;
                     logger.info('✅ Advanced vocal synthesis applied', { filters: filters.join(', ') });
-                    try { fs.unlinkSync(outputPath); } catch {}
                   }
-                  try { fs.unlinkSync(inputPath); } catch {}
                 }
               } catch (synthErr) {
                 logger.warn('Advanced vocal synthesis failed, using original', { error: synthErr.message });
+              } finally {
+                for (const f of synthTempFiles) {
+                  try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch {}
+                }
               }
             }
 
@@ -8557,6 +8559,16 @@ setInterval(() => {
       pendingVideoOps.delete(id); // 10 min TTL
       _deletePendingVideoOp(id);
     }
+  }
+  // Safety cap: evict oldest entries if map grows too large
+  if (pendingVideoOps.size > 500) {
+    const sorted = [...pendingVideoOps.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt);
+    const toEvict = sorted.slice(0, pendingVideoOps.size - 500);
+    for (const [id] of toEvict) {
+      pendingVideoOps.delete(id);
+      _deletePendingVideoOp(id);
+    }
+    logger.warn(`⚠️ pendingVideoOps overflow: evicted ${toEvict.length} oldest entries`);
   }
 }, 5 * 60 * 1000);
 
