@@ -4413,7 +4413,7 @@ Your lyrics MUST:
 
 Keep output to ONLY the lyrics with section labels. No commentary, no explanations. Length must fill exactly ${duration} seconds when performed.`;
 
-    const lyricsResponse = await genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp', safetySettings: GEMINI_SAFETY_SETTINGS }).generateContent({
+    const lyricsResponse = await genAI.getGenerativeModel({ model: 'gemini-2.0-flash', safetySettings: GEMINI_SAFETY_SETTINGS }).generateContent({
       contents: [{ role: 'user', parts: [{ text: lyricsPrompt }] }],
       systemInstruction: lyricsSystemInstruction
     });
@@ -4856,8 +4856,8 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
           prompt: prompt,
           aspect_ratio: fluxAspectRatio,
           output_format: "jpg",
-          output_quality: 90,
-          safety_tolerance: 2
+          output_quality: 100,
+          safety_tolerance: 3
         };
 
         // If reference is provided, use image-to-image mode with MAXIMUM fidelity
@@ -4945,7 +4945,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
         logger.info('Generating image with Nano Banana', { prompt: prompt.substring(0, 50) });
         
         const nanoBananaModel = genAI.getGenerativeModel({ 
-          model: 'gemini-2.0-flash-exp',
+          model: 'gemini-2.0-flash',
           safetySettings: GEMINI_SAFETY_SETTINGS
         });
         
@@ -6994,6 +6994,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
               temperature: referenceAudio ? 0.5 : 0.7,   // Lower = tighter, more coherent musicality
               classifier_free_guidance: referenceAudio ? 12 : 9  // Higher = stricter prompt adherence
         };
+        if (durationSeconds > 65) {
+          logger.warn(`⚠️ Beat duration capped: requested ${durationSeconds}s → 65s (MusicGen max)`);
+        }
 
         if (referenceAudio) {
           musicGenInput.melody = referenceAudio;  // Condition generation on reference audio DNA
@@ -7053,6 +7056,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
           headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: musicPrompt, duration: Math.min(durationSeconds, 60) })
         }, { timeoutMs: 60000 });
+        if (durationSeconds > 60) {
+          logger.warn(`⚠️ Beat duration capped: requested ${durationSeconds}s → 60s (FAL/Beatoven max)`);
+        }
         if (response.ok) {
           const data = await response.json();
           const falUrl = data.audio_url || data.audio;
@@ -7122,7 +7128,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
                        : durationSeconds,
         wasTruncated: (provider === 'music-gpt' && durationSeconds > 65) || (provider === 'beatoven' && durationSeconds > 60),
         isRealGeneration: true,
-        mimeType: audioUrl.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mpeg'
+        mimeType: audioUrl.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mpeg',
+        providerErrors: providerErrors.length > 0 ? providerErrors : undefined
       });
     } else {
       // If we reach here, ALL AI providers failed.
@@ -7992,6 +7999,8 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
       });
     }
 
+    // Cap video duration per provider limits and log if truncated
+    const requestedDuration = durationSeconds;
     logger.info('Starting video generation', { 
       promptLength: enhancedPrompt.length, 
       hasReference: !!referenceImage,
@@ -8005,6 +8014,10 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:predictLongRunning?key=${apiKey}`;
         
         try {
+            const veo3Duration = Math.min(durationSeconds, 8);
+            if (durationSeconds > 8) {
+              logger.warn(`⚠️ Video duration capped: requested ${durationSeconds}s → ${veo3Duration}s (Veo 3.0 Fast max 8s)`);
+            }
             logger.info('Trying Veo 3.0 Fast as primary video generator...');
             
             // Build instances with image if provided
@@ -8020,7 +8033,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                 instances: [instance],
                 parameters: {
                   aspectRatio: "16:9",
-                  durationSeconds: Math.min(durationSeconds, 8), // Veo 3.0 Fast requires 4-8 seconds
+                  durationSeconds: veo3Duration, // Veo 3.0 Fast max 8 seconds
                   sampleCount: 1
                 }
               })
@@ -8103,6 +8116,11 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
               veo2Instance.image = { image_url: referenceImage };
             }
 
+            const veo2Duration = Math.min(durationSeconds, 8);
+            if (durationSeconds > 8) {
+              logger.warn(`⚠️ Video duration capped: requested ${durationSeconds}s → ${veo2Duration}s (Veo 2.0 max 8s)`);
+            }
+
             const veo2Response = await fetch(veo2Url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -8110,7 +8128,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                   instances: [veo2Instance],
                   parameters: {
                     aspectRatio: "16:9",
-                    durationSeconds: Math.min(durationSeconds, 8),
+                    durationSeconds: veo2Duration,
                     sampleCount: 1
                   }
                 })
