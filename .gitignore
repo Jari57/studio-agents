@@ -72,8 +72,14 @@ backend/WORKFLOW_VERIFICATION.js
 backend/check_env.js
 
 # --- Compressed Build Artifacts (regenerated on every build) ---
+backend/public/assets/
 backend/public/**/*.gz
 backend/public/**/*.br
+
+# --- Build artifacts & reports ---
+build_result.txt
+lighthouse-report.json
+lh-tmp/
 
 # --- Windows artifacts ---
 nul

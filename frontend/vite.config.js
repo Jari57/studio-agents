@@ -120,12 +120,15 @@ export default defineConfig({
       compress: {
         drop_debugger: true,
         pure_funcs: ['console.log', 'console.info', 'console.debug']
-      },
-      maxWorkers: 1
+      }
     },
     sourcemap: false,
     cssCodeSplit: true,
     rollupOptions: {
+      treeshake: {
+        moduleSideEffects: false,
+        propertyReadSideEffects: false
+      },
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {

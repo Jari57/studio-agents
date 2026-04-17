@@ -1,7 +1,0 @@
-BUILD_OK
-ari5/studio-agents/frontend/assets/react-vendor-hunYeTLM.js.br                191.82kb / brotliCompress: 51.91kb
-dist/c:/Users/jari5/studio-agents/frontend/assets/StudioOrchestratorV2-CrTgZSYb.js.br        211.51kb / brotliCompress: 42.62kb
-dist/c:/Users/jari5/studio-agents/frontend/assets/StudioView-C6gsx01H.js.br                  427.72kb / brotliCompress: 75.51kb
-dist/c:/Users/jari5/studio-agents/frontend/assets/firebase-DIk4g1OM.js.br                    416.51kb / brotliCompress: 106.14kb
-
-
