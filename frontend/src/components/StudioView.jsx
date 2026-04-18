@@ -10783,6 +10783,14 @@ ABSOLUTE RULES (violating any = failure):
               authToken={userToken}
               isMobile={isMobile}
               toast={toast}
+              onUseAsset={(asset) => {
+                const type = asset.assetType || (asset.mimeType?.startsWith('image') ? 'image' : asset.mimeType?.startsWith('video') ? 'video' : asset.mimeType?.startsWith('audio') ? 'audio' : null);
+                if (type === 'image') setVisualDnaUrl(asset.url);
+                else if (type === 'audio') setAudioDnaUrl(asset.url);
+                else if (type === 'video') setVideoDnaUrl(asset.url);
+                toast?.success(`${asset.fileName || 'Asset'} loaded as reference`);
+                setActiveTab('agents');
+              }}
             />
           </Suspense>
         );

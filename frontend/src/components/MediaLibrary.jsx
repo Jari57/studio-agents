@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Mic, Music, Image as ImageIcon, Video as VideoIcon, Trash2, Play, Pause,
   Upload, Download, Eye, Search, Filter, RotateCw, Volume2, X, Check,
-  ChevronDown, Loader2, AlertCircle, Layers, Plus
+  ChevronDown, Loader2, AlertCircle, Layers, Plus, Edit3, Save, Share2, Wand2
 } from 'lucide-react';
 import { BACKEND_URL } from '../constants';
 
@@ -11,7 +11,7 @@ import { BACKEND_URL } from '../constants';
  * MediaLibrary — Unified asset manager for voices, audio, images & video.
  * Supports inline preview/playback, upload, delete, and voice sampling.
  */
-export default function MediaLibrary({ user, authToken, isMobile, toast }) {
+export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAsset }) {
   // --- State ---
   const [activeCategory, setActiveCategory] = useState('voices');
   const [assets, setAssets] = useState([]);
@@ -28,6 +28,8 @@ export default function MediaLibrary({ user, authToken, isMobile, toast }) {
   const [cloneName, setCloneName] = useState('');
   const [cloneSamples, setCloneSamples] = useState([]);
   const [cloning, setCloning] = useState(false);
+  const [renaming, setRenaming] = useState(null); // { id, name } when editing
+  const [renameSaving, setRenameSaving] = useState(false);
   const audioRef = useRef(null);
   const fileInputRef = useRef(null);
   const cloneInputRef = useRef(null);
@@ -281,6 +283,34 @@ export default function MediaLibrary({ user, authToken, isMobile, toast }) {
     } finally {
       setUploadingType(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // --- Rename asset ---
+  const handleRenameAsset = async (assetId, newName) => {
+    if (!newName?.trim()) return;
+    setRenameSaving(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/user/assets/${assetId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ fileName: newName.trim() })
+      });
+      if (res.ok) {
+        setAssets(prev => prev.map(a => a.id === assetId ? { ...a, fileName: newName.trim() } : a));
+        if (previewItem?.id === assetId) setPreviewItem(prev => ({ ...prev, fileName: newName.trim() }));
+        toast?.success('Renamed');
+      } else {
+        toast?.error('Rename failed');
+      }
+    } catch {
+      toast?.error('Rename failed');
+    } finally {
+      setRenameSaving(false);
+      setRenaming(null);
     }
   };
 
@@ -609,17 +639,18 @@ export default function MediaLibrary({ user, authToken, isMobile, toast }) {
     );
   };
 
-  // Full-screen preview overlay
+  // Full-screen preview overlay with action bar
   const renderPreviewOverlay = () => {
     if (!previewItem) return null;
     const item = previewItem;
     const isAudio = item.assetType === 'audio' || item.mimeType?.startsWith('audio');
     const isImage = item.assetType === 'image' || item.mimeType?.startsWith('image');
     const isVideo = item.assetType === 'video' || item.mimeType?.startsWith('video');
+    const isEditing = renaming?.id === item.id;
 
     return (
       <div
-        onClick={() => setPreviewItem(null)}
+        onClick={() => { setPreviewItem(null); setRenaming(null); }}
         style={{
           position: 'fixed',
           inset: 0,
@@ -646,54 +677,90 @@ export default function MediaLibrary({ user, authToken, isMobile, toast }) {
             flexDirection: 'column'
           }}
         >
-          {/* Header */}
+          {/* Header with name (editable) */}
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: '14px 18px',
-            borderBottom: '1px solid rgba(255,255,255,0.06)'
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            gap: '12px'
           }}>
-            <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>
-              {item.fileName || 'Preview'}
-            </span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {item.url && (
-                <a
-                  href={item.url}
-                  download={item.fileName}
+            {isEditing ? (
+              <form
+                onSubmit={(e) => { e.preventDefault(); handleRenameAsset(item.id, renaming.name); }}
+                style={{ flex: 1, display: 'flex', gap: '8px', alignItems: 'center' }}
+              >
+                <input
+                  autoFocus
+                  value={renaming.name}
+                  onChange={(e) => setRenaming(prev => ({ ...prev, name: e.target.value }))}
                   style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(59, 130, 246, 0.4)',
-                    background: 'rgba(59, 130, 246, 0.1)',
-                    color: '#3b82f6',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '0.8rem',
-                    fontWeight: '600',
-                    textDecoration: 'none'
+                    flex: 1, padding: '6px 10px', borderRadius: '8px',
+                    border: '1px solid rgba(139,92,246,0.4)', background: 'rgba(0,0,0,0.3)',
+                    color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none'
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setRenaming(null); }}
+                />
+                <button
+                  type="submit"
+                  disabled={renameSaving}
+                  style={{
+                    padding: '6px 12px', borderRadius: '8px',
+                    border: '1px solid rgba(34,197,94,0.4)',
+                    background: 'rgba(34,197,94,0.1)', color: '#22c55e',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+                    fontSize: '0.8rem', fontWeight: '600'
                   }}
                 >
-                  <Download size={14} /> Download
-                </a>
-              )}
-              <button
-                onClick={() => setPreviewItem(null)}
-                style={{
-                  padding: '6px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  background: 'rgba(255,255,255,0.05)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer'
-                }}
-              >
-                <X size={18} />
-              </button>
-            </div>
+                  {renameSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRenaming(null)}
+                  style={{
+                    padding: '6px 10px', borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)',
+                    cursor: 'pointer', fontSize: '0.8rem'
+                  }}
+                >
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                <span style={{
+                  fontWeight: '600', fontSize: '0.9rem',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                }}>
+                  {item.fileName || 'Preview'}
+                </span>
+                <button
+                  onClick={() => setRenaming({ id: item.id, name: item.fileName || '' })}
+                  title="Rename"
+                  style={{
+                    padding: '4px', borderRadius: '6px', border: 'none',
+                    background: 'transparent', color: 'var(--text-secondary)',
+                    cursor: 'pointer', flexShrink: 0
+                  }}
+                >
+                  <Edit3 size={14} />
+                </button>
+              </div>
+            )}
+            <button
+              onClick={() => { setPreviewItem(null); setRenaming(null); }}
+              style={{
+                padding: '6px', borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.15)',
+                background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)',
+                cursor: 'pointer', flexShrink: 0
+              }}
+            >
+              <X size={18} />
+            </button>
           </div>
 
           {/* Content */}
@@ -709,7 +776,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast }) {
               <img
                 src={item.url}
                 alt={item.fileName}
-                style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px' }}
+                style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: '8px' }}
               />
             )}
             {isVideo && (
@@ -717,7 +784,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast }) {
                 src={item.url}
                 controls
                 autoPlay
-                style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px' }}
+                style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: '8px' }}
               />
             )}
             {isAudio && (
@@ -729,6 +796,78 @@ export default function MediaLibrary({ user, authToken, isMobile, toast }) {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Action bar */}
+          <div style={{
+            padding: '12px 18px',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex',
+            gap: '8px',
+            flexWrap: 'wrap',
+            justifyContent: 'center'
+          }}>
+            {/* Use in Studio */}
+            {onUseAsset && (
+              <button
+                onClick={() => { onUseAsset(item); setPreviewItem(null); }}
+                style={{
+                  padding: '10px 18px', borderRadius: '10px',
+                  border: '1px solid rgba(139,92,246,0.4)',
+                  background: 'rgba(139,92,246,0.12)', color: '#a78bfa',
+                  cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
+                  display: 'flex', alignItems: 'center', gap: '6px'
+                }}
+              >
+                <Wand2 size={15} /> Use in Studio
+              </button>
+            )}
+            {/* Download */}
+            {item.url && (
+              <a
+                href={item.url}
+                download={item.fileName}
+                style={{
+                  padding: '10px 18px', borderRadius: '10px',
+                  border: '1px solid rgba(59,130,246,0.4)',
+                  background: 'rgba(59,130,246,0.1)', color: '#3b82f6',
+                  cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  textDecoration: 'none'
+                }}
+              >
+                <Download size={15} /> Download
+              </a>
+            )}
+            {/* Rename */}
+            <button
+              onClick={() => setRenaming({ id: item.id, name: item.fileName || '' })}
+              style={{
+                padding: '10px 18px', borderRadius: '10px',
+                border: '1px solid rgba(245,158,11,0.4)',
+                background: 'rgba(245,158,11,0.1)', color: '#f59e0b',
+                cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
+                display: 'flex', alignItems: 'center', gap: '6px'
+              }}
+            >
+              <Edit3 size={15} /> Rename
+            </button>
+            {/* Delete */}
+            <button
+              onClick={() => {
+                setPreviewItem(null);
+                setDeleteConfirm({ type: 'asset', id: item.id, name: item.fileName });
+              }}
+              style={{
+                padding: '10px 18px', borderRadius: '10px',
+                border: '1px solid rgba(239,68,68,0.4)',
+                background: 'rgba(239,68,68,0.1)', color: '#ef4444',
+                cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
+                display: 'flex', alignItems: 'center', gap: '6px'
+              }}
+            >
+              <Trash2 size={15} /> Delete
+            </button>
           </div>
         </div>
       </div>

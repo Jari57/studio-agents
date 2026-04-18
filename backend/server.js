@@ -3490,6 +3490,37 @@ app.delete('/api/user/assets/:id', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+// PATCH /api/user/assets/:id - Rename an asset
+app.patch('/api/user/assets/:id', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const assetId = req.params.id;
+  const { fileName } = req.body;
+  if (!fileName || typeof fileName !== 'string' || fileName.trim().length === 0 || fileName.length > 200) {
+    return res.status(400).json({ error: 'Invalid fileName' });
+  }
+
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+
+  try {
+    const docRef = db.collection('users').doc(req.user.uid).collection('assets').doc(assetId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+    await docRef.update({ fileName: sanitizeInput(fileName.trim(), 200) });
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('Rename asset error:', err);
+    res.status(500).json({ error: 'Failed to rename asset', details: safeErrorDetail(err) });
+  }
+});
+
 // ============================================================================
 // SAVED PROJECTS ENDPOINTS
 // ============================================================================
