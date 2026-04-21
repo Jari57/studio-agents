@@ -4910,7 +4910,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 : `Elite cinematic music video visual, professional motion design: ${videoPrompt.substring(0, 700)}${visualMatchDirective}${lyricsSceneGuide}`,
               referenceImage: visualDnaUrl || videoDnaUrl,
               referenceVideo: videoDnaUrl,
-              duration: Math.round(videoDuration),
+              durationSeconds: Math.round(videoDuration),
               audioDuration: Math.round(beatDuration),
               audioUrl: finalAudioSource,
               vocalUrl: latestMedia.mixedAudio ? null : (latestMedia.vocals || latestMedia.lyricsVocal)

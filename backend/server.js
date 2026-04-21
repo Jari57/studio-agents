@@ -4956,6 +4956,10 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
         }
       } catch (repError) {
         logger.error('Flux generation failed, falling back to Gemini', { error: repError.message });
+        // If user provided a reference image, Gemini fallback can't use it — fail explicitly
+        if (referenceImage) {
+          return res.status(422).json({ error: 'Image generation with reference failed. Please try again or remove the reference image.' });
+        }
       }
     }
 
@@ -6041,7 +6045,7 @@ Do NOT include any other text.`
                 speaker: targetSpeaker,
                 cleanup_voice: true,
                 speed: 1.0,
-                temperature: (req.body.quality === 'ultra' || style === 'cloned') ? 0.01 : 0.25
+                temperature: (req.body.quality === 'ultra' || style === 'cloned') ? 0.15 : 0.25
               }
             })
           });
@@ -6263,7 +6267,7 @@ Do NOT include any other text.`
         // Rapper voices need punch and dynamics — never let them sound flat/robotic
         if (isRapStyle && !isClonedMode) {
           voiceSettings.style = Math.max(0.72, voiceSettings.style);
-          voiceSettings.stability = Math.min(0.75, voiceSettings.stability);
+          voiceSettings.stability = Math.max(0.40, voiceSettings.stability - 0.25); // Lower stability for rhythmic punch, not cap at 0.75
         }
 
         // Texture-based stability adjustment
