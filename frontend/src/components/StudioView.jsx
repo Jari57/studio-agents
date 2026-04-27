@@ -4370,9 +4370,9 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     // Identify feature type and cost
-    const isImageAgent = ['album', 'visual-art', 'cover-art', 'art', 'video-art', 'flux'].includes(agentId);
+    const isImageAgent = ['album', 'visual-art', 'cover-art', 'art', 'video-art', 'flux', 'trends', 'social', 'collab', 'release'].includes(agentId);
     const isVideoAgent = ['video', 'video-creator', 'video-gen', 'sora', 'veo', 'kling'].includes(agentId);
-    const isAudioAgent = ['beat', 'sample', 'music-gpt', 'beat-maker', 'beat-lab', 'beat-architect', 'beat-arch', 'drum-machine', 'drums', 'instrument', 'drop', 'film', 'sample-master', 'score-edit', 'drop-zone', 'music-architect', 'audio-gen', 'video-scorer'].includes(agentId);
+    const isAudioAgent = ['beat', 'sample', 'samples', 'music-gpt', 'beat-maker', 'beat-lab', 'beat-architect', 'beat-arch', 'drum-machine', 'drums', 'instrument', 'drop', 'film', 'sample-master', 'score-edit', 'drop-zone', 'music-architect', 'audio-gen', 'video-scorer', 'session', 'edm', 'sound-design'].includes(agentId);
     const isSpeechAgent = ['vocal', 'vocal-arch', 'vocal-gen', 'vocal-performer', 'vocal-performance', 'vocal-lab', 'vocal-labs', 'podcast', 'voiceover', 'voice-gen', 'voice-cloner'].includes(agentId) && agentId !== 'ghost';
     const isMasterAgent = ['master', 'master-lab', 'mastering'].includes(agentId);
 
@@ -4537,10 +4537,32 @@ const fetchUserCredits = useCallback(async (uid) => {
           customInstruction = `Write original ${detectedGenre || 'hip-hop'} lyrics for the user\'s concept. Output ONLY the lyrics text — no descriptions, no explanations, no stage directions. Just the raw words to be sung or rapped. Include verse/chorus structure but keep section labels minimal like [Verse] [Chorus]. Keep it under 300 words for vocal generation.`;
         }
       } else if (isAudioAgent) {
-        customInstruction = 'Briefly describe a high-quality beat/instrumental concept. Focus on mood, tempo, instrumentation, and key instruments. Keep it under 60 words for maximum AI compatibility.';
-        if (contextLyrics) customInstruction += ` Use the vibe of these lyrics to inspire the beat: "${contextLyrics.substring(0, 300)}"`;
+        // Agent-specific audio production briefs
+        if (agentId === 'session') {
+          customInstruction = 'Describe a live session recording concept: specify instruments (guitar, piano, bass, strings, brass), playing style, key, tempo, and emotional feel. Under 70 words.';
+        } else if (agentId === 'samples') {
+          customInstruction = 'Describe a unique, sample-ready audio concept: chopped loops, vinyl textures, isolated instrument riffs, or atmospheric textures. Specify BPM, key, and sonic character. Under 60 words.';
+        } else if (agentId === 'edm') {
+          customInstruction = 'Describe an EDM drop/build concept: synth design, build tension techniques, drop elements, energy arc, and sub-bass character. Specify BPM and key. Under 70 words.';
+        } else if (agentId === 'sound-design') {
+          customInstruction = 'Describe an original sound design concept: texture, timbre, synthesis method, spatial character, and intended emotional impact. Under 60 words for AI generation.';
+        } else {
+          customInstruction = 'Briefly describe a high-quality beat/instrumental concept. Focus on mood, tempo, instrumentation, and key instruments. Keep it under 60 words for maximum AI compatibility.';
+        }
+        if (contextLyrics) customInstruction += ` Use the vibe of these lyrics to inspire the sound: "${contextLyrics.substring(0, 300)}"`;
       } else if (isImageAgent) {
-        customInstruction = 'Describe a striking album cover or concept in detail for image generation. Focus on composition, colors, and artistic style.';
+        // Agent-specific visual briefs
+        if (agentId === 'trends') {
+          customInstruction = 'Describe a bold, trend-forward visual graphic: data visualization, trend aesthetic, color palette, typography style, and platform format (Instagram/TikTok). Under 70 words.';
+        } else if (agentId === 'social') {
+          customInstruction = 'Describe a high-engagement social media post visual: hook element, content layout, brand colors, call-to-action placement, and platform optimization. Under 70 words.';
+        } else if (agentId === 'collab') {
+          customInstruction = 'Describe a collaboration promo visual: dual artist branding, shared aesthetic, typography treatment, and promotional composition for social and streaming. Under 70 words.';
+        } else if (agentId === 'release') {
+          customInstruction = 'Describe a release announcement visual: album/single artwork style, announcement text treatment, release date typography, and marketing composition. Under 70 words.';
+        } else {
+          customInstruction = 'Describe a striking album cover or concept in detail for image generation. Focus on composition, colors, and artistic style.';
+        }
         if (contextLyrics) customInstruction += ` Incorporate themes from these lyrics: "${contextLyrics.substring(0, 200)}"`;
       } else if (isVideoAgent) {
         customInstruction = 'Write a creative image to video concept or storyboard with scene descriptions, cinematic lighting, and professional visual transitions.';
@@ -5208,6 +5230,46 @@ ABSOLUTE RULES (violating any = failure):
       
       safeOpenGenerationPreview(newItem);
       setPreviewPrompt(prompt);
+
+      // Ghostwriter auto-vocal: fire a vocal sample in the background from the generated lyrics
+      // Opens in preview as lyrics, then audio appears when vocal is ready (~30-60s)
+      if (agentId === 'ghost' && newItem.snippet && !newItem.isError) {
+        (async () => {
+          try {
+            const lyricsForVocal = newItem.snippet
+              .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Intro)\b)/i, '')
+              .trim() || newItem.snippet;
+            const ghostVocalRes = await fetch(`${BACKEND_URL}/api/generate-speech`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                prompt: lyricsForVocal.substring(0, 1000),
+                voice: voiceSettings.voiceName || 'rapper-male-1',
+                style: voiceSettings.style || 'rapper',
+                genre: detectedGenre || heroGenre || 'hip-hop',
+                quality: 'premium',
+                duration: 30,
+                elevenLabsVoiceId: elevenLabsVoiceId || null,
+                speakerUrl: voiceSampleUrl || null
+              })
+            });
+            if (ghostVocalRes.ok) {
+              const ghostVocalData = await ghostVocalRes.json();
+              if (ghostVocalData.audioUrl) {
+                // Update the open preview item with the vocal URL
+                setPreviewItem(prev => prev ? { ...prev, audioUrl: ghostVocalData.audioUrl, type: 'vocal', hasGhostVocal: true } : prev);
+                setAgentPreviews(prev => ({
+                  ...prev,
+                  [agentId]: { ...prev[agentId], audioUrl: ghostVocalData.audioUrl, type: 'vocal' }
+                }));
+                toast.success('Vocal sample ready!', { duration: 3000 });
+              }
+            }
+          } catch (ghostVocalErr) {
+            devWarn('[Ghost] Auto-vocal generation failed:', ghostVocalErr);
+          }
+        })();
+      }
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
       setAgentPreviews(prev => ({ ...prev, [targetAgentSnapshot.id]: newItem }));
       
