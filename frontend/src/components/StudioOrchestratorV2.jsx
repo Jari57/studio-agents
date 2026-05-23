@@ -8306,7 +8306,6 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             </div>
           )}
         </div>
-        )}
 
         {/* ── PRODUCTION STEPS INDICATOR ── */}
         <div style={{
