@@ -6240,7 +6240,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         className="orchestrator-scroll-container"
         style={{ 
           flex: 1, 
-          padding: isMobile ? '6px 2px' : '10px 12px',
+          padding: isMobile ? '8px 8px' : '12px 16px',
           maxWidth: '1200px',
           margin: '0 auto',
           width: '100%',
@@ -6252,11 +6252,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         
         {/* Input Section */}
         <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          borderRadius: isMobile ? '10px' : '14px',
-          padding: isMobile ? '6px' : '12px',
-          marginBottom: isMobile ? '8px' : '14px',
-          border: '1px solid rgba(255,255,255,0.06)'
+          background: 'rgba(255,255,255,0.025)',
+          borderRadius: '16px',
+          padding: isMobile ? '10px' : '16px',
+          marginBottom: '10px',
+          border: '1px solid rgba(255,255,255,0.07)',
+          boxShadow: '0 2px 20px rgba(0,0,0,0.3)'
         }}>
           {/* Mode Toggle */}
           <div style={{
@@ -6742,12 +6743,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         {!quickMode && (
           <>
         {/* ── Configuration Row ── collapsible */}
-        <div style={{ marginBottom: '10px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.config ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
-          <button onClick={() => toggleSection('config')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: expandedSections.config ? 'rgba(139,92,246,0.06)' : 'rgba(255,255,255,0.02)', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
-            <Settings size={15} style={{ color: expandedSections.config ? '#a78bfa' : 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
-            <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: '600', color: expandedSections.config ? '#a78bfa' : 'rgba(255,255,255,0.6)' }}>Production Settings</span>
-            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', marginRight: '6px' }}>{style} • {projectBpm} BPM • {language}</span>
-            <div style={{ color: 'rgba(255,255,255,0.3)', transition: 'transform 0.25s', transform: expandedSections.config ? 'rotate(180deg)' : 'none' }}><ChevronDown size={16} /></div>
+        <div style={{ marginBottom: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.config ? '1px solid rgba(139,92,246,0.25)' : '1px solid rgba(255,255,255,0.06)', background: expandedSections.config ? 'rgba(139,92,246,0.04)' : 'rgba(255,255,255,0.02)' }}>
+          <button onClick={() => toggleSection('config')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: expandedSections.config ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: `1px solid ${expandedSections.config ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Settings size={13} color={expandedSections.config ? '#a78bfa' : 'rgba(255,255,255,0.35)'} /></div>
+            <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: '600', color: expandedSections.config ? '#c4b5fd' : 'rgba(255,255,255,0.65)' }}>Production Settings</span>
+            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.22)', marginRight: '8px', fontVariantNumeric: 'tabular-nums' }}>{style} · {projectBpm} BPM · {language}</span>
+            <div style={{ color: 'rgba(255,255,255,0.25)', transition: 'transform 0.3s ease', transform: expandedSections.config ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
           </button>
           {expandedSections.config && (
             <div style={{ padding: '14px 16px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
@@ -6902,12 +6903,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         </div>
 
         {/* ── Output Format Presets ── collapsible */}
-        <div style={{ marginBottom: '10px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.outputPresets ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
-          <button onClick={() => toggleSection('outputPresets')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: expandedSections.outputPresets ? 'rgba(139,92,246,0.06)' : 'rgba(255,255,255,0.02)', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
-            <Disc size={15} style={{ color: expandedSections.outputPresets ? '#a78bfa' : 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
-            <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: '600', color: expandedSections.outputPresets ? '#a78bfa' : 'rgba(255,255,255,0.6)' }}>Output Format</span>
-            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', marginRight: '6px' }}>{selectedOutputPreset}</span>
-            <div style={{ color: 'rgba(255,255,255,0.3)', transition: 'transform 0.25s', transform: expandedSections.outputPresets ? 'rotate(180deg)' : 'none' }}><ChevronDown size={16} /></div>
+        <div style={{ marginBottom: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.outputPresets ? '1px solid rgba(139,92,246,0.25)' : '1px solid rgba(255,255,255,0.06)', background: expandedSections.outputPresets ? 'rgba(139,92,246,0.04)' : 'rgba(255,255,255,0.02)' }}>
+          <button onClick={() => toggleSection('outputPresets')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: expandedSections.outputPresets ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: `1px solid ${expandedSections.outputPresets ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Disc size={13} color={expandedSections.outputPresets ? '#a78bfa' : 'rgba(255,255,255,0.35)'} /></div>
+            <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: '600', color: expandedSections.outputPresets ? '#c4b5fd' : 'rgba(255,255,255,0.65)' }}>Output Format</span>
+            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.22)', marginRight: '8px' }}>{selectedOutputPreset}</span>
+            <div style={{ color: 'rgba(255,255,255,0.25)', transition: 'transform 0.3s ease', transform: expandedSections.outputPresets ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
           </button>
           {expandedSections.outputPresets && (
             <div style={{ padding: '14px 16px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
@@ -6958,12 +6959,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         </div>
 
         {/* ── Arrangement Editor ── collapsible */}
-        <div style={{ marginBottom: '10px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.arrangement ? '1px solid rgba(34,211,238,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
-          <button onClick={() => toggleSection('arrangement')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: expandedSections.arrangement ? 'rgba(34,211,238,0.05)' : 'rgba(255,255,255,0.02)', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
-            <Music size={15} style={{ color: expandedSections.arrangement ? '#22d3ee' : 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
-            <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: '600', color: expandedSections.arrangement ? '#22d3ee' : 'rgba(255,255,255,0.6)' }}>Song Arrangement</span>
-            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', marginRight: '6px' }}>{structure}</span>
-            <div style={{ color: 'rgba(255,255,255,0.3)', transition: 'transform 0.25s', transform: expandedSections.arrangement ? 'rotate(180deg)' : 'none' }}><ChevronDown size={16} /></div>
+        <div style={{ marginBottom: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.arrangement ? '1px solid rgba(34,211,238,0.22)' : '1px solid rgba(255,255,255,0.06)', background: expandedSections.arrangement ? 'rgba(34,211,238,0.03)' : 'rgba(255,255,255,0.02)' }}>
+          <button onClick={() => toggleSection('arrangement')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: expandedSections.arrangement ? 'rgba(34,211,238,0.18)' : 'rgba(255,255,255,0.06)', border: `1px solid ${expandedSections.arrangement ? 'rgba(34,211,238,0.3)' : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Music size={13} color={expandedSections.arrangement ? '#22d3ee' : 'rgba(255,255,255,0.35)'} /></div>
+            <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: '600', color: expandedSections.arrangement ? '#67e8f9' : 'rgba(255,255,255,0.65)' }}>Song Arrangement</span>
+            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.22)', marginRight: '8px' }}>{structure}</span>
+            <div style={{ color: 'rgba(255,255,255,0.25)', transition: 'transform 0.3s ease', transform: expandedSections.arrangement ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
           </button>
           {expandedSections.arrangement && (
             <div style={{ padding: '4px 0 0', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
@@ -6982,12 +6983,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         </div>
 
         {/* ── Agent Selection ── collapsible */}
-        <div style={{ marginBottom: '10px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.agentSelection ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
-          <button onClick={() => toggleSection('agentSelection')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: expandedSections.agentSelection ? 'rgba(139,92,246,0.06)' : 'rgba(255,255,255,0.02)', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
-            <Users size={15} style={{ color: expandedSections.agentSelection ? '#a78bfa' : 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
-            <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: '600', color: expandedSections.agentSelection ? '#a78bfa' : 'rgba(255,255,255,0.6)' }}>Generator Agents</span>
-            <span style={{ fontSize: '0.7rem', color: '#a78bfa', background: 'rgba(139,92,246,0.15)', padding: '2px 8px', borderRadius: '10px', marginRight: '6px' }}>{Object.values(selectedAgents).filter(Boolean).length}/4</span>
-            <div style={{ color: 'rgba(255,255,255,0.3)', transition: 'transform 0.25s', transform: expandedSections.agentSelection ? 'rotate(180deg)' : 'none' }}><ChevronDown size={16} /></div>
+        <div style={{ marginBottom: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.agentSelection ? '1px solid rgba(139,92,246,0.25)' : '1px solid rgba(255,255,255,0.06)', background: expandedSections.agentSelection ? 'rgba(139,92,246,0.04)' : 'rgba(255,255,255,0.02)' }}>
+          <button onClick={() => toggleSection('agentSelection')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: expandedSections.agentSelection ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: `1px solid ${expandedSections.agentSelection ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Users size={13} color={expandedSections.agentSelection ? '#a78bfa' : 'rgba(255,255,255,0.35)'} /></div>
+            <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: '600', color: expandedSections.agentSelection ? '#c4b5fd' : 'rgba(255,255,255,0.65)' }}>Generator Agents</span>
+            <span style={{ fontSize: '0.68rem', fontWeight: '700', color: '#a78bfa', background: 'rgba(139,92,246,0.15)', padding: '2px 9px', borderRadius: '20px', border: '1px solid rgba(139,92,246,0.25)', marginRight: '8px' }}>{Object.values(selectedAgents).filter(Boolean).length}/4</span>
+            <div style={{ color: 'rgba(255,255,255,0.25)', transition: 'transform 0.3s ease', transform: expandedSections.agentSelection ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
           </button>
           {expandedSections.agentSelection && (
             <div style={{ padding: '14px 16px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
@@ -7113,23 +7114,22 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         {/* VOCAL PERFORMANCE ENGINE — Premium Voice Production Suite       */}
         {/* ═══════════════════════════════════════════════════════════════ */}
         {outputs.lyrics && (
-          <div style={{ marginBottom: '10px', borderRadius: '16px', overflow: 'hidden', border: expandedSections.vocalEngine ? '1px solid rgba(251,191,36,0.35)' : '1px solid rgba(251,191,36,0.15)' }}>
+          <div style={{ marginTop: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.vocalEngine ? '1px solid rgba(251,191,36,0.28)' : '1px solid rgba(255,255,255,0.07)', background: expandedSections.vocalEngine ? 'rgba(251,191,36,0.04)' : 'rgba(255,255,255,0.02)', boxShadow: expandedSections.vocalEngine ? '0 2px 20px rgba(251,191,36,0.06)' : 'none' }}>
             {/* Vocal Engine Accordion Header */}
-            <button onClick={() => toggleSection('vocalEngine')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: isMobile ? '13px 16px' : '15px 20px', background: expandedSections.vocalEngine ? 'linear-gradient(135deg, rgba(251,191,36,0.06), rgba(139,92,246,0.08))' : 'rgba(251,191,36,0.04)', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent', position: 'relative' }}>
-              {/* shimmer top line */}
-              {expandedSections.vocalEngine && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, #fbbf24, #8b5cf6, #fbbf24, transparent)', opacity: 0.7 }} />}
-              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(251,191,36,0.2), rgba(139,92,246,0.2))', border: '1px solid rgba(251,191,36,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Mic size={18} color="#fbbf24" />
+            <button onClick={() => toggleSection('vocalEngine')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent', position: 'relative' }}>
+              {expandedSections.vocalEngine && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, rgba(251,191,36,0.6), rgba(139,92,246,0.6), rgba(251,191,36,0.6), transparent)' }} />}
+              <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: expandedSections.vocalEngine ? 'rgba(251,191,36,0.18)' : 'rgba(255,255,255,0.06)', border: `1px solid ${expandedSections.vocalEngine ? 'rgba(251,191,36,0.32)' : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Mic size={15} color={expandedSections.vocalEngine ? '#fbbf24' : 'rgba(255,255,255,0.3)'} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: isMobile ? '0.88rem' : '0.94rem', fontWeight: '800', background: 'linear-gradient(135deg, #fbbf24, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Vocal Performance Engine</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.6rem', fontWeight: '700', color: '#fbbf24', background: 'rgba(251,191,36,0.1)', padding: '2px 7px', borderRadius: '20px', border: '1px solid rgba(251,191,36,0.25)', WebkitTextFillColor: '#fbbf24' }}><Zap size={9} />Premium</span>
-                  {mediaUrls.lyricsVocal && <span style={{ fontSize: '0.6rem', fontWeight: '700', color: '#22c55e', background: 'rgba(34,197,94,0.12)', padding: '2px 7px', borderRadius: '20px', WebkitTextFillColor: '#22c55e' }}>✓ Vocals Ready</span>}
+                  <span style={{ fontSize: '0.88rem', fontWeight: '700', color: expandedSections.vocalEngine ? '#fde68a' : 'rgba(255,255,255,0.65)' }}>Vocal Performance Engine</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.58rem', fontWeight: '700', color: '#fbbf24', background: 'rgba(251,191,36,0.12)', padding: '2px 7px', borderRadius: '20px', border: '1px solid rgba(251,191,36,0.22)' }}><Zap size={8} />Premium</span>
+                  {mediaUrls.lyricsVocal && <span style={{ fontSize: '0.58rem', fontWeight: '700', color: '#22c55e', background: 'rgba(34,197,94,0.1)', padding: '2px 7px', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.2)' }}>✓ Vocals Ready</span>}
                 </div>
-                <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', WebkitTextFillColor: 'rgba(255,255,255,0.35)' }}>Voice cloning, ElevenLabs, style control</p>
+                <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.28)' }}>Voice cloning, ElevenLabs, style control</p>
               </div>
-              <div style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0, transition: 'transform 0.25s', transform: expandedSections.vocalEngine ? 'rotate(180deg)' : 'none' }}><ChevronDown size={16} /></div>
+              <div style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0, transition: 'transform 0.3s ease', transform: expandedSections.vocalEngine ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
             </button>
 
             {expandedSections.vocalEngine && (
@@ -8000,10 +8000,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         {/* YOUR ASSETS — Voice Samples, Artist Image, Reference Audio */}
         {/* ════════════════════════════════════════════════════════════ */}
         <div style={{
-          marginBottom: '1.2rem',
-          background: 'rgba(0,0,0,0.25)',
-          borderRadius: '16px',
-          border: '1px solid rgba(139, 92, 246, 0.2)',
+          marginBottom: '6px',
+          background: showAssets ? 'rgba(139,92,246,0.04)' : 'rgba(255,255,255,0.02)',
+          borderRadius: '14px',
+          border: showAssets ? '1px solid rgba(139,92,246,0.22)' : '1px solid rgba(255,255,255,0.06)',
           overflow: 'hidden'
         }}>
           {/* Header with collapse toggle */}
@@ -8013,20 +8013,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               width: '100%',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '14px 18px',
-              background: 'rgba(139, 92, 246, 0.08)',
+              gap: '12px',
+              padding: '13px 18px',
+              background: 'transparent',
               border: 'none',
-              borderBottom: showAssets ? '1px solid rgba(139, 92, 246, 0.15)' : 'none',
               color: 'white',
               cursor: 'pointer',
-              transition: 'background 0.2s'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Upload size={18} color="#a855f7" />
-              <span style={{ fontSize: '0.95rem', fontWeight: '700', fontFamily: 'Georgia, serif', letterSpacing: '0.02em' }}>
-                YOUR ASSETS
+            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: showAssets ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: `1px solid ${showAssets ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Upload size={13} color={showAssets ? '#a78bfa' : 'rgba(255,255,255,0.35)'} /></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: '600', color: showAssets ? '#c4b5fd' : 'rgba(255,255,255,0.65)' }}>
+                Your Assets
               </span>
               {(voiceSamples.length > 0 || visualDnaUrl || audioDnaUrl) && (
                 <span style={{
@@ -8041,15 +8039,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 </span>
               )}
             </div>
-            {showAssets ? <ChevronUp size={16} color="rgba(255,255,255,0.5)" /> : <ChevronDown size={16} color="rgba(255,255,255,0.5)" />}
+            <div style={{ color: 'rgba(255,255,255,0.25)', transition: 'transform 0.3s ease', transform: showAssets ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
           </button>
 
           {showAssets && (
             <div style={{
-              padding: '16px 18px',
+              padding: '14px 16px 16px',
+              borderTop: '1px solid rgba(255,255,255,0.05)',
               display: 'grid',
               gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-              gap: '14px'
+              gap: '12px'
             }}>
 
               {/* Column 1: Voice Samples */}
@@ -8312,8 +8311,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           display: 'flex',
           alignItems: isMobile ? 'flex-start' : 'center',
           gap: isMobile ? '4px' : '0',
-          margin: isMobile ? '12px 0 8px' : '20px 0 14px',
-          padding: isMobile ? '10px' : '12px 20px',
+          margin: '8px 0',
+          padding: isMobile ? '10px 12px' : '11px 20px',
           background: 'rgba(255,255,255,0.02)',
           borderRadius: '14px',
           border: '1px solid rgba(255,255,255,0.05)',
@@ -8395,11 +8394,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
             return (
               <div key={slot.key} style={{
-                background: hasOutput ? `${slot.color}06` : 'rgba(255,255,255,0.02)',
-                borderRadius: isMobile ? '12px' : '16px',
-                border: `1px solid ${hasOutput ? slot.color + '35' : isLoadingSlot ? slot.color + '25' : 'rgba(255,255,255,0.06)'}`,
+                background: hasOutput ? `${slot.color}07` : 'rgba(255,255,255,0.02)',
+                borderRadius: '14px',
+                border: `1px solid ${hasOutput ? slot.color + '30' : isLoadingSlot ? slot.color + '22' : 'rgba(255,255,255,0.06)'}`,
                 overflow: 'hidden',
-                transition: 'border-color 0.3s ease, background 0.3s ease'
+                transition: 'border-color 0.3s ease, background 0.3s ease',
+                boxShadow: hasOutput ? `0 2px 16px ${slot.color}08` : 'none'
               }}>
                 {/* Accordion Header — always visible */}
                 <button
@@ -8408,8 +8408,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     width: '100%',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: isMobile ? '10px' : '14px',
-                    padding: isMobile ? '12px 14px' : '14px 20px',
+                    gap: '12px',
+                    padding: '13px 18px',
                     background: 'transparent',
                     border: 'none',
                     cursor: 'pointer',
@@ -8421,38 +8421,38 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 >
                   {/* Icon */}
                   <div style={{
-                    width: isMobile ? '34px' : '38px',
-                    height: isMobile ? '34px' : '38px',
-                    borderRadius: '10px',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '9px',
                     background: hasOutput ? `${slot.color}20` : 'rgba(255,255,255,0.06)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: hasOutput ? slot.color : 'rgba(255,255,255,0.35)',
+                    color: hasOutput ? slot.color : 'rgba(255,255,255,0.3)',
                     flexShrink: 0,
-                    border: `1px solid ${hasOutput ? slot.color + '40' : 'rgba(255,255,255,0.08)'}`,
+                    border: `1px solid ${hasOutput ? slot.color + '35' : 'rgba(255,255,255,0.08)'}`,
                     transition: 'all 0.25s ease'
                   }}>
-                    {React.createElement(slot.icon, { size: isMobile ? 16 : 18 })}
+                    {React.createElement(slot.icon, { size: 15 })}
                   </div>
 
                   {/* Title + preview */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: isMobile ? '0.88rem' : '0.95rem', fontWeight: '700', color: hasOutput ? 'white' : 'rgba(255,255,255,0.7)' }}>
+                      <span style={{ fontSize: '0.88rem', fontWeight: '700', color: hasOutput ? 'white' : 'rgba(255,255,255,0.65)' }}>
                         {agentName}
                       </span>
                       {/* Status badge */}
                       {isLoadingSlot ? (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', fontWeight: '700', color: slot.color, background: `${slot.color}18`, padding: '2px 8px', borderRadius: '20px', border: `1px solid ${slot.color}30` }}>
-                          <Loader2 size={10} className="spin" /> Generating...
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.62rem', fontWeight: '700', color: slot.color, background: `${slot.color}15`, padding: '2px 8px', borderRadius: '20px', border: `1px solid ${slot.color}28` }}>
+                          <Loader2 size={9} className="spin" /> Generating...
                         </span>
                       ) : hasOutput ? (
-                        <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#22c55e', background: 'rgba(34,197,94,0.12)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.25)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <span style={{ fontSize: '0.62rem', fontWeight: '700', color: '#22c55e', background: 'rgba(34,197,94,0.1)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', gap: '3px' }}>
                           <CheckCircle2 size={9} /> {hasMedia ? 'Done + Media' : 'Generated'}
                         </span>
                       ) : (
-                        <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.04)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.03)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
                           {slot.subtitle}
                         </span>
                       )}
@@ -8464,21 +8464,21 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     </div>
                     {/* Content preview when collapsed */}
                     {!isOpen && previewText && (
-                      <p style={{ margin: '3px 0 0', fontSize: isMobile ? '0.72rem' : '0.75rem', color: 'rgba(255,255,255,0.38)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                      <p style={{ margin: '3px 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                         {previewText}{outputs[slot.key]?.length > 90 ? '…' : ''}
                       </p>
                     )}
                   </div>
 
                   {/* Chevron */}
-                  <div style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0, transition: 'transform 0.25s ease', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                    <ChevronDown size={isMobile ? 16 : 18} />
+                  <div style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0, transition: 'transform 0.3s ease', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                    <ChevronDown size={15} />
                   </div>
                 </button>
 
                 {/* Expanded Card Content */}
                 {isOpen && (
-                  <div style={{ borderTop: `1px solid ${slot.color}20` }}>
+                  <div style={{ borderTop: `1px solid ${slot.color}18` }}>
                     <GeneratorCard
                       slot={slot.key}
                       agentId={selectedAgents[slot.key]}
@@ -8554,33 +8554,33 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             PRODUCTION CONTROL HUB — collapsible accordion
             ═══════════════════════════════════════════════════════════════════ */}
         {/* Collapsible header for Production Hub */}
-        <div style={{ marginTop: isMobile ? '16px' : '24px', borderRadius: isMobile ? '14px' : '20px', overflow: 'hidden', border: expandedSections.productionHub ? '1px solid rgba(79,70,229,0.3)' : '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ marginTop: '8px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.productionHub ? '1px solid rgba(99,102,241,0.28)' : '1px solid rgba(255,255,255,0.07)', background: expandedSections.productionHub ? 'rgba(99,102,241,0.04)' : 'rgba(255,255,255,0.02)', boxShadow: expandedSections.productionHub ? '0 2px 20px rgba(99,102,241,0.08)' : 'none' }}>
           <button
             onClick={() => toggleSection('productionHub')}
             style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: '14px',
-              padding: isMobile ? '14px 16px' : '16px 24px',
-              background: expandedSections.productionHub ? 'rgba(79,70,229,0.08)' : 'rgba(255,255,255,0.02)',
+              width: '100%', display: 'flex', alignItems: 'center', gap: '12px',
+              padding: '13px 18px',
+              background: 'transparent',
               border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left',
               WebkitTapHighlightColor: 'transparent'
             }}
           >
-            <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: expandedSections.productionHub ? 'rgba(79,70,229,0.2)' : 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: expandedSections.productionHub ? '#818cf8' : 'rgba(255,255,255,0.35)', border: `1px solid ${expandedSections.productionHub ? 'rgba(79,70,229,0.4)' : 'rgba(255,255,255,0.08)'}`, flexShrink: 0 }}>
-              <Zap size={18} />
+            <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: expandedSections.productionHub ? 'rgba(99,102,241,0.22)' : 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: expandedSections.productionHub ? '#818cf8' : 'rgba(255,255,255,0.3)', border: `1px solid ${expandedSections.productionHub ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.08)'}`, flexShrink: 0 }}>
+              <Zap size={15} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: isMobile ? '0.88rem' : '0.95rem', fontWeight: '700', color: expandedSections.productionHub ? '#a78bfa' : 'rgba(255,255,255,0.7)' }}>Production Control Hub</span>
+                <span style={{ fontSize: '0.88rem', fontWeight: '700', color: expandedSections.productionHub ? '#a5b4fc' : 'rgba(255,255,255,0.65)' }}>Production Control Hub</span>
                 {Object.values(outputs).some(Boolean) && (
-                  <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#4ade80', background: 'rgba(34,197,94,0.12)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.25)' }}>
+                  <span style={{ fontSize: '0.62rem', fontWeight: '700', color: '#4ade80', background: 'rgba(34,197,94,0.1)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.2)' }}>
                     {Object.values(outputs).filter(Boolean).length}/4 ready
                   </span>
                 )}
               </div>
-              <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>Final mix, distribution, mastering & export</p>
+              <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.28)' }}>Final mix, distribution, mastering &amp; export</p>
             </div>
-            <div style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0, transition: 'transform 0.25s ease', transform: expandedSections.productionHub ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-              <ChevronDown size={18} />
+            <div style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0, transition: 'transform 0.3s ease', transform: expandedSections.productionHub ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+              <ChevronDown size={15} />
             </div>
           </button>
           {expandedSections.productionHub && (
