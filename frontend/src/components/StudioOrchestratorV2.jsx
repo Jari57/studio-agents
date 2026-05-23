@@ -1058,224 +1058,171 @@ function GeneratorCard({
       {/* Action Bar */}
       {output && !isEditing && (
         <div style={{
-          padding: isMobile ? '6px 8px 8px' : '12px 20px 16px',
+          padding: '10px 14px',
           borderTop: '1px solid rgba(255,255,255,0.05)',
           display: 'flex',
-          gap: isMobile ? '6px' : '8px',
-          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
           position: 'relative',
           zIndex: 1,
           touchAction: 'manipulation'
         }}>
-          {/* TTS Button */}
-          <button
-            onClick={onSpeak}
-            title={isSpeaking ? "Stop" : (slot === 'lyrics' && mediaUrl) ? "Play AI Vocals" : "Text to Speech"}
-            style={{
-              padding: isMobile ? '8px 10px' : '8px 12px',
-              borderRadius: isMobile ? '8px' : '8px',
-              background: isSpeaking ? `${color}30` : 'rgba(255,255,255,0.05)',
-              border: `1px solid ${isSpeaking ? color : 'rgba(255,255,255,0.1)'}`,
-              color: isSpeaking ? color : 'var(--text-secondary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: isMobile ? '0.7rem' : '0.75rem',
-              fontWeight: '500',
-              minHeight: isMobile ? '36px' : 'auto',
-              touchAction: 'manipulation',
-              WebkitTapHighlightColor: 'transparent'
-            }}
-          >
-            {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
-            {!isMobile && (isSpeaking ? 'Stop' : (slot === 'lyrics' && mediaUrl) ? 'Hear Vocals' : 'TTS')}
-          </button>
-
-          {/* Copy Button */}
-          <button
-            onClick={handleCopy}
-            title="Copy to Clipboard"
-            style={{
-              padding: isMobile ? '8px 10px' : '8px 12px',
-              borderRadius: '8px',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: isMobile ? '0.7rem' : '0.75rem',
-              fontWeight: '500',
-              minHeight: isMobile ? '36px' : 'auto',
-              touchAction: 'manipulation',
-              WebkitTapHighlightColor: 'transparent'
-            }}
-          >
-            <Copy size={14} />
-            {!isMobile && 'Copy'}
-          </button>
-
-          {/* Edit Button */}
-          <button
-            onClick={() => setIsEditing(true)}
-            title="Edit Output"
-            style={{
-              padding: isMobile ? '8px 10px' : '8px 12px',
-              borderRadius: '8px',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: isMobile ? '0.7rem' : '0.75rem',
-              fontWeight: '500',
-              minHeight: isMobile ? '36px' : 'auto',
-              touchAction: 'manipulation',
-              WebkitTapHighlightColor: 'transparent'
-            }}
-          >
-            <Edit3 size={14} />
-            {!isMobile && 'Edit'}
-          </button>
-
-          {/* Preview Button - now next to Edit */}
-          {(mediaUrl || (output && !mediaType)) && (
+          {/* Primary actions — left group */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {/* TTS / Hear Vocals */}
             <button
-              onClick={() => setShowPreview(true)}
-              title="Preview"
+              onClick={onSpeak}
+              title={isSpeaking ? 'Stop' : (slot === 'lyrics' && mediaUrl) ? 'Play AI Vocals' : 'Text to Speech'}
               style={{
-                padding: isMobile ? '8px 10px' : '8px 12px',
-                borderRadius: '8px',
-                background: `${color}20`,
-                border: `1px solid ${color}40`,
-                color: color,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: isMobile ? '0.7rem' : '0.75rem',
-                fontWeight: '600',
-                minHeight: isMobile ? '36px' : 'auto',
-                touchAction: 'manipulation',
-                WebkitTapHighlightColor: 'transparent'
+                height: '32px', padding: '0 10px', borderRadius: '8px',
+                background: isSpeaking ? `${color}25` : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${isSpeaking ? color + '60' : 'rgba(255,255,255,0.08)'}`,
+                color: isSpeaking ? color : 'rgba(255,255,255,0.45)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
+                fontSize: '0.72rem', fontWeight: '600', whiteSpace: 'nowrap',
+                touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
               }}
             >
-              <Eye size={14} />
-              {!isMobile && 'Preview'}
+              {isSpeaking ? <VolumeX size={13} /> : <Volume2 size={13} />}
+              {isSpeaking ? 'Stop' : (slot === 'lyrics' && mediaUrl) ? 'Vocals' : 'TTS'}
             </button>
-          )}
 
-          {/* Regenerate Button */}
-          {onRegenerate && (
+            {/* Copy */}
             <button
-              onClick={onRegenerate}
-              title="Regenerate"
+              onClick={handleCopy}
+              title="Copy to Clipboard"
               style={{
-                padding: isMobile ? '8px 10px' : '8px 12px',
-                borderRadius: '8px',
+                height: '32px', padding: '0 10px', borderRadius: '8px',
                 background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: isMobile ? '0.7rem' : '0.75rem',
-                fontWeight: '500',
-                minHeight: isMobile ? '36px' : 'auto',
-                touchAction: 'manipulation',
-                WebkitTapHighlightColor: 'transparent'
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.45)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
+                fontSize: '0.72rem', fontWeight: '600', whiteSpace: 'nowrap',
+                touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
               }}
             >
-              <RefreshCw size={14} />
-              {!isMobile && 'Redo'}
+              <Copy size={13} />
+              Copy
             </button>
-          )}
 
-          {/* Spacer - hide on mobile to allow wrap */}
-          {!isMobile && <div style={{ flex: 1 }} />}
-
-          {/* Maximize Button */}
-          {output && onMaximize && (
+            {/* Edit */}
             <button
-              onClick={onMaximize}
-              title="Expand to Fullscreen"
+              onClick={() => setIsEditing(true)}
+              title="Edit Output"
               style={{
-                padding: isMobile ? '8px 10px' : '8px 12px',
-                borderRadius: '8px',
+                height: '32px', padding: '0 10px', borderRadius: '8px',
                 background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: isMobile ? '0.7rem' : '0.75rem',
-                fontWeight: '500',
-                minHeight: isMobile ? '36px' : 'auto',
-                touchAction: 'manipulation',
-                WebkitTapHighlightColor: 'transparent'
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.45)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
+                fontSize: '0.72rem', fontWeight: '600', whiteSpace: 'nowrap',
+                touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
               }}
             >
-              <Maximize2 size={14} />
+              <Edit3 size={13} />
+              Edit
             </button>
-          )}
 
-          {/* Download Button */}
-          {(output || mediaUrl) && (
-            <button
-              onClick={onDownload}
-              title="Download"
-              style={{
-                padding: isMobile ? '8px 10px' : '8px 12px',
-                borderRadius: '8px',
-                background: 'rgba(34, 197, 94, 0.15)',
-                border: '1px solid rgba(34, 197, 94, 0.3)',
-                color: '#22c55e',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: isMobile ? '0.7rem' : '0.75rem',
-                fontWeight: '600',
-                minHeight: isMobile ? '36px' : 'auto',
-                touchAction: 'manipulation',
-                WebkitTapHighlightColor: 'transparent'
-              }}
-            >
-              <Download size={14} />
-            </button>
-          )}
+            {/* Preview */}
+            {(mediaUrl || (output && !mediaType)) && (
+              <button
+                onClick={() => setShowPreview(true)}
+                title="Preview"
+                style={{
+                  height: '32px', padding: '0 10px', borderRadius: '8px',
+                  background: `${color}18`,
+                  border: `1px solid ${color}35`,
+                  color: color,
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
+                  fontSize: '0.72rem', fontWeight: '700', whiteSpace: 'nowrap',
+                  touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
+                }}
+              >
+                <Eye size={13} />
+                Preview
+              </button>
+            )}
 
-          {/* Delete Button */}
-          {onDelete && (
-            <button
-              onClick={onDelete}
-              title="Delete"
-              style={{
-                padding: isMobile ? '8px 10px' : '8px 12px',
-                borderRadius: '8px',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.2)',
-                color: '#ef4444',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: isMobile ? '0.7rem' : '0.75rem',
-                fontWeight: '500',
-                minHeight: isMobile ? '36px' : 'auto',
-                touchAction: 'manipulation',
-                WebkitTapHighlightColor: 'transparent'
-              }}
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
+            {/* Regenerate */}
+            {onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                title="Regenerate"
+                style={{
+                  height: '32px', padding: '0 10px', borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'rgba(255,255,255,0.45)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
+                  fontSize: '0.72rem', fontWeight: '600', whiteSpace: 'nowrap',
+                  touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
+                }}
+              >
+                <RefreshCw size={13} />
+                Redo
+              </button>
+            )}
+          </div>
+
+          {/* Utility actions — right group */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            {/* Maximize */}
+            {output && onMaximize && (
+              <button
+                onClick={onMaximize}
+                title="Expand to Fullscreen"
+                style={{
+                  height: '32px', width: '32px', borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'rgba(255,255,255,0.4)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
+                }}
+              >
+                <Maximize2 size={13} />
+              </button>
+            )}
+
+            {/* Download */}
+            {(output || mediaUrl) && (
+              <button
+                onClick={onDownload}
+                title="Download"
+                style={{
+                  height: '32px', padding: '0 10px', borderRadius: '8px',
+                  background: 'rgba(34,197,94,0.12)',
+                  border: '1px solid rgba(34,197,94,0.25)',
+                  color: '#22c55e',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
+                  fontSize: '0.72rem', fontWeight: '700', whiteSpace: 'nowrap',
+                  touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
+                }}
+              >
+                <Download size={13} />
+                Save
+              </button>
+            )}
+
+            {/* Delete */}
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                title="Delete"
+                style={{
+                  height: '32px', width: '32px', borderRadius: '8px',
+                  background: 'rgba(239,68,68,0.08)',
+                  border: '1px solid rgba(239,68,68,0.15)',
+                  color: '#ef4444',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
+                }}
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
