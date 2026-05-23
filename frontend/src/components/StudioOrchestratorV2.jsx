@@ -559,13 +559,15 @@ function GeneratorCard({
                     onClick={() => setIsEditing(false)}
                     style={{
                       flex: 1,
-                      padding: '8px',
+                      height: '32px',
+                      padding: '0 10px',
                       borderRadius: '8px',
-                      background: 'rgba(255,255,255,0.1)',
-                      border: 'none',
-                      color: 'white',
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      color: 'rgba(255,255,255,0.7)',
                       cursor: 'pointer',
-                      fontSize: '0.8rem'
+                      fontSize: '0.72rem',
+                      fontWeight: '600'
                     }}
                   >
                     Cancel
@@ -574,14 +576,15 @@ function GeneratorCard({
                     onClick={handleSaveEdit}
                     style={{
                       flex: 1,
-                      padding: '8px',
+                      height: '32px',
+                      padding: '0 10px',
                       borderRadius: '8px',
                       background: color,
                       border: 'none',
                       color: 'white',
                       cursor: 'pointer',
-                      fontWeight: '600',
-                      fontSize: '0.8rem'
+                      fontWeight: '700',
+                      fontSize: '0.72rem'
                     }}
                   >
                     Save
@@ -1400,19 +1403,19 @@ function ProductionControlHub({
           <button
             onClick={handleCreateProject}
             style={{
-              padding: '12px 22px',
-              borderRadius: '14px',
+              padding: '14px 22px',
+              borderRadius: '12px',
               background: allComplete ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : 'rgba(255,255,255,0.05)',
               border: allComplete ? 'none' : '1px solid rgba(255,255,255,0.1)',
               color: 'white',
               fontWeight: '700',
-              fontSize: '0.9rem',
+              fontSize: '0.95rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
               boxShadow: allComplete ? '0 6px 20px rgba(79, 70, 229, 0.35)' : 'none',
-              minHeight: '44px'
+              minHeight: '50px'
             }}
           >
             <FolderPlus size={18} />
@@ -1635,19 +1638,24 @@ function ProductionControlHub({
                       setMixBeatVolume(preset.vol.beat);
                     }}
                     style={{
-                      padding: '12px 10px',
-                      borderRadius: '12px',
+                      padding: '10px 8px',
+                      borderRadius: '10px',
                       background: mixPreset === preset.id ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.03)',
-                      border: `2px solid ${mixPreset === preset.id ? 'rgba(99, 102, 241, 0.5)' : 'rgba(255,255,255,0.06)'}`,
-                      color: mixPreset === preset.id ? '#a78bfa' : 'rgba(255,255,255,0.6)',
+                      border: `1px solid ${mixPreset === preset.id ? 'rgba(99, 102, 241, 0.45)' : 'rgba(255,255,255,0.08)'}`,
+                      color: mixPreset === preset.id ? '#a78bfa' : 'rgba(255,255,255,0.55)',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
                       textAlign: 'center',
+                      minHeight: '52px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       boxShadow: mixPreset === preset.id ? '0 4px 16px rgba(99, 102, 241, 0.2)' : 'none'
                     }}
                   >
-                    <div style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '4px' }}>{preset.label}</div>
-                    <div style={{ fontSize: '0.65rem', opacity: 0.7, lineHeight: '1.3' }}>{preset.desc}</div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: '700', marginBottom: '3px' }}>{preset.label}</div>
+                    <div style={{ fontSize: '0.62rem', opacity: 0.65, lineHeight: '1.3' }}>{preset.desc}</div>
                   </button>
                 ))}
               </div>
@@ -1735,14 +1743,14 @@ function ProductionControlHub({
                 disabled={(!hasBeat && !hasVocalMedia) || creatingFinalMix}
                 style={{
                   padding: '14px 28px',
-                  borderRadius: '14px',
+                  borderRadius: '12px',
                   background: (hasBeat || hasVocalMedia)
                     ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
                     : 'rgba(255,255,255,0.05)',
                   border: (hasBeat || hasVocalMedia) ? 'none' : '1px solid rgba(255,255,255,0.1)',
                   color: (hasBeat || hasVocalMedia) ? 'white' : 'rgba(255,255,255,0.3)',
                   fontWeight: '700',
-                  fontSize: '1rem',
+                  fontSize: '0.95rem',
                   cursor: (hasBeat || hasVocalMedia) && !creatingFinalMix ? 'pointer' : 'default',
                   display: 'flex',
                   alignItems: 'center',
@@ -1766,12 +1774,12 @@ function ProductionControlHub({
                   onClick={handleDownloadMasterMix}
                   style={{
                     padding: '14px 24px',
-                    borderRadius: '14px',
+                    borderRadius: '12px',
                     background: 'rgba(34, 197, 94, 0.1)',
                     border: '1px solid rgba(34, 197, 94, 0.3)',
                     color: '#4ade80',
                     fontWeight: '700',
-                    fontSize: '0.9rem',
+                    fontSize: '0.95rem',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -1789,12 +1797,12 @@ function ProductionControlHub({
                   onClick={handleDownloadStemsPack}
                   style={{
                     padding: '14px 18px',
-                    borderRadius: '14px',
+                    borderRadius: '12px',
                     background: 'rgba(139, 92, 246, 0.08)',
                     border: '1px solid rgba(139, 92, 246, 0.25)',
                     color: '#c4b5fd',
                     fontWeight: '700',
-                    fontSize: '0.85rem',
+                    fontSize: '0.88rem',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -1860,19 +1868,19 @@ function ProductionControlHub({
           onClick={isSyncAvailable ? handleGenerateProfessionalMusicVideo : () => toast('Generate a beat and image/video first to create a music video', { icon: '🎬' })}
           disabled={generatingMusicVideo || !isSyncAvailable}
           style={{
-            padding: '12px 24px',
+            padding: '13px 24px',
             borderRadius: '12px',
             background: !isSyncAvailable ? 'rgba(255,255,255,0.04)' : isSyncComplete ? 'rgba(34, 197, 94, 0.1)' : 'rgba(236, 72, 153, 0.15)',
             border: `1px solid ${!isSyncAvailable ? 'rgba(255,255,255,0.1)' : isSyncComplete ? 'rgba(34, 197, 94, 0.3)' : 'rgba(236, 72, 153, 0.3)'}`,
             color: !isSyncAvailable ? 'rgba(255,255,255,0.3)' : isSyncComplete ? '#4ade80' : '#f472b6',
             fontWeight: '700',
-            fontSize: '0.85rem',
+            fontSize: '0.88rem',
             cursor: (generatingMusicVideo || !isSyncAvailable) ? 'not-allowed' : 'pointer',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
             whiteSpace: 'nowrap',
-            minHeight: '44px'
+            minHeight: '50px'
           }}
         >
           {generatingMusicVideo ? (
@@ -1898,18 +1906,19 @@ function ProductionControlHub({
               }
             }}
             style={{
-              padding: '10px 18px',
-              borderRadius: '10px',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
+              padding: '13px 18px',
+              borderRadius: '12px',
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
               color: '#f87171',
               fontWeight: '700',
-              fontSize: '0.8rem',
+              fontSize: '0.88rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              minHeight: '50px'
             }}
           >
             <RefreshCw size={14} /> Retry Mux
@@ -1937,13 +1946,13 @@ function ProductionControlHub({
               onClick={(finalMixPreview || mediaUrls.mixedAudio) ? handleDistributeToSoundCloud : () => toast('Create a final mix first before distributing', { icon: '🎚️' })}
               disabled={!!distributing || !(finalMixPreview || mediaUrls.mixedAudio)}
               style={{
-                padding: '12px 20px',
+                padding: '13px 20px',
                 borderRadius: '12px',
                 background: (finalMixPreview || mediaUrls.mixedAudio) ? 'linear-gradient(135deg, #ff5500, #ff7700)' : 'rgba(255,255,255,0.04)',
                 border: (finalMixPreview || mediaUrls.mixedAudio) ? 'none' : '1px solid rgba(255,255,255,0.1)',
                 color: (finalMixPreview || mediaUrls.mixedAudio) ? 'white' : 'rgba(255,255,255,0.3)',
                 fontWeight: '700',
-                fontSize: '0.85rem',
+                fontSize: '0.88rem',
                 cursor: (distributing || !(finalMixPreview || mediaUrls.mixedAudio)) ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -1951,7 +1960,7 @@ function ProductionControlHub({
                 opacity: distributing === 'soundcloud' ? 0.7 : 1,
                 flex: 1,
                 justifyContent: 'center',
-                minHeight: '44px',
+                minHeight: '50px',
                 boxShadow: '0 4px 16px rgba(255, 85, 0, 0.3)'
               }}
             >
@@ -1967,20 +1976,20 @@ function ProductionControlHub({
               onClick={(finalMixPreview || mediaUrls.mixedAudio) ? handleCreateShareLink : () => toast('Create a final mix first', { icon: '🎚️' })}
               disabled={!!distributing || !(finalMixPreview || mediaUrls.mixedAudio)}
               style={{
-                padding: '12px 20px',
+                padding: '13px 20px',
                 borderRadius: '12px',
                 background: (finalMixPreview || mediaUrls.mixedAudio) ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255,255,255,0.04)',
                 border: `1px solid ${(finalMixPreview || mediaUrls.mixedAudio) ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.1)'}`,
                 color: (finalMixPreview || mediaUrls.mixedAudio) ? '#818cf8' : 'rgba(255,255,255,0.3)',
                 fontWeight: '700',
-                fontSize: '0.85rem',
+                fontSize: '0.88rem',
                 cursor: (distributing || !(finalMixPreview || mediaUrls.mixedAudio)) ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
                 flex: 1,
                 justifyContent: 'center',
-                minHeight: '44px'
+                minHeight: '50px'
               }}
             >
               {distributing === 'share' ? (
@@ -7599,9 +7608,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         style={{
                           background: voiceSampleUrl === voice.url ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255,255,255,0.05)',
                           border: voiceSampleUrl === voice.url ? '1px solid #8b5cf6' : '1px solid rgba(255,255,255,0.1)',
-                          borderRadius: '16px',
+                          borderRadius: '20px',
                           padding: '4px 10px',
-                          fontSize: '0.75rem',
+                          fontSize: '0.72rem',
                           color: 'white',
                           cursor: 'pointer',
                           display: 'flex',
@@ -8841,6 +8850,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 border: '1px solid rgba(255,255,255,0.1)',
                 color: 'white',
                 fontWeight: '600',
+                fontSize: '0.9rem',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
