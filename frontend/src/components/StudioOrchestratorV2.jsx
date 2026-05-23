@@ -2305,6 +2305,14 @@ export default function StudioOrchestratorV2({
   const [quickMode, setQuickMode] = useState(true); // Quick Create vs Advanced Mode
   const [quickGenre, setQuickGenre] = useState('Modern Hip-Hop'); // Genre for Quick Create
   const [selectedOutputPreset, setSelectedOutputPreset] = useState('Full Song Release'); // Output format preset
+  // Collapsible section state — all sections start collapsed for a clean first impression
+  const [expandedSections, setExpandedSections] = useState({
+    lyrics: false, audio: false, visual: false, video: false,
+    vocalEngine: false, productionHub: false,
+    config: false, outputPresets: false, arrangement: false, agentSelection: false,
+  });
+  const toggleSection = useCallback((key) => setExpandedSections(prev => ({ ...prev, [key]: !prev[key] })), []);
+  const expandSection = useCallback((key) => setExpandedSections(prev => ({ ...prev, [key]: true })), []);
   const [pipelineSteps, setPipelineSteps] = useState([]); // Live progress feed
   const [retryingStep, setRetryingStep] = useState(null); // ID of pipeline step currently being retried
   const [mixFailed, setMixFailed] = useState(false); // True when /api/create-final-mix returned an error
@@ -2518,6 +2526,19 @@ export default function StudioOrchestratorV2({
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+
+  // Auto-expand sections when content is generated so the user sees results immediately
+  useEffect(() => { if (outputs.lyrics) expandSection('lyrics'); }, [outputs.lyrics, expandSection]);
+  useEffect(() => { if (outputs.audio) expandSection('audio'); }, [outputs.audio, expandSection]);
+  useEffect(() => { if (outputs.visual) expandSection('visual'); }, [outputs.visual, expandSection]);
+  useEffect(() => { if (outputs.video) expandSection('video'); }, [outputs.video, expandSection]);
+  // Auto-expand Vocal Engine when lyrics are ready
+  useEffect(() => { if (outputs.lyrics && !quickMode) expandSection('vocalEngine'); }, [outputs.lyrics, quickMode, expandSection]);
+  // Auto-expand Production Hub once anything is complete
+  useEffect(() => {
+    const hasAny = Object.values(outputs).some(Boolean);
+    if (hasAny) expandSection('productionHub');
+  }, [outputs, expandSection]);
 
   // Reset and restore state when switching between projects
   useEffect(() => {
@@ -6773,7 +6794,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         {/* Advanced-only sections hidden in Quick Mode */}
         {!quickMode && (
           <>
-        {/* Configuration Row */}
+        {/* ── Configuration Row ── collapsible */}
+        <div style={{ marginBottom: '10px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.config ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
+          <button onClick={() => toggleSection('config')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: expandedSections.config ? 'rgba(139,92,246,0.06)' : 'rgba(255,255,255,0.02)', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+            <Settings size={15} style={{ color: expandedSections.config ? '#a78bfa' : 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+            <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: '600', color: expandedSections.config ? '#a78bfa' : 'rgba(255,255,255,0.6)' }}>Production Settings</span>
+            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', marginRight: '6px' }}>{style} • {projectBpm} BPM • {language}</span>
+            <div style={{ color: 'rgba(255,255,255,0.3)', transition: 'transform 0.25s', transform: expandedSections.config ? 'rotate(180deg)' : 'none' }}><ChevronDown size={16} /></div>
+          </button>
+          {expandedSections.config && (
+            <div style={{ padding: '14px 16px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
@@ -6920,7 +6950,20 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
              </div>
           </div>
         </div>
+            </div>
+          )}
+        </div>
 
+        {/* ── Output Format Presets ── collapsible */}
+        <div style={{ marginBottom: '10px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.outputPresets ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
+          <button onClick={() => toggleSection('outputPresets')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: expandedSections.outputPresets ? 'rgba(139,92,246,0.06)' : 'rgba(255,255,255,0.02)', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+            <Disc size={15} style={{ color: expandedSections.outputPresets ? '#a78bfa' : 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+            <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: '600', color: expandedSections.outputPresets ? '#a78bfa' : 'rgba(255,255,255,0.6)' }}>Output Format</span>
+            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', marginRight: '6px' }}>{selectedOutputPreset}</span>
+            <div style={{ color: 'rgba(255,255,255,0.3)', transition: 'transform 0.25s', transform: expandedSections.outputPresets ? 'rotate(180deg)' : 'none' }}><ChevronDown size={16} /></div>
+          </button>
+          {expandedSections.outputPresets && (
+            <div style={{ padding: '14px 16px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {/* Output Format Preset Selector */}
         <div style={{
           display: 'flex',
@@ -6963,7 +7006,20 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             </button>
           ))}
         </div>
+            </div>
+          )}
+        </div>
 
+        {/* ── Arrangement Editor ── collapsible */}
+        <div style={{ marginBottom: '10px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.arrangement ? '1px solid rgba(34,211,238,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
+          <button onClick={() => toggleSection('arrangement')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: expandedSections.arrangement ? 'rgba(34,211,238,0.05)' : 'rgba(255,255,255,0.02)', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+            <Music size={15} style={{ color: expandedSections.arrangement ? '#22d3ee' : 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+            <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: '600', color: expandedSections.arrangement ? '#22d3ee' : 'rgba(255,255,255,0.6)' }}>Song Arrangement</span>
+            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', marginRight: '6px' }}>{structure}</span>
+            <div style={{ color: 'rgba(255,255,255,0.3)', transition: 'transform 0.25s', transform: expandedSections.arrangement ? 'rotate(180deg)' : 'none' }}><ChevronDown size={16} /></div>
+          </button>
+          {expandedSections.arrangement && (
+            <div style={{ padding: '4px 0 0', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {/* Arrangement Editor — Visual Song Structure Builder */}
         <Suspense fallback={<div style={{ padding: '20px', color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem' }}>Loading arrangement editor...</div>}>
           <ArrangementEditor
@@ -6974,7 +7030,20 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             onArrangementChange={setArrangementSections}
           />
         </Suspense>
+            </div>
+          )}
+        </div>
 
+        {/* ── Agent Selection ── collapsible */}
+        <div style={{ marginBottom: '10px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.agentSelection ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
+          <button onClick={() => toggleSection('agentSelection')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: expandedSections.agentSelection ? 'rgba(139,92,246,0.06)' : 'rgba(255,255,255,0.02)', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+            <Users size={15} style={{ color: expandedSections.agentSelection ? '#a78bfa' : 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+            <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: '600', color: expandedSections.agentSelection ? '#a78bfa' : 'rgba(255,255,255,0.6)' }}>Generator Agents</span>
+            <span style={{ fontSize: '0.7rem', color: '#a78bfa', background: 'rgba(139,92,246,0.15)', padding: '2px 8px', borderRadius: '10px', marginRight: '6px' }}>{Object.values(selectedAgents).filter(Boolean).length}/4</span>
+            <div style={{ color: 'rgba(255,255,255,0.3)', transition: 'transform 0.25s', transform: expandedSections.agentSelection ? 'rotate(180deg)' : 'none' }}><ChevronDown size={16} /></div>
+          </button>
+          {expandedSections.agentSelection && (
+            <div style={{ padding: '14px 16px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {/* Agent Selection */}
         <div style={{
           background: 'rgba(255,255,255,0.03)',
@@ -7086,6 +7155,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             ))}
           </div>
         </div>
+            </div>
+          )}
+        </div>
 
 
 
@@ -7094,71 +7166,33 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         {/* VOCAL PERFORMANCE ENGINE — Premium Voice Production Suite       */}
         {/* ═══════════════════════════════════════════════════════════════ */}
         {outputs.lyrics && (
+          <div style={{ marginBottom: '10px', borderRadius: '16px', overflow: 'hidden', border: expandedSections.vocalEngine ? '1px solid rgba(251,191,36,0.35)' : '1px solid rgba(251,191,36,0.15)' }}>
+            {/* Vocal Engine Accordion Header */}
+            <button onClick={() => toggleSection('vocalEngine')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: isMobile ? '13px 16px' : '15px 20px', background: expandedSections.vocalEngine ? 'linear-gradient(135deg, rgba(251,191,36,0.06), rgba(139,92,246,0.08))' : 'rgba(251,191,36,0.04)', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent', position: 'relative' }}>
+              {/* shimmer top line */}
+              {expandedSections.vocalEngine && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, #fbbf24, #8b5cf6, #fbbf24, transparent)', opacity: 0.7 }} />}
+              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(251,191,36,0.2), rgba(139,92,246,0.2))', border: '1px solid rgba(251,191,36,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Mic size={18} color="#fbbf24" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: isMobile ? '0.88rem' : '0.94rem', fontWeight: '800', background: 'linear-gradient(135deg, #fbbf24, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Vocal Performance Engine</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.6rem', fontWeight: '700', color: '#fbbf24', background: 'rgba(251,191,36,0.1)', padding: '2px 7px', borderRadius: '20px', border: '1px solid rgba(251,191,36,0.25)', WebkitTextFillColor: '#fbbf24' }}><Zap size={9} />Premium</span>
+                  {mediaUrls.lyricsVocal && <span style={{ fontSize: '0.6rem', fontWeight: '700', color: '#22c55e', background: 'rgba(34,197,94,0.12)', padding: '2px 7px', borderRadius: '20px', WebkitTextFillColor: '#22c55e' }}>✓ Vocals Ready</span>}
+                </div>
+                <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', WebkitTextFillColor: 'rgba(255,255,255,0.35)' }}>Voice cloning, ElevenLabs, style control</p>
+              </div>
+              <div style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0, transition: 'transform 0.25s', transform: expandedSections.vocalEngine ? 'rotate(180deg)' : 'none' }}><ChevronDown size={16} /></div>
+            </button>
+
+            {expandedSections.vocalEngine && (
           <div style={{
             background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.06) 0%, rgba(139, 92, 246, 0.10) 40%, rgba(251, 191, 36, 0.04) 100%)',
-            borderRadius: '20px',
             padding: isMobile ? '20px' : '28px',
-            border: '1px solid rgba(251, 191, 36, 0.35)',
-            marginBottom: '24px',
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            borderTop: '1px solid rgba(251,191,36,0.15)'
           }}>
-            {/* Premium shimmer accent line */}
-            <div style={{
-              position: 'absolute',
-              top: 0, left: 0, right: 0, height: '2px',
-              background: 'linear-gradient(90deg, transparent, #fbbf24, #8b5cf6, #fbbf24, transparent)',
-              opacity: 0.7
-            }} />
-
-            {/* Header */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '20px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  width: '40px', height: '40px', borderRadius: '12px',
-                  background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(139, 92, 246, 0.2))',
-                  border: '1px solid rgba(251, 191, 36, 0.3)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                  <Mic size={20} color="#fbbf24" />
-                </div>
-                <div>
-                  <h4 style={{ 
-                    margin: '0 0 4px', 
-                    fontSize: '1.1rem', 
-                    fontWeight: '800',
-                    background: 'linear-gradient(135deg, #fbbf24, #a855f7)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    letterSpacing: '-0.01em'
-                  }}>
-                    Vocal Performance Engine
-                  </h4>
-                  <p style={{ 
-                    margin: 0, 
-                    fontSize: '0.8rem', 
-                    color: 'rgba(255,255,255,0.5)' 
-                  }}>
-                    AI vocal synthesis with voice cloning, ElevenLabs premium, and reference matching
-                  </p>
-                </div>
-              </div>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '4px 10px', borderRadius: '20px',
-                background: 'rgba(251, 191, 36, 0.1)',
-                border: '1px solid rgba(251, 191, 36, 0.25)'
-              }}>
-                <Zap size={12} color="#fbbf24" fill="#fbbf24" />
-                <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Premium</span>
-              </div>
-            </div>
-
             {/* ── Preview Section ── */}
             <div style={{
               display: 'grid',
@@ -8008,6 +8042,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             </div>
           </div>
         )}
+          </div>
+        )}
 
         {/* End of advanced-only sections */}
         </>
@@ -8323,6 +8359,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             </div>
           )}
         </div>
+        )}
 
         {/* ── PRODUCTION STEPS INDICATOR ── */}
         <div style={{
@@ -8395,119 +8432,250 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           })}
         </div>
 
-        {/* 4 Generator Cards Grid - 2x2 layout - uses unified CSS */}
-      <div id="orchestrator-results-grid" className="generator-grid-unified" style={{
-        gap: isMobile ? '0.6rem' : '1rem',
-        touchAction: 'pan-y'
-      }}>
-        {GENERATOR_SLOTS.map(slot => (
-          <GeneratorCard
-            key={slot.key}
-            slot={slot.key}
-            agentId={selectedAgents[slot.key]}
-            icon={slot.icon}
-            title={selectedAgents[slot.key] ? AGENTS.find(a => a.id === selectedAgents[slot.key])?.name : slot.title}
-            subtitle={slot.subtitle}
-            color={slot.color}
-            output={outputs[slot.key]}
-            isLoading={generatingSlots[slot.key] && selectedAgents[slot.key]}
-            mediaType={slot.mediaType}
-            mediaUrl={
+        {/* ── Stacked Accordion Generator Cards ── */}
+        <div id="orchestrator-results-grid" style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '8px' : '10px', touchAction: 'pan-y' }}>
+          {GENERATOR_SLOTS.map(slot => {
+            const isOpen = expandedSections[slot.key];
+            const hasOutput = !!outputs[slot.key];
+            const isLoadingSlot = !!(generatingSlots[slot.key] && selectedAgents[slot.key]);
+            const hasMedia = !!(
               slot.key === 'audio' ? mediaUrls.audio :
               slot.key === 'lyrics' ? (mediaUrls.vocals || mediaUrls.lyricsVocal) :
               slot.key === 'visual' ? mediaUrls.image :
               slot.key === 'video' ? mediaUrls.video : null
-            }
-            arGrade={arGrades[slot.key]}
-            isGradingAr={gradingSlots[slot.key]}
-            onGenerateMedia={
-              slot.key === 'audio' ? handleGenerateAudio :
-              slot.key === 'lyrics' ? handleGenerateVocals :
-              slot.key === 'visual' ? handleGenerateImage :
-              slot.key === 'video' ? handleGenerateVideo : null
-            }
-            isGeneratingMedia={
-              slot.key === 'audio' ? generatingMedia.audio :
-              slot.key === 'lyrics' ? (generatingMedia.vocals) :
-              slot.key === 'visual' ? generatingMedia.image :
-              slot.key === 'video' ? generatingMedia.video : false
-            }
-            onRegenerate={() => handleRegenerate(slot.key)}
-            onEdit={(text) => handleEdit(slot.key, text)}
-            onDelete={() => handleDelete(slot.key)}
-            onDownload={() => handleDownload(slot.key)}
-            onSpeak={() => speakText(outputs[slot.key], slot.key)}
-            isSpeaking={speakingSlot === slot.key}
-            onMaximize={() => { setShowPreviewModal(false); setMaximizedSlot(slot.key); }}
-            onUploadDna={
-              slot.key === 'visual' ? (e) => handleUploadDna('visual', e) :
-              slot.key === 'audio' ? (e) => handleUploadDna('audio', e) :
-              slot.key === 'video' ? (e) => handleUploadDna('video', e) :
-              slot.key === 'lyrics' ? (e) => handleUploadDna('lyrics', e) : null
-            }
-            dnaUrl={
-              slot.key === 'visual' ? visualDnaUrl :
-              slot.key === 'audio' ? audioDnaUrl :
-              slot.key === 'video' ? videoDnaUrl :
-              slot.key === 'lyrics' ? lyricsDnaUrl : null
-            }
-            isUploadingDna={isUploadingDna[slot.key]}
-            provider={generationProviders[slot.key] || null}
-            onClearDna={() => {
-              const clearFields = {};
-              if (slot.key === 'visual') { setVisualDnaUrl(null); clearFields.visualDnaUrl = null; }
-              if (slot.key === 'audio') { setAudioDnaUrl(null); clearFields.audioDnaUrl = null; }
-              if (slot.key === 'video') { setVideoDnaUrl(null); clearFields.videoDnaUrl = null; }
-              if (slot.key === 'lyrics') { setLyricsDnaUrl(null); clearFields.lyricsDnaUrl = null; }
-              if (auth.currentUser?.uid && db && Object.keys(clearFields).length) {
-                updateDoc(doc(db, 'users', auth.currentUser.uid), clearFields).catch(() => toast.error('Style reference may reappear — check your connection', { duration: 3000 }));
-              }
-            }}
-            onSetAsDna={slot.key === 'visual' && mediaUrls.image ? handleSetImageAsDna : null}
-            onEditCover={slot.key === 'visual' && mediaUrls.image ? () => setShowCoverEditor(true) : null}
-          />
-        ))}
-      </div>
+            );
+            const agentName = selectedAgents[slot.key] ? AGENTS.find(a => a.id === selectedAgents[slot.key])?.name : slot.title;
+            const previewText = hasOutput ? outputs[slot.key]?.replace(/\n+/g, ' ')?.substring(0, 90) : null;
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          PRODUCTION CONTROL HUB (Consolidated Final Mix & Save)
-          ═══════════════════════════════════════════════════════════════════ */}
-      <ProductionControlHub
-        outputs={outputs}
-        mediaUrls={mediaUrls}
-        songIdea={songIdea}
-        finalMixPreview={finalMixPreview}
-        creatingFinalMix={creatingFinalMix}
-        musicVideoUrl={musicVideoUrl}
-        generatingMusicVideo={generatingMusicVideo}
-        handleGenerateProfessionalMusicVideo={handleGenerateProfessionalMusicVideo}
-        handleCreateFinalMix={handleCreateFinalMix}
-        handleCreateProject={handleCreateProject}
-        setShowPreviewModal={setShowPreviewModal}
-        setMaximizedSlot={setMaximizedSlot}
-        visualType={visualType}
-        setVisualType={setVisualType}
-        isMobile={isMobile}
-        orchestratorBpm={projectBpm}
-        mixVocalVolume={mixVocalVolume}
-        mixBeatVolume={mixBeatVolume}
-        setMixVocalVolume={setMixVocalVolume}
-        setMixBeatVolume={setMixBeatVolume}
-        mixPreset={mixPreset}
-        setMixPreset={setMixPreset}
-        handleDistributeToSoundCloud={handleDistributeToSoundCloud}
-        handleCreateShareLink={handleCreateShareLink}
-        handleDownloadMasterMix={handleDownloadMasterMix}
-        handleDownloadStemsPack={handleDownloadStemsPack}
-        distributing={distributing}
-        shareLink={shareLink}
-        creatorMode={creatorMode}
-        muxRetryParams={muxRetryParams}
-        autoMuxVideoWithAudio={autoMuxVideoWithAudio}
-        getHeaders={getHeaders}
-        visualDnaUrl={visualDnaUrl}
-        videoDnaUrl={videoDnaUrl}
-      />
+            return (
+              <div key={slot.key} style={{
+                background: hasOutput ? `${slot.color}06` : 'rgba(255,255,255,0.02)',
+                borderRadius: isMobile ? '12px' : '16px',
+                border: `1px solid ${hasOutput ? slot.color + '35' : isLoadingSlot ? slot.color + '25' : 'rgba(255,255,255,0.06)'}`,
+                overflow: 'hidden',
+                transition: 'border-color 0.3s ease, background 0.3s ease'
+              }}>
+                {/* Accordion Header — always visible */}
+                <button
+                  onClick={() => toggleSection(slot.key)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: isMobile ? '10px' : '14px',
+                    padding: isMobile ? '12px 14px' : '14px 20px',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'white',
+                    textAlign: 'left',
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation'
+                  }}
+                >
+                  {/* Icon */}
+                  <div style={{
+                    width: isMobile ? '34px' : '38px',
+                    height: isMobile ? '34px' : '38px',
+                    borderRadius: '10px',
+                    background: hasOutput ? `${slot.color}20` : 'rgba(255,255,255,0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: hasOutput ? slot.color : 'rgba(255,255,255,0.35)',
+                    flexShrink: 0,
+                    border: `1px solid ${hasOutput ? slot.color + '40' : 'rgba(255,255,255,0.08)'}`,
+                    transition: 'all 0.25s ease'
+                  }}>
+                    {React.createElement(slot.icon, { size: isMobile ? 16 : 18 })}
+                  </div>
+
+                  {/* Title + preview */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: isMobile ? '0.88rem' : '0.95rem', fontWeight: '700', color: hasOutput ? 'white' : 'rgba(255,255,255,0.7)' }}>
+                        {agentName}
+                      </span>
+                      {/* Status badge */}
+                      {isLoadingSlot ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', fontWeight: '700', color: slot.color, background: `${slot.color}18`, padding: '2px 8px', borderRadius: '20px', border: `1px solid ${slot.color}30` }}>
+                          <Loader2 size={10} className="spin" /> Generating...
+                        </span>
+                      ) : hasOutput ? (
+                        <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#22c55e', background: 'rgba(34,197,94,0.12)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.25)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <CheckCircle2 size={9} /> {hasMedia ? 'Done + Media' : 'Generated'}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.04)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          {slot.subtitle}
+                        </span>
+                      )}
+                      {arGrades[slot.key] && (
+                        <span style={{ fontSize: '0.6rem', fontWeight: '800', color: '#fbbf24', background: 'rgba(251,191,36,0.12)', padding: '2px 6px', borderRadius: '20px' }}>
+                          A&R {arGrades[slot.key].overallScore}/5
+                        </span>
+                      )}
+                    </div>
+                    {/* Content preview when collapsed */}
+                    {!isOpen && previewText && (
+                      <p style={{ margin: '3px 0 0', fontSize: isMobile ? '0.72rem' : '0.75rem', color: 'rgba(255,255,255,0.38)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                        {previewText}{outputs[slot.key]?.length > 90 ? '…' : ''}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Chevron */}
+                  <div style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0, transition: 'transform 0.25s ease', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                    <ChevronDown size={isMobile ? 16 : 18} />
+                  </div>
+                </button>
+
+                {/* Expanded Card Content */}
+                {isOpen && (
+                  <div style={{ borderTop: `1px solid ${slot.color}20` }}>
+                    <GeneratorCard
+                      slot={slot.key}
+                      agentId={selectedAgents[slot.key]}
+                      icon={slot.icon}
+                      title={agentName}
+                      subtitle={slot.subtitle}
+                      color={slot.color}
+                      output={outputs[slot.key]}
+                      isLoading={isLoadingSlot}
+                      mediaType={slot.mediaType}
+                      mediaUrl={
+                        slot.key === 'audio' ? mediaUrls.audio :
+                        slot.key === 'lyrics' ? (mediaUrls.vocals || mediaUrls.lyricsVocal) :
+                        slot.key === 'visual' ? mediaUrls.image :
+                        slot.key === 'video' ? mediaUrls.video : null
+                      }
+                      arGrade={arGrades[slot.key]}
+                      isGradingAr={gradingSlots[slot.key]}
+                      onGenerateMedia={
+                        slot.key === 'audio' ? handleGenerateAudio :
+                        slot.key === 'lyrics' ? handleGenerateVocals :
+                        slot.key === 'visual' ? handleGenerateImage :
+                        slot.key === 'video' ? handleGenerateVideo : null
+                      }
+                      isGeneratingMedia={
+                        slot.key === 'audio' ? generatingMedia.audio :
+                        slot.key === 'lyrics' ? generatingMedia.vocals :
+                        slot.key === 'visual' ? generatingMedia.image :
+                        slot.key === 'video' ? generatingMedia.video : false
+                      }
+                      onRegenerate={() => handleRegenerate(slot.key)}
+                      onEdit={(text) => handleEdit(slot.key, text)}
+                      onDelete={() => handleDelete(slot.key)}
+                      onDownload={() => handleDownload(slot.key)}
+                      onSpeak={() => speakText(outputs[slot.key], slot.key)}
+                      isSpeaking={speakingSlot === slot.key}
+                      onMaximize={() => { setShowPreviewModal(false); setMaximizedSlot(slot.key); }}
+                      onUploadDna={
+                        slot.key === 'visual' ? (e) => handleUploadDna('visual', e) :
+                        slot.key === 'audio' ? (e) => handleUploadDna('audio', e) :
+                        slot.key === 'video' ? (e) => handleUploadDna('video', e) :
+                        slot.key === 'lyrics' ? (e) => handleUploadDna('lyrics', e) : null
+                      }
+                      dnaUrl={
+                        slot.key === 'visual' ? visualDnaUrl :
+                        slot.key === 'audio' ? audioDnaUrl :
+                        slot.key === 'video' ? videoDnaUrl :
+                        slot.key === 'lyrics' ? lyricsDnaUrl : null
+                      }
+                      isUploadingDna={isUploadingDna[slot.key]}
+                      provider={generationProviders[slot.key] || null}
+                      onClearDna={() => {
+                        const clearFields = {};
+                        if (slot.key === 'visual') { setVisualDnaUrl(null); clearFields.visualDnaUrl = null; }
+                        if (slot.key === 'audio') { setAudioDnaUrl(null); clearFields.audioDnaUrl = null; }
+                        if (slot.key === 'video') { setVideoDnaUrl(null); clearFields.videoDnaUrl = null; }
+                        if (slot.key === 'lyrics') { setLyricsDnaUrl(null); clearFields.lyricsDnaUrl = null; }
+                        if (auth.currentUser?.uid && db && Object.keys(clearFields).length) {
+                          updateDoc(doc(db, 'users', auth.currentUser.uid), clearFields).catch(() => toast.error('Style reference may reappear — check your connection', { duration: 3000 }));
+                        }
+                      }}
+                      onSetAsDna={slot.key === 'visual' && mediaUrls.image ? handleSetImageAsDna : null}
+                      onEditCover={slot.key === 'visual' && mediaUrls.image ? () => setShowCoverEditor(true) : null}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            PRODUCTION CONTROL HUB — collapsible accordion
+            ═══════════════════════════════════════════════════════════════════ */}
+        {/* Collapsible header for Production Hub */}
+        <div style={{ marginTop: isMobile ? '16px' : '24px', borderRadius: isMobile ? '14px' : '20px', overflow: 'hidden', border: expandedSections.productionHub ? '1px solid rgba(79,70,229,0.3)' : '1px solid rgba(255,255,255,0.07)' }}>
+          <button
+            onClick={() => toggleSection('productionHub')}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: '14px',
+              padding: isMobile ? '14px 16px' : '16px 24px',
+              background: expandedSections.productionHub ? 'rgba(79,70,229,0.08)' : 'rgba(255,255,255,0.02)',
+              border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left',
+              WebkitTapHighlightColor: 'transparent'
+            }}
+          >
+            <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: expandedSections.productionHub ? 'rgba(79,70,229,0.2)' : 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: expandedSections.productionHub ? '#818cf8' : 'rgba(255,255,255,0.35)', border: `1px solid ${expandedSections.productionHub ? 'rgba(79,70,229,0.4)' : 'rgba(255,255,255,0.08)'}`, flexShrink: 0 }}>
+              <Zap size={18} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: isMobile ? '0.88rem' : '0.95rem', fontWeight: '700', color: expandedSections.productionHub ? '#a78bfa' : 'rgba(255,255,255,0.7)' }}>Production Control Hub</span>
+                {Object.values(outputs).some(Boolean) && (
+                  <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#4ade80', background: 'rgba(34,197,94,0.12)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.25)' }}>
+                    {Object.values(outputs).filter(Boolean).length}/4 ready
+                  </span>
+                )}
+              </div>
+              <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>Final mix, distribution, mastering & export</p>
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0, transition: 'transform 0.25s ease', transform: expandedSections.productionHub ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+              <ChevronDown size={18} />
+            </div>
+          </button>
+          {expandedSections.productionHub && (
+            <ProductionControlHub
+              outputs={outputs}
+              mediaUrls={mediaUrls}
+              songIdea={songIdea}
+              finalMixPreview={finalMixPreview}
+              creatingFinalMix={creatingFinalMix}
+              musicVideoUrl={musicVideoUrl}
+              generatingMusicVideo={generatingMusicVideo}
+              handleGenerateProfessionalMusicVideo={handleGenerateProfessionalMusicVideo}
+              handleCreateFinalMix={handleCreateFinalMix}
+              handleCreateProject={handleCreateProject}
+              setShowPreviewModal={setShowPreviewModal}
+              setMaximizedSlot={setMaximizedSlot}
+              visualType={visualType}
+              setVisualType={setVisualType}
+              isMobile={isMobile}
+              orchestratorBpm={projectBpm}
+              mixVocalVolume={mixVocalVolume}
+              mixBeatVolume={mixBeatVolume}
+              setMixVocalVolume={setMixVocalVolume}
+              setMixBeatVolume={setMixBeatVolume}
+              mixPreset={mixPreset}
+              setMixPreset={setMixPreset}
+              handleDistributeToSoundCloud={handleDistributeToSoundCloud}
+              handleCreateShareLink={handleCreateShareLink}
+              handleDownloadMasterMix={handleDownloadMasterMix}
+              handleDownloadStemsPack={handleDownloadStemsPack}
+              distributing={distributing}
+              shareLink={shareLink}
+              creatorMode={creatorMode}
+              muxRetryParams={muxRetryParams}
+              autoMuxVideoWithAudio={autoMuxVideoWithAudio}
+              getHeaders={getHeaders}
+              visualDnaUrl={visualDnaUrl}
+              videoDnaUrl={videoDnaUrl}
+            />
+          )}
+        </div>
     </div>
 
       {/* Maximized Card Modal */}

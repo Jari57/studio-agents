@@ -15,7 +15,7 @@ async function freshLanding(page: Page) {
     localStorage.removeItem('studio_guest_mode');
   });
   await page.goto(URL);
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 }
 
 // ============================================================================

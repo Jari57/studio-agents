@@ -4329,8 +4329,8 @@ const fetchUserCredits = useCallback(async (uid) => {
     // Determine the actual prompt to use (Respecting override from tools/orchestrator)
     // Ensure promptValue is always a string
     let promptValue = '';
-    if (promptOverride) {
-      promptValue = typeof promptOverride === 'string' ? promptOverride : String(promptOverride);
+    if (promptOverride && typeof promptOverride === 'string') {
+      promptValue = promptOverride;
     } else if (textareaRef.current?.value) {
       promptValue = textareaRef.current.value;
     }
