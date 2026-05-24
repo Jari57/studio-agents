@@ -6277,9 +6277,9 @@ Do NOT include any other text.`
           voiceSettings.style = Math.min(0.98, voiceSettings.style + 0.25);
         }
 
-        // Output format: ULTRA FIDELITY PCM
-        // Lyria-grade requires lossless PCM or the highest 192kbps MP3
-        const output_format = reflectsUltra ? 'pcm_44100' : 'mp3_44100_192';
+        // Output format: always use 192kbps MP3 — PCM is ~7x larger and mismatch as audio/mpeg data URL
+        // 192kbps MP3 is transparent quality for speech/vocals and browser-compatible
+        const output_format = 'mp3_44100_192';
 
         // ── PROSODY & HUMANITY INJECTION (AI Director Pass) ──
         // Inject human "breaths" and "pauses" markers that high-end models use to sound human
