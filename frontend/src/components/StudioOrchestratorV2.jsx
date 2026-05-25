@@ -3692,7 +3692,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             });
           }
           // Store actual beat duration for downstream alignment (vocal gen, mux)
-          actualBeatDurationRef.current = data.actualDuration || duration;
+          actualBeatDurationRef.current = data.actualDuration ?? duration;
 
           // AUTO-SYNC TO EXISTING PROJECT: Add the audio asset to the project library immediately
           if (existingProject && (onSaveToProject || onCreateProject)) {
@@ -3924,12 +3924,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         throw new Error(`Invalid vocal response (${response.status})`);
       }
 
-      if (response.ok && data.audioUrl) {
+      const resolvedAudioUrl = data.audioUrl || data.output;
+      if (response.ok && resolvedAudioUrl) {
         // Only mark as mixedAudio if backend explicitly confirms it mixed vocal+beat
         const vocalUpdate = {
-          vocals: data.audioUrl,
-          lyricsVocal: data.audioUrl,
-          ...(data.wasMixed ? { mixedAudio: data.audioUrl } : {})
+          vocals: resolvedAudioUrl,
+          lyricsVocal: resolvedAudioUrl,
+          ...(data.wasMixed ? { mixedAudio: resolvedAudioUrl } : {})
         };
         setMediaUrls(prev => ({ ...prev, ...vocalUpdate }));
         mediaUrlsRef.current = { ...mediaUrlsRef.current, ...vocalUpdate }; // Sync ref for pipeline reads
@@ -3966,7 +3967,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             type: 'vocal',
             agent: 'Ghostwriter',
             content: cleanLyrics.substring(0, 500),
-            audioUrl: data.audioUrl,
+            audioUrl: resolvedAudioUrl,
             mimeType: data.mimeType || 'audio/wav',
             version: vocalVersions + 1,
             settings: {
