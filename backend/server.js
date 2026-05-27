@@ -11652,6 +11652,7 @@ app.post('/api/analyze-beats-test', async (req, res) => {
     });
   }
 });
+} // end isDevelopment (analyze-beats-test only)
 
 /**
  * Beat Detection Endpoint (Production - Firebase Auth Required)
@@ -12049,6 +12050,7 @@ app.get('/api/video-job-status/:jobId', verifyFirebaseToken, requireAuth, apiLim
   }
 });
 
+if (isDevelopment) {
 /**
  * Video Metadata Endpoint (Test Version - No Auth Required)
  * Get technical details about a generated video
@@ -12079,7 +12081,7 @@ app.post('/api/video-metadata-test', async (req, res) => {
     });
   }
 });
-} // end isDevelopment test endpoints
+} // end isDevelopment (video-metadata-test only)
 
 /**
  * Video Metadata Endpoint (Production - Firebase Auth Required)

@@ -325,10 +325,12 @@ export default function CanvasView({
           method: 'POST',
           headers,
           body: JSON.stringify({
-            text: lyricsAsset?.content || asset.content || projectName,
-            voiceId: asset.settings?.voiceId || 'default',
-            backingTrackUrl: beatAsset?.audioUrl || null,
-            style: asset.settings?.style || 'singing'
+            prompt: lyricsAsset?.content || asset.content || projectName,
+            voice: asset.settings?.voiceId || 'rapper-male-1',
+            style: asset.settings?.style || 'rapper',
+            genre: 'hip-hop',
+            duration: 30,
+            backingTrackUrl: beatAsset?.audioUrl || null
           })
         });
         if (!response.ok) throw new Error(`Vocal generation failed (${response.status})`);
@@ -339,7 +341,7 @@ export default function CanvasView({
         const newAsset = {
           ...asset,
           id: `vocal-${Date.now()}`,
-          audioUrl: data.audioUrl || data.url,
+          audioUrl: data.audioUrl || data.output,
           title: `${asset.title?.replace(/ \(Take \d+\)/, '') || 'Vocals'} (Take ${versionCount + 1})`,
           version: versionCount + 1,
           date: 'Just now',
@@ -368,14 +370,34 @@ export default function CanvasView({
           })
         });
         if (!response.ok) throw new Error(`Video generation failed (${response.status})`);
-        const data = await response.json();
+        let videoData = await response.json();
+
+        // Poll for async video operations
+        if (videoData.status === 'processing' && videoData.operationId) {
+          toast.loading('Video rendering... (~2 min)', { id: 'regen-video' });
+          for (let i = 0; i < 60; i++) {
+            await new Promise(r => setTimeout(r, 5000));
+            try {
+              const statusRes = await fetch(`${BACKEND_URL}/api/video-status/${videoData.operationId}`, { headers });
+              if (!statusRes.ok) continue;
+              const statusData = await statusRes.json();
+              if (statusData.status === 'completed') { videoData = statusData; break; }
+              if (statusData.status === 'failed') throw new Error(statusData.error || 'Video rendering failed');
+              toast.loading(`Video rendering... ${Math.round(((i + 1) / 60) * 100)}%`, { id: 'regen-video' });
+            } catch (pollErr) {
+              if (pollErr.message?.includes('failed')) throw pollErr;
+            }
+          }
+        }
         toast.dismiss('regen-video');
+        const finalVideoUrl = videoData.videoUrl || videoData.output || videoData.video;
+        if (!finalVideoUrl) throw new Error('Video generation produced no output');
 
         const versionCount = (selectedProject.assets || []).filter(a => (a.type || '').toLowerCase() === 'video').length;
         const newAsset = {
           ...asset,
           id: `video-${Date.now()}`,
-          videoUrl: data.videoUrl || data.url,
+          videoUrl: finalVideoUrl,
           title: `${asset.title?.replace(/ \(Take \d+\)/, '') || 'Video'} (Take ${versionCount + 1})`,
           version: versionCount + 1,
           date: 'Just now',
