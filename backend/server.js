@@ -1149,8 +1149,8 @@ app.get('/api/debug-status', verifyFirebaseToken, requireAdmin, (req, res) => {
     nodeEnv: process.env.NODE_ENV,
     port: PORT,
     models: {
-      primary: GENERATIVE_MODEL,
-      available: ['gemini-1.5-flash', 'gemini-1.5-pro']
+      primary: process.env.GENERATIVE_MODEL || 'gemini-2.5-flash',
+      available: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro']
     }
   });
 });
@@ -1725,7 +1725,7 @@ app.post('/api/voice-preview', verifyFirebaseToken, async (req, res) => {
         return res.status(501).json({ error: 'No TTS provider configured' });
       }
 
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
       const geminiRes = await fetch(geminiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2264,7 +2264,7 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
     
     // ── 6. API PROVIDER STATUS ──
     const apiProviders = {
-      gemini: { configured: !!process.env.GEMINI_API_KEY, model: 'gemini-2.0-flash' },
+      gemini: { configured: !!process.env.GEMINI_API_KEY, model: process.env.GENERATIVE_MODEL || 'gemini-2.5-flash' },
       replicate: { configured: !!(process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN), services: ['MusicGen', 'Flux 1.1 Pro'] },
       elevenlabs: { configured: !!process.env.ELEVENLABS_API_KEY, services: ['TTS', 'Voice Cloning'] },
       stability: { configured: !!process.env.STABILITY_API_KEY, services: ['Image Gen'] },
@@ -3867,7 +3867,7 @@ RESPOND IN EXACTLY THIS JSON FORMAT (no markdown, no code fences):
 }`;
 
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.0-flash',
+      model: process.env.GENERATIVE_MODEL || 'gemini-2.5-flash',
       safetySettings: GEMINI_SAFETY_SETTINGS
     });
 
@@ -3969,14 +3969,23 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
     if (videoDnaUrl) sanitizedPrompt = `${sanitizedPrompt}\n\n[SEED/VIDEO DNA ACTIVE — EXACT CLONE MODE]\nReference: ${videoDnaUrl}\nYou MUST replicate the exact visual style, motion patterns, color grading, shot composition, pacing, and cinematic identity from this reference. The output must look like a continuation of the same project.`;
     
     // 🛡️ Validate model name (only allow known Gemini models)
+    // Deprecated models are silently remapped to current equivalents
+    const DEPRECATED_MODEL_MAP = {
+      'gemini-2.0-flash': 'gemini-2.5-flash',
+      'gemini-2.0-flash-lite': 'gemini-2.5-flash-lite',
+      'gemini-1.5-flash': 'gemini-2.5-flash',
+      'gemini-1.5-flash-latest': 'gemini-2.5-flash',
+      'gemini-1.5-flash-8b': 'gemini-2.5-flash-lite',
+      'gemini-1.5-pro': 'gemini-2.5-flash',
+      'gemini-1.5-pro-latest': 'gemini-2.5-flash',
+      'gemini-pro': 'gemini-2.5-flash',
+      'gemini-pro-vision': 'gemini-2.5-flash',
+    };
     const allowedModels = [
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
-      'gemini-1.5-flash-latest',
-      'gemini-1.5-pro',
-      'gemini-1.5-pro-latest',
-      'gemini-pro',
-      'gemini-pro-vision',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.5-pro',
+      'gemini-3.5-flash',
       'nano-banana-pro-preview'
     ];
     const sanitizedModel = (typeof requestedModel === 'string' && allowedModels.includes(requestedModel)) 
@@ -4016,8 +4025,10 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
     }
 
     // Use requested model if valid, otherwise fall back to env var or default
-    // Defaulting to gemini-2.0-flash for better performance
-    const desiredModel = sanitizedModel || process.env.GENERATIVE_MODEL || "gemini-2.0-flash";
+    // Migrate deprecated env var or request model to current equivalent
+    const envModel = process.env.GENERATIVE_MODEL;
+    const resolvedEnvModel = envModel ? (DEPRECATED_MODEL_MAP[envModel] || (allowedModels.includes(envModel) ? envModel : 'gemini-2.5-flash')) : 'gemini-2.5-flash';
+    const desiredModel = sanitizedModel ? (DEPRECATED_MODEL_MAP[sanitizedModel] || sanitizedModel) : resolvedEnvModel;
     
     let text;
     let usedModel = desiredModel;
@@ -4058,9 +4069,9 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
         model: desiredModel 
       });
 
-      if (isFallbackCandidate && desiredModel !== 'gemini-1.5-flash-latest') {
-        // Try stable latest flash if it wasn't the first attempt
-        const tryModel = (desiredModel === 'gemini-2.0-flash') ? 'gemini-1.5-flash-latest' : 'gemini-2.0-flash';
+      if (isFallbackCandidate && desiredModel !== 'gemini-2.5-flash-lite') {
+        // Try flash-lite if primary failed
+        const tryModel = (desiredModel === 'gemini-2.5-flash') ? 'gemini-2.5-flash-lite' : 'gemini-2.5-flash';
         
         logger.info(`🔄 Falling back to ${tryModel}...`);
         
@@ -4087,13 +4098,13 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
             model: tryModel
           });
         } catch (secondaryError) {
-          // Final fallback to gemini-1.5-flash-8b if secondary attempt failed
-          if (tryModel !== 'gemini-1.5-flash-8b') {
-            logger.warn(`❌ Secondary model ${tryModel} failed. Final fallback to gemini-1.5-flash-8b.`);
+          // Final fallback to gemini-3.5-flash if secondary attempt failed
+          if (tryModel !== 'gemini-3.5-flash') {
+            logger.warn(`❌ Secondary model ${tryModel} failed. Final fallback to gemini-3.5-flash.`);
             
             try {
               const thirdModel = genAI.getGenerativeModel({ 
-                model: 'gemini-1.5-flash-8b',
+                model: 'gemini-3.5-flash',
                 systemInstruction: sanitizedSystemInstruction || undefined,
                 safetySettings: GEMINI_SAFETY_SETTINGS
               });
@@ -4101,12 +4112,12 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
               const result = await thirdModel.generateContent(sanitizedPrompt);
               const response = await result.response;
               text = response.text();
-              usedModel = 'gemini-1.5-flash-8b';
+              usedModel = 'gemini-3.5-flash';
               
               if (!text || text.trim().length < 2) {
                 text = "I'm sorry, I couldn't generate a detailed response. Please try again with a more specific prompt.";
               }
-              logger.info('✅ Final fallback successful', { model: 'gemini-1.5-flash-8b' });
+              logger.info('✅ Final fallback successful', { model: 'gemini-3.5-flash' });
             } catch (thirdError) {
               logger.error('🚨 Triple model failure. Returning original error.', { error: thirdError.message });
               throw primaryError; 
@@ -4143,7 +4154,7 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
     if (statusCode === 429) {
       return res.status(429).json({
         error: 'Rate limited or quota exceeded',
-        details: 'Gemini returned 429. Check billing/quotas for the GEMINI_API_KEY or switch to a lower-cost model (e.g., gemini-1.5-flash).'
+        details: 'Gemini returned 429. Check billing/quotas for the GEMINI_API_KEY or switch to a lower-cost model (e.g., gemini-2.5-flash-lite).'
       });
     }
 
@@ -4227,7 +4238,9 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
       });
     }
     
-    const desiredModel = process.env.GENERATIVE_MODEL || "gemini-2.0-flash";
+    const _rawEnvModel = process.env.GENERATIVE_MODEL;
+    const _deprecatedMap = { 'gemini-2.0-flash': 'gemini-2.5-flash', 'gemini-2.0-flash-lite': 'gemini-2.5-flash-lite', 'gemini-1.5-flash': 'gemini-2.5-flash', 'gemini-1.5-flash-latest': 'gemini-2.5-flash', 'gemini-1.5-pro': 'gemini-2.5-flash', 'gemini-1.5-pro-latest': 'gemini-2.5-flash', 'gemini-pro': 'gemini-2.5-flash' };
+    const desiredModel = (_rawEnvModel && (_deprecatedMap[_rawEnvModel] || _rawEnvModel)) || 'gemini-2.5-flash';
     
     // Verify genAI is initialized
     if (!genAI) {
@@ -4442,7 +4455,7 @@ Your lyrics MUST:
 
 Keep output to ONLY the lyrics with section labels. No commentary, no explanations. Length must fill exactly ${duration} seconds when performed.`;
 
-    const lyricsResponse = await genAI.getGenerativeModel({ model: 'gemini-2.0-flash', safetySettings: GEMINI_SAFETY_SETTINGS }).generateContent({
+    const lyricsResponse = await genAI.getGenerativeModel({ model: 'gemini-2.5-flash', safetySettings: GEMINI_SAFETY_SETTINGS }).generateContent({
       contents: [{ role: 'user', parts: [{ text: lyricsPrompt }] }],
       systemInstruction: lyricsSystemInstruction
     });
@@ -4978,7 +4991,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
         logger.info('Generating image with Nano Banana', { prompt: prompt.substring(0, 50) });
         
         const nanoBananaModel = genAI.getGenerativeModel({ 
-          model: 'gemini-2.0-flash',
+          model: process.env.GENERATIVE_MODEL ? (DEPRECATED_MODEL_MAP?.[process.env.GENERATIVE_MODEL] || process.env.GENERATIVE_MODEL) : 'gemini-2.5-flash',
           safetySettings: GEMINI_SAFETY_SETTINGS
         });
         
@@ -5335,7 +5348,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
 }
 Return ONLY valid JSON, no markdown.`;
 
-          const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`, {
+          const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -5681,7 +5694,7 @@ Return ONLY valid JSON, no markdown.`;
       const geminiKey = process.env.GEMINI_API_KEY;
       if (geminiKey) {
         try {
-          const evalUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+          const evalUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
           const evalResp = await fetch(evalUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -6484,8 +6497,8 @@ Do NOT include any other text.`
         // Use cleanedPrompt (preamble + structural tags already stripped)
         const ttsText = `${performanceDirection}\n\n${cleanedPrompt}`;
         
-        // Use stable model — gemini-2.0-flash-exp is retired
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+        // Use current stable model
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
         const geminiResponse = await fetch(geminiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -8924,7 +8937,7 @@ app.post('/api/amo/orchestrate', verifyFirebaseToken, requireAuth, generationLim
         if (masterSettings?.renderMode === 'text' || outputType === 'text') {
           const systemInstruction = getAgentSystemPrompt(agent, session);
           const model = genAI.getGenerativeModel({ 
-            model: process.env.GENERATIVE_MODEL || "gemini-2.0-flash",
+            model: (process.env.GENERATIVE_MODEL && ({ 'gemini-2.0-flash': 'gemini-2.5-flash', 'gemini-1.5-flash': 'gemini-2.5-flash', 'gemini-1.5-pro': 'gemini-2.5-flash' }[process.env.GENERATIVE_MODEL] || process.env.GENERATIVE_MODEL)) || 'gemini-2.5-flash',
             systemInstruction,
             safetySettings: GEMINI_SAFETY_SETTINGS
           });
@@ -9418,7 +9431,8 @@ app.post('/api/translate', verifyFirebaseToken, requireAuth, checkCreditsFor('tr
       ip: req.ip 
     });
 // Use the configured model for translation as well
-    const modelName = process.env.GENERATIVE_MODEL || "gemini-2.0-flash";
+    const _tn = process.env.GENERATIVE_MODEL;
+    const modelName = (_tn && ({'gemini-2.0-flash':'gemini-2.5-flash','gemini-1.5-flash':'gemini-2.5-flash','gemini-1.5-pro':'gemini-2.5-flash'}[_tn] || _tn)) || 'gemini-2.5-flash';
     const model = genAI.getGenerativeModel({ 
       model: modelName,
       systemInstruction: `Return ONLY the translated text, no explanations.`,
