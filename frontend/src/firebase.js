@@ -16,14 +16,15 @@ import {
   fetchSignInMethodsForEmail
 } from 'firebase/auth';
 import { 
-  getFirestore, 
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   doc, 
   getDoc, 
   setDoc, 
   updateDoc,
   increment,
-  arrayUnion,
-  enableIndexedDbPersistence
+  arrayUnion
 } from 'firebase/firestore';
 import { 
   getStorage, 
@@ -58,19 +59,12 @@ try {
     console.warn('Auth persistence setup failed:', err.message);
   });
 
-  db = getFirestore(app);
-  storage = getStorage(app);
-  
-  // Enable offline persistence for Firestore (improves UX on flaky connections)
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      // Multiple tabs open, persistence can only be enabled in one tab at a time
-      console.warn('Firestore persistence failed: Multiple tabs open');
-    } else if (err.code === 'unimplemented') {
-      // Browser doesn't support persistence
-      console.warn('Firestore persistence not supported in this browser');
-    }
+  // Modern persistent Firestore (replaces deprecated enableIndexedDbPersistence)
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
   });
+
+  storage = getStorage(app);
 } catch (e) {
   console.error("Firebase initialization failed:", e);
 }

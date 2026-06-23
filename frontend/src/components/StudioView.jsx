@@ -3234,7 +3234,12 @@ const fetchUserCredits = useCallback(async (uid) => {
       // (lock) Security: Use generic messages to prevent user enumeration
       if (error.code === 'auth/email-already-in-use') {
         toast.error('Email already in use. Try logging in.');
-      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+      } else if (
+        error.code === 'auth/wrong-password' ||
+        error.code === 'auth/user-not-found' ||
+        error.code === 'auth/invalid-credential' ||
+        error.code === 'auth/invalid-login-credentials'
+      ) {
         // Don't reveal whether email exists - security best practice
         toast.error('Invalid email or password');
       } else if (error.code === 'auth/weak-password') {
