@@ -2170,7 +2170,7 @@ export default function StudioOrchestratorV2({
   const actualBeatDurationRef = useRef(null); // Stores the real beat duration (may differ from requested if truncated)
   const [bars, setBars] = useState(existingProject?.musicalBars || 16); // musical bars
   const [useBars, setUseBars] = useState(existingProject?.useBars ?? true); // Toggle for bar-based timing
-  const [model, setModel] = useState(existingProject?.model || 'Gemini 2.0 Flash');
+  const [model, setModel] = useState(existingProject?.model || 'Gemini 2.5 Flash');
   const [musicEngine, setMusicEngine] = useState(existingProject?.musicEngine || 'music-gpt'); // Default to Beat Lab (MusicGen)
   const [mood, setMood] = useState(existingProject?.mood || 'Energetic'); // Beatoven-inspired
   const [structure, setStructure] = useState(existingProject?.structure || 'Full Song'); // Structure control
@@ -2935,8 +2935,18 @@ export default function StudioOrchestratorV2({
   // Get auth headers - wrapped in useCallback to avoid stale closure on authToken prop
   const getHeaders = useCallback(async () => {
     const headers = { 'Content-Type': 'application/json' };
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
+    try {
+      const firebaseUser = auth?.currentUser;
+      if (firebaseUser) {
+        const freshToken = await firebaseUser.getIdToken();
+        headers['Authorization'] = `Bearer ${freshToken}`;
+      } else if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+    } catch {
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
     }
     return headers;
   }, [authToken]);
@@ -3125,9 +3135,11 @@ export default function StudioOrchestratorV2({
         });
       } catch { /* SSE optional — pipeline works without it */ }
       
-      const modelId = model === 'Gemini 2.0 Flash' ? 'gemini-2.0-flash' : 
-                    model === 'Gemini 2.0 Pro (Exp)' ? 'gemini-2.0-flash-exp' : 
-                    model === 'Gemini 1.5 Pro' ? 'gemini-1.5-pro' : 'gemini-2.0-flash';
+      const modelId = model === 'Gemini 2.5 Pro' ? 'gemini-2.5-pro' :
+                    model === 'Gemini 2.5 Flash Lite' ? 'gemini-2.5-flash-lite' :
+                    model === 'Gemini 2.0 Flash' ? 'gemini-2.5-flash' :
+                    model === 'Gemini 2.0 Pro (Exp)' ? 'gemini-2.5-pro' :
+                    model === 'Gemini 1.5 Pro' ? 'gemini-2.5-flash' : 'gemini-2.5-flash';
 
       // Track promises for pipeline sequencing (must be declared before generateForSlot uses it)
       const pipelinePromises = { beatAudio: null, image: null, videoDescription: null };
@@ -3493,9 +3505,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       const headers = await getHeaders();
       const slotConfig = GENERATOR_SLOTS.find(s => s.key === slot);
       
-      const modelId = model === 'Gemini 2.0 Flash' ? 'gemini-2.0-flash' : 
-                     model === 'Gemini 2.0 Pro (Exp)' ? 'gemini-2.0-flash-exp' : 
-                     model === 'Gemini 1.5 Pro' ? 'gemini-1.5-pro' : 'gemini-2.0-flash';
+      const modelId = model === 'Gemini 2.5 Pro' ? 'gemini-2.5-pro' :
+                     model === 'Gemini 2.5 Flash Lite' ? 'gemini-2.5-flash-lite' :
+                     model === 'Gemini 2.0 Flash' ? 'gemini-2.5-flash' :
+                     model === 'Gemini 2.0 Pro (Exp)' ? 'gemini-2.5-pro' :
+                     model === 'Gemini 1.5 Pro' ? 'gemini-2.5-flash' : 'gemini-2.5-flash';
 
       const response = await fetch(`${BACKEND_URL}/api/generate`, {
         method: 'POST',
@@ -3786,7 +3800,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     if (generatingMedia.vocals) return;
 
     // AUTH GUARD: Require sign-in before generating vocals
-    if (!authToken) {
+    if (!auth?.currentUser) {
       toast.error('Please sign in to generate vocals');
       return;
     }
@@ -5047,7 +5061,44 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           return;
         }
 
-        toast.error('Unexpected video response', { id: 'gen-video' });
+        // Synced video endpoint returned no usable content — fall back to Veo
+        devWarn('[Orchestrator] Synced video endpoint returned no usable output, falling back to Veo');
+        toast.loading('Generating video clip (this takes ~2 min)...', { id: 'gen-video' });
+        try {
+          const veoFb = await fetch(`${BACKEND_URL}/api/generate-video`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              prompt: creatorMode === 'creator'
+                ? `Short-form social media video, fast-paced editing: ${videoPrompt.substring(0, 700)}${visualMatchDirective}${lyricsSceneGuide}`
+                : `Elite cinematic music video: ${videoPrompt.substring(0, 700)}${visualMatchDirective}${lyricsSceneGuide}`,
+              referenceImage: visualDnaUrl || videoDnaUrl,
+              referenceVideo: videoDnaUrl,
+              durationSeconds: Math.round(videoDuration),
+              audioDuration: Math.round(beatDuration),
+              audioUrl: finalAudioSource,
+              vocalUrl: (mediaUrlsRef.current?.mixedAudio) ? null : (mediaUrlsRef.current?.vocals || mediaUrlsRef.current?.lyricsVocal)
+            }),
+            signal: createTimeoutSignal(180000)
+          });
+          if (veoFb.ok) {
+            const veoData = await veoFb.json();
+            const veoUrl = veoData.videoUrl || veoData.output || veoData.video;
+            if (veoUrl) {
+              setMusicVideoUrl(veoUrl);
+              setMediaUrls(prev => ({ ...prev, video: veoUrl }));
+              mediaUrlsRef.current = { ...mediaUrlsRef.current, video: veoUrl };
+              setOutputs(prev => ({ ...prev, video: prev.video || 'Music video generated' }));
+              setGenerationProviders(prev => ({ ...prev, video: veoData.source || 'veo-fallback' }));
+              toast.success('Video created! Syncing audio...', { id: 'gen-video' });
+              if (finalAudioSource) await autoMuxVideoWithAudio(veoUrl, finalAudioSource, headers);
+              return;
+            }
+          }
+          toast.error('Video generation failed', { id: 'gen-video' });
+        } catch {
+          toast.error('Video generation failed', { id: 'gen-video' });
+        }
         return;
     } catch (err) {
       console.error('[Orchestrator] Video generation error:', err);
@@ -6776,7 +6827,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             { label: 'Musical Bars', value: bars, setter: setBars, options: [4, 8, 16, 32, 64], hidden: !useBars },
             { label: 'Target Duration', value: duration, setter: setDuration, options: [15, 30, 60, 90, 120, 180, 240, 300], hidden: useBars },
             { label: 'Structure', value: structure, setter: setStructure, options: ['Full Song', 'Radio Edit', 'Extended', 'Loop', 'Intro', 'Verse', 'Chorus', 'Outro'] },
-            { label: 'AI Model', value: model, setter: setModel, options: ['Gemini 2.0 Flash', 'Gemini 2.0 Pro (Exp)', 'Gemini 1.5 Pro'] },
+            { label: 'AI Model', value: model, setter: setModel, options: ['Gemini 2.5 Flash', 'Gemini 2.5 Pro', 'Gemini 2.5 Flash Lite'] },
             { label: 'Mood', value: mood, setter: setMood, options: ['Chill', 'Energetic', 'Dark', 'Happy', 'Epic', 'Mysterious', 'Dreamy'] },
             { label: 'Music Engine', value: musicEngine, setter: setMusicEngine, options: ['Beat Lab (MusicGen)', 'Mureaka', 'Riffusion (Visual)', 'Stability Pro', 'Uberduck', 'Auto-Selection'] },
             { label: 'Stem Mode', value: stemType, setter: setStemType, options: ['Full Mix', 'Drums Only', 'No Drums', 'Melody Only', 'Bass Only'] }
