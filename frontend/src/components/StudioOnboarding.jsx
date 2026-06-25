@@ -1,10 +1,10 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Mic, Music, Video, Image, FileText, ArrowRight, X } from 'lucide-react';
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// STUDIO ONBOARDING â€” Single-screen, idea-first design
-// Type your idea â†’ one click â†’ you're in the studio
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// =============================================================================
+// STUDIO ONBOARDING - Single-screen, idea-first design
+// Type your idea -> one click -> you're in the studio
+// =============================================================================
 
 const PROMPTS = [
   'trap anthem about making it from nothing',
@@ -182,7 +182,7 @@ export default function StudioOnboarding({ userName, onComplete, onSkip, isMobil
               {firstName ? `Hey ${firstName}, let's make\nsomething legendary.` : 'Make something\nlegendary.'}
             </h1>
             <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.5, margin: 0 }}>
-              Type your idea below â€” lyrics, beat, vocals, video & art in one shot.
+              Type your idea below - lyrics, beat, vocals, video & art in one shot.
             </p>
           </div>
 
@@ -251,7 +251,7 @@ export default function StudioOnboarding({ userName, onComplete, onSkip, isMobil
             onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = isEntering ? 'none' : '0 4px 24px rgba(168,85,247,0.4)'; }}
           >
             {isEntering ? (
-              <>Entering Studioâ€¦</>
+              <>Entering Studio...</>
             ) : (
               <>Enter Studio <ArrowRight size={18} strokeWidth={2.5} /></>
             )}
