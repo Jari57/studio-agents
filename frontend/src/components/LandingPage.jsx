@@ -151,31 +151,47 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
     try {
       if (authMode === 'signup') {
         const result = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
-        // (wrench) Send email verification and sign out until verified
+        // Send email verification and sign out until verified
         try {
           await sendEmailVerification(result.user);
-          setAuthError('Account created! Please verify your email to log in. Check your inbox.');
+          setAuthError('Account created! Please verify your email to log in. Check your inbox (and spam folder).');
           await signOut(auth);
           setAuthLoading(false);
           setAuthMode('login');
           return;
         } catch (verifyErr) {
           console.error('Verification email failed', verifyErr);
-          setAuthError('Account created, but could not send verification email. Try logging in.');
+          const verifyMsg = verifyErr.code === 'auth/too-many-requests'
+            ? 'Account created, but too many emails were sent. Wait a few minutes, then log in to resend verification.'
+            : 'Account created, but could not send verification email. Try logging in to resend it.';
+          setAuthError(verifyMsg);
           await signOut(auth);
           setAuthLoading(false);
           return;
         }
       } else {
         const result = await signInWithEmailAndPassword(auth, authEmail, authPassword);
-        
-        // (wrench) Check if email is verified
-        if (!result.user.emailVerified) {
-          setAuthError('Email not verified. A new verification link has been sent to your inbox.');
+
+        // Refresh the user so emailVerified reflects the latest server state.
+        // Without reload(), a user who just verified in another tab/device
+        // still sees a stale emailVerified=false and gets locked out forever.
+        try {
+          await result.user.reload();
+        } catch (reloadErr) {
+          console.warn('Could not reload user before verification check', reloadErr);
+        }
+        const verifiedUser = auth.currentUser || result.user;
+
+        // Check if email is verified
+        if (!verifiedUser.emailVerified) {
           try {
-            await sendEmailVerification(result.user);
+            await sendEmailVerification(verifiedUser);
+            setAuthError('Email not verified. A new verification link has been sent to your inbox (check spam too).');
           } catch (resendErr) {
             console.warn('Could not resend verification email', resendErr);
+            setAuthError(resendErr.code === 'auth/too-many-requests'
+              ? 'Email not verified yet. Please check your inbox for the existing link (too many emails sent to resend right now).'
+              : 'Email not verified. Please check your inbox for the verification link.');
           }
           await signOut(auth);
           setAuthLoading(false);

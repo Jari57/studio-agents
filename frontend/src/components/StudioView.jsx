@@ -2590,19 +2590,28 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     if (auth) {
       const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         if (currentUser) {
-          // (wrench) Lock password-based accounts that haven't verified their email
-          // Google/Social accounts are usually pre-verified by the provider
+          // Lock password-based accounts that haven't verified their email.
+          // Google/Social accounts are usually pre-verified by the provider.
           const isPasswordProvider = currentUser.providerData.some(p => p.providerId === 'password');
           if (isPasswordProvider && !currentUser.emailVerified) {
-            devLog('(wrench) User detected as unverified, signing out.');
-            toast.error('Please verify your email to access the studio.');
-            await signOut(auth);
-            localStorage.removeItem('studio_user_id');
-            setIsLoggedIn(false);
-            setUser(null);
-            setAuthChecking(false);
-            setIsProjectsLoading(false);
-            return;
+            // Reload first: emailVerified can be stale if the user verified
+            // in another tab/device after this session was established.
+            try {
+              await currentUser.reload();
+            } catch (reloadErr) {
+              devWarn('Could not reload user before verification check:', reloadErr);
+            }
+            if (!auth.currentUser?.emailVerified) {
+              devLog('User detected as unverified, signing out.');
+              toast.error('Please verify your email to access the studio.');
+              await signOut(auth);
+              localStorage.removeItem('studio_user_id');
+              setIsLoggedIn(false);
+              setUser(null);
+              setAuthChecking(false);
+              setIsProjectsLoading(false);
+              return;
+            }
           }
 
           // CRITICAL: Set user BEFORE setting isLoggedIn to avoid race condition
@@ -3180,7 +3189,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       let result;
       if (authMode === 'signup') {
         result = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
-        // (wrench) Send email verification and sign out until verified
+        // Send email verification and sign out until verified
         try {
           await sendEmailVerification(result.user);
           toast.success('Account created! Please check your inbox and verify your email to log in.', { duration: 8000 });
@@ -3190,27 +3199,42 @@ const fetchUserCredits = useCallback(async (uid) => {
           return;
         } catch (verifyErr) {
           devWarn('Verification email failed', verifyErr);
-          toast.error('Account created, but could not send verification email. Please try logging in to resend.');
+          const verifyMsg = verifyErr.code === 'auth/too-many-requests'
+            ? 'Account created, but too many emails were sent. Wait a few minutes, then log in to resend verification.'
+            : 'Account created, but could not send verification email. Please try logging in to resend.';
+          toast.error(verifyMsg);
           await signOut(auth);
           setAuthLoading(false);
           return;
         }
-        Analytics.signUp('email');
       } else {
         result = await signInWithEmailAndPassword(auth, authEmail, authPassword);
-        
-        // (wrench) Check if email is verified
-        if (!result.user.emailVerified) {
+
+        // Refresh the user so emailVerified reflects the latest server state.
+        // Without reload(), a user who just verified in another tab/device
+        // still sees a stale emailVerified=false and gets locked out forever.
+        try {
+          await result.user.reload();
+        } catch (reloadErr) {
+          devWarn('Could not reload user before verification check', reloadErr);
+        }
+        const verifiedUser = auth.currentUser || result.user;
+
+        // Check if email is verified
+        if (!verifiedUser.emailVerified) {
           toast.error('Please verify your email address before logging in.', { duration: 4000 });
-          
-          // (wrench) Automatically resend verification email on failed login attempt
+
+          // Automatically resend verification email on failed login attempt
           try {
-            await sendEmailVerification(result.user);
-            toast.success('A new verification link has been sent to your inbox.', { duration: 5000 });
+            await sendEmailVerification(verifiedUser);
+            toast.success('A new verification link has been sent to your inbox (check spam too).', { duration: 5000 });
           } catch (resendErr) {
             devWarn('Could not resend verification email', resendErr);
+            if (resendErr.code === 'auth/too-many-requests') {
+              toast('Too many emails sent. Please use the existing link in your inbox.', { duration: 5000 });
+            }
           }
-          
+
           await signOut(auth);
           setAuthLoading(false);
           return;
