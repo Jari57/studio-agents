@@ -13,6 +13,7 @@ import { db, auth, doc, setDoc, updateDoc, increment, getDoc } from '../firebase
 import { collection, query, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 import { Analytics } from '../utils/analytics';
+import StudioOnboarding from './StudioOnboarding';
 
 // Dev-only logging — tree-shaken in production
 const devLog = import.meta.env.DEV ? (...args) => console.log(...args) : () => {};
@@ -6146,66 +6147,21 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     >
       {/* First-Run Onboarding Wizard */}
       {showOnboarding && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 99999,
-          background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '20px'
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-            borderRadius: '24px', padding: isMobile ? '32px 24px' : '48px 40px',
-            maxWidth: '520px', width: '100%',
-            border: '1px solid rgba(139, 92, 246, 0.3)',
-            boxShadow: '0 20px 80px rgba(139, 92, 246, 0.15)',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎵</div>
-            <h2 style={{ color: 'white', fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
-              Welcome to Studio Agents
-            </h2>
-            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '24px' }}>
-              Create professional music with AI — lyrics, beats, vocals, artwork, and music videos. All from a single prompt.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left', marginBottom: '32px' }}>
-              {[
-                { icon: '✍️', title: 'Quick Create', desc: 'Type a song idea + pick a genre → we handle the rest' },
-                { icon: '🎛️', title: 'Advanced Mode', desc: 'Fine-tune each agent: lyrics, beat, artwork, video' },
-                { icon: '🎤', title: 'AI Vocals', desc: 'Real singing and rapping powered by Suno + ElevenLabs' },
-                { icon: '📦', title: 'Download Everything', desc: 'Export stems, master mix, artwork, and video' }
-              ].map((item, i) => (
-                <div key={i} style={{
-                  display: 'flex', gap: '12px', alignItems: 'flex-start',
-                  padding: '12px', borderRadius: '12px',
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)'
-                }}>
-                  <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{item.icon}</span>
-                  <div>
-                    <div style={{ color: 'white', fontWeight: '600', fontSize: '0.85rem' }}>{item.title}</div>
-                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem' }}>{item.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={() => {
-                localStorage.setItem('studio_onboarding_complete', 'true');
-                setShowOnboarding(false);
-                Analytics.featureUsed('onboarding_complete');
-              }}
-              style={{
-                width: '100%', padding: '14px 24px', borderRadius: '12px',
-                background: 'linear-gradient(135deg, #8b5cf6, #a855f7)',
-                border: 'none', color: 'white', fontSize: '1rem',
-                fontWeight: '700', cursor: 'pointer',
-                boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)'
-              }}
-            >
-              Start Creating
-            </button>
-          </div>
-        </div>
+        <StudioOnboarding
+          userName={auth?.currentUser?.displayName || null}
+          isMobile={isMobile}
+          onComplete={(idea) => {
+            localStorage.setItem('studio_onboarding_complete', 'true');
+            setShowOnboarding(false);
+            if (idea) setSongIdea(idea);
+            Analytics.featureUsed('onboarding_complete');
+          }}
+          onSkip={() => {
+            localStorage.setItem('studio_onboarding_complete', 'true');
+            setShowOnboarding(false);
+            Analytics.featureUsed('onboarding_skip');
+          }}
+        />
       )}
       {/* Header */}
       <div style={{ 
