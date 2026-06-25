@@ -4039,7 +4039,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     if (!file) return;
 
     // AUTH GUARD: Require sign-in before uploading voice sample
-    if (!authToken) {
+    if (!auth?.currentUser) {
       toast.error('Please sign in to upload a voice sample');
       e.target.value = '';
       return;
@@ -4132,7 +4132,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     if (files.length === 0) return;
 
     // AUTH GUARD: Require sign-in before uploading voice samples
-    if (!authToken) {
+    if (!auth?.currentUser) {
       toast.error('Please sign in to upload voice samples');
       e.target.value = '';
       return;
@@ -4195,7 +4195,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
   // Clone voice using ElevenLabs Instant Voice Cloning
   const handleCloneVoice = async () => {
     // AUTH GUARD: Require sign-in before cloning voice
-    if (!authToken) {
+    if (!auth?.currentUser) {
       toast.error('Please sign in to clone your voice');
       return;
     }
@@ -5114,7 +5114,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     if (creatingFinalMix) return;
 
     // Auth required for mixing endpoint
-    if (!authToken) {
+    if (!auth?.currentUser) {
       toast.error('Sign in to create a final mix', { icon: '🔒' });
       return;
     }
@@ -5272,7 +5272,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     if (generatingMusicVideo) return;
 
     // Auth required for synced video endpoint
-    if (!authToken) {
+    if (!auth?.currentUser) {
       toast.error('Sign in to create synced music videos', { icon: '🔒' });
       return;
     }
@@ -5749,7 +5749,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       toast.error('Create a final mix first before distributing', { icon: '🎚️' });
       return;
     }
-    if (!authToken) {
+    if (!auth?.currentUser) {
       toast.error('Sign in to distribute your track', { icon: '🔒' });
       return;
     }
@@ -5802,7 +5802,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       toast.error('Create a final mix first', { icon: '🎚️' });
       return;
     }
-    if (!authToken) {
+    if (!auth?.currentUser) {
       toast.error('Sign in to share your track', { icon: '🔒' });
       return;
     }
