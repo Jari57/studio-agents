@@ -2420,7 +2420,10 @@ export default function StudioOrchestratorV2({
       });
       clearTimeout(muxTimeout);
       if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
+        const err = await resp.json().catch(async () => {
+          const txt = await resp.text().catch(() => '');
+          return { error: txt || `HTTP ${resp.status}` };
+        });
         throw new Error(err.error || `Mux failed (${resp.status})`);
       }
       return resp.json();
@@ -2434,6 +2437,7 @@ export default function StudioOrchestratorV2({
       } catch (firstErr) {
         devWarn('[Mux] First attempt failed, retrying in 3s...', firstErr.message);
         await new Promise(r => setTimeout(r, 3000));
+        if (!mountedRef.current) return false; // component unmounted during retry delay
         muxData = await attemptMux();
       }
 
@@ -2478,6 +2482,11 @@ export default function StudioOrchestratorV2({
   useEffect(() => {
     pipelineStepsRef.current = pipelineSteps;
   }, [pipelineSteps]);
+
+  // Keep mediaUrlsRef in sync with state (belt-and-suspenders alongside manual syncs)
+  useEffect(() => {
+    mediaUrlsRef.current = mediaUrls;
+  }, [mediaUrls]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -2954,12 +2963,13 @@ export default function StudioOrchestratorV2({
 
   // A&R GRADING — Score each generation like a Billboard A&R exec
   const gradeGeneration = useCallback(async (slot, content, promptText) => {
-    if (!content || !authToken) return;
+    if (!content) return;
     const text = typeof content === 'string' ? content : JSON.stringify(content);
     if (text.length < 20) return;
     setGradingSlots(prev => ({ ...prev, [slot]: true }));
     try {
-      const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` };
+      const headers = await getHeaders();
+      if (!headers['Authorization']) return; // silently skip if not signed in
       const res = await fetch(`${BACKEND_URL}/api/grade-generation`, {
         method: 'POST',
         headers,
@@ -2979,7 +2989,7 @@ export default function StudioOrchestratorV2({
     } finally {
       setGradingSlots(prev => ({ ...prev, [slot]: false }));
     }
-  }, [authToken, genre, songIdea]);
+  }, [getHeaders, genre, songIdea]);
 
   // Clear all outputs and generate fresh
   const clearAndGenerate = useCallback(() => {
@@ -3677,6 +3687,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         const text = await response.text();
         console.error('[handleGenerateAudio] Non-JSON response:', text);
         throw new Error(`Invalid audio response (${response.status})`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.error || `Audio generation failed (${response.status})`);
       }
 
       if (response.ok) {
@@ -4525,6 +4539,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         };
         
         video.onseeked = () => {
+          clearTimeout(frameTimeout);
           try {
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth || 640;
@@ -4543,6 +4558,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         };
         
         video.onerror = () => {
+          clearTimeout(frameTimeout);
           reject(new Error('Video load failed'));
         };
         
@@ -4550,8 +4566,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         video.src = videoUrl;
         video.load();
         
-        // Timeout after 10 seconds
-        setTimeout(() => {
+        // Timeout after 10 seconds — stored so it can be cancelled
+        const frameTimeout = setTimeout(() => {
           video.remove();
           reject(new Error('Frame extraction timeout'));
         }, 10000);
@@ -5522,7 +5538,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         a.click();
       } else {
         toast.loading('Preparing download...', { id: 'dl-master' });
-        const resp = await fetch(mixUrl);
+        const resp = await fetch(mixUrl, { signal: createTimeoutSignal(120000) });
+        if (!resp.ok) throw new Error(`Download failed (${resp.status})`);
         const blob = await resp.blob();
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');

@@ -947,7 +947,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       }
     };
     fetchElVoices();
-  }, [BACKEND_URL]);
+  }, []); // BACKEND_URL is a module-level constant, no need in deps
 
   // Helper to get tab from hash
   const getTabFromHash = () => {
