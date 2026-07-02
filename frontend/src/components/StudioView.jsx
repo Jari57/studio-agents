@@ -14,6 +14,7 @@ import {
   GoogleAuthProvider,
   OAuthProvider,
   signInWithPopup, 
+  signInWithRedirect,
   signOut, 
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -41,6 +42,17 @@ import { purchaseProduct, restorePurchases, initStoreKit } from '../utils/storeK
 const __DEV__ = import.meta.env.DEV;
 const devLog = __DEV__ ? (...args) => console.log(...args) : () => {};
 const devWarn = __DEV__ ? (...args) => console.warn(...args) : () => {};
+
+// Firebase error codes indicating the popup flow failed (blocked/closed/unsupported
+// due to COOP or third-party cookie restrictions) - fall back to full-page redirect.
+const POPUP_FALLBACK_CODES = new Set([
+  'auth/popup-blocked',
+  'auth/popup-closed-by-user',
+  'auth/cancelled-popup-request',
+  'auth/operation-not-supported-in-this-environment',
+  'auth/web-storage-unsupported',
+  'auth/internal-error',
+]);
 
 // Safe UUID generator — fallback for browsers without crypto.randomUUID()
 const generateId = () => typeof crypto?.randomUUID === 'function'
@@ -3107,8 +3119,17 @@ const fetchUserCredits = useCallback(async (uid) => {
     } catch (error) {
       devWarn('Login failed', error);
       toast.dismiss(loadingToast);
-      if (error.code === 'auth/popup-closed-by-user') {
-        toast('Sign-in cancelled', { icon: '' });
+      // Popup blocked/closed by browser (COOP / third-party cookies) - use redirect.
+      if (POPUP_FALLBACK_CODES.has(error.code)) {
+        try {
+          const rp = new GoogleAuthProvider();
+          rp.setCustomParameters({ prompt: 'select_account' });
+          await signInWithRedirect(auth, rp);
+          return;
+        } catch (redirectErr) {
+          devWarn('Google redirect failed', redirectErr);
+          toast.error(redirectErr.message || 'Sign-in failed.');
+        }
       } else if (error.code === 'auth/unauthorized-domain') {
         toast.error(`Domain not authorized. Add ${window.location.hostname} in Firebase Console.`);
       } else {
@@ -3151,8 +3172,18 @@ const fetchUserCredits = useCallback(async (uid) => {
     } catch (error) {
       devWarn('Apple login failed', error);
       toast.dismiss(loadingToast);
-      if (error.code === 'auth/popup-closed-by-user') {
-        toast('Sign-in cancelled', { icon: '👋' });
+      // Popup blocked/closed by browser (COOP / third-party cookies) - use redirect.
+      if (POPUP_FALLBACK_CODES.has(error.code)) {
+        try {
+          const rp = new OAuthProvider('apple.com');
+          rp.addScope('email');
+          rp.addScope('name');
+          await signInWithRedirect(auth, rp);
+          return;
+        } catch (redirectErr) {
+          devWarn('Apple redirect failed', redirectErr);
+          toast.error('Apple sign-in failed. Please try another method.');
+        }
       } else if (error.code === 'auth/unauthorized-domain') {
         toast.error(`Domain not authorized. Add ${window.location.hostname} in Firebase Console.`);
       } else {

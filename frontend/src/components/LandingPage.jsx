@@ -2,7 +2,19 @@ import React, { useState, useEffect, Suspense } from 'react';
 import toast from 'react-hot-toast';
 import { Sparkles, ArrowRight, Zap, Music, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Clock, Headphones, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LogIn, LogOut } from 'lucide-react';
 import { AGENTS, BACKEND_URL } from '../constants';
-import { auth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
+import { auth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
+
+// Firebase error codes that indicate the popup flow itself failed (blocked, closed
+// early, or unsupported by the browser environment - e.g. third-party cookie / COOP
+// restrictions in modern Chrome). In these cases we fall back to a full-page redirect.
+const POPUP_FALLBACK_CODES = new Set([
+  'auth/popup-blocked',
+  'auth/popup-closed-by-user',
+  'auth/cancelled-popup-request',
+  'auth/operation-not-supported-in-this-environment',
+  'auth/web-storage-unsupported',
+  'auth/internal-error',
+]);
 import { AGENT_WHITEPAPER, DEFAULT_WHITEPAPER } from '../data/agentWhitepapers';
 
 // Lazy loaded complex components (standardizing to React.lazy to prevent 'lazy is not defined' error)
@@ -42,7 +54,35 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
     return () => unsubscribe();
   }, []);
-  
+
+  // Complete any pending redirect-based sign-in (Google/Apple fallback).
+  // When signInWithPopup is blocked (COOP / third-party cookies), we fall back
+  // to signInWithRedirect; on return, getRedirectResult resolves the session
+  // and we navigate the user into the studio.
+  useEffect(() => {
+    if (!auth) return;
+    let cancelled = false;
+    getRedirectResult(auth)
+      .then((result) => {
+        if (cancelled || !result?.user) return;
+        const pAction = sessionStorage.getItem('studio_pending_action') || null;
+        const pTab = sessionStorage.getItem('studio_pending_tab') || null;
+        sessionStorage.removeItem('studio_pending_action');
+        sessionStorage.removeItem('studio_pending_tab');
+        setShowAuthModal(false);
+        setIsTransitioning(true);
+        setTimeout(() => {
+          navigateToStudio(pAction === 'start', pTab);
+          setIsTransitioning(false);
+        }, 100);
+      })
+      .catch((err) => {
+        console.error('Redirect sign-in result error:', err);
+        if (!cancelled) toast.error(err.message || 'Sign-in failed. Please try again.');
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Auth modal state
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
@@ -82,11 +122,30 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
       }, 100);
     } catch (error) {
       console.error('Google sign in error:', error);
-      const msg = error.code === 'auth/popup-closed-by-user' 
-        ? 'Sign-in cancelled.' 
-        : error.code === 'auth/popup-blocked'
-          ? 'Popup blocked by browser.'
-          : error.message || 'Failed to sign in.';
+
+      // Popup was blocked/closed by the browser (COOP or third-party cookie
+      // restrictions) - fall back to a full-page redirect, which always works.
+      if (POPUP_FALLBACK_CODES.has(error.code)) {
+        try {
+          sessionStorage.setItem('studio_pending_action', pendingAction || '');
+          sessionStorage.setItem('studio_pending_tab', pendingTargetTab || '');
+          const provider = new GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: 'select_account' });
+          await signInWithRedirect(auth, provider);
+          return; // Page navigates away; result handled on return via getRedirectResult
+        } catch (redirectErr) {
+          console.error('Google redirect sign in error:', redirectErr);
+          const rmsg = redirectErr.message || 'Failed to sign in.';
+          setAuthError(rmsg);
+          toast.error(rmsg);
+          setAuthLoading(false);
+          return;
+        }
+      }
+
+      const msg = error.code === 'auth/account-exists-with-different-credential'
+        ? 'An account already exists with this email. Try a different sign-in method.'
+        : error.message || 'Failed to sign in.';
       
       setAuthError(msg);
       toast.error(msg);
@@ -117,12 +176,29 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
       }, 100);
     } catch (error) {
       console.error('Apple sign in error:', error);
+
+      // Fall back to redirect if the popup was blocked/closed by the browser.
+      if (POPUP_FALLBACK_CODES.has(error.code)) {
+        try {
+          sessionStorage.setItem('studio_pending_action', pendingAction || '');
+          sessionStorage.setItem('studio_pending_tab', pendingTargetTab || '');
+          const provider = new OAuthProvider('apple.com');
+          provider.addScope('email');
+          provider.addScope('name');
+          await signInWithRedirect(auth, provider);
+          return;
+        } catch (redirectErr) {
+          console.error('Apple redirect sign in error:', redirectErr);
+          const rmsg = redirectErr.message || 'Failed to sign in with Apple.';
+          setAuthError(rmsg);
+          toast.error(rmsg);
+          setAuthLoading(false);
+          return;
+        }
+      }
+
       let msg;
-      if (error.code === 'auth/popup-closed-by-user') {
-        msg = 'Sign-in cancelled.';
-      } else if (error.code === 'auth/popup-blocked') {
-        msg = 'Popup blocked by browser. Please allow popups for this site.';
-      } else if (error.code === 'auth/account-exists-with-different-credential') {
+      if (error.code === 'auth/account-exists-with-different-credential') {
         msg = 'An account already exists with this email. Try signing in with Google or email/password first.';
       } else if (error.code === 'auth/operation-not-allowed') {
         msg = 'Apple Sign-In is not enabled. Please use Google or email/password instead.';
