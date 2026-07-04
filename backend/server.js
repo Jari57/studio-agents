@@ -5415,6 +5415,108 @@ Return ONLY valid JSON, no markdown.`;
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // PRIORITY -1 (CLONED VOICE → REAL SUNG SONG): MiniMax Music
+    // Zero-shot music generation. Uses the artist's uploaded voice SAMPLE
+    // as a timbre reference and SINGS the lyrics as real music — this is
+    // NOT text-to-speech. This is the "upload a sample → full song in
+    // your voice, billboard quality on first go" path. Runs BEFORE every
+    // TTS/Suno branch so a cloned voice never gets a spoken-word vocal.
+    // Requirements: voice sample must be a fetchable URL and ≥15 seconds.
+    // ═══════════════════════════════════════════════════════════════
+    const cloneVoiceSampleUrl = speakerUrl || referenceSongUrl || null;
+    const canMinimaxClone = replicateKey
+      && (style === 'cloned' || speakerUrl)
+      && cloneVoiceSampleUrl
+      && !/^data:/.test(cloneVoiceSampleUrl); // Replicate needs a fetchable URL, not a data URI
+    if (!audioUrl && canMinimaxClone && (!wantProvider || wantProvider === 'minimax-music')) {
+      try {
+        logger.info('🎤🎵 MiniMax Music — singing lyrics in cloned voice (zero-shot, no TTS)', { sample: cloneVoiceSampleUrl.substring(0, 60) });
+        emit('vocals', 'minimax-starting');
+
+        // MiniMax Music generates up to ~60s; length scales with lyric content.
+        // Target a 30–60s sung clip: use the full ~400-char budget, and if the
+        // song is short, repeat the strongest section (hook) to reach the floor.
+        // Newlines separate lines; a blank line adds a pause.
+        const MM_LYRIC_MAX = 400;   // MiniMax hard input cap
+        const MM_LYRIC_FLOOR = 200; // ~30s of singing — pad up to this if shorter
+        let mmLyrics = cleanedPrompt
+          .replace(/\[([^\]]*)\]/g, '')   // strip [Verse]/[Chorus]/etc structure tags
+          .replace(/\n{3,}/g, '\n\n')      // collapse excessive blank lines
+          .split('\n')
+          .map(l => l.trim())
+          .filter(Boolean)
+          .join('\n')
+          .trim();
+        // Pad short lyrics toward the 30s floor by repeating them (keeps it in-voice
+        // and musical rather than returning a 10s fragment).
+        if (mmLyrics.length > 0 && mmLyrics.length < MM_LYRIC_FLOOR) {
+          const seed = mmLyrics;
+          while (mmLyrics.length < MM_LYRIC_FLOOR && (mmLyrics.length + seed.length + 2) <= MM_LYRIC_MAX) {
+            mmLyrics += `\n\n${seed}`;
+          }
+        }
+        mmLyrics = mmLyrics.substring(0, MM_LYRIC_MAX).trim();
+
+        const mmInput = {
+          lyrics: mmLyrics,
+          voice_file: cloneVoiceSampleUrl, // artist's voice sample → their timbre
+          sample_rate: 44100,
+          bitrate: 256000
+        };
+        // Only pass a separate reference SONG for style if a distinct one was supplied
+        if (referenceSongUrl && referenceSongUrl !== cloneVoiceSampleUrl && !/^data:/.test(referenceSongUrl)) {
+          mmInput.song_file = referenceSongUrl;
+        }
+
+        const mmStart = await fetch('https://api.replicate.com/v1/models/minimax/music-01/predictions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${replicateKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'wait'
+          },
+          body: JSON.stringify({ input: mmInput })
+        });
+
+        if (mmStart.ok) {
+          let mmPred = await mmStart.json();
+          emit('vocals', 'minimax-polling');
+          for (let i = 0; i < 60 && !['succeeded', 'failed', 'canceled'].includes(mmPred.status); i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            emit('vocals', `minimax-poll-${i + 1}`);
+            const st = await fetch(`https://api.replicate.com/v1/predictions/${mmPred.id}`, {
+              headers: { 'Authorization': `Bearer ${replicateKey}` }
+            });
+            if (st.ok) mmPred = await st.json();
+          }
+          if (mmPred.status === 'succeeded') {
+            let out = mmPred.output;
+            if (Array.isArray(out)) out = out[0];
+            if (out && typeof out === 'string') {
+              const aud = await fetch(out);
+              if (aud.ok) {
+                const buf = await aud.arrayBuffer();
+                audioUrl = `data:audio/mpeg;base64,${Buffer.from(buf).toString('base64')}`;
+                provider = 'minimax-music-clone';
+                emit('vocals', 'minimax-complete');
+                logger.info('✅ MiniMax cloned-voice song generated (real singing)');
+              }
+            }
+          } else {
+            logger.warn('MiniMax music did not succeed — falling through to next provider', { status: mmPred.status, error: mmPred.error });
+            if (/credit|billing|payment|insufficient/i.test(String(mmPred.error || ''))) systemCreditIssue = true;
+          }
+        } else {
+          const eb = await mmStart.text().catch(() => '');
+          if (mmStart.status === 402 || mmStart.status === 401) systemCreditIssue = true;
+          logger.warn('MiniMax music API error', { status: mmStart.status, error: eb.substring(0, 200) });
+        }
+      } catch (mmErr) {
+        logger.error('MiniMax music clone failed (non-fatal):', mmErr.message);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // PRIORITY 0: SUNO API — Real AI singing/rapping (when API key configured)
     // Suno produces actual musical performances: singing, rapping, melodic delivery.
     // Activated for: singers, rappers, and premium quality requests.

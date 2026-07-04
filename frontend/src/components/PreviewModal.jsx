@@ -89,8 +89,8 @@ export function PreviewModal({
         style={{
           position: 'relative',
           width: '95vw',
-          maxWidth: '1200px',
-          maxHeight: '90vh',
+          maxWidth: '1600px',
+          maxHeight: '92vh',
           display: 'flex',
           flexDirection: 'column',
           background: 'rgba(20, 20, 20, 0.95)',
@@ -278,7 +278,9 @@ export function PreviewModal({
               alt={title || 'Preview'}
               style={{
                 maxWidth: '100%',
-                maxHeight: 'calc(90vh - 120px)',
+                maxHeight: 'calc(92vh - 80px)',
+                width: 'auto',
+                height: 'auto',
                 borderRadius: '8px',
                 objectFit: 'contain',
                 animation: 'zoomIn 0.3s ease-out'
@@ -305,7 +307,7 @@ export function PreviewModal({
                 playsInline
                 style={{
                   maxWidth: '100%',
-                  maxHeight: 'calc(90vh - 160px)',
+                  maxHeight: 'calc(92vh - 120px)',
                   borderRadius: '8px',
                   animation: 'zoomIn 0.3s ease-out',
                   flexShrink: 1

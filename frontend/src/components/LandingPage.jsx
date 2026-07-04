@@ -121,11 +121,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         setIsTransitioning(false);
       }, 100);
     } catch (error) {
-      console.error('Google sign in error:', error);
-
       // Popup was blocked/closed by the browser (COOP or third-party cookie
       // restrictions) - fall back to a full-page redirect, which always works.
       if (POPUP_FALLBACK_CODES.has(error.code)) {
+        console.info('Google popup unavailable, using redirect sign-in:', error.code);
         try {
           sessionStorage.setItem('studio_pending_action', pendingAction || '');
           sessionStorage.setItem('studio_pending_tab', pendingTargetTab || '');
@@ -142,6 +141,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           return;
         }
       }
+
+      console.error('Google sign in error:', error);
 
       const msg = error.code === 'auth/account-exists-with-different-credential'
         ? 'An account already exists with this email. Try a different sign-in method.'
@@ -175,10 +176,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         setIsTransitioning(false);
       }, 100);
     } catch (error) {
-      console.error('Apple sign in error:', error);
-
       // Fall back to redirect if the popup was blocked/closed by the browser.
       if (POPUP_FALLBACK_CODES.has(error.code)) {
+        console.info('Apple popup unavailable, using redirect sign-in:', error.code);
         try {
           sessionStorage.setItem('studio_pending_action', pendingAction || '');
           sessionStorage.setItem('studio_pending_tab', pendingTargetTab || '');
@@ -196,6 +196,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           return;
         }
       }
+
+      console.error('Apple sign in error:', error);
 
       let msg;
       if (error.code === 'auth/account-exists-with-different-credential') {

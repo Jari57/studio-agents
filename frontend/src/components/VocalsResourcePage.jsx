@@ -99,7 +99,7 @@ const VOICE_CLONING_STEPS = [
   {
     step: 1,
     title: 'Record Your Voice Sample',
-    description: 'Record a clear 5-10 second clip of your natural speaking or rapping voice. Minimal background noise, consistent volume. Multiple samples (up to 3) improve clone quality.',
+    description: 'Record a clear clip of at least 15 seconds of your natural singing, speaking, or rapping voice. Minimal background noise, consistent volume. A longer, cleaner sample produces a better sung clone.',
     icon: Mic,
     tip: 'Speak naturally — don\'t perform. The AI captures your vocal timbre, not your performance style.'
   },

@@ -83,3 +83,5 @@ lh-tmp/
 
 # --- Windows artifacts ---
 nul
+.vercel
+.env*.local

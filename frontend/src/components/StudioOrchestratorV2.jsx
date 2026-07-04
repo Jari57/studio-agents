@@ -289,7 +289,8 @@ function GeneratorCard({
   dnaUrl = null,
   isUploadingDna = false,
   provider = null,
-  onEditCover = null
+  onEditCover = null,
+  isMaximized = false
 }) {
   const [showPreview, setShowPreview] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -793,8 +794,8 @@ function GeneratorCard({
                         alt="Generated"
                         style={{ 
                           width: '100%', 
-                          maxHeight: '120px', 
-                          objectFit: 'cover',
+                          maxHeight: isMaximized ? '72vh' : '120px', 
+                          objectFit: isMaximized ? 'contain' : 'cover',
                           borderRadius: '8px'
                         }}
                         onError={(e) => {
@@ -877,8 +878,8 @@ function GeneratorCard({
                       playsInline
                       style={{ 
                         width: '100%', 
-                        maxHeight: isMobile ? '100px' : '120px', 
-                        objectFit: 'cover',
+                        maxHeight: isMaximized ? '72vh' : (isMobile ? '100px' : '120px'), 
+                        objectFit: isMaximized ? 'contain' : 'cover',
                         borderRadius: '8px'
                       }}
                       controls
@@ -3117,7 +3118,8 @@ export default function StudioOrchestratorV2({
     if (selectedAgents.visual) steps.push({ id: 'visual-desc', label: 'Designing album art concept', status: 'pending', startTime: null, endTime: null });
     if (selectedAgents.audio) steps.push({ id: 'beat-audio', label: 'Generating beat audio', status: 'pending', startTime: null, endTime: null });
     if (selectedAgents.visual) steps.push({ id: 'image', label: 'Creating album artwork', status: 'pending', startTime: null, endTime: null });
-    if (selectedAgents.lyrics) steps.push({ id: 'vocals', label: 'Recording AI vocals', status: 'pending', startTime: null, endTime: null });
+    // Vocals run whenever lyrics will exist (slot selected OR lyrics already present from a prior run)
+    if (selectedAgents.lyrics || outputs.lyrics) steps.push({ id: 'vocals', label: 'Recording AI vocals', status: 'pending', startTime: null, endTime: null });
     if (selectedAgents.video) steps.push({ id: 'video', label: 'Producing music video', status: 'pending', startTime: null, endTime: null });
     if (selectedAgents.video && selectedAgents.audio) steps.push({ id: 'mux', label: 'Syncing audio to video', status: 'pending', startTime: null, endTime: null });
     steps.push({ id: 'final', label: 'Creating final mix', status: 'pending', startTime: null, endTime: null });
@@ -3392,11 +3394,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         devLog('[Pipeline] Beat audio ready, proceeding to vocals');
       }
 
-      // Generate vocals AFTER beat is ready (DRY vocals — mixing happens next)
-      if (lyricsResult && activeSlots.find(([s]) => s === 'lyrics') && (freshGeneration || !(mediaUrls.vocals || mediaUrls.lyricsVocal))) {
+      // Generate vocals AFTER beat is ready (DRY vocals — mixing happens next).
+      // HARDENED: vocals auto-generate whenever the record has ANY lyrics content
+      // (freshly generated this run, from a prior run, or from an existing project) —
+      // not just when the lyrics slot was explicitly selected. Pure instrumentals
+      // (no lyrics anywhere) still stay instrumental. Uses mediaUrlsRef to avoid
+      // reading a stale mediaUrls closure that could skip vocals incorrectly.
+      const lyricsForVocals = lyricsResult || outputsRef.current.lyrics || outputs.lyrics || '';
+      const alreadyHasVocals = !!(mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal);
+      if (lyricsForVocals && (freshGeneration || !alreadyHasVocals)) {
         devLog('[Pipeline] Starting vocal generation with beat URL for mixing');
         updatePipelineStep('vocals', 'active');
-        await handleGenerateVocals(lyricsResult);
+        await handleGenerateVocals(lyricsForVocals);
         // Mark done only if vocals were actually produced (handleGenerateVocals returns early on auth fail)
         if (mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal) {
           updatePipelineStep('vocals', 'done');
@@ -4064,6 +4073,31 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     if (file.size > 10 * 1024 * 1024) {
       toast.error('File too large (max 10MB)');
       return;
+    }
+
+    // Duration guard: the singing-clone engine (MiniMax Music) requires a
+    // sample of at least 15 seconds to reproduce the voice as a full sung
+    // song. Shorter clips fall back to lower-quality speech, so block them.
+    try {
+      const durationSec = await new Promise((resolve) => {
+        const objUrl = URL.createObjectURL(file);
+        const probe = new Audio();
+        probe.preload = 'metadata';
+        probe.onloadedmetadata = () => {
+          const d = probe.duration;
+          URL.revokeObjectURL(objUrl);
+          resolve(Number.isFinite(d) ? d : null);
+        };
+        probe.onerror = () => { URL.revokeObjectURL(objUrl); resolve(null); };
+        probe.src = objUrl;
+      });
+      if (durationSec !== null && durationSec < 15) {
+        toast.error(`Voice sample is ${Math.round(durationSec)}s — please use at least 15 seconds of clear singing or speaking for a billboard-quality clone.`);
+        e.target.value = '';
+        return;
+      }
+    } catch {
+      // If duration can't be read, allow upload and let the backend decide.
     }
 
     setIsUploadingSample(true);
@@ -8680,8 +8714,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               borderRadius: isMobile ? '12px' : '24px',
               border: '1px solid rgba(255,255,255,0.1)',
               width: '100%',
-              maxWidth: '800px',
-              maxHeight: isMobile ? '100dvh' : '90vh',
+              maxWidth: isMobile ? '100%' : 'min(1280px, 95vw)',
+              maxHeight: isMobile ? '100dvh' : '92vh',
               overflow: 'auto',
               display: 'flex',
               flexDirection: 'column',
@@ -8751,6 +8785,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     output={outputs[slot.key]}
                     isLoading={generatingSlots[slot.key] && selectedAgents[slot.key]}
                     mediaType={slot.mediaType}
+                    isMaximized={true}
                     mediaUrl={
                       slot.key === 'audio' ? mediaUrls.audio :
                       slot.key === 'lyrics' ? (mediaUrls.vocals || mediaUrls.lyricsVocal) :

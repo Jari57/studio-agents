@@ -133,7 +133,7 @@ const PRODUCTION_PHASES = [
       },
       {
         action: 'Clone Your Voice (Optional)',
-        detail: 'Upload 2-3 voice samples (5-10 seconds each). Hit "Clone Voice" — ElevenLabs IVC creates a permanent voice_id. Every future generation uses YOUR voice.',
+        detail: 'Upload a clear voice sample of at least 15 seconds (singing or speaking). The AI generates a full sung song in YOUR voice — real singing, not text-to-speech. Every future generation uses YOUR voice.',
         tip: 'Record yourself speaking naturally, not performing. The AI captures timbre and tone — it adds performance on top.'
       },
       {
