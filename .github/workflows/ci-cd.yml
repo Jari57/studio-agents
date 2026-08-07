@@ -21,16 +21,14 @@ jobs:
       - name: Install Backend Dependencies
         run: cd backend && npm ci
       
-      - name: Run Security Audit (Backend)
-        run: cd backend && npm audit --production --audit-level=moderate
-        continue-on-error: true
+      - name: Block production high/critical backend vulnerabilities
+        run: cd backend && npm audit --omit=dev --audit-level=high
       
       - name: Install Frontend Dependencies
         run: cd frontend && npm ci
       
-      - name: Run Security Audit (Frontend)
-        run: cd frontend && npm audit --production --audit-level=moderate
-        continue-on-error: true
+      - name: Block production high/critical frontend vulnerabilities
+        run: cd frontend && npm audit --omit=dev --audit-level=high
 
   test-and-build:
     name: Test & Build
