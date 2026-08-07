@@ -629,21 +629,13 @@ function ProjectHubV3({
             onClick={() => setActiveHubTab('my-projects')}
           >
             <FolderIcon size={18} />
-            <span>My Projects</span>
-          </button>
-          <button 
-            className={`hub-tab-item ${activeHubTab === 'discover' ? 'active' : ''}`}
-            onClick={() => setActiveHubTab('discover')}
-          >
-            <TrendingUp size={18} />
-            <span>Studio Community</span>
-            <span className="live-dot" />
+            <span>Sessions</span>
           </button>
         </div>
 
         <div className="hub-title-row">
           <div className="title-section">
-            <h1>{activeHubTab === 'my-projects' ? 'Your Projects' : 'Shared Projects'}</h1>
+            <h1>{activeHubTab === 'my-projects' ? 'Your sessions' : 'Shared Projects'}</h1>
             <p className="hub-subtitle">
               {activeHubTab === 'my-projects' ? (
                 <>
@@ -668,7 +660,7 @@ function ProjectHubV3({
             )}
             <button className="btn-create-new" onClick={() => setShowNewProjectModal(true)}>
               <Plus size={20} />
-              <span>New Project</span>
+              <span>Start a session</span>
               <kbd className="shortcut-hint">{navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl+'}N</kbd>
             </button>
           </div>
@@ -814,12 +806,12 @@ function ProjectHubV3({
                   <Sparkles size={48} />
                 </div>
               </div>
-              <h3>Ready to create something amazing?</h3>
-              <p>Start your first project and bring your ideas to life with AI-powered tools</p>
+              <h3>Start with a sketch, not a blank dashboard.</h3>
+              <p>Name the song or release you are making. Studio Agents will guide the brief, sound, look, and release work from there.</p>
               
               <div className="quick-start-options">
                 <button className="btn-create-new primary-cta" onClick={() => setShowNewProjectModal(true)}>
-                  <Plus size={18} /> Create Project
+                  <Plus size={18} /> Start a session
                   <span className="shortcut-hint">⌘N</span>
                 </button>
               </div>
@@ -864,7 +856,7 @@ function ProjectHubV3({
               <div className="plus-circle">
                 <Plus size={32} />
               </div>
-              <span>Create New Project</span>
+              <span>Start a session</span>
               <p className="new-project-hint">or press ⌘N</p>
             </div>
           </div>

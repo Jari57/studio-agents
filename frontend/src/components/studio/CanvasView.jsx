@@ -125,6 +125,37 @@ export default function CanvasView({
     return Math.round((completed / PRODUCTION_STAGES.length) * 100);
   }, [pipelineStatus, PRODUCTION_STAGES.length]);
 
+  // A musician does not think in seven disconnected tools. Keep the detailed
+  // asset taxonomy below, but organize the workspace around the four creative
+  // decisions that move a song toward release.
+  const musicianJourney = useMemo(() => {
+    const stageByKey = new Map(pipelineStatus.map(stage => [stage.key, stage]));
+    return [
+      { key: 'brief', label: 'Brief', helper: 'Idea & lyrics', stages: ['idea', 'lyrics'], color: '#a855f7', icon: FileText },
+      { key: 'sound', label: 'Sound', helper: 'Beat & vocals', stages: ['beat', 'vocals'], color: '#06b6d4', icon: Music },
+      { key: 'look', label: 'Look', helper: 'Artwork & video', stages: ['artwork', 'video'], color: '#ec4899', icon: ImageIcon },
+      { key: 'release', label: 'Release', helper: 'Master & share', stages: ['master'], color: '#f59e0b', icon: Share2 }
+    ].map(step => {
+      const completedStages = step.stages.filter(key => stageByKey.get(key)?.status === 'complete');
+      const assetCount = step.stages.reduce((total, key) => total + (stageByKey.get(key)?.count || 0), 0);
+      return { ...step, complete: completedStages.length === step.stages.length, assetCount };
+    });
+  }, [pipelineStatus]);
+
+  const nextJourneyStep = useMemo(
+    () => musicianJourney.find(step => !step.complete) || musicianJourney[musicianJourney.length - 1],
+    [musicianJourney]
+  );
+
+  const focusJourneyStep = useCallback((step) => {
+    const firstAssetStage = step.stages.find(key => {
+      const stage = PRODUCTION_STAGES.find(item => item.key === key);
+      return stage?.assetTypes?.length;
+    });
+    setPipelineFilter(firstAssetStage || null);
+    setAssetFilter('all');
+  }, [PRODUCTION_STAGES]);
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // EFFECTS
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -546,6 +577,64 @@ export default function CanvasView({
       </div>
 
       {/* ═══════════ SECTION B: PRODUCTION JOURNEY PIPELINE ═══════════ */}
+      <section style={{
+        padding: isMobile ? '14px 12px' : '18px 24px',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        background: 'linear-gradient(90deg, rgba(168,85,247,0.07), rgba(6,182,212,0.035))'
+      }}>
+        <div style={{
+          display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between',
+          gap: '14px', flexDirection: isMobile ? 'column' : 'row', marginBottom: '12px'
+        }}>
+          <div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Your next move</div>
+            <div style={{ color: 'white', fontSize: isMobile ? '1rem' : '1.12rem', fontWeight: 750, marginTop: '3px' }}>
+              {nextJourneyStep.complete ? 'Your release package is ready to review.' : `Build the ${nextJourneyStep.label.toLowerCase()} of this release.`}
+            </div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: '3px' }}>{nextJourneyStep.helper}</div>
+          </div>
+          <button className="btn-pill primary" onClick={() => { focusJourneyStep(nextJourneyStep); setShowOrchestrator(true); }} style={{ alignSelf: isMobile ? 'flex-start' : 'center', whiteSpace: 'nowrap' }}>
+            <Sparkles size={14} /> Continue creating
+          </button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 2 : 4}, minmax(0, 1fr))`, gap: '8px' }}>
+          {musicianJourney.map((step) => {
+            const StepIcon = step.icon;
+            const isFocused = step.stages.includes(pipelineFilter);
+            return (
+              <button
+                key={step.key}
+                onClick={() => focusJourneyStep(step)}
+                aria-pressed={isFocused}
+                style={{
+                  textAlign: 'left', padding: isMobile ? '10px' : '12px', borderRadius: '12px', cursor: 'pointer',
+                  border: `1px solid ${isFocused ? step.color : step.complete ? `${step.color}66` : 'rgba(255,255,255,0.09)'}`,
+                  background: isFocused ? `${step.color}22` : step.complete ? `${step.color}12` : 'rgba(255,255,255,0.025)',
+                  color: 'white', minHeight: isMobile ? '74px' : '82px', transition: 'all 0.18s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <StepIcon size={16} style={{ color: step.color }} />
+                  <span style={{ color: step.complete ? '#86efac' : 'var(--text-secondary)', fontSize: '0.67rem', fontWeight: 700 }}>
+                    {step.complete ? 'Done' : step.assetCount ? `${step.assetCount} saved` : 'Next'}
+                  </span>
+                </div>
+                <div style={{ fontWeight: 750, fontSize: '0.87rem', marginTop: '10px' }}>{step.label}</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.68rem', marginTop: '2px' }}>{step.helper}</div>
+              </button>
+            );
+          })}
+        </div>
+        {pipelineFilter && (
+          <button onClick={() => setPipelineFilter(null)} style={{ marginTop: '10px', background: 'none', border: 0, padding: 0, color: 'var(--text-secondary)', fontSize: '0.72rem', cursor: 'pointer' }}>
+            Viewing one stage — show every asset
+          </button>
+        )}
+      </section>
+
+      {/* Retained only for explicitly flagged legacy projects while their saved
+          production-stage metadata is migrated to the musician-first journey. */}
+      {selectedProject?.legacyPipeline === true && (
       <div style={{
         padding: isMobile ? '16px 12px' : '20px 24px',
         overflowX: 'auto', overflowY: 'hidden',
@@ -636,6 +725,8 @@ export default function CanvasView({
           </div>
         )}
       </div>
+
+      )}
 
       {/* ═══════════ SECTION C: FULL-VIEW CAROUSEL ═══════════ */}
       <div style={{
