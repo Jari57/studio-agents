@@ -1,0 +1,31 @@
+{
+  "frontend": {
+    "frontend/src/components/AchievementBadges.jsx": 7,
+    "frontend/src/components/AdminAnalytics.jsx": 2,
+    "frontend/src/components/ArrangementEditor.jsx": 1,
+    "frontend/src/components/BillboardBlueprintPage.jsx": 16,
+    "frontend/src/components/ContentMultiplicationPage.jsx": 4,
+    "frontend/src/components/CoverArtEditor.jsx": 22,
+    "frontend/src/components/DnaResourcePage.jsx": 4,
+    "frontend/src/components/GuidedTour.jsx": 2,
+    "frontend/src/components/HeroProductDemo.jsx": 10,
+    "frontend/src/components/LandingPage.jsx": 5,
+    "frontend/src/components/LegalResourcesPage.jsx": 6,
+    "frontend/src/components/MediaLibrary.jsx": 10,
+    "frontend/src/components/ProjectHubV3.jsx": 6,
+    "frontend/src/components/RealtimePreviewMixer.jsx": 7,
+    "frontend/src/components/StudioOrchestratorV2.jsx": 14,
+    "frontend/src/components/StudioView.jsx": 53,
+    "frontend/src/components/VocalsResourcePage.jsx": 10,
+    "frontend/src/components/WhitepapersPage.jsx": 8,
+    "frontend/src/components/studio/CanvasView.jsx": 12,
+    "frontend/src/components/studio/DashboardView.jsx": 10
+  },
+  "backend": {
+    "backend/server.js": 51,
+    "backend/services/audioMixingService.js": 6,
+    "backend/services/beatDetectionService.js": 1,
+    "backend/services/formatConversionService.js": 1,
+    "backend/services/syncService.js": 3
+  }
+}

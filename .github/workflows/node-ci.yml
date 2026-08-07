@@ -40,8 +40,17 @@ jobs:
       - name: Verify backend installation
         run: cd backend && npm list --depth=0
 
-      - name: Check environment configuration
-        run: node backend/check_env.js
+      - name: Verify deployment environment contract
+        run: npm run check:env-template
+
+      - name: Check backend syntax
+        run: node --check backend/server.js
+
+      - name: Enforce storage privacy contract
+        run: npm run privacy:check
+
+      - name: Prevent new lint regressions
+        run: npm run lint:ci
 
       - name: Build status
         if: success()
@@ -51,8 +60,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     needs: build
-    env:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -74,8 +81,10 @@ jobs:
       - name: Install Playwright browsers
         run: cd frontend && npx playwright install --with-deps chromium
 
-      - name: Run Playwright tests
-        run: cd frontend && npx playwright test api.spec.js e2e.spec.ts --reporter=list
+      - name: Run isolated release smoke tests
+        # Invoke Playwright from the frontend package. Running it at the repo
+        # root can load a second test runner and makes valid specs fail.
+        run: cd frontend && npx playwright test tests/release-smoke.spec.ts --reporter=list
         timeout-minutes: 10
 
       - name: Upload test results

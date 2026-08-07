@@ -73,8 +73,6 @@ const DashboardView = ({
   setDashboardTab,
   managedAgents,
   appSettings,
-  paymentMethods,
-  bankAccounts,
   storageConnections,
   setStorageConnections,
   socialConnections,
@@ -105,9 +103,6 @@ const DashboardView = ({
   setPendingProjectNav,
   setSelectedAgent,
   setShowLoginModal,
-  setShowAddPaymentModal,
-  setEditingPayment,
-  setPaymentType,
   // Data
   freeGenerationsUsed,
   FREE_GENERATION_LIMIT,
@@ -121,7 +116,6 @@ const DashboardView = ({
   handleConnectSocial,
   buyCreditPack,
   fetchAdminData,
-  handleDeletePayment,
   handleSubscribe,
   handleTextToVoice
 }) => {
@@ -728,7 +722,7 @@ const DashboardView = ({
                       {selectedProject ? `Project Roadmap: ${selectedProject.name}` : 'Studio Setup Checklist'}
                     </h3>
                     <span className="status-badge" style={{ background: 'var(--color-purple)', color: 'white' }}>
-                      {selectedProject ? 'In Progress' : `${(paymentMethods.length > 0) ? 1 : 0} / 1 Complete`}
+                      {selectedProject ? 'In Progress' : 'Ready to create'}
                     </span>
                   </div>
 
@@ -772,22 +766,22 @@ const DashboardView = ({
                         </div>
                       ))
                     ) : (
-                      /* Default Wallet Setup Step */
-                      <div className={`checklist-item ${paymentMethods.length > 0 ? 'completed' : ''}`} style={{
+                      /* Default first-project step */
+                      <div className="checklist-item" style={{
                         padding: '16px',
-                        background: paymentMethods.length > 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)',
+                        background: 'rgba(255,255,255,0.03)',
                         borderRadius: '12px',
-                        border: paymentMethods.length > 0 ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.05)',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '8px'
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: '600', color: paymentMethods.length > 0 ? 'var(--color-emerald)' : 'var(--text-primary)' }}>Setup Wallet</span>
-                          {paymentMethods.length > 0 ? <CheckCircle size={16} className="text-emerald" /> : <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid var(--text-secondary)' }}></div>}
+                          <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Create your first project</span>
+                          <Rocket size={16} className="text-purple" />
                         </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Add payment method.</p>
-                        {!paymentMethods.length && <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setDashboardTab('billing')}>Add Card</button>}
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Start with an idea, a reference, or a release goal.</p>
+                        <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setShowProjectTypeChoice(true)}>Create Project</button>
                       </div>
                     )}
 
@@ -924,51 +918,13 @@ const DashboardView = ({
 
               <div className="payment-methods-container">
                 <div className="payment-header">
-                  <h3>Saved Payment Methods</h3>
-                  <button className="add-payment-btn" onClick={() => setShowAddPaymentModal(true)}>
-                    <Plus size={16} /> Add New
-                  </button>
+                  <h3>Secure Billing</h3>
                 </div>
-
-                {paymentMethods.length === 0 && bankAccounts.length === 0 ? (
-                  <div className="empty-payments">
-                    <CreditCard size={32} />
-                    <p>No payment methods saved yet.</p>
-                  </div>
-                ) : (
-                  <div className="payment-list">
-                    {paymentMethods.map(method => (
-                      <div key={method.id} className="payment-method-card">
-                        <div className="pm-icon">
-                          <CreditCard size={20} />
-                        </div>
-                        <div className="pm-details">
-                          <p className="pm-name">{method.type} ending in {method.last4}</p>
-                          <p className="pm-sub">Expires {method.expiry}</p>
-                        </div>
-                        <div className="pm-actions">
-                          <button onClick={() => { setEditingPayment(method); setPaymentType('card'); setShowAddPaymentModal(true); }}>Edit</button>
-                          <button className="delete" onClick={() => handleDeletePayment(method.id, 'card')}>Remove</button>
-                        </div>
-                      </div>
-                    ))}
-                    {bankAccounts.map(bank => (
-                      <div key={bank.id} className="payment-method-card">
-                        <div className="pm-icon">
-                          <Landmark size={20} />
-                        </div>
-                        <div className="pm-details">
-                          <p className="pm-name">{bank.bankName}</p>
-                          <p className="pm-sub">****{bank.last4}</p>
-                        </div>
-                        <div className="pm-actions">
-                          <button onClick={() => { setEditingPayment(bank); setPaymentType('bank'); setShowAddPaymentModal(true); }}>Edit</button>
-                          <button className="delete" onClick={() => handleDeletePayment(bank.id, 'bank')}>Remove</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="empty-payments">
+                  <CreditCard size={32} />
+                  <p>Studio Agents does not collect or store card or bank details in this app.</p>
+                  <p className="pm-sub">When billing is available, subscriptions and credits use the secure checkout below.</p>
+                </div>
               </div>
 
               {/* Subscription Plans Section */}

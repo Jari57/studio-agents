@@ -882,18 +882,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       return saved ? JSON.parse(saved) : { googleDrive: false, dropbox: false, oneDrive: false, localDevice: true };
     } catch (_e) { return { googleDrive: false, dropbox: false, oneDrive: false, localDevice: true }; }
   });
-  const [paymentMethods, setPaymentMethods] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_payments');
-      return saved ? JSON.parse(saved) : [];
-    } catch (_e) { return []; }
-  });
-  const [bankAccounts, setBankAccounts] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_banks');
-      return saved ? JSON.parse(saved) : [];
-    } catch (_e) { return []; }
-  });
+  // Payment details belong to the payment provider, never this browser.
+  // These legacy state values remain temporarily because the retired modal is
+  // still being removed from this oversized view; they intentionally start
+  // empty and are never persisted or exposed to the user.
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'Welcome to Studio Agents', message: 'Start creating your first track!', time: 'Just now', read: false },
     { id: 2, title: 'Pro Tip', message: 'Try the Ghostwriter agent for lyrics.', time: '2m ago', read: false }
@@ -3403,11 +3397,12 @@ const fetchUserCredits = useCallback(async (uid) => {
   const [paymentType, setPaymentType] = useState('card'); // 'card' or 'bank'
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Persist payment state
+  // Remove metadata written by the retired local "wallet". Checkout and
+  // subscriptions continue through the server-side Stripe flow below.
   useEffect(() => {
-    localStorage.setItem('studio_agents_payments', JSON.stringify(paymentMethods));
-    localStorage.setItem('studio_agents_banks', JSON.stringify(bankAccounts));
-  }, [paymentMethods, bankAccounts]);
+    localStorage.removeItem('studio_agents_payments');
+    localStorage.removeItem('studio_agents_banks');
+  }, []);
 
   // Persist social state
   useEffect(() => {
@@ -3823,8 +3818,8 @@ const fetchUserCredits = useCallback(async (uid) => {
       // Payment commands
       if (transcript.includes('add payment') || transcript.includes('billing') || transcript.includes('manage card')) {
         setActiveTab('mystudio');
-        setShowAddPaymentModal(true);
-        handleTextToVoice("Opening payment management.");
+        setDashboardTab('billing');
+        handleTextToVoice("Opening secure billing options.");
         return;
       }
 
@@ -4060,17 +4055,6 @@ const fetchUserCredits = useCallback(async (uid) => {
       return null;
     } finally {
       setIsCreatingVocal(false);
-    }
-  };
-
-  const handleDeletePayment = (id, type) => {
-    if (window.confirm('Are you sure you want to remove this payment method?')) {
-      if (type === 'card') {
-        setPaymentMethods(prev => prev.filter(pm => pm.id !== id));
-      } else {
-        setBankAccounts(prev => prev.filter(ba => ba.id !== id));
-      }
-      handleTextToVoice('Payment method removed.');
     }
   };
 
@@ -6403,8 +6387,6 @@ ABSOLUTE RULES (violating any = failure):
             setDashboardTab={setDashboardTab}
             managedAgents={managedAgents}
             appSettings={appSettings}
-            paymentMethods={paymentMethods}
-            bankAccounts={bankAccounts}
             storageConnections={storageConnections}
             setStorageConnections={setStorageConnections}
             socialConnections={socialConnections}
@@ -6432,9 +6414,6 @@ ABSOLUTE RULES (violating any = failure):
             setPendingProjectNav={setPendingProjectNav}
             setSelectedAgent={setSelectedAgent}
             setShowLoginModal={setShowLoginModal}
-            setShowAddPaymentModal={setShowAddPaymentModal}
-            setEditingPayment={setEditingPayment}
-            setPaymentType={setPaymentType}
             freeGenerationsUsed={freeGenerationsUsed}
             FREE_GENERATION_LIMIT={FREE_GENERATION_LIMIT}
             twitterUsername={twitterUsername}
@@ -6446,7 +6425,6 @@ ABSOLUTE RULES (violating any = failure):
             handleConnectSocial={handleConnectSocial}
             buyCreditPack={buyCreditPack}
             fetchAdminData={fetchAdminData}
-            handleDeletePayment={handleDeletePayment}
             handleSubscribe={handleSubscribe}
             handleTextToVoice={handleTextToVoice}
           />

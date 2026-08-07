@@ -118,6 +118,29 @@ try {
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const isDevelopment = NODE_ENV === 'development';
 
+// Keep model selection consistent across every route.  These values used to
+// live inside the text-generation handler, which made diagnostics and image
+// generation crash when they tried to use the same mapping.
+const DEFAULT_GENERATIVE_MODEL = 'gemini-2.5-flash';
+const DEPRECATED_MODEL_MAP = Object.freeze({
+  'gemini-2.0-flash': 'gemini-2.5-flash',
+  'gemini-2.0-flash-lite': 'gemini-2.5-flash-lite',
+  'gemini-1.5-flash': 'gemini-2.5-flash',
+  'gemini-1.5-flash-latest': 'gemini-2.5-flash',
+  'gemini-1.5-flash-8b': 'gemini-2.5-flash-lite',
+  'gemini-1.5-pro': 'gemini-2.5-flash',
+  'gemini-1.5-pro-latest': 'gemini-2.5-flash',
+  'gemini-pro': 'gemini-2.5-flash',
+  'gemini-pro-vision': 'gemini-2.5-flash',
+});
+
+function getConfiguredGenerativeModel() {
+  const configuredModel = process.env.GENERATIVE_MODEL;
+  return (configuredModel && DEPRECATED_MODEL_MAP[configuredModel])
+    || configuredModel
+    || DEFAULT_GENERATIVE_MODEL;
+}
+
 //  WINSTON LOGGER SETUP
 const logDir = path.join(__dirname, 'logs');
 if (!fs.existsSync(logDir)) {
@@ -186,6 +209,10 @@ try {
 // =============================================================================
 
 let firebaseInitialized = false;
+
+function getFirebaseApp() {
+  return firebaseInitialized && admin.apps.length > 0 ? admin.app() : null;
+}
 
 // =============================================================================
 // ADMIN ACCOUNTS CONFIGURATION
@@ -370,12 +397,15 @@ function getStorageBucket() {
 }
 
 /**
- * Upload a file to Firebase Storage and return a permanent public URL
+ * Upload a file to Firebase Storage and return a tokenized download URL.
+ * The object itself remains private; the token is an unguessable capability
+ * that lets the authenticated caller render its own generated asset without
+ * opening the entire users/ bucket to the internet.
  * @param {Buffer|string} fileData - File buffer or base64 string
  * @param {string} userId - User ID for organizing files
  * @param {string} fileName - Desired file name
  * @param {string} mimeType - MIME type (e.g., 'audio/mpeg', 'audio/wav')
- * @returns {Promise<{url: string, path: string}>} - Permanent download URL and storage path
+ * @returns {Promise<{url: string, path: string}>} - Download URL and storage path
  */
 async function uploadToStorage(fileData, userId, fileName, mimeType = 'audio/mpeg') {
   const bucket = getStorageBucket();
@@ -407,22 +437,25 @@ async function uploadToStorage(fileData, userId, fileName, mimeType = 'audio/mpe
   const storagePath = `users/${userId}/assets/${timestamp}_${safeName}`;
 
   const file = bucket.file(storagePath);
+  const downloadToken = crypto.randomUUID();
   
   await file.save(buffer, {
     metadata: {
       contentType: mimeType,
       metadata: {
-        userId: userId,
-        uploadedAt: new Date().toISOString()
+        userId,
+        uploadedAt: new Date().toISOString(),
+        // Firebase recognizes this metadata and serves the object only when
+        // the exact capability token is supplied. Do not make user uploads
+        // publicly readable with object ACLs.
+        firebaseStorageDownloadTokens: downloadToken
       }
     }
   });
 
-  // Make the file publicly accessible
-  await file.makePublic();
-
-  // Get the public URL
-  const publicUrl = `https://storage.googleapis.com/${FIREBASE_STORAGE_BUCKET}/${storagePath}`;
+  // Firebase's download endpoint supports the token metadata above while the
+  // underlying object remains private and continues to respect Storage rules.
+  const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${FIREBASE_STORAGE_BUCKET}/o/${encodeURIComponent(storagePath)}?alt=media&token=${downloadToken}`;
   
   logger.info('📤 File uploaded to Firebase Storage', { 
     path: storagePath, 
@@ -431,7 +464,7 @@ async function uploadToStorage(fileData, userId, fileName, mimeType = 'audio/mpe
   });
 
   return {
-    url: publicUrl,
+    url: downloadUrl,
     path: storagePath,
     size: buffer.length,
     mimeType
@@ -468,11 +501,12 @@ const FIRESTORE_DATABASE_ID = process.env.FIREBASE_DATABASE_ID || '(default)';
 let firestoreDb = null;
 
 function getFirestoreDb() {
-  if (!firebaseInitialized) return null;
+  const firebaseApp = getFirebaseApp();
+  if (!firebaseApp) return null;
   if (!firestoreDb) {
     // Use getFirestore with database ID for named databases
     const { getFirestore } = require('firebase-admin/firestore');
-    firestoreDb = getFirestore(admin.app(), FIRESTORE_DATABASE_ID);
+    firestoreDb = getFirestore(firebaseApp, FIRESTORE_DATABASE_ID);
     logger.info(`🔥 Firestore connected to database: ${FIRESTORE_DATABASE_ID}`);
   }
   return firestoreDb;
@@ -1149,7 +1183,7 @@ app.get('/api/debug-status', verifyFirebaseToken, requireAdmin, (req, res) => {
     nodeEnv: process.env.NODE_ENV,
     port: PORT,
     models: {
-      primary: process.env.GENERATIVE_MODEL || 'gemini-2.5-flash',
+      primary: getConfiguredGenerativeModel(),
       available: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro']
     }
   });
@@ -1496,10 +1530,11 @@ app.get('/api/admin/health-deep', verifyFirebaseToken, requireAdmin, async (req,
       (async () => {
         try {
           const t = Date.now();
-          const model = genAI.getGenerativeModel({ model: GENERATIVE_MODEL });
+          const configuredModel = getConfiguredGenerativeModel();
+          const model = genAI.getGenerativeModel({ model: configuredModel });
           const r = await model.generateContent('Reply with just the word ok');
           const text = r?.response?.text?.() || '';
-          results.checks.gemini = { status: 'ok', latencyMs: Date.now() - t, model: GENERATIVE_MODEL, testResponse: text.substring(0, 50) };
+          results.checks.gemini = { status: 'ok', latencyMs: Date.now() - t, model: configuredModel, testResponse: text.substring(0, 50) };
         } catch (e) {
           results.checks.gemini = { status: 'error', error: e.message };
         }
@@ -3970,17 +4005,6 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
     
     // 🛡️ Validate model name (only allow known Gemini models)
     // Deprecated models are silently remapped to current equivalents
-    const DEPRECATED_MODEL_MAP = {
-      'gemini-2.0-flash': 'gemini-2.5-flash',
-      'gemini-2.0-flash-lite': 'gemini-2.5-flash-lite',
-      'gemini-1.5-flash': 'gemini-2.5-flash',
-      'gemini-1.5-flash-latest': 'gemini-2.5-flash',
-      'gemini-1.5-flash-8b': 'gemini-2.5-flash-lite',
-      'gemini-1.5-pro': 'gemini-2.5-flash',
-      'gemini-1.5-pro-latest': 'gemini-2.5-flash',
-      'gemini-pro': 'gemini-2.5-flash',
-      'gemini-pro-vision': 'gemini-2.5-flash',
-    };
     const allowedModels = [
       'gemini-2.5-flash',
       'gemini-2.5-flash-lite',
@@ -4387,6 +4411,7 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
 // THE INVESTOR SHOWCASE FEATURE
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/generate-complete-music-video', verifyFirebaseToken, requireAuth, checkCreditsFor('orchestrate'), generationLimiter, async (req, res) => {
+  let results = null;
   try {
     const {
       concept,          // e.g., "dark trap song about success"
@@ -4415,7 +4440,7 @@ app.post('/api/generate-complete-music-video', verifyFirebaseToken, requireAuth,
     });
 
     const startTime = Date.now();
-    const results = {
+    results = {
       concept,
       genre,
       style,
@@ -4991,7 +5016,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
         logger.info('Generating image with Nano Banana', { prompt: prompt.substring(0, 50) });
         
         const nanoBananaModel = genAI.getGenerativeModel({ 
-          model: process.env.GENERATIVE_MODEL ? (DEPRECATED_MODEL_MAP?.[process.env.GENERATIVE_MODEL] || process.env.GENERATIVE_MODEL) : 'gemini-2.5-flash',
+          model: getConfiguredGenerativeModel(),
           safetySettings: GEMINI_SAFETY_SETTINGS
         });
         
@@ -7590,10 +7615,10 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
           ...(coverArtPath && fs.existsSync(coverArtPath) ? ['-map', '1:0', '-c:v', 'mjpeg', '-disposition:v', 'attached_pic'] : []),
           '-c:a', 'copy',
           '-id3v2_version', '3',
-          '-metadata', `title=${title || songIdea || 'Studio Agents Mix'}`,
+          '-metadata', `title=${title || 'Studio Agents Mix'}`,
           '-metadata', `artist=${artist || 'Studio Agents AI'}`,
           '-metadata', `genre=${genre || style || ''}`,
-          '-metadata', `album=${title || songIdea || 'Studio Agents'}`,
+          '-metadata', `album=${title || 'Studio Agents'}`,
           '-metadata', `comment=Mixed by Studio Agents AI - studioagentsai.com`,
           '-metadata', `year=${new Date().getFullYear()}`,
           '-y', taggedPath
@@ -7798,13 +7823,56 @@ app.post('/api/distribute/soundcloud', verifyFirebaseToken, requireAuth, generat
   }
 });
 
+// GET /api/distribute/share-link/:shareId — Resolve an intentionally public share link
+app.get('/api/distribute/share-link/:shareId', async (req, res) => {
+  const { shareId } = req.params;
+  if (!/^[a-f0-9-]{12}$/i.test(shareId)) {
+    return res.status(400).json({ error: 'Invalid share link' });
+  }
+
+  const db = getFirestoreDb();
+  if (!db) return res.status(503).json({ error: 'Shared tracks are temporarily unavailable' });
+
+  try {
+    const ref = db.collection('shared_tracks').doc(shareId);
+    const snapshot = await ref.get();
+    const share = snapshot.data();
+    if (!snapshot.exists || !share?.isPublic) {
+      return res.status(404).json({ error: 'This share link is unavailable' });
+    }
+
+    // Track engagement without delaying playback, and deliberately return
+    // only the fields a public listener needs (never owner or project data).
+    ref.update({
+      plays: admin.firestore.FieldValue.increment(1),
+      lastPlayedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }).catch((error) => logger.warn('Could not increment shared track plays', { shareId, error: error.message }));
+
+    res.set('Cache-Control', 'no-store');
+    return res.json({
+      track: {
+        title: share.title,
+        artist: share.artist,
+        audioUrl: share.audioUrl,
+        coverArtUrl: share.coverArtUrl || null,
+      },
+    });
+  } catch (err) {
+    logger.error('Shared track lookup error', { shareId, error: err.message });
+    return res.status(500).json({ error: 'Could not load shared track' });
+  }
+});
+
 // POST /api/distribute/share-link — Generate a public share link for a mix
 app.post('/api/distribute/share-link', verifyFirebaseToken, requireAuth, async (req, res) => {
   try {
     const { audioUrl, title, artist, coverArtUrl, projectId } = req.body;
 
-    if (!audioUrl) {
-      return res.status(400).json({ error: 'audioUrl is required' });
+    if (typeof audioUrl !== 'string' || !/^https:\/\//i.test(audioUrl) || audioUrl.length > 4096) {
+      return res.status(400).json({ error: 'A valid HTTPS audioUrl is required' });
+    }
+    if (coverArtUrl != null && (typeof coverArtUrl !== 'string' || !/^https:\/\//i.test(coverArtUrl) || coverArtUrl.length > 4096)) {
+      return res.status(400).json({ error: 'coverArtUrl must be a valid HTTPS URL' });
     }
 
     const db = getFirestoreDb();
@@ -7817,8 +7885,8 @@ app.post('/api/distribute/share-link', verifyFirebaseToken, requireAuth, async (
     const shareDoc = {
       shareId,
       userId: req.user.uid,
-      title: (title || 'Untitled').substring(0, 200),
-      artist: (artist || 'Studio Agents Artist').substring(0, 100),
+      title: (typeof title === 'string' ? title : 'Untitled').substring(0, 200),
+      artist: (typeof artist === 'string' ? artist : 'Studio Agents Artist').substring(0, 100),
       audioUrl,
       coverArtUrl: coverArtUrl || null,
       projectId: projectId || null,

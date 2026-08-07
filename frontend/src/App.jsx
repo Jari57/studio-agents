@@ -37,6 +37,7 @@ const DnaResourcePage = lazyWithRetry(() => import('./components/DnaResourcePage
 const VocalsResourcePage = lazyWithRetry(() => import('./components/VocalsResourcePage'));
 const BillboardBlueprintPage = lazyWithRetry(() => import('./components/BillboardBlueprintPage'));
 const ContentMultiplicationPage = lazyWithRetry(() => import('./components/ContentMultiplicationPage'));
+const PublicSharePage = lazyWithRetry(() => import('./components/PublicSharePage'));
 
 // Loading fallback component with skeleton shimmer
 const StudioLoadingFallback = () => (
@@ -186,6 +187,7 @@ function App() {
   const isVocals = currentHash === '#/vocals';
   const isBillboard = currentHash === '#/billboard';
   const isCampaign = currentHash === '#/campaign';
+  const shareMatch = currentHash.match(/^#\/(share|embed)\/([a-f0-9-]{12})$/i);
 
   return (
     <div className="app-container">
@@ -209,7 +211,11 @@ function App() {
           loading: { duration: 15000 }
         }}
       />
-      {isWhitepapers ? (
+      {shareMatch ? (
+        <Suspense fallback={<StudioLoadingFallback />}>
+          <PublicSharePage shareId={shareMatch[2]} embed={shareMatch[1] === 'embed'} />
+        </Suspense>
+      ) : isWhitepapers ? (
         <Suspense fallback={<StudioLoadingFallback />}>
           <main>
           <WhitepapersPage onBack={handleBackToLanding} agents={AGENTS} />

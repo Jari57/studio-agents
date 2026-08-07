@@ -4,6 +4,7 @@ import { Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, S
 // Capacitor native apps (Android/iOS) use the live Railway backend directly —
 // they can't reach localhost:3001 on the dev machine.
 const isCapacitorNative = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+const configuredBackendUrl = import.meta.env.VITE_BACKEND_URL?.trim();
 const isLocalDev = !isCapacitorNative && (
   window.location.hostname === 'localhost' ||
   window.location.hostname === '127.0.0.1' ||
@@ -12,9 +13,7 @@ const isLocalDev = !isCapacitorNative && (
 );
 export const BACKEND_URL = isCapacitorNative
   ? 'https://web-production-b5922.up.railway.app'
-  : isLocalDev
-    ? 'http://localhost:3001'
-    : ''; 
+  : configuredBackendUrl || (isLocalDev ? 'http://localhost:3001' : '');
 
 // AGENTS ordered for logical 2-column pairing on mobile
 // Row 1: Lyrics + Beats (core music creation)
