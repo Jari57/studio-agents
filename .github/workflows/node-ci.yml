@@ -79,7 +79,9 @@ jobs:
           cd ../frontend && npm ci
 
       - name: Install Playwright browsers
-        run: cd frontend && npx playwright install --with-deps chromium
+        # The smoke suite covers desktop Chrome, Android Chrome, and Mobile
+        # Safari. Install every engine selected in playwright.config.js.
+        run: cd frontend && npx playwright install --with-deps chromium webkit
 
       - name: Run isolated release smoke tests
         # Invoke Playwright from the frontend package. Running it at the repo
