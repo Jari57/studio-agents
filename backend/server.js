@@ -7997,7 +7997,7 @@ app.post('/api/sync/creme-de-la-creme', verifyFirebaseToken, requireAuth, checkC
 // ═══════════════════════════════════════════════════════════════════
 // MUX AUDIO + VIDEO - Combine silent video with mixed audio track
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/mux-audio-video', verifyFirebaseToken, generationLimiter, async (req, res) => {
+app.post('/api/mux-audio-video', verifyFirebaseToken, requireAuth, generationLimiter, async (req, res) => {
   const ffmpegStatic = require('ffmpeg-static');
   const { execFile } = require('child_process');
   const os = require('os');
@@ -8178,7 +8178,7 @@ app.post('/api/mux-audio-video', verifyFirebaseToken, generationLimiter, async (
 // VIDEO GENERATION ROUTE (Multi-Model: Replicate -> Veo -> Fallback)
 // ═══════════════════════════════════════════════════════════════════
 // Video generation charges 15 credits (expensive)
-app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('video'), generationLimiter, async (req, res) => {
+app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFor('video'), generationLimiter, async (req, res) => {
   try {
     let { prompt, referenceImage, durationSeconds = 30, audioUrl = null, vocalUrl = null, audioDuration = null } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
@@ -8808,14 +8808,18 @@ setInterval(() => {
 
 function createVideoProxyUrl(authenticatedUrl, req) {
   const id = crypto.randomBytes(16).toString('hex');
-  videoProxyMap.set(id, { url: authenticatedUrl, expiresAt: Date.now() + 30 * 60 * 1000 }); // 30 min TTL
+  videoProxyMap.set(id, {
+    url: authenticatedUrl,
+    userId: req.user?.uid || null,
+    expiresAt: Date.now() + 30 * 60 * 1000
+  }); // 30 min TTL
   // Return relative path so it works through Vercel's /api/* rewrite in production
   return `/api/video-proxy/${id}`;
 }
 
-app.get('/api/video-proxy/:id', async (req, res) => {
+app.get('/api/video-proxy/:id', verifyFirebaseToken, requireAuth, async (req, res) => {
   const entry = videoProxyMap.get(req.params.id);
-  if (!entry || Date.now() > entry.expiresAt) {
+  if (!entry || Date.now() > entry.expiresAt || entry.userId !== req.user.uid) {
     return res.status(404).json({ error: 'Video expired or not found' });
   }
   try {
@@ -8847,9 +8851,9 @@ app.get('/api/video-proxy/:id', async (req, res) => {
 });
 
 // ── Video status endpoint: frontend polls this to check Veo operation progress ──
-app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
+app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, res) => {
   const op = pendingVideoOps.get(req.params.id);
-  if (!op) {
+  if (!op || !op.userId || op.userId !== req.user.uid) {
     return res.status(404).json({ error: 'Operation not found or expired' });
   }
 

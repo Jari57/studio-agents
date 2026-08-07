@@ -42,6 +42,12 @@ test.describe('release smoke checks', () => {
 
     const unauthorizedDelete = await request.delete(`${BACKEND_URL}/api/projects/private-project`);
     expect(unauthorizedDelete.status()).toBe(401);
+
+    const unauthorizedVideoStatus = await request.get(`${BACKEND_URL}/api/video-status/another-users-operation`);
+    expect(unauthorizedVideoStatus.status()).toBe(401);
+
+    const unauthorizedVideoProxy = await request.get(`${BACKEND_URL}/api/video-proxy/private-video`);
+    expect(unauthorizedVideoProxy.status()).toBe(401);
   });
 
   test('a public share URL routes to the share surface rather than the landing page', async ({ page }) => {
