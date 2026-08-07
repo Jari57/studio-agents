@@ -6205,6 +6205,41 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
   // Keep ref in sync so saveAndGenerate always calls latest version
   handleCreateProjectRef.current = handleCreateProject;
 
+  const journeyStages = [
+    { id: 'brief', label: 'Brief', complete: Boolean(songIdea) },
+    { id: 'write', label: 'Write', complete: Boolean(outputs.lyrics) },
+    { id: 'produce', label: 'Produce', complete: Boolean(mediaUrls.audio) },
+    { id: 'vocals', label: 'Vocals', complete: Boolean(mediaUrls.vocals || mediaUrls.lyricsVocal) },
+    { id: 'visuals', label: 'Visuals', complete: Boolean(mediaUrls.image || mediaUrls.video) },
+    { id: 'finish', label: 'Finish', complete: Boolean(mediaUrls.mixedAudio || musicVideoUrl) }
+  ];
+  const nextJourneyStage = journeyStages.find((stage) => !stage.complete)?.id || 'finish';
+  const journeyMessage = !songIdea
+    ? 'Start with one sentence about the song you want to make.'
+    : !outputs.lyrics || !mediaUrls.audio
+      ? 'Create a playable song draft first — lyrics and beat, with no extra spend on visuals.'
+      : !(mediaUrls.vocals || mediaUrls.lyricsVocal)
+        ? 'Your draft is ready. When it sounds right, choose Full package to add a vocal performance.'
+        : !(mediaUrls.image || mediaUrls.video)
+          ? 'Your song is taking shape. Add a visual direction only when you are ready.'
+          : !mediaUrls.mixedAudio
+            ? 'Review the takes, then create a final mix when you are happy with the performance.'
+            : 'Your creative package is ready to review, export, and share.';
+
+  const handleJourneyAction = () => {
+    if (!songIdea) {
+      document.getElementById('studio-song-brief')?.focus();
+      return;
+    }
+    if (!outputs.lyrics || !mediaUrls.audio) {
+      setQuickOutcome('song-draft');
+      startQuickCreate('song-draft');
+      return;
+    }
+    setQuickOutcome('full-package');
+    toast('Your draft is protected. Choose Full package when you are ready to extend it.', { id: 'orch-next-step' });
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -6344,6 +6379,42 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           WebkitOverflowScrolling: 'touch'
         }}
       >
+        <section
+          aria-label="Song creation progress"
+          style={{
+            marginBottom: '10px',
+            border: '1px solid rgba(34, 211, 238, 0.24)',
+            borderRadius: '16px',
+            padding: isMobile ? '12px' : '14px 16px',
+            background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.08), rgba(139, 92, 246, 0.08))'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
+            <div>
+              <div style={{ color: '#67e8f9', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Your next creative step</div>
+              <p style={{ margin: '4px 0 0', color: 'rgba(255,255,255,0.84)', fontSize: isMobile ? '0.82rem' : '0.9rem', lineHeight: 1.45 }}>{journeyMessage}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleJourneyAction}
+              style={{
+                border: '1px solid rgba(103, 232, 249, 0.45)',
+                borderRadius: '10px', background: 'rgba(8, 145, 178, 0.18)', color: '#cffafe',
+                cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', minHeight: '40px', padding: '8px 12px', whiteSpace: 'nowrap'
+              }}
+            >
+              {nextJourneyStage === 'brief' ? 'Write brief' : nextJourneyStage === 'write' ? 'Create draft' : nextJourneyStage === 'finish' ? 'Review package' : `Continue: ${nextJourneyStage}`}
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: '6px', marginTop: '12px', overflowX: 'auto', paddingBottom: '2px' }}>
+            {journeyStages.map((stage) => (
+              <div key={stage.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: stage.complete ? '#bbf7d0' : stage.id === nextJourneyStage ? '#cffafe' : 'rgba(255,255,255,0.42)', fontSize: '0.7rem', fontWeight: stage.id === nextJourneyStage ? 700 : 600, whiteSpace: 'nowrap' }}>
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: stage.complete ? '#34d399' : stage.id === nextJourneyStage ? '#22d3ee' : 'rgba(255,255,255,0.2)' }} />
+                {stage.label}
+              </div>
+            ))}
+          </div>
+        </section>
         
         {/* Input Section */}
         <div style={{
@@ -6390,6 +6461,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               alignItems: isMobile ? 'stretch' : 'center'
             }}>
               <input
+                id="studio-song-brief"
                 value={songIdea}
                 onChange={(e) => setSongIdea(e.target.value)}
                 onKeyDown={(e) => {
