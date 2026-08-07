@@ -11541,9 +11541,11 @@ app.post('/api/stripe/create-portal-session', verifyFirebaseToken, requireAuth, 
 // =============================================================================
 
 // BATCH SYNC - Handle navigator.sendBeacon or mass save
-app.post('/api/projects/sync', verifyFirebaseToken, async (req, res) => {
-  const { userId, projects } = req.body;
-  const targetUserId = req.user?.uid || userId;
+app.post('/api/projects/sync', verifyFirebaseToken, requireAuth, async (req, res) => {
+  const { projects } = req.body;
+  // Project data is private. Never fall back to a caller-supplied user ID;
+  // this route uses the Admin SDK and must derive ownership from the ID token.
+  const targetUserId = req.user.uid;
 
   if (!targetUserId || !Array.isArray(projects)) {
     return res.status(400).json({ error: 'Target user ID and projects array required' });
@@ -11581,13 +11583,8 @@ app.post('/api/projects/sync', verifyFirebaseToken, async (req, res) => {
 });
 
 // POST /api/projects - Save a project
-app.post('/api/projects', verifyFirebaseToken, async (req, res) => {
-  const { userId, project } = req.body;
-
-  // Always enforce that the authenticated user matches the target ID
-  if (!req.user || req.user.uid !== userId) {
-     return res.status(401).json({ error: 'Unauthorized: ID mismatch or not logged in' });
-  }
+app.post('/api/projects', verifyFirebaseToken, requireAuth, async (req, res) => {
+  const { project } = req.body;
 
   const targetUserId = req.user.uid;
 
@@ -11633,14 +11630,9 @@ app.post('/api/projects', verifyFirebaseToken, async (req, res) => {
 });
 
 // PUT /api/projects/:id - Update a project with conflict detection
-app.put('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
+app.put('/api/projects/:id', verifyFirebaseToken, requireAuth, async (req, res) => {
   const projectId = req.params.id;
-  const { userId, project, lastUpdatedAt } = req.body;
-
-  // Always enforce auth
-  if (!req.user || req.user.uid !== userId) {
-    return res.status(401).json({ error: 'Unauthorized: ID mismatch or not logged in' });
-  }
+  const { project, lastUpdatedAt } = req.body;
 
   const targetUserId = req.user.uid;
 
@@ -11698,12 +11690,10 @@ app.put('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
 });
 
 // GET /api/projects - Get user projects
-app.get('/api/projects', verifyFirebaseToken, async (req, res) => {
-  const userId = req.query.userId;
-  const targetUserId = req.user?.uid || userId;
-
-  if (!targetUserId) {
-    return res.status(401).json({ error: 'User ID required' });
+app.get('/api/projects', verifyFirebaseToken, requireAuth, async (req, res) => {
+  const targetUserId = req.user.uid;
+  if (req.query.userId && req.query.userId !== targetUserId) {
+    return res.status(403).json({ error: 'Cannot access another user\'s projects' });
   }
 
   try {
@@ -11746,7 +11736,7 @@ app.get('/api/projects', verifyFirebaseToken, async (req, res) => {
 });
 
 // DELETE /api/projects/:id - Delete a project
-app.delete('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
+app.delete('/api/projects/:id', verifyFirebaseToken, requireAuth, async (req, res) => {
   const projectId = req.params.id;
   const projectName = req.query.projectName || projectId;
 

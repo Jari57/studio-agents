@@ -49,6 +49,9 @@ jobs:
       - name: Enforce storage privacy contract
         run: npm run privacy:check
 
+      - name: Enforce project access contract
+        run: npm run access:check
+
       - name: Prevent new lint regressions
         run: npm run lint:ci
 

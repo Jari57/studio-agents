@@ -66,6 +66,7 @@ jobs:
           node --check backend/server.js
           node scripts/verify-env-template.mjs
           node scripts/verify-storage-privacy.mjs
+          node scripts/verify-project-access-contract.mjs
       
       - name: Build Frontend
         run: cd frontend && npm run build

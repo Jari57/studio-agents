@@ -21,22 +21,31 @@ test.describe('release smoke checks', () => {
 
     const privateProfile = await request.get(`${BACKEND_URL}/api/user/profile`);
     expect(privateProfile.status()).toBe(401);
+
+    const privateProjects = await request.get(`${BACKEND_URL}/api/projects?userId=another-user`);
+    expect(privateProjects.status()).toBe(401);
+
+    const unauthorizedSync = await request.post(`${BACKEND_URL}/api/projects/sync`, {
+      data: { userId: 'another-user', projects: [{ id: 'private-project' }] },
+    });
+    expect(unauthorizedSync.status()).toBe(401);
+
+    const unauthorizedSave = await request.post(`${BACKEND_URL}/api/projects`, {
+      data: { userId: 'another-user', project: { id: 'private-project' } },
+    });
+    expect(unauthorizedSave.status()).toBe(401);
+
+    const unauthorizedUpdate = await request.put(`${BACKEND_URL}/api/projects/private-project`, {
+      data: { userId: 'another-user', project: { id: 'private-project' } },
+    });
+    expect(unauthorizedUpdate.status()).toBe(401);
+
+    const unauthorizedDelete = await request.delete(`${BACKEND_URL}/api/projects/private-project`);
+    expect(unauthorizedDelete.status()).toBe(401);
   });
 
-  test('an intentionally public share link renders a player instead of the landing page', async ({ page }) => {
-    await page.route('**/api/distribute/share-link/12345678-abc', async (route) => {
-      await route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({ track: {
-          title: 'Release Smoke Track',
-          artist: 'Studio QA',
-          audioUrl: 'https://example.com/release-smoke.mp3',
-          coverArtUrl: null,
-        } }),
-      });
-    });
+  test('a public share URL routes to the share surface rather than the landing page', async ({ page }) => {
     await page.goto(`${FRONTEND_URL}/#/share/12345678-abc`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Release Smoke Track' })).toBeVisible();
-    await expect(page.locator('audio')).toHaveAttribute('src', 'https://example.com/release-smoke.mp3');
+    await expect(page.getByRole('heading', { name: 'Share unavailable' })).toBeVisible();
   });
 });

@@ -1287,7 +1287,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
         },
         body: JSON.stringify({
-          userId: uid,
           project: {
             ...sanitizedProject,
             id: String(project.id),
@@ -1311,7 +1310,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
               ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
             },
             body: JSON.stringify({
-              userId: uid,
               project: {
                 ...sanitizedProject,
                 id: String(project.id),
@@ -1440,16 +1438,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           localStorage.setItem(`studio_projects_${user.uid}`, JSON.stringify(projects));
         } catch (e) { /* best effort */ }
 
-        // Use sendBeacon for fire-and-forget cloud sync (survives page close)
+        // Cloud writes require a Firebase bearer token. navigator.sendBeacon
+        // cannot send that header, so never use it for private project data.
+        // The authenticated, debounced save above handles cloud persistence;
+        // localStorage remains the safe unload fallback.
         if (syncTimeoutRef.current) {
           clearTimeout(syncTimeoutRef.current);
           syncTimeoutRef.current = null;
-        }
-        try {
-          const payload = JSON.stringify({ userId: user.uid, projects: projects.slice(0, 20) });
-          navigator.sendBeacon(`${BACKEND_URL}/api/projects/sync`, payload);
-        } catch (e) {
-          // sendBeacon failed, localStorage save above is the fallback
         }
       }
     };
@@ -1485,7 +1480,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       }
 
       // Use backend API to load projects
-      const response = await fetch(`${BACKEND_URL}/api/projects?userId=${encodeURIComponent(uid)}`, {
+      const response = await fetch(`${BACKEND_URL}/api/projects`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -3002,25 +2997,24 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     secureLogoutRef.current = handleSecureLogout;
   }, []);
 
-  // Fetch user credits from Firestore
+  // Fetch credits through the authenticated backend. Client-side Firestore
+  // writes must never create or modify balance/tier fields.
 const fetchUserCredits = useCallback(async (uid) => {
-    if (!db) return;
+    if (!uid || !auth?.currentUser) return;
     try {
-      const userRef = doc(db, 'users', uid);
-      const userDoc = await getDoc(userRef);
-      if (userDoc.exists()) {
-        const credits = userDoc.data().credits || 0;
-        setUserCredits(credits);
-        setUserProfile(prev => ({ ...prev, credits }));       
-      } else {
-        // Initialize new user with 25 trial credits (matches backend)
-        await setDoc(userRef, { credits: 25, tier: 'free', createdAt: new Date() });        
-        setUserCredits(25);
-      }
+      const token = await auth.currentUser.getIdToken();
+      const response = await fetch(`${BACKEND_URL}/api/user/credits`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const credits = Number.isFinite(data.credits) ? data.credits : 0;
+      setUserCredits(credits);
+      setUserProfile(prev => ({ ...prev, credits }));
     } catch (err) {
       devWarn('Failed to fetch credits:', err);
     }
-  }, [db]);
+  }, [auth]);
 
   // (money) PURCHASE CREDITS - Revenue engine for top-ups
   const buyCreditPack = async (amount, price) => {
@@ -6142,7 +6136,7 @@ ABSOLUTE RULES (violating any = failure):
           }
         }
         
-        const response = await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(String(projectId))}?userId=${encodeURIComponent(user?.uid || 'guest')}&projectName=${encodeURIComponent(projectName)}`, {
+        const response = await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(String(projectId))}?projectName=${encodeURIComponent(projectName)}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
@@ -13811,9 +13805,9 @@ ABSOLUTE RULES (violating any = failure):
             isOpen={showOrchestrator}
             onClose={() => {
               setShowOrchestrator(false);
-              // Clear selected project so orchestrator starts fresh next time
-              // Projects remain saved in the hub — user can re-open explicitly
-              setSelectedProject(null);
+              // Preserve the current project and canvas context. Closing an
+              // overlay must never strand a creator on an empty canvas; only
+              // explicit "new project" or hub navigation may clear it.
             }}
             onGoToHub={() => {
               setShowOrchestrator(false);

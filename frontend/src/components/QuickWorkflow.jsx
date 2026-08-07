@@ -3,7 +3,6 @@ import { X, Sparkles, Save, FolderPlus, ChevronRight, Mic, Copy, Check, Loader, 
 import toast from 'react-hot-toast';
 import { BACKEND_URL } from '../constants';
 import { useVoice } from '../hooks/useVoice';
-import { db, doc, updateDoc, increment } from '../firebase';
 
 /**
  * QuickWorkflow - Streamlined agent interaction modal
@@ -21,7 +20,6 @@ function QuickWorkflow({
   onCreateProject,
   user,
   userCredits = 0,
-  setUserCredits,
   isAdmin = false
 }) {
   const [prompt, setPrompt] = useState(() => {
@@ -105,19 +103,6 @@ function QuickWorkflow({
     setOutput(null);
 
     try {
-      // DEDUCT CREDIT IF LOGGED IN
-      if (user && !isAdmin) {
-        try {
-          const userRef = doc(db, "users", user.uid);
-          await updateDoc(userRef, {
-            credits: increment(-1)
-          });
-          if (setUserCredits) setUserCredits(prev => Math.max(0, prev - 1));
-        } catch (err) {
-          console.error("Credit deduction failed:", err);
-        }
-      }
-
       const token = await getAuthToken();
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
