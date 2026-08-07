@@ -2262,6 +2262,7 @@ export default function StudioOrchestratorV2({
   const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
   const [quickMode, setQuickMode] = useState(true); // Quick Create vs Advanced Mode
   const [quickGenre, setQuickGenre] = useState('Modern Hip-Hop'); // Genre for Quick Create
+  const [quickOutcome, setQuickOutcome] = useState('song-draft'); // First win before an optional full package
   const [selectedOutputPreset, setSelectedOutputPreset] = useState('Full Song Release'); // Output format preset
   // Collapsible section state — all sections start collapsed for a clean first impression
   const [expandedSections, setExpandedSections] = useState({
@@ -2288,6 +2289,7 @@ export default function StudioOrchestratorV2({
   const [voiceSamples, setVoiceSamples] = useState([]); // [{name, url, base64}, ...]
   const [isCloningVoice, setIsCloningVoice] = useState(false);
   const [clonedVoiceId, setClonedVoiceId] = useState(null); // ElevenLabs voice_id from IVC
+  const [voiceOwnershipConfirmed, setVoiceOwnershipConfirmed] = useState(false);
   const [showAssets, setShowAssets] = useState(true); // Your Assets section visibility
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false); // Project picker overlay
 
@@ -3033,7 +3035,7 @@ export default function StudioOrchestratorV2({
   }, []);
 
   // Main generation function
-  const handleGenerate = async () => {
+  const handleGenerate = async ({ agentSelection: agentSelectionOverride = null, includeVocals = true, completionMessage = 'Generation complete!' } = {}) => {
     // PREVENT DUPLICATE CALLS
     if (isGenerating) return;
 
@@ -3097,9 +3099,9 @@ export default function StudioOrchestratorV2({
     }
     
     // Recalculate active slots after auto-selection
-    const currentSelectedAgents = activeSelectedCount === 0 
+    const currentSelectedAgents = agentSelectionOverride || (activeSelectedCount === 0
       ? (creatorMode === 'creator' ? { lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' } : { lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-gen' })
-      : selectedAgents;
+      : selectedAgents);
     
     const activeSlots = Object.entries(currentSelectedAgents).filter(([, v]) => v);
     devLog('[handleGenerate] Final activeSlots:', activeSlots);
@@ -3113,16 +3115,16 @@ export default function StudioOrchestratorV2({
 
     // Build pipeline steps based on active slots
     const steps = [];
-    if (selectedAgents.lyrics) steps.push({ id: 'lyrics', label: 'Writing lyrics', status: 'pending', startTime: null, endTime: null });
-    if (selectedAgents.audio) steps.push({ id: 'beat-desc', label: 'Composing beat description', status: 'pending', startTime: null, endTime: null });
-    if (selectedAgents.visual) steps.push({ id: 'visual-desc', label: 'Designing album art concept', status: 'pending', startTime: null, endTime: null });
-    if (selectedAgents.audio) steps.push({ id: 'beat-audio', label: 'Generating beat audio', status: 'pending', startTime: null, endTime: null });
-    if (selectedAgents.visual) steps.push({ id: 'image', label: 'Creating album artwork', status: 'pending', startTime: null, endTime: null });
+    if (currentSelectedAgents.lyrics) steps.push({ id: 'lyrics', label: 'Writing lyrics', status: 'pending', startTime: null, endTime: null });
+    if (currentSelectedAgents.audio) steps.push({ id: 'beat-desc', label: 'Composing beat description', status: 'pending', startTime: null, endTime: null });
+    if (currentSelectedAgents.visual) steps.push({ id: 'visual-desc', label: 'Designing album art concept', status: 'pending', startTime: null, endTime: null });
+    if (currentSelectedAgents.audio) steps.push({ id: 'beat-audio', label: 'Generating beat audio', status: 'pending', startTime: null, endTime: null });
+    if (currentSelectedAgents.visual) steps.push({ id: 'image', label: 'Creating album artwork', status: 'pending', startTime: null, endTime: null });
     // Vocals run whenever lyrics will exist (slot selected OR lyrics already present from a prior run)
-    if (selectedAgents.lyrics || outputs.lyrics) steps.push({ id: 'vocals', label: 'Recording AI vocals', status: 'pending', startTime: null, endTime: null });
-    if (selectedAgents.video) steps.push({ id: 'video', label: 'Producing music video', status: 'pending', startTime: null, endTime: null });
-    if (selectedAgents.video && selectedAgents.audio) steps.push({ id: 'mux', label: 'Syncing audio to video', status: 'pending', startTime: null, endTime: null });
-    steps.push({ id: 'final', label: 'Creating final mix', status: 'pending', startTime: null, endTime: null });
+    if (includeVocals && (currentSelectedAgents.lyrics || outputs.lyrics)) steps.push({ id: 'vocals', label: 'Recording AI vocals', status: 'pending', startTime: null, endTime: null });
+    if (currentSelectedAgents.video) steps.push({ id: 'video', label: 'Producing music video', status: 'pending', startTime: null, endTime: null });
+    if (currentSelectedAgents.video && currentSelectedAgents.audio) steps.push({ id: 'mux', label: 'Syncing audio to video', status: 'pending', startTime: null, endTime: null });
+    if (includeVocals) steps.push({ id: 'final', label: 'Creating final mix', status: 'pending', startTime: null, endTime: null });
     setPipelineSteps(steps);
     
     try {
@@ -3402,7 +3404,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       // reading a stale mediaUrls closure that could skip vocals incorrectly.
       const lyricsForVocals = lyricsResult || outputsRef.current.lyrics || outputs.lyrics || '';
       const alreadyHasVocals = !!(mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal);
-      if (lyricsForVocals && (freshGeneration || !alreadyHasVocals)) {
+      if (includeVocals && lyricsForVocals && (freshGeneration || !alreadyHasVocals)) {
         devLog('[Pipeline] Starting vocal generation with beat URL for mixing');
         updatePipelineStep('vocals', 'active');
         await handleGenerateVocals(lyricsForVocals);
@@ -3467,8 +3469,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       }
       
       toast.dismiss('gen-all');
-      toast.success('Generation complete!');
-      Analytics.featureUsed('full_song_pipeline');
+      toast.success(completionMessage);
+      Analytics.featureUsed(includeVocals ? 'full_song_pipeline' : 'song_draft_pipeline');
       
     } catch (err) {
       console.error('Generation error:', err);
@@ -3506,6 +3508,26 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       }
       // If there are errors, keep pipeline visible until user dismisses or retries
     }
+  };
+
+  const startQuickCreate = (outcome = quickOutcome) => {
+    if (!songIdea.trim()) {
+      toast.error('Please enter a song idea', { id: 'orch-no-idea' });
+      return;
+    }
+
+    const isFullPackage = outcome === 'full-package';
+    const agentSelection = isFullPackage
+      ? { lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' }
+      : { lyrics: 'ghost', audio: 'beat', visual: null, video: null };
+
+    setSelectedAgents(agentSelection);
+    applyGenrePreset(quickGenre);
+    handleGenerate({
+      agentSelection,
+      includeVocals: isFullPackage,
+      completionMessage: isFullPackage ? 'Full package complete!' : 'Song draft ready — review it, then add vocals or visuals when you are ready.'
+    });
   };
 
   // Regenerate single slot
@@ -4264,7 +4286,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         headers,
         body: JSON.stringify({
           samples: voiceSamples.map(s => s.base64),
-          voiceName: songIdea ? `${songIdea} Voice` : 'My Voice'
+          voiceName: songIdea ? `${songIdea} Voice` : 'My Voice',
+          cloneConsent: {
+            confirmed: voiceOwnershipConfirmed,
+            mode: 'strict',
+            version: '2026-08-07'
+          }
         }),
         signal: createTimeoutSignal(60000)
       });
@@ -6368,10 +6395,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    // Auto-select all agents and go
-                    setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' });
-                    applyGenrePreset(quickGenre);
-                    handleGenerate();
+                    startQuickCreate();
                   }
                 }}
                 placeholder="Describe your song in one line..."
@@ -6417,11 +6441,23 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   <option key={g} value={g} style={{ background: '#1a1a1a' }}>{g}</option>
                 ))}
               </select>
+              <select
+                value={quickOutcome}
+                onChange={(e) => setQuickOutcome(e.target.value)}
+                aria-label="Choose what to create"
+                style={{
+                  padding: '14px 16px', borderRadius: '12px', background: 'rgba(0,0,0,0.5)',
+                  border: '1px solid rgba(34, 211, 238, 0.3)', color: '#67e8f9', fontSize: '0.85rem',
+                  fontWeight: '600', cursor: 'pointer', outline: 'none', minHeight: '52px',
+                  minWidth: isMobile ? 'auto' : '150px'
+                }}
+              >
+                <option value="song-draft" style={{ background: '#1a1a1a' }}>Draft song first</option>
+                <option value="full-package" style={{ background: '#1a1a1a' }}>Full package</option>
+              </select>
               <button
                 onClick={() => {
-                  setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' });
-                  applyGenrePreset(quickGenre);
-                  handleGenerate();
+                  startQuickCreate();
                 }}
                 disabled={isGenerating || !songIdea.trim()}
                 style={{
@@ -6452,9 +6488,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 ) : (
                   <>
                     <Sparkles size={18} />
-                    {creatorMode === 'creator' ? 'Create Full Project' : 'Create Full Song'}
+                    {quickOutcome === 'full-package' ? (creatorMode === 'creator' ? 'Create Full Project' : 'Create Full Song') : 'Create Song Draft'}
                     <span style={{ fontSize: '0.65rem', opacity: 0.6, fontWeight: '400' }}>
-                      {creatorMode === 'creator' ? 'Script + Audio + Graphics + Video' : 'Lyrics + Vocals + Beat + Art + Video'}
+                      {quickOutcome === 'full-package' ? (creatorMode === 'creator' ? 'Script + Audio + Graphics + Video' : 'Lyrics + Vocals + Beat + Art + Video') : 'Lyrics + Beat — approve before adding more'}
                     </span>
                   </>
                 )}
@@ -8189,27 +8225,37 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 {/* Clone voice button */}
                 <button
                   onClick={handleCloneVoice}
-                  disabled={voiceSamples.length < 2 || isCloningVoice}
+                  disabled={voiceSamples.length < 2 || !voiceOwnershipConfirmed || isCloningVoice}
                   style={{
                     padding: '10px',
                     borderRadius: '10px',
                     border: clonedVoiceId ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(139, 92, 246, 0.4)',
                     background: clonedVoiceId ? 'rgba(34, 197, 94, 0.1)' : 'rgba(139, 92, 246, 0.15)',
-                    color: clonedVoiceId ? '#22c55e' : (voiceSamples.length < 2 ? 'rgba(255,255,255,0.3)' : '#a855f7'),
+                    color: clonedVoiceId ? '#22c55e' : (voiceSamples.length < 2 || !voiceOwnershipConfirmed ? 'rgba(255,255,255,0.3)' : '#a855f7'),
                     fontSize: '0.8rem',
                     fontWeight: '700',
-                    cursor: voiceSamples.length < 2 || isCloningVoice ? 'not-allowed' : 'pointer',
+                    cursor: voiceSamples.length < 2 || !voiceOwnershipConfirmed || isCloningVoice ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
                     transition: 'all 0.2s',
-                    opacity: voiceSamples.length < 2 ? 0.5 : 1
+                    opacity: voiceSamples.length < 2 || !voiceOwnershipConfirmed ? 0.5 : 1
                   }}
                 >
                   {isCloningVoice ? <Loader2 size={14} className="spin" /> : clonedVoiceId ? <CheckCircle2 size={14} /> : <Sparkles size={14} />}
-                  {isCloningVoice ? 'Cloning...' : clonedVoiceId ? 'Voice Cloned' : 'Clone My Voice'}
+                  {isCloningVoice ? 'Creating your voice...' : clonedVoiceId ? 'Personal Voice Ready' : 'Create My Voice'}
                 </button>
+
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.68rem', lineHeight: 1.4, color: 'rgba(255,255,255,0.55)', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={voiceOwnershipConfirmed}
+                    onChange={(event) => setVoiceOwnershipConfirmed(event.target.checked)}
+                    style={{ marginTop: '2px', accentColor: '#a855f7' }}
+                  />
+                  <span>I own this voice or have explicit permission to create and use this personal voice model. Reference songs are never used as my voice.</span>
+                </label>
 
                 <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', margin: 0, lineHeight: 1.4 }}>
                   Upload vocal recordings so the AI learns your voice. Minimum 2 samples for best quality.

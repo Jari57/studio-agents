@@ -3259,7 +3259,17 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
   }
 
   try {
-    const { samples, voiceName = 'My Cloned Voice' } = req.body;
+    const { samples, voiceName = 'My Voice', cloneConsent = null } = req.body;
+
+    // Strict voice cloning is intentionally opt-in. Older studio surfaces can
+    // continue to use the provider flow while they are migrated, but a caller
+    // that requests strict mode must attest to ownership before we process
+    // biometric voice material.
+    if (cloneConsent?.mode === 'strict' && cloneConsent?.confirmed !== true) {
+      return res.status(400).json({
+        error: 'Voice ownership confirmation is required for Strict Clone mode'
+      });
+    }
 
     if (!samples || !Array.isArray(samples) || samples.length === 0) {
       return res.status(400).json({ error: 'At least 1 audio sample is required', required: ['samples'] });
@@ -3337,7 +3347,13 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
         provider: 'elevenlabs-ivc',
         sampleCount: samples.length,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        userId: req.user.uid
+        userId: req.user.uid,
+        consent: cloneConsent?.confirmed === true ? {
+          confirmed: true,
+          mode: cloneConsent.mode || 'personal',
+          version: cloneConsent.version || '2026-08-07',
+          recordedAt: Date.now()
+        } : null
       };
 
       const docRef = await db.collection('users').doc(req.user.uid)
@@ -3358,7 +3374,8 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
       voiceId,
       name: voiceName,
       provider: 'elevenlabs-ivc',
-      sampleCount: samples.length
+      sampleCount: samples.length,
+      strictClone: cloneConsent?.mode === 'strict'
     });
 
   } catch (err) {
@@ -5448,7 +5465,10 @@ Return ONLY valid JSON, no markdown.`;
     // TTS/Suno branch so a cloned voice never gets a spoken-word vocal.
     // Requirements: voice sample must be a fetchable URL and ≥15 seconds.
     // ═══════════════════════════════════════════════════════════════
-    const cloneVoiceSampleUrl = speakerUrl || referenceSongUrl || null;
+    // A sound reference is a style input, never a voice identity input.  Using
+    // it as a clone source could make an artist reference sound like a consented
+    // personal voice sample. Keep the two paths deliberately separate.
+    const cloneVoiceSampleUrl = speakerUrl || null;
     const canMinimaxClone = replicateKey
       && (style === 'cloned' || speakerUrl)
       && cloneVoiceSampleUrl
