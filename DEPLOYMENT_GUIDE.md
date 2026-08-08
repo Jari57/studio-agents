@@ -1,4 +1,4 @@
-# 🚀 Whip Montez - Deployment Guide
+# Studio Agents - Deployment Guide
 
 Complete guide for deploying to development and production environments with monitoring.
 

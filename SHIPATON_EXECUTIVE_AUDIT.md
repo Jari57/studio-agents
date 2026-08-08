@@ -75,8 +75,8 @@ Client → Vercel Edge → HTTPS → Railway (Helmet/CORS/Rate Limit)
 |-----------|--------|---------|
 | **GDPR** (EU) | ✅ Covered | Privacy policy includes data collection, usage, sharing, deletion rights |
 | **CCPA** (California) | ✅ Covered | Right to know, delete, opt-out disclosed |
-| **Apple App Store** | ✅ Ready | Gemini safety settings at BLOCK_MEDIUM_AND_ABOVE for 5 harm categories |
-| **Google Play** | ✅ Ready | Content moderation via prompt safety validation |
+| **Apple App Store** | ⚠️ Web groundwork only | Native project, Apple signing, TestFlight/device QA, and store listing are still required |
+| **Google Play** | ⚠️ Web groundwork only | Native project, Play signing, internal-track/device QA, and store listing are still required |
 | **PCI DSS** | ✅ N/A | All payment processing via Stripe — no card data touches our servers |
 
 ### Compliance Gaps (Low Priority)
@@ -87,6 +87,16 @@ Client → Vercel Edge → HTTPS → Railway (Helmet/CORS/Rate Limit)
 | Data retention policy | Low | Define in ToS (suggest 2-year generated content, 90-day logs) |
 | GDPR explicit consent form | Low | Add consent checkbox for EU users at signup |
 | Terms versioning | Low | Track `termsVersion` to detect when re-acceptance needed |
+
+### Native release boundary
+
+The web application has the legal, safety, authentication, and deletion groundwork
+needed for a native release, but Studio Agents is not yet an App Store or Google
+Play binary. The repository intentionally contains no generated `frontend/ios` or
+`frontend/android` project. Do not present the product as store-ready until the
+native release contract is complete: stable bundle identifiers, OAuth redirect
+registration, signing, privacy/data-safety declarations, physical-device workflow
+tests, and TestFlight/Play internal-track evidence.
 
 ---
 
