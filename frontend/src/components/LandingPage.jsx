@@ -1232,6 +1232,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             <button className="footer-link" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
             <span className="footer-divider">*</span>
             <button className="footer-link" onClick={() => setShowTerms(true)}>Terms of Service</button>
+            <span className="footer-divider">*</span>
+            <a className="footer-link" href="/account-deletion.html">Delete Account</a>
           </div>
           <p>&copy; 2026 studioagentsai.com * Built for the next generation of creators.</p>
         </div>
