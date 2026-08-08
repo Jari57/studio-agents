@@ -36,7 +36,7 @@ git push origin main
 
 ---
 
-## 🖥️ Uplink Central (Monitoring Dashboard)
+## 🖥️ Studio Agents Monitoring Dashboard
 
 ### Access Dashboard
 - **Local Dev**: http://localhost:3001/dashboard
@@ -139,7 +139,7 @@ Get-Content backend\logs\error.log -Tail 20
 ### Basic Health Check
 ```bash
 GET https://your-app.railway.app/
-# Response: "Whip Montez Backend System Online. Uplink Established."
+# Response: "Studio Agents V3.5 Backend Online. High-Fidelity Uplink Established."
 ```
 
 ### Detailed Health Status
@@ -337,4 +337,4 @@ git push --force origin main
 
 ---
 
-**Uplink Central Online**: Your command center for real-time system monitoring! 🚀
+**Studio Agents monitoring online**: Use the command center for real-time system health and generation monitoring. 🚀
