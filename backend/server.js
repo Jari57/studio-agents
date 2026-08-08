@@ -1424,6 +1424,7 @@ app.get('/health', async (req, res) => {
 // API Health check (for monitoring services)
 app.get('/api/health', (req, res) => {
   const isHealthy = apiKey && genAI;
+  const stabilityAudio = getStabilityAudioSettings();
   res.status(isHealthy ? 200 : 503).json({
     status: isHealthy ? 'ok' : 'degraded',
     timestamp: new Date().toISOString(),
@@ -1431,7 +1432,9 @@ app.get('/api/health', (req, res) => {
     services: {
       api: 'up',
       gemini: apiKey ? 'configured' : 'missing',
-      firebase: firebaseInitialized ? 'connected' : 'not configured'
+      firebase: firebaseInitialized ? 'connected' : 'not configured',
+      premiumBeat: process.env.STABILITY_API_KEY ? 'configured' : 'missing',
+      premiumBeatModel: stabilityAudio.model
     }
   });
 });
@@ -4821,7 +4824,7 @@ async function generateAudioInternal(options, logger) {
         }
       }
     } catch (err) {
-      logger.warn('Stability failed, trying Replicate...', { error: err.message });
+      logger.warn(premiumQuality ? 'Stability failed for premium generation' : 'Stability failed, trying Replicate...', { error: err.message });
     }
   }
 
