@@ -33,7 +33,7 @@ import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_
 import { Analytics, trackPageView } from '../utils/analytics';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '../utils/errorMonitoring';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
-import { shouldUseAppleIAP } from '../utils/nativePlatform';
+import { shouldUseNativeIAP } from '../utils/nativePlatform';
 import { purchaseProduct, restorePurchases } from '../utils/storeKit';
 
 // Dev-only logger — no-ops in production builds (tree-shaken by Vite/terser)
@@ -2844,8 +2844,8 @@ const fetchUserCredits = useCallback(async (uid) => {
       return;
     }
 
-    // iOS native → use Apple In-App Purchase (StoreKit) instead of Stripe
-    if (shouldUseAppleIAP()) {
+    // Native iOS/Android → use platform billing instead of web checkout.
+    if (shouldUseNativeIAP()) {
       const productKey = `credits_${amount}`;
       const toastId = toast.loading(`Processing purchase of ${amount} credits...`);
       const result = await purchaseProduct(productKey, user.uid);
@@ -3292,8 +3292,8 @@ const fetchUserCredits = useCallback(async (uid) => {
     };
     const tier = tierMap[plan.name] || 'creator';
 
-    // iOS native → use Apple In-App Purchase (StoreKit) instead of Stripe
-    if (shouldUseAppleIAP()) {
+    // Native iOS/Android → use platform billing instead of web checkout.
+    if (shouldUseNativeIAP()) {
       const toastId = toast.loading('Processing purchase...');
       const result = await purchaseProduct(tier, user.uid);
       toast.dismiss(toastId);
@@ -14490,7 +14490,7 @@ ABSOLUTE RULES (violating any = failure):
                 <Rocket size={18} style={{ marginRight: '6px' }} /> Create Project
               </button>
               </div>
-              {shouldUseAppleIAP() && (
+              {shouldUseNativeIAP() && (
                 <button
                   style={{ width: '100%', padding: '8px', background: 'none', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.8rem' }}
                   onClick={async () => {

@@ -30,8 +30,11 @@ export const isIOS = _platform === 'ios';
 /** True only when running as native Android app */
 export const isAndroid = _platform === 'android';
 
+/** True when a store build must use its platform billing flow, not web checkout. */
+export const shouldUseNativeIAP = () => _isNative && (isIOS || isAndroid);
+
 /**
  * Check if we should use Apple In-App Purchase instead of Stripe.
  * Apple requires all digital purchases in iOS apps to use StoreKit.
  */
-export const shouldUseAppleIAP = () => isIOS && _isNative;
+export const shouldUseAppleIAP = () => isIOS && shouldUseNativeIAP();

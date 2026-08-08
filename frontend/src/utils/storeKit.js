@@ -1,143 +1,137 @@
 /**
- * StoreKit 2 integration for iOS In-App Purchases via RevenueCat.
- * Routes through RevenueCat SDK when running on iOS native.
- * Falls back gracefully to Stripe on web.
+ * Native in-app purchase boundary.
  *
- * Install before iOS build: npm install @revenuecat/purchases-capacitor
+ * This module intentionally stays unavailable until the appropriate public
+ * RevenueCat key and the server-side entitlement/webhook flow are configured.
+ * A mobile release must never fall through to web card checkout, and it must
+ * never ship with a placeholder credential that makes a purchase UI look live.
  */
 
-import { shouldUseAppleIAP } from './nativePlatform';
+import { isAndroid, isIOS, shouldUseNativeIAP } from './nativePlatform';
 
-// StoreKit product IDs — must match App Store Connect + RevenueCat configuration
+// Product identifiers must match App Store Connect / Play Console and RevenueCat.
+// Keep this mapping in source because product IDs are public identifiers, not
+// secrets. Do not enable billing until the matching RevenueCat entitlement and
+// backend webhook are live.
 const PRODUCT_IDS = {
   creator: 'com.studioagents.app.creator.monthly',
   studio: 'com.studioagents.app.studio.monthly',
   lifetime: 'com.studioagents.app.lifetime',
+  credits_10: 'com.studioagents.app.credits.10',
   credits_50: 'com.studioagents.app.credits.50',
+  credits_150: 'com.studioagents.app.credits.150',
   credits_200: 'com.studioagents.app.credits.200',
   credits_500: 'com.studioagents.app.credits.500',
 };
 
+const getRevenueCatApiKey = () => {
+  if (isIOS) return import.meta.env.VITE_REVENUECAT_IOS_API_KEY?.trim() || '';
+  if (isAndroid) return import.meta.env.VITE_REVENUECAT_ANDROID_API_KEY?.trim() || '';
+  return '';
+};
+
+// Billing is an explicit release decision. The extra flag prevents a key added
+// for local testing from accidentally activating storefront purchases before
+// entitlement processing is verified.
+const isBillingEnabled = () => import.meta.env.VITE_ENABLE_NATIVE_IAP === 'true';
+
 let _purchases = null;
 
+/** True only when this native build is intentionally configured for billing. */
+export const isNativePurchaseConfigured = () => (
+  shouldUseNativeIAP() && isBillingEnabled() && Boolean(getRevenueCatApiKey())
+);
+
 /**
- * Initialize RevenueCat (call once on app startup when on iOS).
+ * Initialize RevenueCat once for a configured iOS or Android native build.
+ * RevenueCat public SDK keys are injected at build time; never hard-code a key
+ * or a fake value in the client.
  */
 export async function initStoreKit() {
-  if (!shouldUseAppleIAP()) return false;
+  if (!shouldUseNativeIAP()) return false;
+  if (_purchases) return true;
+
+  if (!isNativePurchaseConfigured()) {
+    console.warn('[Purchases] Native billing is not configured for this build.');
+    return false;
+  }
 
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
+    await Purchases.configure({ apiKey: getRevenueCatApiKey() });
     _purchases = Purchases;
-    // Configure with your RevenueCat API key (set in App Store Connect → RevenueCat dashboard)
-    await _purchases.configure({ apiKey: 'appl_REPLACE_WITH_REVENUECAT_KEY' });
     return true;
   } catch (err) {
-    console.warn('[StoreKit] Failed to initialize:', err.message);
+    console.warn('[Purchases] Failed to initialize:', err?.message || err);
     return false;
   }
 }
 
-/**
- * Fetch available products from the App Store.
- */
+/** Fetch currently available store products for the configured native build. */
 export async function getProducts() {
-  if (!_purchases) return [];
+  if (!await initStoreKit()) return [];
 
   try {
-    const offerings = await _purchases.getOfferings();
-    return offerings.current?.availablePackages || [];
+    const { products = [] } = await _purchases.getProducts({
+      productIdentifiers: Object.values(PRODUCT_IDS),
+    });
+    return products;
   } catch (err) {
-    console.warn('[StoreKit] Failed to fetch products:', err.message);
+    console.warn('[Purchases] Failed to fetch products:', err?.message || err);
     return [];
   }
 }
 
 /**
- * Purchase a subscription or one-time product via StoreKit.
- * @param {'creator'|'studio'|'lifetime'|'credits_50'|'credits_200'|'credits_500'} productKey
- * @param {string} userId — Firebase UID for server-side receipt validation
- * @returns {Promise<{success: boolean, transactionId?: string, error?: string}>}
+ * Purchase a configured native store product.
+ *
+ * Entitlements must be granted by the verified RevenueCat webhook on the
+ * backend, not by a client-controlled credit update. This helper reports a
+ * completed platform purchase only; it does not make a balance claim.
  */
 export async function purchaseProduct(productKey, userId) {
-  if (!_purchases) {
-    return { success: false, error: 'StoreKit not initialized' };
-  }
-
   const productId = PRODUCT_IDS[productKey];
-  if (!productId) {
-    return { success: false, error: `Unknown product: ${productKey}` };
+  if (!productId) return { success: false, error: `Unknown product: ${productKey}` };
+
+  if (!await initStoreKit()) {
+    return {
+      success: false,
+      error: 'In-app purchases are not available in this build yet.',
+    };
   }
 
   try {
-    // Set Firebase UID as the RevenueCat app user ID for receipt → user linking
     await _purchases.logIn({ appUserID: userId });
-
-    const { customerInfo } = await _purchases.purchaseProduct({
-      productIdentifier: productId,
-    });
-
-    if (customerInfo) {
-      // RevenueCat validates receipts automatically — notify our backend
-      const validated = await validateReceipt(customerInfo.originalAppUserId, userId);
-      return validated;
+    const { products = [] } = await _purchases.getProducts({ productIdentifiers: [productId] });
+    const product = products.find((item) => item.identifier === productId) || products[0];
+    if (!product) {
+      return { success: false, error: 'This product is not available in your store region.' };
     }
 
-    return { success: false, error: 'Purchase cancelled' };
+    const { customerInfo, productIdentifier } = await _purchases.purchaseStoreProduct({ product });
+    return {
+      success: true,
+      productIdentifier,
+      activeEntitlements: Object.keys(customerInfo?.entitlements?.active || {}),
+    };
   } catch (err) {
-    if (err.code === 'PURCHASE_CANCELLED_ERROR' || err.userCancelled) {
+    if (err?.code === 'PURCHASE_CANCELLED_ERROR' || err?.userCancelled) {
       return { success: false, error: 'Purchase cancelled' };
     }
-    console.error('[StoreKit] Purchase failed:', err);
-    return { success: false, error: err.message || 'Purchase failed' };
+    console.warn('[Purchases] Purchase failed:', err?.message || err);
+    return { success: false, error: err?.message || 'Purchase failed' };
   }
 }
 
-/**
- * Server-side receipt validation — sends the transaction to our backend
- * which verifies with Apple's servers and grants credits/subscription.
- */
-async function validateReceipt(transactionId, userId) {
-  try {
-    const { BACKEND_URL } = await import('../constants');
-    const { auth } = await import('../firebase');
-
-    const token = await auth.currentUser?.getIdToken();
-    if (!token) return { success: false, error: 'Not authenticated' };
-
-    const response = await fetch(`${BACKEND_URL}/api/apple/validate-receipt`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ transactionId, userId }),
-      signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 15000); return c.signal; })(),
-    });
-
-    const data = await response.json();
-    if (response.ok && data.valid) {
-      return { success: true, transactionId };
-    }
-    return { success: false, error: data.error || 'Validation failed' };
-  } catch (err) {
-    console.error('[StoreKit] Receipt validation failed:', err);
-    return { success: false, error: 'Receipt validation failed' };
-  }
-}
-
-/**
- * Restore previous purchases (required by Apple for subscription apps).
- */
+/** Restore native purchases; required for restored subscriptions and devices. */
 export async function restorePurchases() {
-  if (!_purchases) return [];
+  if (!await initStoreKit()) return [];
 
   try {
     const { customerInfo } = await _purchases.restorePurchases();
-    const txns = Object.keys(customerInfo?.entitlements?.active || {});
-    return txns;
+    return Object.keys(customerInfo?.entitlements?.active || {});
   } catch (err) {
-    console.warn('[StoreKit] Restore failed:', err.message);
+    console.warn('[Purchases] Restore failed:', err?.message || err);
     return [];
   }
 }

@@ -8,6 +8,15 @@ const GA_MEASUREMENT_ID = 'G-37J2MVHXS7';
 // Initialize GA4
 export function initAnalytics() {
   if (typeof window === 'undefined') return;
+
+  // Native store builds must not start web analytics before the mobile
+  // consent/ATT flow has been deliberately implemented. Web analytics remains
+  // unchanged; this only protects the Capacitor shell from silently tracking
+  // a user on first launch.
+  if (window.Capacitor?.isNativePlatform?.()) {
+    console.log('[Analytics] Skipping web analytics in native builds');
+    return;
+  }
   
   // Don't track in development
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
