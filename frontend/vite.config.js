@@ -66,6 +66,7 @@ function purgeCSSPlugin() {
               /^text-/, /^overflow-/, /^touch-/, /^scroll-/,
               /^brand-/, /^strategy-/, /^checklist-/, /^dashboard-/,
               /^mobile-/, /^p-8/, /^text-center/,
+              /^studio-/, 'light-theme', 'dark-theme',
               'body', 'html', 'modal-open'
             ],
             deep: [/:root/, /^@keyframes/, /^@media/, /^@font-face/],
