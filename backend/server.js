@@ -141,6 +141,46 @@ function getConfiguredGenerativeModel() {
     || DEFAULT_GENERATIVE_MODEL;
 }
 
+// Stability's Stable Audio 2.5 and 2.0 use different sampler contracts.
+// Keeping this in one place prevents the premium path from accidentally using
+// the 2.0 settings (100 steps + cfg_scale) with 2.5, which makes the provider
+// reject the request and forces a lower-quality fallback provider.
+function getStabilityAudioSettings() {
+  const requestedModel = String(process.env.STABILITY_AUDIO_MODEL || '').trim().toLowerCase();
+  const model = requestedModel === 'stable-audio-2' || requestedModel === 'stable-audio-2.5'
+    ? requestedModel
+    : 'stable-audio-2.5';
+
+  if (model === 'stable-audio-2.5') {
+    return { model, steps: 8, cfgScale: null };
+  }
+
+  return {
+    model,
+    steps: Math.min(Math.max(Number(process.env.STABILITY_AUDIO_STEPS) || 100, 30), 100),
+    cfgScale: Math.min(Math.max(Number(process.env.STABILITY_AUDIO_CFG_SCALE) || 12, 1), 25)
+  };
+}
+
+/**
+ * Stable Audio can return either JSON/base64 or raw audio bytes depending on
+ * the Accept header and account/API version. Normalize both forms so a valid
+ * premium result is never treated as an empty response.
+ */
+async function readStabilityAudioResponse(response, outputFormat = 'mp3') {
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+
+  if (contentType.includes('json')) {
+    const data = await response.json().catch(() => ({}));
+    const encodedAudio = typeof data.audio === 'string' ? data.audio : null;
+    return encodedAudio ? `data:audio/${outputFormat};base64,${encodedAudio}` : null;
+  }
+
+  const audioBytes = Buffer.from(await response.arrayBuffer());
+  if (audioBytes.length === 0) return null;
+  return `data:audio/${outputFormat};base64,${audioBytes.toString('base64')}`;
+}
+
 //  WINSTON LOGGER SETUP
 const logDir = path.join(__dirname, 'logs');
 if (!fs.existsSync(logDir)) {
@@ -4748,6 +4788,9 @@ async function generateAudioInternal(options, logger) {
 
   const stabilityKey = process.env.STABILITY_API_KEY;
   const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+  const stabilityAudio = getStabilityAudioSettings();
+  const premiumQuality = ['premium', 'ultra', 'high', 'billboard', 'billboard-ready']
+    .includes(String(quality).toLowerCase());
 
   let qualityTags = 'Billboard 100 top charts, high-fidelity studio recording, professional arrangement';
   const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. ${qualityTags}`;
@@ -4755,23 +4798,26 @@ async function generateAudioInternal(options, logger) {
   // Try Stability AI first (premium)
   if (stabilityKey) {
     try {
-      const FormData = require('form-data');
-      const formData = new FormData();
+      const formData = new globalThis.FormData();
       formData.append('prompt', musicPrompt);
       formData.append('duration', Math.min(durationSeconds, 180).toString());
-      formData.append('model', 'stable-audio-2.5');
+      formData.append('model', stabilityAudio.model);
       formData.append('output_format', 'mp3');
+      formData.append('steps', stabilityAudio.steps.toString());
+      if (stabilityAudio.cfgScale !== null) {
+        formData.append('cfg_scale', stabilityAudio.cfgScale.toString());
+      }
 
       const response = await fetch('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${stabilityKey}`, 'Accept': 'application/json' },
+        headers: { 'Authorization': `Bearer ${stabilityKey}`, 'Accept': 'audio/*' },
         body: formData
       });
 
       if (response.ok) {
-        const data = await response.json();
-        if (data.audio && data.audio.length > 500) {
-          return `data:audio/mpeg;base64,${data.audio}`;
+        const generatedAudio = await readStabilityAudioResponse(response, 'mpeg');
+        if (generatedAudio && generatedAudio.length > 500) {
+          return generatedAudio;
         }
       }
     } catch (err) {
@@ -4779,8 +4825,9 @@ async function generateAudioInternal(options, logger) {
     }
   }
 
-  // Fallback to Replicate
-  if (replicateKey) {
+  // Fallback to Replicate only for non-premium drafts. A one-click premium
+  // project should fail clearly rather than quietly shipping a weak beat.
+  if (replicateKey && !premiumQuality) {
     const replicate = new Replicate({ auth: replicateKey });
     const output = await replicate.run(
       "facebook/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38",
@@ -7121,6 +7168,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     const bpm = parseInt(rawBpm) || 90;
     const durationSeconds = Math.max(parseInt(rawDuration) || 60, 30); // Minimum 30s for professional quality
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+    const premiumQuality = ['premium', 'ultra', 'high', 'billboard', 'billboard-ready']
+      .includes(String(quality).toLowerCase());
 
     // Build arrangement description for the prompt if provided
     let arrangementDesc = '';
@@ -7137,6 +7186,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     const stabilityKey = process.env.STABILITY_API_KEY;
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     const falKey = process.env.FAL_KEY || process.env.FAL_API_KEY;
+    const stabilityAudio = getStabilityAudioSettings();
 
     logger.info('Generating professional music/beat', { 
       prompt: prompt.substring(0, 50), 
@@ -7144,6 +7194,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       engine,
       outputFormat,
       hasStability: !!stabilityKey,
+      stabilityModel: stabilityAudio.model,
       hasReplicate: !!replicateKey,
       hasFal: !!falKey
     });
@@ -7265,26 +7316,30 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
         const formData = new FormData();
         formData.append('prompt', stableMusicPrompt);
         formData.append('duration', Math.min(durationSeconds, 180).toString());
-        formData.append('model', 'stable-audio-2.5');
+        formData.append('model', stabilityAudio.model);
         formData.append('output_format', 'mp3');
-        formData.append('steps', '100'); // MAXIMUM quality for billboard level
-        formData.append('cfg_scale', '12'); // HIGHEST fidelity for righteous quality
+        formData.append('steps', stabilityAudio.steps.toString());
+        if (stabilityAudio.cfgScale !== null) {
+          formData.append('cfg_scale', stabilityAudio.cfgScale.toString());
+        }
         if (seed > 0) formData.append('seed', seed.toString());
 
         const response = await fetchWithRetry('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${stabilityKey}`, 'Accept': 'application/json' },
+          // Request raw audio bytes; readStabilityAudioResponse also supports
+          // JSON/base64 for older account/API responses.
+          headers: { 'Authorization': `Bearer ${stabilityKey}`, 'Accept': 'audio/*' },
           body: formData
         }, { timeoutMs: 60000 });
 
         if (response.ok) {
-          const data = await response.json();
-          if (data.audio && data.audio.length > 500) {
-            audioUrl = `data:audio/mpeg;base64,${data.audio}`;
-            provider = 'stable-audio-2.5';
+          const generatedAudio = await readStabilityAudioResponse(response, 'mpeg');
+          if (generatedAudio && generatedAudio.length > 500) {
+            audioUrl = generatedAudio;
+            provider = stabilityAudio.model;
           } else {
-            logger.warn('Stability returned too little audio data', { length: data.audio?.length });
-            providerErrors.push({ provider: 'stability', error: `Audio data too small (${data.audio?.length || 0} bytes)` });
+            logger.warn('Stability returned too little audio data');
+            providerErrors.push({ provider: 'stability', error: 'Audio data was empty or too small' });
           }
         } else {
           const errData = await response.json().catch(() => ({}));
@@ -7305,8 +7360,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       }
     }
 
-    // 2. Replicate Music GPT (Fallback)
-    if (replicateKey && !audioUrl) {
+    // 2. Replicate MusicGen (fallback for drafts only). Premium requests must
+    // never silently downgrade to a visibly weaker engine.
+    if (replicateKey && !audioUrl && !premiumQuality) {
       try {
         logger.info('Using Replicate Music GPT (stereo-large)');
         const replicate = new Replicate({ auth: replicateKey });
@@ -7378,8 +7434,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       }
     }
 
-    // 3. FAL.ai (Last Fallback)
-    if (falKey && !audioUrl) {
+    // 3. FAL.ai (last fallback for drafts only)
+    if (falKey && !audioUrl && !premiumQuality) {
       try {
         const response = await fetchWithRetry('https://queue.fal.run/beatoven/music-generation', {
           method: 'POST',
@@ -7479,7 +7535,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       // CASE 2: Global/Generic failure
       res.status(500).json({
         error: 'AI Generation Failed',
-        details: 'All audio models are currently busy or reached their quota. Please try again in a few minutes.',
+        details: premiumQuality
+          ? 'Premium beat generation is unavailable because the primary Stable Audio provider did not return a valid result. No lower-quality fallback was returned. Please verify STABILITY_API_KEY and try again.'
+          : 'All audio models are currently busy or reached their quota. Please try again in a few minutes.',
         isRealGeneration: false,
         providerErrors
       });

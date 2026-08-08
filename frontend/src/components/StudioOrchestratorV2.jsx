@@ -2173,7 +2173,9 @@ export default function StudioOrchestratorV2({
   const [bars, setBars] = useState(existingProject?.musicalBars || 16); // musical bars
   const [useBars, setUseBars] = useState(existingProject?.useBars ?? true); // Toggle for bar-based timing
   const [model, setModel] = useState(existingProject?.model || 'Gemini 2.5 Flash');
-  const [musicEngine, setMusicEngine] = useState(existingProject?.musicEngine || 'music-gpt'); // Default to Beat Lab (MusicGen)
+  // Premium routing is the safe default. Legacy MusicGen output remains
+  // available only to the backend's explicitly non-premium fallback path.
+  const [musicEngine, setMusicEngine] = useState(existingProject?.musicEngine || 'auto');
   const [mood, setMood] = useState(existingProject?.mood || 'Energetic'); // Beatoven-inspired
   const [structure, setStructure] = useState(existingProject?.structure || 'Full Song'); // Structure control
 
@@ -3701,7 +3703,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           songStructure: songStructure || 'full', // single, full, extended — helps backend sync arrangement
           arrangement: arrangementSections ? arrangementSections.map(s => ({ type: s.type, label: s.label, bars: s.bars })) : null,
           referenceAudio: audioDnaUrl || null,
-          engine: musicEngine || 'music-gpt',
+          engine: musicEngine || 'auto',
           quality: 'premium', // Ensure high-fidelity selection in backend
           outputFormat: outputFormat, // music, social, podcast, tv
           highMusicality: highMusicality, // Send Udio-style musicality flag
@@ -6966,7 +6968,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             { label: 'Structure', value: structure, setter: setStructure, options: ['Full Song', 'Radio Edit', 'Extended', 'Loop', 'Intro', 'Verse', 'Chorus', 'Outro'] },
             { label: 'AI Model', value: model, setter: setModel, options: ['Gemini 2.5 Flash', 'Gemini 2.5 Pro', 'Gemini 2.5 Flash Lite'] },
             { label: 'Mood', value: mood, setter: setMood, options: ['Chill', 'Energetic', 'Dark', 'Happy', 'Epic', 'Mysterious', 'Dreamy'] },
-            { label: 'Music Engine', value: musicEngine, setter: setMusicEngine, options: ['Beat Lab (MusicGen)', 'Mureaka', 'Riffusion (Visual)', 'Stability Pro', 'Uberduck', 'Auto-Selection'] },
+            { label: 'Music Engine', value: musicEngine, setter: setMusicEngine, options: ['Stability Pro', 'Auto-Selection'] },
             { label: 'Stem Mode', value: stemType, setter: setStemType, options: ['Full Mix', 'Drums Only', 'No Drums', 'Melody Only', 'Bass Only'] }
           ].filter(c => !c.hidden).map(config => (
             <div key={config.label}>
@@ -6983,20 +6985,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               </label>
               <select
                 value={config.label === 'Music Engine' ? (
-                  musicEngine === 'music-gpt' ? 'Beat Lab (MusicGen)' :
-                  musicEngine === 'mureka' ? 'Mureaka' :
-                  musicEngine === 'riffusion' ? 'Riffusion (Visual)' :
-                  musicEngine === 'stability' ? 'Stability Pro' :
-                  musicEngine === 'uberduck' ? 'Uberduck' : 'Auto-Selection'
+                  musicEngine === 'stability' ? 'Stability Pro' : 'Auto-Selection'
                 ) : config.value}
                 onChange={(e) => {
                   const val = e.target.value;
                   if (config.label === 'Music Engine') {
-                    if (val === 'Beat Lab (MusicGen)') setMusicEngine('music-gpt');
-                    else if (val === 'Mureaka') setMusicEngine('mureka');
-                    else if (val === 'Riffusion (Visual)') setMusicEngine('riffusion');
-                    else if (val === 'Stability Pro') setMusicEngine('stability');
-                    else if (val === 'Uberduck') setMusicEngine('uberduck');
+                    if (val === 'Stability Pro') setMusicEngine('stability');
                     else setMusicEngine('auto');
                   } else if (['Musical Bars', 'Project BPM', 'Target Duration'].includes(config.label)) {
                     config.setter(parseInt(val));
