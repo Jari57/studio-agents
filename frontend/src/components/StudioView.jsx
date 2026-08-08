@@ -13852,7 +13852,7 @@ ABSOLUTE RULES (violating any = failure):
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textAlign: 'center', lineHeight: '1.4' }}>
                   By continuing, you agree to our{' '}
                   <button 
-                    onClick={() => { setShowLoginModal(false); window.location.hash = '#/legal'; }}
+                    onClick={() => { setShowLoginModal(false); window.open('/terms.html', '_blank', 'noopener,noreferrer'); }}
                     style={{ background: 'none', border: 'none', color: 'var(--color-purple)', cursor: 'pointer', padding: 0, fontSize: '0.75rem', textDecoration: 'underline' }}
                   >
                     Terms of Service
