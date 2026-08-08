@@ -5,6 +5,18 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/privacy",
+      "destination": "/privacy.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms.html"
+    },
+    {
+      "source": "/account-deletion",
+      "destination": "/account-deletion.html"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://web-production-b5922.up.railway.app/api/:path*"
     },
