@@ -171,7 +171,7 @@ Google's **Gemini AI** powers the platform's intelligent features:
 ```
 POST /api/generate
 ├── Input: { prompt: string, systemInstruction: string }
-├── Processing: Gemini 1.5 Flash model
+├── Processing: Gemini 2.5 Flash model
 └── Output: { output: string }
 ```
 
@@ -991,7 +991,7 @@ This is not just an artist website. This is the future of fan engagement.
 | Server Framework | Express 4.x |
 | Database | Firebase Firestore |
 | Authentication | Firebase Auth |
-| AI Model | Google Gemini 1.5 Flash |
+| AI Model | Google Gemini 2.5 Flash |
 | Payment Processing | Stripe |
 | Hosting | Railway / Vercel |
 
@@ -1018,7 +1018,7 @@ Response:
 GET /api/models
 
 Response:
-["gemini-1.5-flash", "gemini-1.5-pro", ...]
+["gemini-2.5-flash", "gemini-2.5-pro", ...]
 ```
 
 ### C. Glossary

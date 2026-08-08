@@ -37,7 +37,7 @@ function QuickWorkflow({
 
   const [language, setLanguage] = useState('English');
   const [style, setStyle] = useState('Modern Hip-Hop');
-  const [model, setModel] = useState('Gemini 2.0 Flash');
+  const [model, setModel] = useState('Gemini 2.5 Flash');
   const [output, setOutput] = useState(() => {
     const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
     const saved = localStorage.getItem(`studio_${uid}_workflow_output_${agent?.id}`);
@@ -109,12 +109,11 @@ function QuickWorkflow({
 
       // Map display model name to API model ID
       const modelMapping = {
-        'Gemini 2.0 Flash': 'gemini-2.0-flash',
-        'Gemini 2.0 Pro (Exp)': 'gemini-2.0-flash-exp',
-        'Gemini 1.5 Flash': 'gemini-1.5-flash',
-        'Gemini 1.5 Pro': 'gemini-1.5-pro'
+        'Gemini 2.5 Flash': 'gemini-2.5-flash',
+        'Gemini 2.5 Flash Lite': 'gemini-2.5-flash-lite',
+        'Gemini 2.5 Pro': 'gemini-2.5-pro'
       };
-      const apiModel = modelMapping[model] || 'gemini-2.0-flash';
+      const apiModel = modelMapping[model] || 'gemini-2.5-flash';
 
       const res = await fetch(`${BACKEND_URL}/api/generate`, {
         method: 'POST',
@@ -340,7 +339,7 @@ function QuickWorkflow({
                   cursor: 'pointer'
                 }}
               >
-                {['Gemini 2.0 Flash', 'Gemini 2.0 Pro (Exp)', 'Gemini 1.5 Flash', 'Gemini 1.5 Pro'].map(m => (
+                {['Gemini 2.5 Flash', 'Gemini 2.5 Flash Lite', 'Gemini 2.5 Pro'].map(m => (
                   <option key={m} value={m} style={{ background: '#1a1a1a' }}>{m}</option>
                 ))}
               </select>

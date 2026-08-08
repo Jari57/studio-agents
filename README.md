@@ -37,7 +37,7 @@ One idea → lyrics, beats, cover art, videos, marketing → **done in minutes**
 
 **Backend:**
 - Node.js + Express
-- Google Gemini 2.0 Flash (AI)
+- Google Gemini 2.5 Flash (AI)
 - Imagen 4.0 (Images)
 - Veo 3.0 (Video)
 - Stripe payments

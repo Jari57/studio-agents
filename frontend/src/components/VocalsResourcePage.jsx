@@ -191,7 +191,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What\'s the Reference Song Analysis feature?',
-    a: 'When you provide a referenceSongUrl, the system sends it to Google Gemini 2.0 Flash for analysis. It extracts tone, warmth (1-10), depth (1-10), energy (1-10), tempo, vocal style, mood, and production characteristics. These parameters dynamically tune your voice settings — higher warmth increases stability, higher energy lowers it for more expression.'
+    a: 'When you provide a referenceSongUrl, the system sends it to Google Gemini 2.5 Flash for analysis. It extracts tone, warmth (1-10), depth (1-10), energy (1-10), tempo, vocal style, mood, and production characteristics. These parameters dynamically tune your voice settings — higher warmth increases stability, higher energy lowers it for more expression.'
   },
   {
     q: 'What audio quality does the system output?',
@@ -780,7 +780,7 @@ export default function VocalsResourcePage({ onBack }) {
             </div>
             <div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: '700', margin: 0 }}>Reference Song Analysis</h3>
-              <p style={{ fontSize: '0.85rem', color: ACCENT, margin: 0 }}>Powered by Google Gemini 2.0 Flash</p>
+              <p style={{ fontSize: '0.85rem', color: ACCENT, margin: 0 }}>Powered by Google Gemini 2.5 Flash</p>
             </div>
           </div>
           <p style={{ fontSize: '0.95rem', color: '#9ca3af', lineHeight: '1.6', marginBottom: '16px' }}>

@@ -3156,10 +3156,7 @@ export default function StudioOrchestratorV2({
       } catch { /* SSE optional — pipeline works without it */ }
       
       const modelId = model === 'Gemini 2.5 Pro' ? 'gemini-2.5-pro' :
-                    model === 'Gemini 2.5 Flash Lite' ? 'gemini-2.5-flash-lite' :
-                    model === 'Gemini 2.0 Flash' ? 'gemini-2.5-flash' :
-                    model === 'Gemini 2.0 Pro (Exp)' ? 'gemini-2.5-pro' :
-                    model === 'Gemini 1.5 Pro' ? 'gemini-2.5-flash' : 'gemini-2.5-flash';
+                    model === 'Gemini 2.5 Flash Lite' ? 'gemini-2.5-flash-lite' : 'gemini-2.5-flash';
 
       // Track promises for pipeline sequencing (must be declared before generateForSlot uses it)
       const pipelinePromises = { beatAudio: null, image: null, videoDescription: null };
@@ -3553,10 +3550,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       const slotConfig = GENERATOR_SLOTS.find(s => s.key === slot);
       
       const modelId = model === 'Gemini 2.5 Pro' ? 'gemini-2.5-pro' :
-                     model === 'Gemini 2.5 Flash Lite' ? 'gemini-2.5-flash-lite' :
-                     model === 'Gemini 2.0 Flash' ? 'gemini-2.5-flash' :
-                     model === 'Gemini 2.0 Pro (Exp)' ? 'gemini-2.5-pro' :
-                     model === 'Gemini 1.5 Pro' ? 'gemini-2.5-flash' : 'gemini-2.5-flash';
+                     model === 'Gemini 2.5 Flash Lite' ? 'gemini-2.5-flash-lite' : 'gemini-2.5-flash';
 
       const response = await fetch(`${BACKEND_URL}/api/generate`, {
         method: 'POST',

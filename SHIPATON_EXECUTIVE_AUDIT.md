@@ -12,7 +12,7 @@ Studio Agents is a B2C SaaS platform for AI-powered music production with 16 spe
 |--------|-------|
 | **Platform** | React 19 + Express 5, Firebase Auth/Firestore/Storage |
 | **Deployment** | Backend: Railway (Docker), Frontend: Vercel |
-| **AI Providers** | Google Gemini 2.0, Replicate (MusicGen, Flux), ElevenLabs TTS |
+| **AI Providers** | Google Gemini 2.5, Replicate (MusicGen, Flux), ElevenLabs TTS |
 | **Payment** | Stripe (subscriptions + credit packs) |
 | **Test Coverage** | 1,116 Playwright tests across 20 files, 3 browser targets |
 | **Code Size** | ~10,338 lines (backend), ~7,000 lines (StudioView.jsx) |
@@ -270,7 +270,7 @@ The admin dashboard has been completely rebuilt from a static hardcoded-data moc
 │  ├── Firebase Auth verification                 │
 │  ├── sanitizeInput + validatePromptSafety       │
 │  │                                              │
-│  ├── /api/generate (Gemini 2.0 Flash)           │
+│  ├── /api/generate (Gemini 2.5 Flash)           │
 │  ├── /api/generate-image (Replicate Flux 1.1)   │
 │  ├── /api/generate-audio (Replicate MusicGen)   │
 │  ├── /api/generate-speech (ElevenLabs)          │

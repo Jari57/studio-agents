@@ -113,7 +113,7 @@ export default function SingleAgentDemo() {
         body: JSON.stringify({
           prompt: agentConfig.prompt(songIdea, style),
           systemInstruction: agentConfig.systemInstruction,
-          model: 'gemini-2.0-flash'
+          model: 'gemini-2.5-flash'
         })
       });
       

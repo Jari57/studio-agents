@@ -63,7 +63,7 @@ Create `backend/.env` file:
 GEMINI_API_KEY=your_api_key_here
 
 # Optional
-GENERATIVE_MODEL=gemini-2.0-flash-exp
+GENERATIVE_MODEL=gemini-2.5-flash
 NODE_ENV=development  # or production
 PORT=3001
 ```

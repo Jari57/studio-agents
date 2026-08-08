@@ -156,7 +156,7 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
   const [songIdea, setSongIdea] = useState('');
   const [language, setLanguage] = useState('English');
   const [style, setStyle] = useState('Modern Hip-Hop');
-  const [model, setModel] = useState('Gemini 2.0 Flash');
+  const [model, setModel] = useState('Gemini 2.5 Flash');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isOrchestrating, setIsOrchestrating] = useState(false);
   const [outputs, setOutputs] = useState({
@@ -244,12 +244,11 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
     try {
       // Map display model name to API model ID
       const modelMapping = {
-        'Gemini 2.0 Flash': 'gemini-2.0-flash',
-        'Gemini 2.0 Pro (Exp)': 'gemini-2.0-pro-exp-02-05',
-        'Gemini 1.5 Flash': 'gemini-1.5-flash',
-        'Gemini 1.5 Pro': 'gemini-1.5-pro'
+        'Gemini 2.5 Flash': 'gemini-2.5-flash',
+        'Gemini 2.5 Flash Lite': 'gemini-2.5-flash-lite',
+        'Gemini 2.5 Pro': 'gemini-2.5-pro'
       };
-      const apiModel = modelMapping[model] || 'gemini-2.0-flash';
+      const apiModel = modelMapping[model] || 'gemini-2.5-flash';
 
       // Internal tracker for outputs to ensure we have them for orchestration
       const currentOutputs = { ...outputs };
@@ -465,7 +464,7 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
                 cursor: 'pointer'
               }}
             >
-              {['Gemini 2.0 Flash', 'Gemini 2.0 Pro (Exp)', 'Gemini 1.5 Flash', 'Gemini 1.5 Pro'].map(m => (
+              {['Gemini 2.5 Flash', 'Gemini 2.5 Flash Lite', 'Gemini 2.5 Pro'].map(m => (
                 <option key={m} value={m} style={{ background: '#1a1a1a' }}>{m}</option>
               ))}
             </select>

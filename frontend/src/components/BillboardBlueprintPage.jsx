@@ -143,7 +143,7 @@ const PRODUCTION_PHASES = [
       },
       {
         action: 'Add Reference Song Analysis',
-        detail: 'Provide a reference song URL — Gemini 2.0 Flash analyzes warmth, depth, energy, tempo, and vocal direction. These parameters dynamically tune your voice settings.',
+        detail: 'Provide a reference song URL — Gemini 2.5 Flash analyzes warmth, depth, energy, tempo, and vocal direction. These parameters dynamically tune your voice settings.',
         tip: 'Reference the vibe you want, not the lyrics. The AI captures the sonic DNA of the reference and applies it to your voice output.'
       }
     ]

@@ -271,13 +271,9 @@ const FREE_GENERATION_LIMIT = 7;
 
 // Model Picker State - Available AI Models
 const AI_MODELS = [
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Fastest responses, great for quick tasks', tier: 'free', speed: '⚡⚡⚡', quality: '⭐⭐⭐⭐' },
-  { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'Google', description: 'Ultra-fast, cost-effective', tier: 'free', speed: '⚡⚡⚡⚡', quality: '⭐⭐⭐' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Best quality for complex prompts', tier: 'pro', speed: '⚡⚡', quality: '⭐⭐⭐⭐⭐' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', description: 'Balanced speed and quality', tier: 'free', speed: '⚡⚡⚡', quality: '⭐⭐⭐⭐' },
-  { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B', provider: 'Google', description: 'Lightweight, efficient', tier: 'free', speed: '⚡⚡⚡⚡', quality: '⭐⭐⭐' },
-  { id: 'gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro (Preview)', provider: 'Google', description: 'Latest capabilities, experimental', tier: 'pro', speed: '⚡⚡', quality: '⭐⭐⭐⭐⭐' },
-  { id: 'gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash (Preview)', provider: 'Google', description: 'Next-gen speed + quality', tier: 'pro', speed: '⚡⚡⚡', quality: '⭐⭐⭐⭐' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', description: 'Fast, reliable generation for everyday work', tier: 'free', speed: '⚡⚡⚡', quality: '⭐⭐⭐⭐' },
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'Google', description: 'Fastest, cost-conscious generation', tier: 'free', speed: '⚡⚡⚡⚡', quality: '⭐⭐⭐' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', description: 'Highest quality for complex creative work', tier: 'pro', speed: '⚡⚡', quality: '⭐⭐⭐⭐⭐' },
   { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Excellent for creative writing', tier: 'pro', speed: '⚡⚡', quality: '⭐⭐⭐⭐⭐' },
   { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Fast and capable', tier: 'pro', speed: '⚡⚡⚡', quality: '⭐⭐⭐⭐' },
   { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Multimodal powerhouse', tier: 'pro', speed: '⚡⚡', quality: '⭐⭐⭐⭐⭐' },
@@ -1890,7 +1886,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [newProjectNameFromAsset, setNewProjectNameFromAsset] = useState('');
 
   // Model Picker State - Available AI Models
-  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
 
   // Check for first visit
   useEffect(() => {
@@ -2056,7 +2052,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     description: '',
     language: 'English',
     style: 'Modern Hip-Hop',
-    model: 'Gemini 2.0 Flash',
+    model: 'Gemini 2.5 Flash',
     selectedAgents: [],
     socialHandle: '',
     socialBio: '',
@@ -2092,7 +2088,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       description: newProjectData.description || '',
       language: newProjectData.language || 'English',
       style: newProjectData.style || 'Modern Hip-Hop',
-      model: newProjectData.model || 'Gemini 2.0 Flash',
+      model: newProjectData.model || 'Gemini 2.5 Flash',
       agents: newProjectData.selectedAgents || [],
       workflow: newProjectData.workflow || 'custom',
       socialHandle: newProjectData.socialHandle || '',
@@ -14655,7 +14651,7 @@ ABSOLUTE RULES (violating any = failure):
                           fontSize: '0.9rem'
                         }}
                       >
-                        {['Gemini 2.0 Flash', 'Gemini 2.0 Pro (Exp)', 'Gemini 1.5 Flash', 'Gemini 1.5 Pro'].map(m => (
+                        {['Gemini 2.5 Flash', 'Gemini 2.5 Flash Lite', 'Gemini 2.5 Pro'].map(m => (
                           <option key={m} value={m}>{m}</option>
                         ))}
                       </select>

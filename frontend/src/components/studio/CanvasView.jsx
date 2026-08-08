@@ -249,7 +249,7 @@ export default function CanvasView({
           body: JSON.stringify({
             prompt: `Create fresh ${assetType} content for: "${projectName}"`,
             systemInstruction: `You are ${asset.agent || 'a professional songwriter'}. Create NEW and DIFFERENT ${assetType} for a project called "${projectName}". Be creative and fresh. Write ONLY the creative content with clear section labels. No intro fluff.`,
-            model: 'gemini-2.0-flash'
+            model: 'gemini-2.5-flash'
           })
         });
         if (!response.ok) throw new Error(`Server error ${response.status}`);
@@ -279,7 +279,7 @@ export default function CanvasView({
           body: JSON.stringify({
             prompt: `Create a fresh beat/instrumental concept for: "${projectName}"`,
             systemInstruction: `You are ${asset.agent || 'Beat Lab'}. Describe a NEW and DIFFERENT beat/instrumental (${asset.settings?.duration || 90} seconds) with BPM: ${asset.settings?.bpm || asset.bpm || 120}. Focus on mood, instrumentation, and energy. Keep it under 80 words for an AI music generator.`,
-            model: 'gemini-2.0-flash'
+            model: 'gemini-2.5-flash'
           })
         });
         if (!response.ok) throw new Error(`Server error ${response.status}`);
