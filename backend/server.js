@@ -1129,7 +1129,19 @@ if (!isDevelopment && fs.existsSync(staticDir)) {
   });
   
   app.use(express.static(staticDir));
-  
+
+  // Keep legal and account-deletion URLs stable for app-store listings and
+  // existing bookmarks. The documents remain single-source static files so
+  // the web app, mobile review links, and support replies cannot drift apart.
+  const publicDocument = (fileName) => (req, res, next) => {
+    const filePath = path.join(staticDir, fileName);
+    if (!fs.existsSync(filePath)) return next();
+    return res.sendFile(filePath);
+  };
+  app.get('/privacy', publicDocument('privacy.html'));
+  app.get('/terms', publicDocument('terms.html'));
+  app.get('/account-deletion', publicDocument('account-deletion.html'));
+
   // In production, serve index.html at root
   app.get('/', (req, res) => {
     res.sendFile(path.join(staticDir, 'index.html'));
