@@ -6,7 +6,7 @@ import { test, expect, Page } from '@playwright/test';
  * cookie consent, pricing, agent cards, responsive layout
  */
 
-const URL = 'http://localhost:5173';
+const URL = process.env.FRONTEND_URL || 'http://127.0.0.1:4173';
 
 // Helper: clear localStorage so landing page always shows
 async function freshLanding(page: Page) {

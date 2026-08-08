@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Sparkles, Zap, Music, ArrowLeft, Edit3, Upload, Layers,
-  ChevronLeft, ChevronRight, X, User, Crown, FileText, Download, Maximize2,
-  Copy, Trash2, Share2, Book, Play, LayoutGrid, Link2, Grid, List, Mic, Palette, Film,
-  RefreshCw, Loader2, Redo, Save, Check
+  ChevronLeft, ChevronRight, X, User, FileText, Download, Maximize2,
+  Copy, Trash2, Share2, Book, LayoutGrid, Link2, Grid, List, Mic, Palette, Film,
+  RefreshCw, Loader2, Check
 } from 'lucide-react';
 import { UsersIcon, Twitter, Instagram, VideoIcon, ImageIcon } from 'lucide-react';
 import { BACKEND_URL } from '../../constants';
@@ -17,11 +17,11 @@ export default function CanvasView({
   // Core project data
   selectedProject,
   setSelectedProject,
-  projects,
+  projects: _projects,
   setProjects,
   // Preview/detail state (from parent since used by effects outside canvas)
-  canvasPreviewAsset,
-  setCanvasPreviewAsset,
+  canvasPreviewAsset: _canvasPreviewAsset,
+  setCanvasPreviewAsset: _setCanvasPreviewAsset,
   canvasAudioRef,
   // Navigation & UI
   isMobile,
@@ -45,13 +45,13 @@ export default function CanvasView({
   socialConnections,
   // Components
   SectionErrorBoundary,
-  SafeAssetWrapper,
+  SafeAssetWrapper: _SafeAssetWrapper,
   // Toast (for notifications)
   toast,
   // Auth & mode
   authToken,
-  user,
-  creatorMode = 'artist'
+  user: _user,
+  creatorMode: _creatorMode = 'artist'
 }) {
   // ═══════════════════════════════════════════════════════════════════════════════
   // CANVAS-SPECIFIC STATE
@@ -68,10 +68,6 @@ export default function CanvasView({
   const [editDraft, setEditDraft] = useState('');
   const carouselTouchStartX = useRef(null);
   const thumbnailStripRef = useRef(null);
-
-  // Alias for clarity
-  const detailPanelAsset = canvasPreviewAsset;
-  const setDetailPanelAsset = setCanvasPreviewAsset;
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // CANVAS COMPUTED VALUES
@@ -384,8 +380,6 @@ export default function CanvasView({
       } else if (assetType === 'video') {
         // Video regeneration — use image + audio
         const imageAsset = (selectedProject.assets || []).find(a => ['image', 'visual'].includes((a.type || '').toLowerCase()));
-        const audioAsset = (selectedProject.assets || []).find(a => (a.type || '').toLowerCase() === 'audio');
-
         if (!imageAsset?.imageUrl) {
           toast.error('Need artwork to generate video. Create artwork first.');
           return;
@@ -470,8 +464,10 @@ export default function CanvasView({
   // ═══════════════════════════════════════════════════════════════════════════════
   if (!selectedProject) {
     return (
-      <div className="p-8 text-center animate-fadeIn">
-        <div style={{ opacity: 0.6 }}>Loading project...</div>
+      <div className="studio-inline-state" role="status" aria-live="polite">
+        <div className="studio-inline-state-icon"><Loader2 size={22} className="spin" /></div>
+        <strong>Opening your project</strong>
+        <span>Preparing the canvas and saved assets.</span>
       </div>
     );
   }
@@ -1310,7 +1306,7 @@ export default function CanvasView({
                           link.click();
                           document.body.removeChild(link);
                           toast.success('Download started');
-                        } catch (err) {
+                        } catch (_err) {
                           toast.error('Download failed');
                         }
                       }}

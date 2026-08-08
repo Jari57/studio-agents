@@ -14,15 +14,13 @@ import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUt
 // ═══════════════════════════════════════════════════════════════════════════════
 // WAVEFORM COMPONENT (Decorative)
 // ═══════════════════════════════════════════════════════════════════════════════
+const WAVEFORM_HEIGHTS = [42, 66, 34, 78, 54, 88, 46, 70, 38, 82, 58, 92, 50, 74, 40, 84, 62, 76, 48, 68];
+
 function WaveformOverlay({ color = 'var(--color-purple)' }) {
-  // Use useMemo to generate random heights once per mount to avoid "impure function" warnings
-  const heights = useMemo(() => {
-    return [...Array(20)].map(() => 20 + Math.random() * 80);
-  }, []);
 
   return (
     <div className="waveform-container">
-      {heights.map((height, i) => (
+      {WAVEFORM_HEIGHTS.map((height, i) => (
         <div 
           key={i} 
           className="waveform-bar" 
@@ -40,11 +38,7 @@ function WaveformOverlay({ color = 'var(--color-purple)' }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // DISCOVER FEED COMPONENT (BandLab style)
 // ═══════════════════════════════════════════════════════════════════════════════
-function DiscoverFeed({ onRemix, onPlay, playingAudio }) {
-  const trendingCreators = [];
-
-  const discoveryTracks = [];
-
+function DiscoverFeed() {
   return (
     <div className="discover-feed-container animate-fadeIn">
       {/* Featured Banner (Social Style) */}

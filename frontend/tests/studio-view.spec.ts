@@ -5,7 +5,7 @@ import { test, expect, Page } from '@playwright/test';
  * Tests the authenticated studio interface comprehensively
  */
 
-const URL = 'http://localhost:5173';
+const URL = process.env.FRONTEND_URL || 'http://127.0.0.1:4173';
 
 // Helper: enter studio as guest (bypasses login requirement)
 async function enterStudio(page: Page) {

@@ -2,9 +2,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers, Link2, Lightbulb
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, Database as DatabaseIcon, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio as FileMusic, Activity, Film, FileText, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers, Link2
 } from 'lucide-react';
-import { useSafeAsync } from '../hooks/useSafeAsync';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import DOMPurify from 'dompurify';
 import toast from 'react-hot-toast';
@@ -25,7 +24,6 @@ import {
   getDoc,
   setDoc,
   updateDoc,
-  increment,
   uploadFile,
   uploadBase64
   // Note: collection, getDocs, query, orderBy, deleteDoc moved to backend API
@@ -35,8 +33,8 @@ import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_
 import { Analytics, trackPageView } from '../utils/analytics';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '../utils/errorMonitoring';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
-import { shouldUseAppleIAP, isIOS } from '../utils/nativePlatform';
-import { purchaseProduct, restorePurchases, initStoreKit } from '../utils/storeKit';
+import { shouldUseAppleIAP } from '../utils/nativePlatform';
+import { purchaseProduct, restorePurchases } from '../utils/storeKit';
 
 // Dev-only logger — no-ops in production builds (tree-shaken by Vite/terser)
 const __DEV__ = import.meta.env.DEV;
@@ -65,14 +63,12 @@ const generateId = () => typeof crypto?.randomUUID === 'function'
 // Lazy-loaded sub-components extracted from StudioView
 const CanvasView = React.lazy(() => import('./studio/CanvasView'));
 const DashboardView = React.lazy(() => import('./studio/DashboardView'));
-const Users = UsersIcon;
 
 // Lazy load heavy sub-components (standardizing to React.lazy to prevent 'lazy is not defined' error)
 const StudioOrchestrator = React.lazy(() => import('./StudioOrchestratorV2'));
 const QuickWorkflow = React.lazy(() => import('./QuickWorkflow'));
 const ProjectHub = React.lazy(() => import('./ProjectHubV3')); // CapCut/Captions-style design
 const NewsHub = React.lazy(() => import('./NewsHub'));
-const AdminAnalytics = React.lazy(() => import('./AdminAnalytics'));
 const GuidedTour = React.lazy(() => import('./GuidedTour'));
 const StudioOnboarding = React.lazy(() => import('./StudioOnboarding'));
 const MediaLibrary = React.lazy(() => import('./MediaLibrary'));
@@ -116,41 +112,6 @@ const SafeAssetWrapper = ({ children, asset, fallback = null }) => {
   }
 };
 
-// Helper: Safely get asset property with fallback
-const safeAssetProp = (asset, prop, fallback = '') => {
-  try {
-    if (!asset || typeof asset !== 'object') return fallback;
-    const value = asset[prop];
-    if (value === null || value === undefined) return fallback;
-    return value;
-  } catch {
-    return fallback;
-  }
-};
-
-// Helper: Safely format media URL (handles string check, objects, and arrays)
-const safeMediaUrl = (url) => {
-  if (!url) return null;
-  
-  // Handle object return from some APIs
-  if (typeof url === 'object' && url.url) {
-    return url.url;
-  }
-  
-  // Handle array return (Replicate/Flux)
-  if (Array.isArray(url) && url.length > 0) {
-    return safeMediaUrl(url[0]);
-  }
-  
-  if (typeof url !== 'string') return null;
-  
-  if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) {
-    return url;
-  }
-  // Assume raw base64 for images
-  return `data:image/png;base64,${url}`;
-};
-
 // Helper: Sanitize project data from Firebase to prevent crashes
 const sanitizeProject = (project) => {
   if (!project || typeof project !== 'object') return null;
@@ -173,6 +134,14 @@ const sanitizeProjects = (projects) => {
   if (!Array.isArray(projects)) return [];
   return projects.map(sanitizeProject).filter(Boolean);
 };
+
+const StudioInlineState = ({ label, detail }) => (
+  <div className="studio-inline-state" role="status" aria-live="polite">
+    <div className="studio-inline-state-icon"><Loader2 size={22} className="spin" /></div>
+    <strong>{label}</strong>
+    {detail && <span>{detail}</span>}
+  </div>
+);
 
 // Section-level Error Boundary for isolating crashes
 class SectionErrorBoundary extends React.Component {
@@ -249,41 +218,6 @@ const LazyFallback = () => (
 );
 
 // --- CONSTANTS FOR ONBOARDING & SUPPORT ---
-
-// Admin accounts - full access to all features
-const ADMIN_EMAILS = [
-  'jari@studioagents.ai',          // Primary admin
-  'jari57@gmail.com',              // Jari personal email
-  'demo@studioagents.ai',          // Demo account for presentations
-  'test@studioagents.ai',          // QA testing account
-  'support@studioagents.ai',       // Support team access
-  'dev@studioagents.ai',           // Developer testing account
-  'info@studioagentsai.com'        // Support/Info account
-];
-
-// Check if email is admin
-const isAdminEmail = (email) => {
-  if (!email) return false;
-  return ADMIN_EMAILS.includes(email.toLowerCase());
-};
-
-// Simplified 4-step onboarding flow
-const onboardingSteps = [
-  {
-    id: 'welcome',
-    title: "Welcome to The Studio",
-    content: "16 AI agents ready to help you write, produce, and grow your music career.",
-    detail: "Pick an agent to start. That's it."
-  }
-];
-
-const goalOptions = [
-  { id: 'write', label: "Write songs", description: "Collaborate with AI to finish your lyrics", icon: Feather, agents: ['ghost', 'beat'] },
-  { id: 'produce', label: "Make beats", description: "Create production with intelligent sampling", icon: Disc, agents: ['beat', 'sample'] },
-  { id: 'grow', label: "Grow my audience", description: "Leverage trends and create content", icon: Hash, agents: ['video-creator', 'trend', 'social'] },
-  { id: 'brand', label: "Build my brand", description: "Develop visual and sonic identity", icon: ImageIcon, agents: ['album', 'video-creator'] },
-  { id: 'explore', label: "Just exploring", description: "Discover what's possible", icon: Sparkles, agents: [] }
-];
 
 // Project configuration and costs
 const PROJECT_CATEGORIES = [
@@ -464,18 +398,6 @@ const MORE_MENU_ITEMS = [
   { id: 'billboard', icon: Award, label: 'Billboard Blueprint', desc: 'Make a hit record start to finish', color: 'var(--color-yellow)', external: true },
   { id: 'campaign', icon: Share2, label: 'Content Engine', desc: '1 track → 7-day campaign', color: 'var(--color-cyan)', external: true },
 ];
-const getTimeSince = (date) => {
-  const now = new Date();
-  const seconds = Math.floor((now - date) / 1000);
-  
-  if (seconds < 60) return 'Just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  if (seconds < 2592000) return `${Math.floor(seconds / 604800)}w ago`;
-  return `${Math.floor(seconds / 2592000)}mo ago`;
-};
-
 /**
  * Prunes large base64 data strings from a list of project objects to prevent localStorage QuotaExceededError.
  * Keeps URLs and small strings, but placeholders large data blobs.
@@ -523,9 +445,6 @@ const pruneLargeProjectData = (projects) => {
 };
 
 function StudioView({ onBack, startWizard, startOrchestrator, startTour, initialPlan, initialTab }) {
-  // (shield)— SAFE ASYNC OPERATIONS - Prevents memory leaks and race conditions
-  const { safeFetch, safeSetState, isMounted } = useSafeAsync();
-  
   // ---------------------------------------------------------------------------
   // (key) CORE STATE & REFS (Hoisted for TDZ safety)
   // ---------------------------------------------------------------------------
@@ -535,7 +454,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('studio_user_id'));
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('studio_guest_mode') === 'true');
   const [authChecking, setAuthChecking] = useState(true);
-  const [authRetryCount, setAuthRetryCount] = useState(0);
   const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userProfile, setUserProfile] = useState(() => {
@@ -666,8 +584,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [sessionHistory, setSessionHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [sessionPlaying, setSessionPlaying] = useState(false);
-  const [expandedNews, setExpandedNews] = useState(new Set());
-  const [allNewsExpanded, setAllNewsExpanded] = useState(false);
   const [expandedHelp, setExpandedHelp] = useState(null);
   const [helpSearch, setHelpSearch] = useState(() => {
     const uid = localStorage.getItem('studio_user_id') || 'guest';
@@ -692,30 +608,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [isGrading, setIsGrading] = useState(false);
   const [showSessionGuide, setShowSessionGuide] = useState(false);
   const [sessionGuideStep, setSessionGuideStep] = useState(0);
-  const [sessionHelpEnabled, setSessionHelpEnabled] = useState(() => {
+  const [sessionHelpEnabled] = useState(() => {
     try { return localStorage.getItem('studio_session_help') !== 'off'; } catch { return true; }
   });
   const [selectedPlan, setSelectedPlan] = useState(null);
-
-  // Toggle session help (tooltips + guide) — persists in localStorage
-  const toggleSessionHelp = useCallback((val) => {
-    const next = typeof val === 'boolean' ? val : !sessionHelpEnabled;
-    setSessionHelpEnabled(next);
-    try { localStorage.setItem('studio_session_help', next ? 'on' : 'off'); } catch {}
-    // Strip or restore title attributes on the session overlay
-    const overlay = document.querySelector('.studio-session-overlay');
-    if (!overlay) return;
-    if (!next) {
-      overlay.querySelectorAll('[title]').forEach(el => {
-        if (el.title) { el.dataset.origTitle = el.title; el.removeAttribute('title'); }
-      });
-    } else {
-      overlay.querySelectorAll('[data-orig-title]').forEach(el => {
-        el.title = el.dataset.origTitle;
-        delete el.dataset.origTitle;
-      });
-    }
-  }, [sessionHelpEnabled]);
 
   // --- VOICE & AI INTERACTION ---
   const [isListening, setIsListening] = useState(false);
@@ -741,44 +637,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
   const handleCreatorModeChange = useCallback((mode) => {
     setCreatorMode(mode);
-    try { localStorage.setItem('studio_creator_mode', mode); } catch {}
+    try { localStorage.setItem('studio_creator_mode', mode); } catch (_err) { /* Preference persistence is best effort. */ }
   }, []);
-
-  // --- ASSET MANAGEMENT HANDLERS ---
-  const handleDeleteAsset = (assetId) => {
-    if (!selectedProject) return;
-    if (!confirm('Are you sure you want to remove this asset from the project?')) return;
-    
-    const updatedProject = {
-      ...selectedProject,
-      assets: selectedProject.assets.filter(a => a && (a.id !== assetId))
-    };
-    
-    setSelectedProject(updatedProject);
-    setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
-    toast.success('Asset removed from project');
-  };
-
-  const handleRenameAsset = (assetId, oldTitle) => {
-    const newTitle = prompt('Enter new title for this asset:', oldTitle);
-    if (!newTitle || newTitle === oldTitle) return;
-    
-    const updatedProject = {
-      ...selectedProject,
-      assets: selectedProject.assets.map(a => a && (a.id === assetId ? { ...a, title: newTitle } : a))
-    };
-    
-    setSelectedProject(updatedProject);
-    setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
-    toast.success('Asset renamed');
-  };
-
-  const handleAddAssetToProject = (assetType) => {
-    // Basic implementation - opens preview to allow "Save to project" from existing media
-    toast(`Use an Agent to generate a new ${assetType} or drag a file to the browser.`, {
-      icon: '💡'
-    });
-  };
 
   // --- PREVIEWS & RENDERING ---
   const [showPreview, setShowPreview] = useState(null);
@@ -954,26 +814,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     };
     fetchElVoices();
   }, []); // BACKEND_URL is a module-level constant, no need in deps
-
-  // Helper to get tab from hash
-  const getTabFromHash = () => {
-    const hash = window.location.hash;
-    if (hash.startsWith('#/studio/')) {
-      const tab = hash.split('/')[2];
-      // If it's a direct agent ID, return 'agents' as the tab
-      // SAFE ACCESS: Use typeof to avoid TDZ (Temporal Dead Zone) in large builds
-      if (typeof AGENTS !== 'undefined' && AGENTS && AGENTS.some(a => a.id === tab)) {
-        return 'agents';
-      }
-      return tab;
-    }
-    // FALLBACK: Check localStorage for last active tab before defaulting to 'agents'
-    const lastTab = localStorage.getItem('studio_active_tab');
-    if (lastTab && VALID_TABS.includes(lastTab)) {
-      return lastTab;
-    }
-    return 'resources';
-  };
 
   // Persist activeTab to localStorage whenever it changes
   useEffect(() => {
@@ -1436,7 +1276,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         // Always persist to localStorage synchronously (guaranteed to complete)
         try {
           localStorage.setItem(`studio_projects_${user.uid}`, JSON.stringify(projects));
-        } catch (e) { /* best effort */ }
+        } catch (_err) { /* Best-effort local persistence during unload. */ }
 
         // Cloud writes require a Firebase bearer token. navigator.sendBeacon
         // cannot send that header, so never use it for private project data.
@@ -2365,19 +2205,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     safeVoiceAnnounce(`Quick project created.`);
   };
 
-  // Open agent whitepaper modal for any agent
-  const openAgentWhitepaper = (agent) => {
-    setShowAgentWhitePaper({
-      key: agent.id,
-      icon: agent.icon,
-      title: agent.name,
-      subtitle: agent.category,
-      description: agent.explanation || agent.description,
-      whoFor: agent.helpTips || `Artists and creators looking to leverage AI for ${agent.category.toLowerCase()}.`,
-      howTo: agent.howToUse || agent.howTo || `Enter your prompt and let ${agent.name} generate results instantly.`
-    });
-  };
-
   // --- IMPROVED STATE MANAGEMENT HELPERS ---
   
   // Update save status with auto-reset
@@ -2807,7 +2634,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
             // Wait and retry before clearing
             authRetryCountRef.current += 1;
             devLog('[Auth] Firebase returned null but we have session, retry', authRetryCountRef.current);
-            setAuthRetryCount(authRetryCountRef.current);
 
             // Keep user logged in from localStorage while we wait
             setIsLoggedIn(true);
@@ -2835,7 +2661,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
                 }
                 setAuthChecking(false);
                 authRetryCountRef.current = 0;
-                setAuthRetryCount(0);
               }
             }, 3000); // 3 seconds per retry — 10 retries = up to 30s total tolerance
           } else if (wasGuestMode) {
@@ -2856,7 +2681,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
             setIsLoggedIn(false);
             setAuthChecking(false);
             authRetryCountRef.current = 0;
-            setAuthRetryCount(0);
           }
         }
       });
@@ -3017,7 +2841,7 @@ const fetchUserCredits = useCallback(async (uid) => {
   }, [auth]);
 
   // (money) PURCHASE CREDITS - Revenue engine for top-ups
-  const buyCreditPack = async (amount, price) => {
+  const buyCreditPack = async (amount, _price) => {
     if (!user) {
       toast.error('Please log in to purchase credits');
       setShowLoginModal(true);
@@ -3712,7 +3536,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           textarea.value = '';
           try {
             textarea.dispatchEvent(new Event('input', { bubbles: true }));
-          } catch (e) {
+          } catch (_err) {
             const ev = document.createEvent('Event');
             ev.initEvent('input', true, true);
             textarea.dispatchEvent(ev);
@@ -3824,7 +3648,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         textarea.value = newText;
         try {
           textarea.dispatchEvent(new Event('input', { bubbles: true }));
-        } catch (e) {
+        } catch (_err) {
           const ev = document.createEvent('Event');
           ev.initEvent('input', true, true);
           textarea.dispatchEvent(ev);
@@ -4328,7 +4152,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           setIsUploadingSample(false);
         }
       };
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to read file');
       setIsUploadingSample(false);
     }
@@ -4548,9 +4372,6 @@ const fetchUserCredits = useCallback(async (uid) => {
         }
       }
 
-      // Specialized instructions based on agent type (Flavor matching Orchestrator)
-      let customInstruction = '';
-      
       // Lyrical Context: Try to find lyrics in the current project to inform other agents
       // (Moved to top of function for TDZ safety)
       if (targetProjectSnapshot?.assets) {
@@ -4563,48 +4384,6 @@ const fetchUserCredits = useCallback(async (uid) => {
           contextLyrics = lyricsAsset.content || lyricsAsset.snippet || '';
           devLog('[Studio] Found context lyrics for generation');
         }
-      }
-
-      if (agentId === 'ghost' || agentId === 'ghost-1' || agentId === 'lyrics') {
-        customInstruction = 'Write ONLY the lyrics (verses, hooks, chorus). USE CLEAR LABELS like [Verse 1], [Chorus], [Bridge]. Do not include any "Here are the lyrics" text or preamble. Write high-fidelity emotional lyrics.';
-      } else if (isSpeechAgent) {
-        // Speech agents need LYRICS to sing, not a description of the performance
-        if (contextLyrics) {
-          customInstruction = `Write performance-ready lyrics based on the following existing lyrics. Output ONLY the lyrics text — no descriptions, no stage directions, no preamble. Just the words to be sung/rapped:\n"${contextLyrics.substring(0, 1500)}"`;
-        } else {
-          customInstruction = `Write original ${detectedGenre || 'hip-hop'} lyrics for the user\'s concept. Output ONLY the lyrics text — no descriptions, no explanations, no stage directions. Just the raw words to be sung or rapped. Include verse/chorus structure but keep section labels minimal like [Verse] [Chorus]. Keep it under 300 words for vocal generation.`;
-        }
-      } else if (isAudioAgent) {
-        // Agent-specific audio production briefs
-        if (agentId === 'session') {
-          customInstruction = 'Describe a live session recording concept: specify instruments (guitar, piano, bass, strings, brass), playing style, key, tempo, and emotional feel. Under 70 words.';
-        } else if (agentId === 'samples') {
-          customInstruction = 'Describe a unique, sample-ready audio concept: chopped loops, vinyl textures, isolated instrument riffs, or atmospheric textures. Specify BPM, key, and sonic character. Under 60 words.';
-        } else if (agentId === 'edm') {
-          customInstruction = 'Describe an EDM drop/build concept: synth design, build tension techniques, drop elements, energy arc, and sub-bass character. Specify BPM and key. Under 70 words.';
-        } else if (agentId === 'sound-design') {
-          customInstruction = 'Describe an original sound design concept: texture, timbre, synthesis method, spatial character, and intended emotional impact. Under 60 words for AI generation.';
-        } else {
-          customInstruction = 'Briefly describe a high-quality beat/instrumental concept. Focus on mood, tempo, instrumentation, and key instruments. Keep it under 60 words for maximum AI compatibility.';
-        }
-        if (contextLyrics) customInstruction += ` Use the vibe of these lyrics to inspire the sound: "${contextLyrics.substring(0, 300)}"`;
-      } else if (isImageAgent) {
-        // Agent-specific visual briefs
-        if (agentId === 'trends') {
-          customInstruction = 'Describe a bold, trend-forward visual graphic: data visualization, trend aesthetic, color palette, typography style, and platform format (Instagram/TikTok). Under 70 words.';
-        } else if (agentId === 'social') {
-          customInstruction = 'Describe a high-engagement social media post visual: hook element, content layout, brand colors, call-to-action placement, and platform optimization. Under 70 words.';
-        } else if (agentId === 'collab') {
-          customInstruction = 'Describe a collaboration promo visual: dual artist branding, shared aesthetic, typography treatment, and promotional composition for social and streaming. Under 70 words.';
-        } else if (agentId === 'release') {
-          customInstruction = 'Describe a release announcement visual: album/single artwork style, announcement text treatment, release date typography, and marketing composition. Under 70 words.';
-        } else {
-          customInstruction = 'Describe a striking album cover or concept in detail for image generation. Focus on composition, colors, and artistic style.';
-        }
-        if (contextLyrics) customInstruction += ` Incorporate themes from these lyrics: "${contextLyrics.substring(0, 200)}"`;
-      } else if (isVideoAgent) {
-        customInstruction = 'Write a creative image to video concept or storyboard with scene descriptions, cinematic lighting, and professional visual transitions.';
-        if (contextLyrics) customInstruction += ` Match the narrative and energy of these lyrics: "${contextLyrics.substring(0, 300)}"`;
       }
 
       // Auto-detect genre from prompt keywords to prevent dropdown mismatch
@@ -4727,7 +4506,7 @@ ABSOLUTE RULES (violating any = failure):
               systemInstruction: speechBrainInstruction
             })
           });
-        } catch (err) {
+        } catch (_err) {
           throw new Error('Brain Phase Connection Failed. Server may be offline.');
         }
 
@@ -5518,8 +5297,8 @@ ABSOLUTE RULES (violating any = failure):
               output: itemToSave.snippet,
               metadata: { projectId: finalProject.id, audioUrl: itemToSave.audioUrl }
             })
-          }).catch(() => {});
-        } catch (_) {}
+          }).catch(() => { /* The optional asset-library sync is best effort. */ });
+        } catch (_err) { /* Saving the project itself already succeeded locally. */ }
 
         toast.success(saveSuccess ? '? Synced to cloud!' : 'Saved locally (sync pending)', { id: toastId });
       } else {
@@ -5623,7 +5402,7 @@ ABSOLUTE RULES (violating any = failure):
           );
           updatedProject.updatedAt = new Date().toISOString();
           await saveProjectToCloud(userId, updatedProject, { silent: true });
-        } catch (_) {}
+        } catch (_err) { /* Conversion metadata is non-blocking after the file is available. */ }
 
         return;
       }
@@ -5787,43 +5566,6 @@ ABSOLUTE RULES (violating any = failure):
   useEffect(() => {
     if (selectedAgent) setShowNudge(true);
   }, [selectedAgent]);
-
-  // Helper to safely save to localStorage with quota handling
-  const safeLocalStorageSet = (key, value) => {
-    try {
-      localStorage.setItem(key, value);
-      return true;
-    } catch (e) {
-      if (e.name === 'QuotaExceededError') {
-        devWarn(`[Storage] Quota exceeded for ${key}, cleaning up old data...`);
-        // Try to free up space by removing old/large items
-        try {
-          // Remove oldest projects if saving projects
-          if (key === 'studio_agents_projects') {
-            const parsed = JSON.parse(value);
-            if (Array.isArray(parsed) && parsed.length > 20) {
-              // Keep only the 20 most recent projects
-              const trimmed = parsed.slice(0, 20);
-              localStorage.setItem(key, JSON.stringify(trimmed));
-              devLog('[Storage] Trimmed projects to 20 most recent');
-              return true;
-            }
-          }
-          // Clear some non-essential cached data
-          localStorage.removeItem('studio_theme');
-          localStorage.removeItem('studio_onboarding_v3');
-          // Try again
-          localStorage.setItem(key, value);
-          return true;
-        } catch (retryError) {
-          devWarn('[Storage] Still failed after cleanup:', retryError);
-          return false;
-        }
-      }
-      devWarn(`[Storage] Failed to save ${key}:`, e);
-      return false;
-    }
-  };
 
   // Restore projects from localStorage on mount as immediate local state.
   // Cloud sync is handled by the auth listener (onAuthStateChanged) which has the confirmed currentUser.
@@ -6079,7 +5821,7 @@ ABSOLUTE RULES (violating any = failure):
         } else if (platform === 'threads') {
           results.push({ platform: 'Threads', success: false, error: 'Threads API coming soon' });
         }
-      } catch (err) {
+      } catch (_err) {
         results.push({ platform, success: false, error: 'Network error — check your connection' });
       }
     }
@@ -6331,13 +6073,11 @@ ABSOLUTE RULES (violating any = failure):
     if (activeTab === 'project_canvas' && !selectedAgent) {
       if (!selectedProject) {
         return (
-          <div className="p-8 text-center animate-fadeIn">
-            <div style={{ opacity: 0.6 }}>Loading project...</div>
-          </div>
+          <StudioInlineState label="Opening your project" detail="Preparing the canvas and saved assets." />
         );
       }
       return (
-        <Suspense fallback={<div className="p-8 text-center animate-fadeIn"><div style={{ opacity: 0.6 }}>Loading canvas...</div></div>}>
+        <Suspense fallback={<StudioInlineState label="Loading the canvas" detail="Bringing your creative workspace online." />}>
           <CanvasView
             selectedProject={selectedProject}
             setSelectedProject={setSelectedProject}
@@ -6375,7 +6115,7 @@ ABSOLUTE RULES (violating any = failure):
 
     if (activeTab === 'mystudio') {
       return (
-        <Suspense fallback={<div className="p-8 text-center animate-fadeIn"><div style={{ opacity: 0.6 }}>Loading dashboard...</div></div>}>
+        <Suspense fallback={<StudioInlineState label="Loading your studio" detail="Syncing your dashboard and creative tools." />}>
           <DashboardView
             dashboardTab={dashboardTab}
             setDashboardTab={setDashboardTab}
@@ -7525,14 +7265,14 @@ ABSOLUTE RULES (violating any = failure):
                                     setReferenceSongUrl(result.url);
                                     toast.success('Reference song uploaded! Vocals will match its tone & vibe.', { id: loadingId });
                                     if (user?.uid && db) {
-                                      try { const userRef = doc(db, 'users', user.uid); await updateDoc(userRef, { referenceSongUrl: result.url, lastRefSongUpdate: Date.now() }); } catch (_e) {}
+                                      try { const userRef = doc(db, 'users', user.uid); await updateDoc(userRef, { referenceSongUrl: result.url, lastRefSongUpdate: Date.now() }); } catch (_err) { /* The upload remains available if profile sync is delayed. */ }
                                     }
                                   } else { throw new Error(result.error || 'Upload failed'); }
-                                } catch (err) { toast.error('Failed to upload reference song', { id: loadingId }); }
+                                } catch (_err) { toast.error('Failed to upload reference song', { id: loadingId }); }
                                 finally { setIsUploadingReferenceSong(false); }
                               };
                               reader.onerror = () => { toast.error('Failed to read file'); setIsUploadingReferenceSong(false); };
-                            } catch (err) { toast.error('Upload failed'); setIsUploadingReferenceSong(false); }
+                            } catch (_err) { toast.error('Upload failed'); setIsUploadingReferenceSong(false); }
                           }} />
                           {isUploadingReferenceSong ? <Loader2 size={12} className="spin" /> : (referenceSongUrl ? 'Replace' : 'Upload Song')}
                         </label>
@@ -8086,7 +7826,7 @@ ABSOLUTE RULES (violating any = failure):
                                 textarea.value = item.snippet;
                                 try {
                                   textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                                } catch (e) {
+                                } catch (_err) {
                                   const ev = document.createEvent('Event');
                                   ev.initEvent('input', true, true);
                                   textarea.dispatchEvent(ev);
@@ -8204,7 +7944,7 @@ ABSOLUTE RULES (violating any = failure):
                           textarea.value = ex;
                           try {
                             textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                          } catch (e) {
+                          } catch (_err) {
                             const ev = document.createEvent('Event');
                             ev.initEvent('input', true, true);
                             textarea.dispatchEvent(ev);
@@ -11214,7 +10954,7 @@ ABSOLUTE RULES (violating any = failure):
   }
 
   return (
-    <div className={`studio-container ${theme}-theme`} {...swipeHandlers}>
+    <div className={`studio-container studio-shell ${theme}-theme`} {...swipeHandlers}>
       {/* Demo Mode Banner */}
       {showDemoBanner && (
         <div 
@@ -11230,7 +10970,7 @@ ABSOLUTE RULES (violating any = failure):
           <span>{DEMO_BANNER_STYLES.text}</span>
         </div>
       )}
-      <aside className="studio-nav">
+      <aside className="studio-nav studio-sidebar">
         <div className="studio-nav-logo" onClick={() => onBack?.()}>
           <div className="logo-box studio-logo">
             <Sparkles size={20} color="white" />
@@ -11333,7 +11073,7 @@ ABSOLUTE RULES (violating any = failure):
       </aside>
 
       <main className="studio-main" onScroll={handleScroll}>
-        <header className="studio-header">
+        <header className="studio-header studio-command-bar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <h2 className="studio-title">
               {selectedAgent ? selectedAgent.name : (activeTab === 'mystudio' ? 'Dashboard' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1))}
@@ -11510,7 +11250,7 @@ ABSOLUTE RULES (violating any = failure):
           </div>
         </header>
 
-        <div className="studio-content">
+        <div className="studio-content studio-workspace">
           <SectionErrorBoundary name="Main Content">
             {renderContent()}
           </SectionErrorBoundary>
@@ -11964,7 +11704,6 @@ ABSOLUTE RULES (violating any = failure):
                         <div style={{ padding: '0 12px 8px', overflow: 'hidden' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1px', height: '32px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '0 4px' }}>
                             {[...Array(isMobile ? 40 : 60)].map((_, i) => {
-                              const total = isMobile ? 40 : 60;
                               return <div key={i} style={{ flex: 1, background: 'linear-gradient(to top, #22d3ee, rgba(6,182,212,0.2))', borderRadius: '1px', height: `${15 + Math.sin(i*0.5)*30 + ((i*7+13)%25)}%`, opacity: sessionPlaying ? (0.4 + Math.sin(i*0.4 + Date.now()/200)*0.3) : 0.35, transition: 'height 0.1s' }} />;
                             })}
                           </div>
@@ -12047,7 +11786,6 @@ ABSOLUTE RULES (violating any = failure):
                         <div style={{ padding: '0 12px 8px', overflow: 'hidden' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1px', height: '32px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '0 4px' }}>
                             {[...Array(isMobile ? 40 : 60)].map((_, i) => {
-                              const total = isMobile ? 40 : 60;
                               return <div key={i} style={{ flex: 1, background: 'linear-gradient(to top, #a78bfa, rgba(168,85,247,0.2))', borderRadius: '1px', height: `${10 + Math.cos(i*0.4)*25 + ((i*11+7)%20)}%`, opacity: sessionPlaying ? (0.35 + Math.cos(i*0.3 + Date.now()/180)*0.3) : 0.3, transition: 'height 0.1s' }} />;
                             })}
                           </div>

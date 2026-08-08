@@ -6,7 +6,7 @@ import { test, expect, Page } from '@playwright/test';
  * navigation, proper content, FAQ accordions, and CTAs.
  */
 
-const URL = 'http://localhost:5173';
+const URL = process.env.FRONTEND_URL || 'http://127.0.0.1:4173';
 
 // ============================================================================
 // DNA RESOURCE PAGE

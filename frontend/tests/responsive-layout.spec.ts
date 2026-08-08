@@ -6,7 +6,7 @@ import { test, expect, Page, devices } from '@playwright/test';
  * across all pages on mobile viewports.
  */
 
-const URL = 'http://localhost:5173';
+const URL = process.env.FRONTEND_URL || 'http://127.0.0.1:4173';
 
 // Helper: enter studio as guest
 async function enterStudio(page: Page) {

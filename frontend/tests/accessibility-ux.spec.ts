@@ -6,7 +6,7 @@ import { test, expect, Page } from '@playwright/test';
  * ARIA attributes, and interactive element accessibility.
  */
 
-const URL = 'http://localhost:5173';
+const URL = process.env.FRONTEND_URL || 'http://127.0.0.1:4173';
 
 async function freshLanding(page: Page) {
   await page.goto(URL);
