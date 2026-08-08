@@ -549,6 +549,61 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
+const requireAuthForPersonalVoice = (req, res, next) => {
+  if (req.body?.isPersonalVoice === true || req.body?.style === 'cloned') {
+    return requireAuth(req, res, next);
+  }
+  next();
+};
+
+// Personal voices are biometric creative assets. Keep their ownership checks on
+// the server so an old client, a copied provider ID, or a direct API call
+// cannot select or delete another artist's clone.
+async function getOwnedVoiceRecord(userId, voiceId) {
+  const db = getFirestoreDb();
+  if (!db || !userId || !voiceId) return null;
+
+  const snapshot = await db.collection('users').doc(userId)
+    .collection('voices')
+    .where('voiceId', '==', voiceId)
+    .limit(1)
+    .get();
+
+  if (snapshot.empty) return null;
+  const record = snapshot.docs[0];
+  return { id: record.id, ...record.data() };
+}
+
+async function userOwnsVoiceSample(userId, speakerUrl) {
+  if (!speakerUrl) return true;
+  const db = getFirestoreDb();
+  if (!db) return false;
+
+  const userRef = db.collection('users').doc(userId);
+  const [profile, assets] = await Promise.all([
+    userRef.get(),
+    userRef.collection('assets').where('url', '==', speakerUrl).limit(1).get()
+  ]);
+
+  // The profile fallback preserves already-created personal voices while new
+  // uploads are linked through the assets collection.
+  return (profile.exists && profile.data()?.voiceSampleUrl === speakerUrl) || !assets.empty;
+}
+
+async function userOwnsVoiceAssets(userId, assetIds) {
+  if (!Array.isArray(assetIds) || assetIds.length === 0 || assetIds.length > 3 || new Set(assetIds).size !== assetIds.length) return false;
+  const db = getFirestoreDb();
+  if (!db || !userId) return false;
+
+  const assetRefs = assetIds.map((assetId) =>
+    db.collection('users').doc(userId).collection('assets').doc(assetId)
+  );
+  const assets = await db.getAll(...assetRefs);
+  return assets.length === assetIds.length && assets.every((asset) =>
+    asset.exists && asset.data()?.assetType === 'audio'
+  );
+}
+
 // Admin check middleware - verifies user is an admin
 const requireAdmin = (req, res, next) => {
   if (!req.user) {
@@ -1682,7 +1737,7 @@ app.get('/api/models', async (req, res) => {
 
 // ==================== ELEVENLABS VOICES API ====================
 // List available ElevenLabs professional voices
-app.get('/api/v2/voices', verifyFirebaseToken, async (req, res) => {
+app.get('/api/v2/voices', verifyFirebaseToken, requireAuth, async (req, res) => {
   try {
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
     if (!elevenLabsKey) {
@@ -1695,7 +1750,23 @@ app.get('/api/v2/voices', verifyFirebaseToken, async (req, res) => {
 
     if (response.ok) {
       const data = await response.json();
-      res.json(data.voices || []);
+      const ownedVoiceIds = new Set();
+      const db = getFirestoreDb();
+      if (db) {
+        const owned = await db.collection('users').doc(req.user.uid)
+          .collection('voices').get();
+        owned.forEach((voice) => {
+          if (voice.data()?.voiceId) ownedVoiceIds.add(voice.data().voiceId);
+        });
+      }
+
+      // ElevenLabs accounts can contain clones created by other Studio users.
+      // Never expose those as selectable voices: curated voices are public to
+      // the studio, while cloned voices are visible only to their owner.
+      const visibleVoices = (data.voices || []).filter((voice) =>
+        voice.category !== 'cloned' || ownedVoiceIds.has(voice.voice_id)
+      );
+      res.json(visibleVoices);
     } else {
       const errorData = await response.json().catch(() => ({}));
       res.status(response.status).json({ error: 'Failed to fetch voices from ElevenLabs', details: errorData });
@@ -1706,7 +1777,7 @@ app.get('/api/v2/voices', verifyFirebaseToken, async (req, res) => {
 });
 
 // Delete an ElevenLabs voice (cloned voice)
-app.delete('/api/v2/voices/:voiceId', verifyFirebaseToken, async (req, res) => {
+app.delete('/api/v2/voices/:voiceId', verifyFirebaseToken, requireAuth, async (req, res) => {
   try {
     const { voiceId } = req.params;
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
@@ -1719,6 +1790,11 @@ app.delete('/api/v2/voices/:voiceId', verifyFirebaseToken, async (req, res) => {
       return res.status(400).json({ error: 'Voice ID is required' });
     }
 
+    const ownedVoice = await getOwnedVoiceRecord(req.user.uid, voiceId);
+    if (!ownedVoice) {
+      return res.status(403).json({ error: 'You can only delete a personal voice you created' });
+    }
+
     logger.info('🗑️ Deleting ElevenLabs voice', { voiceId });
 
     const response = await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, {
@@ -1727,6 +1803,19 @@ app.delete('/api/v2/voices/:voiceId', verifyFirebaseToken, async (req, res) => {
     });
 
     if (response.ok) {
+      const db = getFirestoreDb();
+      if (db) {
+        await db.collection('users').doc(req.user.uid).collection('voices').doc(ownedVoice.id).delete();
+        const profileRef = db.collection('users').doc(req.user.uid);
+        const profile = await profileRef.get();
+        if (profile.exists && profile.data()?.clonedVoiceId === voiceId) {
+          await profileRef.update({
+            clonedVoiceId: admin.firestore.FieldValue.delete(),
+            clonedVoiceName: admin.firestore.FieldValue.delete(),
+            lastVoiceClone: admin.firestore.FieldValue.delete()
+          });
+        }
+      }
       logger.info('✅ ElevenLabs voice deleted successfully', { voiceId });
       res.json({ success: true, message: 'Voice deleted successfully' });
     } else {
@@ -3259,13 +3348,12 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
   }
 
   try {
-    const { samples, voiceName = 'My Voice', cloneConsent = null } = req.body;
+    const { samples, voiceName = 'My Voice', cloneConsent = null, sourceAssetIds = [] } = req.body;
 
-    // Strict voice cloning is intentionally opt-in. Older studio surfaces can
-    // continue to use the provider flow while they are migrated, but a caller
-    // that requests strict mode must attest to ownership before we process
-    // biometric voice material.
-    if (cloneConsent?.mode === 'strict' && cloneConsent?.confirmed !== true) {
+    // Never accept biometric voice material without a current, explicit
+    // ownership attestation. This keeps old clients and direct API calls from
+    // bypassing the guided V2 personal-voice flow.
+    if (cloneConsent?.confirmed !== true || cloneConsent?.mode !== 'strict') {
       return res.status(400).json({
         error: 'Voice ownership confirmation is required for Strict Clone mode'
       });
@@ -3277,6 +3365,12 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
 
     if (samples.length > 3) {
       return res.status(400).json({ error: 'Maximum 3 audio samples allowed' });
+    }
+
+    if (sourceAssetIds.length !== samples.length || !await userOwnsVoiceAssets(req.user.uid, sourceAssetIds)) {
+      return res.status(403).json({
+        error: 'Voice samples must be uploaded to your private asset library before cloning'
+      });
     }
 
     // Build multipart form data for ElevenLabs IVC API using Node built-in FormData + Blob
@@ -3346,6 +3440,7 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
         name: voiceName,
         provider: 'elevenlabs-ivc',
         sampleCount: samples.length,
+        sourceAssetIds,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         userId: req.user.uid,
         consent: cloneConsent?.confirmed === true ? {
@@ -5162,7 +5257,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
 // PRIORITY 3: Bark for expressive spoken word with emotion
 // ═══════════════════════════════════════════════════════════════════
 // Vocal/speech generation charges 2 credits
-app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('vocal'), generationLimiter, async (req, res) => {
+app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoice, requireAuthOrFreeLimit, checkCreditsFor('vocal'), generationLimiter, async (req, res) => {
   try {
     const {
       prompt,
@@ -5180,6 +5275,24 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
+
+    // A cloned/personal voice is private biometric material. Curated ElevenLabs
+    // voices remain available through the normal studio path, but callers must
+    // prove ownership before sending a personal voice ID or reference sample.
+    const isPersonalVoice = req.body.isPersonalVoice === true || style === 'cloned';
+    if (isPersonalVoice) {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required for a personal voice' });
+      }
+      const requestedVoiceId = req.body.elevenLabsVoiceId;
+      const ownedVoice = requestedVoiceId && await getOwnedVoiceRecord(req.user.uid, requestedVoiceId);
+      if (!ownedVoice || ownedVoice.consent?.confirmed !== true) {
+        return res.status(403).json({ error: 'Personal voice not found in your library' });
+      }
+      if (!await userOwnsVoiceSample(req.user.uid, speakerUrl)) {
+        return res.status(403).json({ error: 'Personal voice sample is not in your private library' });
+      }
+    }
     
     // Cap duration to prevent abuse (max 5 minutes)
     const duration = Math.min(Math.max(Number(durationRaw) || 30, 5), 300);
@@ -6269,6 +6382,26 @@ Do NOT include any other text.`
       try {
         // Voice ID logic: user-provided > rapStyle-aware mapping > style fallback
         let voiceId = req.body.elevenLabsVoiceId;
+
+        // Do not trust a client-supplied provider ID just because it claims to
+        // be a studio voice. If it resolves to a clone, clear it and use the
+        // curated fallback below; only the authenticated owner may use a
+        // clone through the explicit personal-voice path checked above.
+        if (voiceId && !isPersonalVoice) {
+          try {
+            const voiceResponse = await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, {
+              headers: { 'xi-api-key': elevenLabsKey }
+            });
+            const providerVoice = voiceResponse.ok ? await voiceResponse.json() : null;
+            if (!providerVoice || providerVoice.category === 'cloned') {
+              logger.warn('Rejected unowned or unavailable provider voice; using curated fallback', { voiceId });
+              voiceId = null;
+            }
+          } catch (voiceLookupErr) {
+            logger.warn('Provider voice lookup failed; using curated fallback', { error: voiceLookupErr.message });
+            voiceId = null;
+          }
+        }
 
         if (!voiceId) {
           // ── CURATED VOICE ROSTER ──

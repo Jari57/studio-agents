@@ -2232,6 +2232,9 @@ export default function StudioOrchestratorV2({
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceStyle, setVoiceStyle] = useState('rapper'); // For AI vocal generation (rapper, singer, etc)
+  // Personal voice is the safe, predictable default. Curated voices remain
+  // available only when the artist explicitly chooses the studio voice path.
+  const [voiceSource, setVoiceSource] = useState('personal'); // 'personal' | 'studio'
   const [vocalQuality, setVocalQuality] = useState('premium'); // 'standard' or 'premium'
   const [outputFormat, setOutputFormat] = useState('music'); // music, social, podcast, tv (Righteous Quality)
   const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
@@ -3859,6 +3862,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       toast.error('Generate Lyrics & Hook DNA first', { id: 'orch-need-lyrics' });
       return;
     }
+
+    // Do not silently fall back to an anonymous voice. Personal voice is the
+    // default path; require the artist to finish the short consented setup or
+    // explicitly opt into a curated studio voice.
+    if (voiceSource === 'personal' && !clonedVoiceId) {
+      setShowAssets(true);
+      toast.error('Create your personal voice first: upload 2–3 samples and confirm permission.', { id: 'orch-voice-required' });
+      return;
+    }
     setGeneratingMedia(prev => ({ ...prev, vocals: true }));
     toast.loading('Generating AI Vocals (up to 2 mins)...', { id: 'gen-vocals' });
     
@@ -3957,14 +3969,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           duration: actualBeatDurationRef.current || duration || 30, // Align with actual beat length
           quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
           outputFormat: outputFormat, // TV, Podcast, Social, Music (Righteous Quality)
-          speakerUrl: voiceStyle === 'cloned' && !clonedVoiceId ? voiceSampleUrl : null,
-          elevenLabsVoiceId: voiceStyle === 'cloned'
-            ? (clonedVoiceId || null)  // Only send a real cloned voice ID, never a generic fallback
-            : (elevenLabsVoiceId || null), // Send resolved voice ID from previous gen for consistency
+           // A personal voice always wins when selected. Curated/provider IDs
+           // are only sent after the user explicitly chooses “Studio voice”.
+           speakerUrl: voiceSource === 'personal' ? (voiceSampleUrl || null) : null,
+           elevenLabsVoiceId: voiceSource === 'personal'
+             ? (clonedVoiceId || null)
+             : (elevenLabsVoiceId || null),
+          isPersonalVoice: voiceSource === 'personal',
           // Lock to the same provider that worked last time for voice consistency
           preferredProvider: generationProviders.vocals || null,
           // Pass voice sample as reference for tone/style analysis even when not cloning
-          referenceSongUrl: referenceSongUrl || voiceSampleUrl || null,
+           referenceSongUrl: voiceSource === 'studio' ? (referenceSongUrl || null) : null,
           // Advanced vocal synthesis parameters
           pitchShift: vocalPitchShift !== 0 ? vocalPitchShift : undefined,
           speed: vocalSpeed !== 1.0 ? vocalSpeed : undefined,
@@ -4248,7 +4263,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
         const result = await response.json();
         if (response.ok && result.url) {
-          setVoiceSamples(prev => [...prev, { name: file.name, url: result.url, base64 }]);
+          setVoiceSamples(prev => [...prev, {
+            name: file.name,
+            url: result.url,
+            base64,
+            assetId: result.assetId || null
+          }]);
           toast.success(`${file.name} uploaded`, { id: loadingId });
         } else {
           throw new Error(result.error || 'Upload failed');
@@ -4286,6 +4306,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         headers,
         body: JSON.stringify({
           samples: voiceSamples.map(s => s.base64),
+          sourceAssetIds: voiceSamples.map(s => s.assetId).filter(Boolean),
           voiceName: songIdea ? `${songIdea} Voice` : 'My Voice',
           cloneConsent: {
             confirmed: voiceOwnershipConfirmed,
@@ -4300,6 +4321,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       if (response.ok && result.voiceId) {
         setClonedVoiceId(result.voiceId);
         setElevenLabsVoiceId(result.voiceId);
+        setVoiceSource('personal');
         setVoiceStyle('cloned');
         toast.success('Voice cloned! Your voice is now active.', { id: 'voice-clone' });
 

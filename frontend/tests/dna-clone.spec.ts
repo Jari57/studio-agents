@@ -333,6 +333,25 @@ test.describe('DNA — Voice Clone Endpoint', () => {
     expect([401, 404]).toContain(response.status());
   });
 
+  test('Personal-voice routes reject unauthenticated access', async ({ request }) => {
+    const [listResponse, deleteResponse, generateResponse] = await Promise.all([
+      request.get(`${BACKEND_URL}/api/v2/voices`),
+      request.delete(`${BACKEND_URL}/api/v2/voices/not-my-voice`),
+      request.post(`${BACKEND_URL}/api/generate-speech`, {
+        data: {
+          prompt: 'A short original verse that is long enough for validation.',
+          style: 'cloned',
+          isPersonalVoice: true,
+          elevenLabsVoiceId: 'not-my-voice'
+        }
+      })
+    ]);
+
+    expect(listResponse.status()).toBe(401);
+    expect(deleteResponse.status()).toBe(401);
+    expect(generateResponse.status()).toBe(401);
+  });
+
 });
 
 // ============================================================================
