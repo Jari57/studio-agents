@@ -6546,6 +6546,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 <option value="full-package" style={{ background: '#1a1a1a' }}>Full package</option>
               </select>
               <button
+                className="quick-create-submit"
                 onClick={() => {
                   startQuickCreate();
                 }}

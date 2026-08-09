@@ -15026,7 +15026,7 @@ ABSOLUTE RULES (violating any = failure):
                 <p style={{ color: 'var(--text-secondary)' }}>Choose how you want to build your project</p>
               </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="project-type-options" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Studio Creation Option */}
               <button
                 onClick={() => {

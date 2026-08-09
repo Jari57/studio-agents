@@ -12001,6 +12001,88 @@ button, .nav-link, .agent-card-premium {
   }
 }
 
+/* ===============================================================================
+   MOBILE WORKSPACE SAFETY RAILS
+   Keep the dashboard shell and project canvas inside the viewport while allowing
+   intentionally horizontal controls (filters and sidebar tabs) to scroll.
+   =============================================================================== */
+@media (max-width: 768px) {
+  .studio-container,
+  .studio-main,
+  .studio-content,
+  .studio-dashboard,
+  .dashboard-sidebar-layout,
+  .dashboard-main-content,
+  .project-canvas-view,
+  .studio-orchestrator-overlay,
+  .orchestrator-scroll-container {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .dashboard-sidebar-layout,
+  .dashboard-main-content,
+  .project-canvas-view,
+  .orchestrator-scroll-container {
+    width: 100% !important;
+  }
+
+  /* The dashboard's secondary tabs may be wider than a phone, but they must
+     scroll within their own rail instead of widening the page. */
+  .dashboard-sidebar {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .sidebar-nav {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  .project-canvas-view > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Quick-create has a title and a supporting label in one button. Allow the
+     supporting label to wrap on phones instead of clipping the CTA text. */
+  .studio-orchestrator-overlay .quick-create-submit {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    flex-wrap: wrap;
+    line-height: 1.25;
+    padding: 12px 14px !important;
+  }
+
+  .studio-orchestrator-overlay .quick-create-submit > span {
+    flex: 1 1 100%;
+    min-width: 0;
+    text-align: center;
+  }
+
+  /* Keep the primary project-type choices full-width inside the modal. */
+  .project-type-options {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .project-type-options > .haptic-press {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100%;
+  }
+
+  .project-type-options > .haptic-press > div:last-child {
+    min-width: 0;
+  }
+}
+
 /* ================================================================
    STUDIO SHELL COHESION
    A scoped finishing layer for the studio, hub, and canvas. These
