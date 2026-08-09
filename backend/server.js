@@ -7203,6 +7203,20 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     const falKey = process.env.FAL_KEY || process.env.FAL_API_KEY;
     const stabilityAudio = getStabilityAudioSettings();
 
+    // Do not let the credit middleware charge a user when no audio provider is
+    // configured. This is especially important for premium requests: silently
+    // falling through to a weak draft engine is forbidden, and a failed
+    // provider configuration must be actionable rather than a generic 500.
+    if (!stabilityKey && !replicateKey && !falKey) {
+      await refundCredits(req, 'audio provider not configured');
+      return res.status(503).json({
+        error: 'Audio provider unavailable',
+        details: 'Beat generation is temporarily unavailable while the studio audio provider is being configured. Your credits were not charged.',
+        isRealGeneration: false,
+        isProviderConfigIssue: true,
+      });
+    }
+
     logger.info('Generating professional music/beat', { 
       prompt: prompt.substring(0, 50), 
       bpm, 
@@ -7535,6 +7549,10 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     } else {
       // If we reach here, ALL AI providers failed.
       logger.error('All audio generation attempts failed', { providerErrors });
+
+      // A failed generation should never consume credits, including failures
+      // that reach this branch after a provider timeout or quota response.
+      await refundCredits(req, 'all audio providers failed');
 
       if (systemCreditIssue) {
         // CASE 1: System/Platform runs out of credits (App-side issue)
