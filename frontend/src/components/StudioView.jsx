@@ -395,48 +395,44 @@ const MORE_MENU_ITEMS = [
   { id: 'campaign', icon: Share2, label: 'Content Engine', desc: '1 track → 7-day campaign', color: 'var(--color-cyan)', external: true },
 ];
 /**
- * Prunes large base64 data strings from a list of project objects to prevent localStorage QuotaExceededError.
- * Keeps URLs and small strings, but placeholders large data blobs.
+ * Builds a safe local-cache representation after a quota failure.
+ *
+ * Project media can be nested in generated agent output, not just in `assets`.
+ * The old implementation only inspected a handful of asset fields, so a large
+ * data URI in another branch could still make the retry fail. Cloud storage is
+ * authoritative; this cache intentionally keeps metadata and remote URLs while
+ * replacing binary payloads everywhere in the project tree.
  */
 const pruneLargeProjectData = (projects) => {
   if (!projects || !Array.isArray(projects)) return projects;
-  
-  // 100KB is usually a safe threshold to identify large base64 blobs vs small metadata
-  const LARGE_DATA_THRESHOLD = 100000; 
+
+  const LARGE_DATA_THRESHOLD = 100000;
+  const PRUNED_MEDIA = '[Media Data Pruned to Save Space]';
 
   return projects.map(project => {
-    if (!project || typeof project !== 'object') return project;
-    if (!project.assets || !Array.isArray(project.assets)) return project;
-    
-    return {
-      ...project,
-      assets: project.assets.map(asset => {
-        // Handle Null/Undefined
-        if (!asset) return asset;
+    const seen = new WeakSet();
+    const compact = (value) => {
+      if (typeof value === 'string') {
+        const isInlineMedia = /^(data:|blob:)/i.test(value);
+        return isInlineMedia || value.length > LARGE_DATA_THRESHOLD ? PRUNED_MEDIA : value;
+      }
+      if (!value || typeof value !== 'object') return value;
+      if (seen.has(value)) return undefined;
+      seen.add(value);
 
-        // If it's a large string (likely base64 or long data URL)
-        if (typeof asset === 'string' && asset.length > LARGE_DATA_THRESHOLD) {
-          return "[Media Data Pruned to Save Space]";
-        }
-        
-        // If it's an object with various possible large fields
-        if (typeof asset === 'object') {
-          const newAsset = { ...asset };
-          let changed = false;
-          
-          ['url', 'data', 'imageData', 'audioData', 'videoData', 'output'].forEach(prop => {
-            if (typeof newAsset[prop] === 'string' && newAsset[prop].length > LARGE_DATA_THRESHOLD) {
-              newAsset[prop] = "[Media Data Pruned to Save Space]";
-              changed = true;
-            }
-          });
-          
-          return changed ? newAsset : asset;
-        }
-        
-        return asset;
-      })
+      if (Array.isArray(value)) {
+        return value.map(compact).filter(item => item !== undefined);
+      }
+
+      const result = {};
+      Object.entries(value).forEach(([key, child]) => {
+        const compacted = compact(child);
+        if (compacted !== undefined) result[key] = compacted;
+      });
+      return result;
     };
+
+    return compact(project);
   });
 };
 
