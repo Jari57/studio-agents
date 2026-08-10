@@ -894,7 +894,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
     
     try {
-      const jsonString = JSON.stringify(projects);
+      // Cloud storage is authoritative for signed-in users. Keep only a
+      // compact metadata/remote-URL cache locally so generated audio, video,
+      // and image payloads cannot exhaust the browser quota on every edit.
+      const cacheProjects = pruneLargeProjectData(projects);
+      const jsonString = JSON.stringify(cacheProjects);
       localStorage.setItem(`studio_projects_${uid}`, jsonString);
       
       // OPTIMIZATION: Only save to legacy key for guest to save 50% storage space for logged-in users
@@ -1087,7 +1091,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         }
       }
       
-      devLog(`[TRACE:${traceId}] Sanitized project assets:`, sanitizedProject.assets?.length, sanitizedProject.assets?.map(a => a.id));
+      // Firestore documents have a hard 1 MiB limit. Media should already be
+      // in Storage, but older projects can still contain nested data/blob
+      // payloads. Apply the same recursive compaction used by the local cache
+      // before sending the document so one legacy asset cannot make every save
+      // fail with an opaque 500.
+      const cloudProject = pruneLargeProjectData([sanitizedProject])[0];
+      devLog(`[TRACE:${traceId}] Sanitized project assets:`, cloudProject.assets?.length, cloudProject.assets?.map(a => a.id));
       
       // Get auth token for backend API
       let authToken = null;
@@ -1120,7 +1130,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         },
         body: JSON.stringify({
           project: {
-            ...sanitizedProject,
+            ...cloudProject,
             id: String(project.id),
             updatedAt: new Date().toISOString(),
             syncedAt: new Date().toISOString()
@@ -1143,7 +1153,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
             },
             body: JSON.stringify({
               project: {
-                ...sanitizedProject,
+                ...cloudProject,
                 id: String(project.id),
                 updatedAt: new Date().toISOString(),
                 syncedAt: new Date().toISOString()
@@ -1267,7 +1277,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       if (user?.uid && projects.length > 0) {
         // Always persist to localStorage synchronously (guaranteed to complete)
         try {
-          localStorage.setItem(`studio_projects_${user.uid}`, JSON.stringify(projects));
+          localStorage.setItem(`studio_projects_${user.uid}`, JSON.stringify(pruneLargeProjectData(projects)));
         } catch (_err) { /* Best-effort local persistence during unload. */ }
 
         // Cloud writes require a Firebase bearer token. navigator.sendBeacon

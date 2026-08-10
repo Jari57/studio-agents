@@ -11922,6 +11922,23 @@ app.put('/api/projects/:id', verifyFirebaseToken, requireAuth, async (req, res) 
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         savedAt: admin.firestore.FieldValue.serverTimestamp()
       };
+
+      // Firestore rejects documents larger than 1 MiB. Return a useful,
+      // recoverable response instead of the generic 500 that caused the
+      // client to retry the same oversized project and then fill localStorage.
+      const payloadBytes = Buffer.byteLength(JSON.stringify(updateData), 'utf8');
+      if (payloadBytes > 900000) {
+        logger.warn('⚠️ Project payload exceeds safe Firestore size', {
+          userId: targetUserId,
+          projectId,
+          payloadBytes
+        });
+        return res.status(413).json({
+          error: 'Project is too large to sync as one document',
+          code: 'PROJECT_DOCUMENT_TOO_LARGE',
+          maxBytes: 900000
+        });
+      }
       
       await projectRef.set(updateData, { merge: true });
       
@@ -11932,8 +11949,19 @@ app.put('/api/projects/:id', verifyFirebaseToken, requireAuth, async (req, res) 
       res.json({ success: true, warning: 'Cloud storage not available' });
     }
   } catch (err) {
-    logger.error('❌ Update project error', { error: err.message });
-    res.status(500).json({ error: 'Failed to update project' });
+    const message = String(err?.message || '');
+    const isTooLarge = /maximum.*(1048576|1.?mi[b]?|megabyte)|exceeds.*(1048576|1.?mi[b]?|megabyte)|document.*too large/i.test(message)
+      || String(err?.code || '') === '3';
+    logger.error('❌ Update project error', {
+      error: message,
+      code: err?.code,
+      projectId,
+      userId: targetUserId
+    });
+    res.status(isTooLarge ? 413 : 500).json({
+      error: isTooLarge ? 'Project is too large to sync as one document' : 'Failed to update project',
+      code: isTooLarge ? 'PROJECT_DOCUMENT_TOO_LARGE' : 'PROJECT_UPDATE_FAILED'
+    });
   }
 });
 

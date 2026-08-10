@@ -1,6 +1,7 @@
+/* eslint-disable react-hooks/static-components, react-hooks/set-state-in-effect */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
-  Play, Pause, Square, Volume2, VolumeX, SkipBack, Headphones, Mic, Music
+  Play, Pause, Square, SkipBack, Mic, Music
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -23,6 +24,8 @@ export default function RealtimePreviewMixer({
   const [duration, setDuration] = useState(0);
   const [beatLoaded, setBeatLoaded] = useState(false);
   const [vocalLoaded, setVocalLoaded] = useState(false);
+  const [beatError, setBeatError] = useState(null);
+  const [vocalError, setVocalError] = useState(null);
   const [initError, setInitError] = useState(null);
   const [beatMuted, setBeatMuted] = useState(false);
   const [vocalMuted, setVocalMuted] = useState(false);
@@ -32,16 +35,26 @@ export default function RealtimePreviewMixer({
   const beatAudioRef = useRef(null);
   const vocalAudioRef = useRef(null);
   const animFrameRef = useRef(null);
+  const updateTimeRef = useRef(null);
   const isInitializedRef = useRef(false);
 
   const formatSrc = useCallback((url) => {
-    if (!url) return null;
-    if (typeof url === 'object' && url.url) return url.url;
-    if (Array.isArray(url) && url.length > 0) return url[0];
-    if (typeof url !== 'string') return null;
-    if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
-    if (url.length > 100 && !url.includes(' ')) return `data:audio/wav;base64,${url}`;
-    return url;
+    const normalize = (candidate) => {
+      if (!candidate) return null;
+      if (typeof candidate === 'object' && candidate.url) return normalize(candidate.url);
+      if (Array.isArray(candidate) && candidate.length > 0) return normalize(candidate[0]);
+      if (typeof candidate !== 'string') return null;
+      const value = candidate.trim();
+      if (/^(https?:\/\/|blob:|data:audio\/)/i.test(value)) return value;
+      if (value.startsWith('/') && typeof window !== 'undefined') {
+        return new URL(value, window.location.origin).toString();
+      }
+      if (value.length > 100 && !value.includes(' ')) return `data:audio/wav;base64,${value}`;
+      // Do not hand arbitrary strings to HTMLAudioElement. A stale asset ID or
+      // placeholder used to trigger noisy load errors and hide a playable track.
+      return null;
+    };
+    return normalize(url);
   }, []);
 
   const beatSrc = formatSrc(beatUrl);
@@ -57,6 +70,11 @@ export default function RealtimePreviewMixer({
 
   const initAudio = useCallback(() => {
     if (isInitializedRef.current) return;
+    setBeatLoaded(false);
+    setVocalLoaded(false);
+    setBeatError(null);
+    setVocalError(null);
+    setInitError(null);
     try {
       if (beatSrc) {
         const beatAudio = new Audio();
@@ -64,12 +82,13 @@ export default function RealtimePreviewMixer({
         beatAudio.src = beatSrc;
         beatAudio.volume = beatVolume;
         beatAudioRef.current = beatAudio;
-        beatAudio.addEventListener('canplaythrough', () => setBeatLoaded(true), { once: true });
+        beatAudio.addEventListener('canplaythrough', () => { setBeatLoaded(true); setBeatError(null); }, { once: true });
         beatAudio.addEventListener('loadedmetadata', () => setDuration(prev => Math.max(prev, beatAudio.duration)));
-        beatAudio.addEventListener('error', (e) => {
-          console.warn('[Mixer] Beat audio load error:', e);
+        beatAudio.addEventListener('error', () => {
+          if (beatAudioRef.current !== beatAudio) return;
+          console.warn('[Mixer] Beat audio load error');
           setBeatLoaded(false);
-          setInitError('Beat audio failed to load');
+          setBeatError('Beat preview unavailable');
         });
         beatAudio.load();
       }
@@ -80,12 +99,13 @@ export default function RealtimePreviewMixer({
         vocalAudio.src = vocalSrc;
         vocalAudio.volume = vocalVolume;
         vocalAudioRef.current = vocalAudio;
-        vocalAudio.addEventListener('canplaythrough', () => setVocalLoaded(true), { once: true });
+        vocalAudio.addEventListener('canplaythrough', () => { setVocalLoaded(true); setVocalError(null); }, { once: true });
         vocalAudio.addEventListener('loadedmetadata', () => setDuration(prev => Math.max(prev, vocalAudio.duration)));
-        vocalAudio.addEventListener('error', (e) => {
-          console.warn('[Mixer] Vocal audio load error:', e);
+        vocalAudio.addEventListener('error', () => {
+          if (vocalAudioRef.current !== vocalAudio) return;
+          console.warn('[Mixer] Vocal audio load error');
           setVocalLoaded(false);
-          setInitError('Vocal audio failed to load');
+          setVocalError('Vocal preview unavailable');
         });
         vocalAudio.load();
       }
@@ -93,10 +113,18 @@ export default function RealtimePreviewMixer({
     } catch (err) { console.error('[Mixer] Init error:', err); setInitError(err.message); }
   }, [beatSrc, vocalSrc, beatVolume, vocalVolume]);
 
+  const disposeAudio = useCallback(() => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (beatAudioRef.current) { beatAudioRef.current.pause(); beatAudioRef.current.src = ''; }
+    if (vocalAudioRef.current) { vocalAudioRef.current.pause(); vocalAudioRef.current.src = ''; }
+    beatAudioRef.current = null; vocalAudioRef.current = null;
+    isInitializedRef.current = false;
+  }, []);
+
   useEffect(() => {
-    if (beatSrc || vocalSrc) { cleanup(); isInitializedRef.current = false; initAudio(); }
-    return () => cleanup();
-  }, [beatSrc, vocalSrc]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (beatSrc || vocalSrc) { disposeAudio(); initAudio(); }
+    return () => disposeAudio();
+  }, [beatSrc, vocalSrc, disposeAudio]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Solo/mute logic via HTMLAudioElement.volume
   useEffect(() => {
@@ -114,8 +142,12 @@ export default function RealtimePreviewMixer({
     const beatEnded = beatAudioRef.current ? beatAudioRef.current.ended : true;
     const vocalEnded = vocalAudioRef.current ? vocalAudioRef.current.ended : true;
     if (beatEnded && vocalEnded && isPlaying) { setIsPlaying(false); setCurrentTime(0); return; }
-    if (isPlaying) animFrameRef.current = requestAnimationFrame(updateTime);
+    if (isPlaying) animFrameRef.current = requestAnimationFrame(() => updateTimeRef.current?.());
   }, [isPlaying]);
+
+  useEffect(() => {
+    updateTimeRef.current = updateTime;
+  }, [updateTime]);
 
   useEffect(() => {
     if (isPlaying) animFrameRef.current = requestAnimationFrame(updateTime);
@@ -155,31 +187,25 @@ export default function RealtimePreviewMixer({
     setCurrentTime(time);
   };
 
-  const cleanup = () => {
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    if (beatAudioRef.current) { beatAudioRef.current.pause(); beatAudioRef.current.src = ''; }
-    if (vocalAudioRef.current) { vocalAudioRef.current.pause(); vocalAudioRef.current.src = ''; }
-    beatAudioRef.current = null; vocalAudioRef.current = null;
-    isInitializedRef.current = false;
-    setIsPlaying(false); setCurrentTime(0); setDuration(0); setBeatLoaded(false); setVocalLoaded(false); setInitError(null);
-  };
-
   const fmt = (s) => { if (!s || !isFinite(s)) return '0:00'; return `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`; };
 
   const hasAnySrc = !!(beatSrc || vocalSrc);
-  const isReady = (beatSrc ? beatLoaded : true) && (vocalSrc ? vocalLoaded : true) && hasAnySrc;
+  // A failed channel must not disable a valid one. The previous all-or-nothing
+  // gate made a bad vocal URL hide a playable beat (and vice versa).
+  const isPlayable = !!((beatSrc && beatLoaded) || (vocalSrc && vocalLoaded));
+  const isReady = isPlayable && hasAnySrc;
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   if (!hasAnySrc) return null;
 
   if (initError) return (
-    <div style={{ padding: '12px 16px', borderRadius: '10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', marginTop: '8px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>
+    <div style={{ padding: '12px 16px', borderRadius: '10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', marginTop: '8px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }} role="status">
       ⚠️ Preview mixer unavailable — {initError}. Your final mix will still be created server-side.
     </div>
   );
 
   // Channel strip sub-component
-  const ChannelStrip = ({ label, icon: Icon, color, loaded, volume, onVolumeChange, muted, onMute, solo, onSolo, hasSrc }) => {
+  const ChannelStrip = ({ label, icon: Icon, color, loaded, error, volume, onVolumeChange, muted, onMute, solo, onSolo, hasSrc }) => {
     if (!hasSrc) return null;
     const anySolo = beatSolo || vocalSolo;
     const isAudible = anySolo ? solo : !muted;
@@ -206,7 +232,8 @@ export default function RealtimePreviewMixer({
           <span style={{ fontSize: '0.72rem', fontWeight: 700, color: isAudible ? color : 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             {label}
           </span>
-          {!loaded && <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)' }}>loading...</span>}
+          {!loaded && !error && <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)' }}>loading...</span>}
+          {error && <span style={{ fontSize: '0.6rem', color: '#fca5a5' }}>{error}</span>}
         </div>
 
         {/* Volume Fader */}
@@ -359,6 +386,7 @@ export default function RealtimePreviewMixer({
         <ChannelStrip
           label="Beat" icon={Music} color="#22d3ee"
           loaded={beatLoaded} hasSrc={!!beatSrc}
+          error={beatError}
           volume={beatVolume} onVolumeChange={onBeatVolumeChange}
           muted={beatMuted} onMute={() => setBeatMuted(!beatMuted)}
           solo={beatSolo} onSolo={() => setBeatSolo(!beatSolo)}
@@ -366,6 +394,7 @@ export default function RealtimePreviewMixer({
         <ChannelStrip
           label="Vocal" icon={Mic} color="#a78bfa"
           loaded={vocalLoaded} hasSrc={!!vocalSrc}
+          error={vocalError}
           volume={vocalVolume} onVolumeChange={onVocalVolumeChange}
           muted={vocalMuted} onMute={() => setVocalMuted(!vocalMuted)}
           solo={vocalSolo} onSolo={() => setVocalSolo(!vocalSolo)}
