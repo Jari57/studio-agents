@@ -11,9 +11,13 @@ const isLocalDev = !isCapacitorNative && (
   window.location.port === '5173' ||
   window.location.port === '3000'
 );
-export const BACKEND_URL = isCapacitorNative
-  ? 'https://web-production-b5922.up.railway.app'
-  : configuredBackendUrl || (isLocalDev ? 'http://localhost:3001' : '');
+// A browser build must never silently fall back to its own static host: that
+// turns every generation request into a 404 when VITE_BACKEND_URL is missing
+// from Vercel. Keep a single canonical production fallback for web and native
+// clients; a configured environment value can still override it for staging.
+const PRODUCTION_BACKEND_URL = 'https://web-production-b5922.up.railway.app';
+export const BACKEND_URL = configuredBackendUrl
+  || (isLocalDev ? 'http://localhost:3001' : PRODUCTION_BACKEND_URL);
 
 // AGENTS ordered for logical 2-column pairing on mobile
 // Row 1: Lyrics + Beats (core music creation)
