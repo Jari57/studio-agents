@@ -273,6 +273,7 @@ function GeneratorCard({
   mediaUrl = null,
   arGrade = null,
   isGradingAr = false,
+  onGradeAr = null,
   onGenerateMedia = null,
   isGeneratingMedia = false,
   onRegenerate = null,
@@ -297,6 +298,7 @@ function GeneratorCard({
   const [editText, setEditText] = useState(output || '');
   const [isExpanded, setIsExpanded] = useState(false);
   const [showIntro, setShowIntro] = useState(false);
+  const [showArReview, setShowArReview] = useState(false);
 
   const { intro, content } = splitCreativeContent(output);
   const displayContent = showIntro ? intro : content;
@@ -317,6 +319,7 @@ function GeneratorCard({
       prevOutputRef.current = output;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setEditText(output || '');
+      setShowArReview(false);
     }
   }, [output]);
 
@@ -939,8 +942,8 @@ function GeneratorCard({
           </div>
         )}
 
-        {/* A&R GRADE CARD — Billboard Quality Score */}
-        {(arGrade || isGradingAr) && output && (
+        {/* Optional A&R review stays collapsed so it never interrupts creation. */}
+        {showArReview && (arGrade || isGradingAr) && output && (
           <div style={{
             margin: '0 12px',
             padding: isMobile ? '10px' : '12px 14px',
@@ -1172,6 +1175,37 @@ function GeneratorCard({
 
           {/* Utility actions — right group */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            {/* A&R review is deliberately user-triggered and never gates generation. */}
+            {onGradeAr && (
+              <button
+                onClick={() => {
+                  if (arGrade) {
+                    setShowArReview(current => !current);
+                    return;
+                  }
+                  setShowArReview(true);
+                  if (!isGradingAr) onGradeAr();
+                }}
+                disabled={isGradingAr}
+                title={arGrade ? (showArReview ? 'Hide A&R review' : 'View A&R review') : 'Request an optional A&R review'}
+                aria-label={arGrade ? (showArReview ? 'Hide A&R review' : 'View A&R review') : 'Request an optional A&R review'}
+                style={{
+                  height: '32px', padding: '0 9px', borderRadius: '8px',
+                  background: showArReview ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.05)',
+                  border: showArReview ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                  color: showArReview ? '#fbbf24' : 'rgba(255,255,255,0.45)',
+                  cursor: isGradingAr ? 'wait' : 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '5px',
+                  fontSize: '0.72rem', fontWeight: '700', whiteSpace: 'nowrap',
+                  touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
+                  opacity: isGradingAr ? 0.7 : 1
+                }}
+              >
+                {isGradingAr ? <Loader2 size={13} className="spin" /> : <Sparkles size={13} />}
+                A&R
+              </button>
+            )}
+
             {/* Maximize */}
             {output && onMaximize && (
               <button
@@ -2978,7 +3012,8 @@ export default function StudioOrchestratorV2({
     return headers;
   }, [authToken]);
 
-  // A&R GRADING — Score each generation like a Billboard A&R exec
+  // Optional A&R review. It is intentionally separate from the critical
+  // generation path so a review can never delay or fail asset creation.
   const gradeGeneration = useCallback(async (slot, content, promptText) => {
     if (!content) return;
     const text = typeof content === 'string' ? content : JSON.stringify(content);
@@ -3000,9 +3035,13 @@ export default function StudioOrchestratorV2({
       if (res.ok) {
         const grade = await res.json();
         setArGrades(prev => ({ ...prev, [slot]: grade }));
+      } else {
+        const errorBody = await res.json().catch(() => ({}));
+        toast.error(errorBody.error || 'A&R review is unavailable right now. Your asset is safe.');
       }
     } catch (err) {
       devWarn(`[A&R] Grading failed for ${slot}:`, err);
+      toast.error('A&R review is unavailable right now. Your asset is safe.');
     } finally {
       setGradingSlots(prev => ({ ...prev, [slot]: false }));
     }
@@ -3280,8 +3319,6 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             devLog(`[handleGenerate] ${slot} generated successfully`);
             // Track analytics event
             Analytics.contentGenerated(agentId, slot);
-            // Auto-grade the generation in background
-            gradeGeneration(slot, data.output, songIdea);
             updatePipelineStep(stepId, 'done');
             
             // Track media generation promises so we can sequence the pipeline
@@ -8749,6 +8786,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       }
                       arGrade={arGrades[slot.key]}
                       isGradingAr={gradingSlots[slot.key]}
+                      onGradeAr={() => gradeGeneration(slot.key, outputs[slot.key], songIdea)}
                       onGenerateMedia={
                         slot.key === 'audio' ? handleGenerateAudio :
                         slot.key === 'lyrics' ? handleGenerateVocals :
@@ -8978,6 +9016,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     }
                     arGrade={arGrades[slot.key]}
                     isGradingAr={gradingSlots[slot.key]}
+                    onGradeAr={() => gradeGeneration(slot.key, outputs[slot.key], songIdea)}
                     onGenerateMedia={
                       slot.key === 'audio' ? handleGenerateAudio :
                       slot.key === 'lyrics' ? handleGenerateVocals :

@@ -19,6 +19,7 @@
     "privacy:check": "node scripts/verify-storage-privacy.mjs",
     "access:check": "node scripts/verify-project-access-contract.mjs",
     "orchestrator:check": "node scripts/verify-orchestrator-cors.mjs",
+    "orchestrator:rating-check": "node scripts/verify-orchestrator-rating-contract.mjs",
     "check:env-template": "node scripts/verify-env-template.mjs",
     "start": "cd backend && npm start",
     "deploy:dev": "powershell -ExecutionPolicy Bypass -File deploy-dev.ps1",
