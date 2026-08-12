@@ -2323,6 +2323,7 @@ export default function StudioOrchestratorV2({
   // Industrial Strength State Preservation (Fixes closure issues in auto-triggering)
   const outputsRef = useRef(outputs);
   const pipelineStepsRef = useRef([]); // Ref mirror so finally-block reads latest pipeline steps
+  const lastAudioErrorRef = useRef(''); // Persist provider failures after transient toasts disappear
   const mountedRef = useRef(true); // Track mount state to prevent state updates after unmount
   const recognitionRef = useRef(null);
   const vocalAudioRef = useRef(null);
@@ -2403,12 +2404,20 @@ export default function StudioOrchestratorV2({
   }, []);
 
   // Pipeline progress helper
-  const updatePipelineStep = useCallback((stepId, status) => {
-    setPipelineSteps(prev => prev.map(step =>
+  const updatePipelineStep = useCallback((stepId, status, errorMessage = '') => {
+    const next = pipelineStepsRef.current.map(step =>
       step.id === stepId
-        ? { ...step, status, ...(status === 'active' ? { startTime: Date.now() } : {}), ...(status === 'done' || status === 'error' ? { endTime: Date.now() } : {}) }
+        ? {
+            ...step,
+            status,
+            errorMessage: status === 'error' ? errorMessage : '',
+            ...(status === 'active' ? { startTime: Date.now(), endTime: null } : {}),
+            ...(status === 'done' || status === 'error' ? { endTime: Date.now() } : {})
+          }
         : step
-    ));
+    );
+    pipelineStepsRef.current = next;
+    setPipelineSteps(next);
   }, []);
 
   // Reusable helper: mux audio into silent video, with 1 retry and toast feedback
@@ -3130,6 +3139,7 @@ export default function StudioOrchestratorV2({
     if (currentSelectedAgents.video) steps.push({ id: 'video', label: 'Producing music video', status: 'pending', startTime: null, endTime: null });
     if (currentSelectedAgents.video && currentSelectedAgents.audio) steps.push({ id: 'mux', label: 'Syncing audio to video', status: 'pending', startTime: null, endTime: null });
     if (includeVocals) steps.push({ id: 'final', label: 'Creating final mix', status: 'pending', startTime: null, endTime: null });
+    pipelineStepsRef.current = steps;
     setPipelineSteps(steps);
     
     try {
@@ -3279,9 +3289,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               // Beat description ready → queue beat audio generation (starts immediately)
               updatePipelineStep('beat-audio', 'active');
               pipelinePromises.beatAudio = handleGenerateAudio(data.output)
-                .then((generated) => updatePipelineStep('beat-audio', generated ? 'done' : 'error'))
+                .then((generated) => updatePipelineStep(
+                  'beat-audio',
+                  generated ? 'done' : 'error',
+                  generated ? '' : (lastAudioErrorRef.current || 'Premium beat audio was not created. No credits were charged.')
+                ))
                 .catch((err) => {
-                  updatePipelineStep('beat-audio', 'error');
+                  updatePipelineStep('beat-audio', 'error', err?.message || 'Premium beat audio was not created.');
                   toast.error(`Beat generation failed: ${err?.message || 'Unknown error'}`, { id: 'orch-beat-audio-fail' });
                 });
             } else if (slot === 'visual') {
@@ -3483,8 +3497,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       }
       
       toast.dismiss('gen-all');
-      toast.success(completionMessage);
-      Analytics.featureUsed(includeVocals ? 'full_song_pipeline' : 'song_draft_pipeline');
+      const failedSteps = pipelineStepsRef.current.filter(step => step.status === 'error');
+      if (failedSteps.length > 0) {
+        toast(
+          `${failedSteps.length} asset${failedSteps.length === 1 ? '' : 's'} still need attention. Your completed work is safe; retry the failed step below.`,
+          { id: 'orch-partial-complete', icon: '⚠️', duration: 8000 }
+        );
+      } else {
+        toast.success(completionMessage);
+        Analytics.featureUsed(includeVocals ? 'full_song_pipeline' : 'song_draft_pipeline');
+      }
       
     } catch (err) {
       console.error('Generation error:', err);
@@ -3676,6 +3698,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       return false;
     }
     
+    lastAudioErrorRef.current = '';
     setGeneratingMedia(prev => ({ ...prev, audio: true }));
     const waitTime = duration > 120 ? '3 minutes' : (duration > 60 ? '2 minutes' : '60 seconds');
     toast.loading(`Synthesizing AI beat (${waitTime})...`, { id: 'gen-audio' });
@@ -3740,6 +3763,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         
         const finalUrl = data.audioUrl || data.output;
         if (finalUrl) {
+          lastAudioErrorRef.current = '';
           setMediaUrls(prev => ({ ...prev, audio: finalUrl }));
           mediaUrlsRef.current = { ...mediaUrlsRef.current, audio: finalUrl }; // Sync ref for pipeline reads
           setGenerationProviders(prev => ({ ...prev, audio: data.source || data.provider || 'ai' }));
@@ -3806,6 +3830,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           return true;
         } else {
           console.error('[handleGenerateAudio] No URL in successful response:', data);
+          lastAudioErrorRef.current = 'The premium provider returned no playable audio. No credits were charged.';
           toast.error('No audio returned from server', { id: 'gen-audio' });
           return false;
         }
@@ -3816,6 +3841,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         
         // DISTINGUISH BETWEEN USER AND SYSTEM CREDIT ISSUES
         if (errData.isSystemCreditIssue || response.status === 503) {
+          lastAudioErrorRef.current = 'Premium beat generation is temporarily unavailable because the provider account needs credits. Your Studio balance was not charged.';
           toast.error(
             <div style={{ padding: '4px' }}>
               <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -3829,6 +3855,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             { id: 'gen-audio', duration: 8000, style: { borderLeft: '4px solid #fbbf24' } }
           );
         } else if (errData.isUserCreditIssue || response.status === 403) {
+          lastAudioErrorRef.current = 'Your Studio generation balance is insufficient for this beat.';
           toast.error(
             <div style={{ padding: '4px' }}>
               <div style={{ fontWeight: 'bold' }}>Insufficient Credits</div>
@@ -3839,12 +3866,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             { id: 'gen-audio', duration: 6000 }
           );
         } else {
+          lastAudioErrorRef.current = errData.details || errData.error || `Audio generation failed (${response.status}).`;
           toast.error(errData.details || errData.error || `Audio generation failed (${response.status})`, { id: 'gen-audio' });
         }
         return false;
       }
     } catch (err) {
       console.error('[Orchestrator] Audio generation catch block:', err);
+      lastAudioErrorRef.current = err?.name === 'AbortError'
+        ? 'Premium beat generation timed out. No credits were charged; retry when the provider is ready.'
+        : (err.message || 'Premium beat generation failed.');
       toast.error(`Generation failed: ${err.message}`, { id: 'gen-audio' });
       return false;
     } finally {
@@ -6835,7 +6866,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         })()}
 
         {/* Pipeline Progress Feed */}
-        {isGenerating && pipelineSteps.length > 0 && (
+        {pipelineSteps.length > 0 && (isGenerating || pipelineSteps.some(step => step.status === 'error')) && (
           <div style={{
             background: 'rgba(255,255,255,0.03)',
             borderRadius: '12px',
@@ -6854,8 +6885,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               alignItems: 'center',
               gap: '8px'
             }}>
-              <Loader2 size={14} className="spin" style={{ color: '#8b5cf6' }} />
-              Pipeline Progress
+              {isGenerating
+                ? <Loader2 size={14} className="spin" style={{ color: '#8b5cf6' }} />
+                : <X size={14} style={{ color: '#ef4444' }} />}
+              {isGenerating ? 'Pipeline Progress' : 'Pipeline needs attention'}
             </div>
             {pipelineSteps.map((step) => (
               <div key={step.id} style={{
@@ -6876,14 +6909,19 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 ) : (
                   <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.15)', flexShrink: 0 }} />
                 )}
-                <span style={{
+                <div style={{
                   fontSize: '0.8rem',
                   color: step.status === 'active' ? '#a78bfa' : step.status === 'done' ? '#22c55e' : step.status === 'error' ? '#ef4444' : 'rgba(255,255,255,0.5)',
                   fontWeight: step.status === 'active' ? '600' : '400',
                   flex: 1
                 }}>
-                  {step.label}
-                </span>
+                  <div>{step.label}</div>
+                  {step.status === 'error' && step.errorMessage && (
+                    <div style={{ marginTop: '3px', fontSize: '0.7rem', lineHeight: 1.35, color: 'rgba(254, 202, 202, 0.82)' }}>
+                      {step.errorMessage}
+                    </div>
+                  )}
+                </div>
                 {step.status === 'done' && step.startTime && step.endTime && (
                   <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
                     {((step.endTime - step.startTime) / 1000).toFixed(1)}s
@@ -6898,8 +6936,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       updatePipelineStep(step.id, 'active');
                       try {
                         const headers = await getHeaders();
+                        let retrySucceeded = true;
                         if (step.id === 'beat-audio') {
-                          await handleGenerateAudio(outputs.audio);
+                          retrySucceeded = await handleGenerateAudio(outputs.audio);
                         } else if (step.id === 'vocals') {
                           await handleGenerateVocals(outputs.lyrics);
                         } else if (step.id === 'image') {
@@ -6913,10 +6952,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         } else if (step.id === 'final') {
                           await handleCreateFinalMix();
                         }
-                        updatePipelineStep(step.id, 'done');
+                        updatePipelineStep(
+                          step.id,
+                          retrySucceeded ? 'done' : 'error',
+                          retrySucceeded ? '' : (lastAudioErrorRef.current || 'The asset was not created. Please retry when the provider is ready.')
+                        );
                       } catch (retryErr) {
                         console.error('[Orchestrator] Pipeline retry error:', retryErr);
-                        updatePipelineStep(step.id, 'error');
+                        updatePipelineStep(step.id, 'error', retryErr?.message || `Retry failed for ${step.label}.`);
                         toast.error(`Retry failed for: ${step.label}`, { id: 'orch-retry' });
                       } finally {
                         setRetryingStep(null);

@@ -4073,7 +4073,7 @@ RESPOND IN EXACTLY THIS JSON FORMAT (no markdown, no code fences):
 }`;
 
     const model = genAI.getGenerativeModel({ 
-      model: process.env.GENERATIVE_MODEL || 'gemini-2.5-flash',
+      model: getConfiguredGenerativeModel(),
       safetySettings: GEMINI_SAFETY_SETTINGS
     });
 
