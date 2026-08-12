@@ -2268,9 +2268,9 @@ export default function StudioOrchestratorV2({
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceStyle, setVoiceStyle] = useState('rapper'); // For AI vocal generation (rapper, singer, etc)
-  // Personal voice is the safe, predictable default. Curated voices remain
-  // available only when the artist explicitly chooses the studio voice path.
-  const [voiceSource, setVoiceSource] = useState('personal'); // 'personal' | 'studio'
+  // Start with an available singing path. Personal voice remains opt-in and
+  // consent-gated after the artist creates or selects their private clone.
+  const [voiceSource, setVoiceSource] = useState('studio'); // 'personal' | 'studio'
   const [vocalQuality, setVocalQuality] = useState('premium'); // 'standard' or 'premium'
   const [outputFormat, setOutputFormat] = useState('music'); // music, social, podcast, tv (Righteous Quality)
   const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
@@ -2549,8 +2549,8 @@ export default function StudioOrchestratorV2({
   useEffect(() => { if (outputs.audio) expandSection('audio'); }, [outputs.audio, expandSection]);
   useEffect(() => { if (outputs.visual) expandSection('visual'); }, [outputs.visual, expandSection]);
   useEffect(() => { if (outputs.video) expandSection('video'); }, [outputs.video, expandSection]);
-  // Auto-expand Vocal Engine when lyrics are ready
-  useEffect(() => { if (outputs.lyrics && !quickMode) expandSection('vocalEngine'); }, [outputs.lyrics, quickMode, expandSection]);
+  // Lyrics unlock the next workflow step in both Quick and Advanced modes.
+  useEffect(() => { if (outputs.lyrics) expandSection('vocalEngine'); }, [outputs.lyrics, expandSection]);
   // Auto-expand Production Hub once anything is complete
   useEffect(() => {
     const hasAny = Object.values(outputs).some(Boolean);
@@ -3924,6 +3924,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     // PREVENT DUPLICATE CALLS
     if (generatingMedia.vocals) return;
 
+    // Keep the active workflow step visible, including Quick Mode.
+    expandSection('lyrics');
+    expandSection('vocalEngine');
+
     // AUTH GUARD: Require sign-in before generating vocals
     if (!auth?.currentUser) {
       toast.error('Please sign in to generate vocals');
@@ -4961,6 +4965,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
   const handleGenerateVideo = async (directInput = null) => {
     // PREVENT DUPLICATE CALLS
     if (generatingMedia.video) return;
+
+    // Show video progress immediately, including while a prerequisite beat is created.
+    expandSection('video');
 
     // Read from ref (not closure) to get the latest state after async pipeline ops
     const latestMedia = mediaUrlsRef.current || mediaUrls;

@@ -800,6 +800,9 @@ async function refundCredits(req, reason = 'generation failed') {
       });
     });
     logger.info(`💸 Refunded ${req.creditCharged} credits for ${req.featureType} (user: ${req.user.uid}): ${reason}`);
+    // Prevent duplicate refunds when more than one failure handler observes the
+    // same request.
+    req.creditCharged = 0;
   } catch (err) {
     logger.error('🔥 Credit refund failed:', err.message);
   }
@@ -1461,11 +1464,32 @@ app.get('/api/health', (req, res) => {
       firebase: firebaseInitialized ? 'connected' : 'not configured',
       premiumBeat: hasStability ? 'configured' : 'missing',
       premiumBeatModel: stabilityAudio.model,
+      // Configuration is observable without spending provider credits. Actual model
+      // entitlement, provider balance, and runtime access are only known after a
+      // provider request, so do not report those capabilities as "ready" here.
       capabilities: {
-        beats: (hasStability || hasReplicate || hasFal) ? 'ready' : 'missing provider',
-        albumArt: (hasStability || hasReplicate || hasFal) ? 'ready' : 'missing provider',
-        vocals: (hasSuno || hasElevenLabs || hasReplicate || hasUberduck) ? 'ready' : 'missing provider',
-        video: (hasReplicate || apiKey) ? 'ready' : 'missing provider'
+        beats: {
+          status: (hasStability || hasReplicate || hasFal) ? 'configured-unverified' : 'missing-provider',
+          configuredProviders: [hasStability && 'stability', hasReplicate && 'replicate', hasFal && 'fal'].filter(Boolean),
+          access: 'unknown'
+        },
+        albumArt: {
+          status: (hasStability || hasReplicate || hasFal) ? 'configured-unverified' : 'missing-provider',
+          configuredProviders: [hasStability && 'stability', hasReplicate && 'replicate', hasFal && 'fal'].filter(Boolean),
+          access: 'unknown'
+        },
+        vocals: {
+          status: (hasSuno || hasReplicate) ? 'configured-unverified' : 'missing-singing-provider',
+          configuredSingingProviders: [hasSuno && 'suno', hasReplicate && 'replicate-minimax'].filter(Boolean),
+          configuredSpeechProviders: [hasElevenLabs && 'elevenlabs', hasUberduck && 'uberduck'].filter(Boolean),
+          access: 'unknown'
+        },
+        video: {
+          status: (hasReplicate || apiKey) ? 'configured-unverified' : 'missing-provider',
+          configuredProviders: [hasReplicate && 'replicate-minimax', apiKey && 'google-veo-key'].filter(Boolean),
+          access: 'unknown',
+          note: apiKey ? 'Gemini key presence does not prove Veo model entitlement' : undefined
+        }
       }
     }
   });
@@ -5356,7 +5380,10 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
       preferredProvider = null // Lock to a specific provider for consistency (suno, elevenlabs-premium, bark-singing, etc.)
     } = req.body;
     
-    if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
+    if (!prompt) {
+      await refundCredits(req, 'vocal request missing prompt');
+      return res.status(400).json({ error: 'Prompt/text is required' });
+    }
 
     // A cloned/personal voice is private biometric material. Curated ElevenLabs
     // voices remain available through the normal studio path, but callers must
@@ -5364,14 +5391,17 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     const isPersonalVoice = req.body.isPersonalVoice === true || style === 'cloned';
     if (isPersonalVoice) {
       if (!req.user) {
+        await refundCredits(req, 'personal vocal authentication required');
         return res.status(401).json({ error: 'Authentication required for a personal voice' });
       }
       const requestedVoiceId = req.body.elevenLabsVoiceId;
       const ownedVoice = requestedVoiceId && await getOwnedVoiceRecord(req.user.uid, requestedVoiceId);
       if (!ownedVoice || ownedVoice.consent?.confirmed !== true) {
+        await refundCredits(req, 'personal voice unavailable or consent not confirmed');
         return res.status(403).json({ error: 'Personal voice not found in your library' });
       }
       if (!await userOwnsVoiceSample(req.user.uid, speakerUrl)) {
+        await refundCredits(req, 'personal voice sample ownership check failed');
         return res.status(403).json({ error: 'Personal voice sample is not in your private library' });
       }
     }
@@ -5483,6 +5513,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     // [BLOCKER FIX] prevent calling generation with empty or refused content
     if (!cleanedPrompt || cleanedPrompt.length < 10) {
       logger.error('🎤 Vocal generation aborted: Lyrics too short or invalid preamble', { originalLength: prompt.length });
+      await refundCredits(req, 'vocal lyrics rejected before provider call');
       return res.status(400).json({ error: 'Lyrics are invalid or contain a refusal message. Please re-generate lyrics first.' });
     }
 
@@ -5644,11 +5675,12 @@ Return ONLY valid JSON, no markdown.`;
       skipSunoForClone = true;
       skipBarkForClone = true;
       logger.info('🎙️ ARTIST-FIRST: Cloned voice detected, routing directly to ElevenLabs IVC');
-    } else if (elevenLabsAvailable && !wantProvider) {
-      // ElevenLabs curated voices are realistic — skip Suno/Bark TTS
+    } else if (elevenLabsAvailable && !wantProvider && !isSingingStyle && !isRapStyle) {
+      // ElevenLabs is appropriate for speech/narration. It must not displace
+      // true singing providers for singer or rapper workflows.
       skipSunoForClone = true;
       skipBarkForClone = true;
-      logger.info('🎙️ ARTIST-FIRST: ElevenLabs available, using curated voices (skipping Suno/Bark)');
+      logger.info('🎙️ ElevenLabs curated speech voice selected');
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -7168,9 +7200,10 @@ Do NOT include any other text.`
       logger.error('❌ All vocal generation methods failed');
       
       if (systemCreditIssue) {
+        await refundCredits(req, 'vocal provider authorization, billing, or model access failure');
         return res.status(503).json({ 
-          error: 'System Maintenance: Out of Credits', 
-          details: 'The platform is currently undergoing maintenance as we top up our AI engine credits. Your personal credits were NOT charged. Please try again in a few minutes.',
+          error: 'Vocal Provider Unavailable',
+          details: 'The vocal provider rejected the request because its credentials, billing status, quota, or model access require attention. Your StudioAgents credits were refunded.',
           isSystemCreditIssue: true
         });
       }
@@ -7202,7 +7235,10 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
 
     const bpm = parseInt(rawBpm) || 90;
     const durationSeconds = Math.max(parseInt(rawDuration) || 60, 30); // Minimum 30s for professional quality
-    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+    if (!prompt) {
+      await refundCredits(req, 'beat request missing prompt');
+      return res.status(400).json({ error: 'Prompt is required' });
+    }
     const premiumQuality = ['premium', 'ultra', 'high', 'billboard', 'billboard-ready']
       .includes(String(quality).toLowerCase());
 
@@ -8578,13 +8614,16 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
                   result: null,
                   error: null,
                   audioUrl: audioUrl || null,
-                  userId: req.user?.uid || null
+                  userId: req.user?.uid || null,
+                  userEmail: req.user?.email || '',
+                  creditCharged: req.creditCharged || 0,
+                  refunded: false
                 };
                 pendingVideoOps.set(opId, veo3FastOp);
                 _savePendingVideoOp(opId, veo3FastOp);
                 logger.info('Video operation stored for async polling', { opId, operationName: operationData.name });
                 return res.json({ status: 'processing', operationId: opId, source: 'veo-3.0-fast' });
-            } else if (response.status === 402 || response.status === 429) {
+            } else if (response.status === 401 || response.status === 402 || response.status === 429) {
                 systemCreditIssue = true;
             }
             
@@ -8673,13 +8712,16 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
                   result: null,
                   error: null,
                   audioUrl: audioUrl || null,
-                  userId: req.user?.uid || null
+                  userId: req.user?.uid || null,
+                  userEmail: req.user?.email || '',
+                  creditCharged: req.creditCharged || 0,
+                  refunded: false
                 };
                 pendingVideoOps.set(opId, veo2Op);
                 _savePendingVideoOp(opId, veo2Op);
                 logger.info('Video operation stored for async polling (Veo 2.0)', { opId, operationName: veo2Data.name });
                 return res.json({ status: 'processing', operationId: opId, source: 'veo-2.0' });
-            } else if (veo2Response.status === 402 || veo2Response.status === 429) {
+            } else if (veo2Response.status === 401 || veo2Response.status === 402 || veo2Response.status === 429) {
                 systemCreditIssue = true;
             }
             
@@ -8775,7 +8817,10 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
             result: null,
             error: null,
             audioUrl: audioUrl || null,
-            userId: req.user?.uid || null
+            userId: req.user?.uid || null,
+            userEmail: req.user?.email || '',
+            creditCharged: req.creditCharged || 0,
+            refunded: false
           };
           pendingVideoOps.set(opId, replicateOp);
           _savePendingVideoOp(opId, replicateOp);
@@ -8783,7 +8828,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
           return res.json({ status: 'processing', operationId: opId, source: 'replicate-minimax' });
         }
       } catch (repError) {
-        if (repError.message?.includes('402')) systemCreditIssue = true;
+        if (/401|402|unauthori[sz]ed|payment|billing|credit|quota|model access/i.test(repError.message || '')) systemCreditIssue = true;
         logger.error('Replicate fallback generation also failed', { error: repError.message });
       }
     } else {
@@ -8796,14 +8841,16 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
     logger.error('Video generation failed - all API attempts exhausted');
     
     if (systemCreditIssue) {
+      await refundCredits(req, 'video provider authorization, billing, quota, or model access failure');
       return res.status(503).json({ 
-        error: 'System Maintenance: Out of Credits', 
-        details: 'The platform is currently undergoing maintenance as we top up our AI engine credits. Your personal credits were NOT charged. Please try again in a few minutes.',
+        error: 'Video Provider Unavailable',
+        details: 'The video provider rejected the request because its credentials, billing status, quota, or model access require attention. Your StudioAgents credits were refunded.',
         isSystemCreditIssue: true
       });
     }
 
     // Return helpful error with setup instructions
+    await refundCredits(req, 'all video providers failed');
     return res.status(503).json({ 
       error: 'Video Generation Unavailable', 
       details: 'Video generation requires API access. Check: 1) Replicate credits at replicate.com/account/billing, 2) Google Veo access at console.cloud.google.com',
@@ -8973,6 +9020,17 @@ async function replaceVideoAudio(videoUrl, audioUrl, userId) {
 // ── Async video operations: track Veo polls so frontend can check status ──
 const pendingVideoOps = new Map(); // id → { operationName, apiKey, source, createdAt, attempts, consecutiveErrors, status, result, error }
 
+async function refundPendingVideoOp(op, reason) {
+  if (!op || op.refunded || !op.creditCharged || !op.userId) return;
+  await refundCredits({
+    creditCharged: op.creditCharged,
+    featureType: 'video',
+    user: { uid: op.userId, email: op.userEmail || '' }
+  }, reason);
+  op.refunded = true;
+  op.creditCharged = 0;
+}
+
 // Persist a pending video op to Firestore so it survives restarts (best-effort)
 function _savePendingVideoOp(opId, opData) {
   if (!firebaseInitialized) return;
@@ -9034,10 +9092,11 @@ let activeConversions = 0;
 const MAX_CONCURRENT_CONVERSIONS = 3;
 
 // Cleanup expired pending video ops every 5 minutes
-setInterval(() => {
+setInterval(async () => {
   const now = Date.now();
   for (const [id, op] of pendingVideoOps) {
     if (now - op.createdAt > 10 * 60 * 1000) {
+      await refundPendingVideoOp(op, 'video operation expired before completion');
       pendingVideoOps.delete(id); // 10 min TTL
       _deletePendingVideoOp(id);
     }
@@ -9126,6 +9185,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
     return res.json(op.result);
   }
   if (op.status === 'failed') {
+    await refundPendingVideoOp(op, 'asynchronous video generation failed');
     return res.status(500).json({ status: 'failed', error: op.error });
   }
 
@@ -9133,6 +9193,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
   if (Date.now() - op.createdAt > 10 * 60 * 1000) {
     op.status = 'failed';
     op.error = 'Video generation timed out after 10 minutes';
+    await refundPendingVideoOp(op, 'video generation timed out');
     _deletePendingVideoOp(req.params.id);
     return res.status(500).json({ status: 'failed', error: op.error });
   }
@@ -9155,6 +9216,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
         if (op.consecutiveErrors >= 5) {
           op.status = 'failed';
           op.error = `Replicate polling failed after ${op.consecutiveErrors} consecutive errors`;
+          await refundPendingVideoOp(op, 'Replicate video polling failed');
           return res.status(500).json({ status: 'failed', error: op.error });
         }
         return res.json({ status: 'processing', attempt: op.attempts });
@@ -9204,6 +9266,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
       // Failed or canceled
       op.status = 'failed';
       op.error = pred.error || `Replicate prediction ${pred.status}`;
+      await refundPendingVideoOp(op, 'Replicate video prediction failed');
       _deletePendingVideoOp(req.params.id);
       return res.status(500).json({ status: 'failed', error: op.error });
     }
@@ -9219,6 +9282,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
       if (op.consecutiveErrors >= 5) {
         op.status = 'failed';
         op.error = `Polling failed after ${op.consecutiveErrors} consecutive errors`;
+        await refundPendingVideoOp(op, 'Veo video polling failed');
         return res.status(500).json({ status: 'failed', error: op.error });
       }
       return res.json({ status: 'processing', attempt: op.attempts });
@@ -9236,6 +9300,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
     if (pollData.error) {
       op.status = 'failed';
       op.error = `Video generation failed: ${JSON.stringify(pollData.error)}`;
+      await refundPendingVideoOp(op, 'Veo video generation failed');
       _deletePendingVideoOp(req.params.id);
       return res.status(500).json({ status: 'failed', error: op.error });
     }
