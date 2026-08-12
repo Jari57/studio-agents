@@ -1458,6 +1458,9 @@ app.get('/api/health', (req, res) => {
     status: isHealthy ? 'ok' : 'degraded',
     timestamp: new Date().toISOString(),
     version: '2.0.0',
+    deployment: {
+      commit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || 'unknown'
+    },
     services: {
       api: 'up',
       gemini: apiKey ? 'configured' : 'missing',
@@ -4848,9 +4851,6 @@ async function generateAudioInternal(options, logger) {
   const stabilityKey = process.env.STABILITY_API_KEY;
   const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
   const stabilityAudio = getStabilityAudioSettings();
-  const premiumQuality = ['premium', 'ultra', 'high', 'billboard', 'billboard-ready']
-    .includes(String(quality).toLowerCase());
-
   let qualityTags = 'Billboard 100 top charts, high-fidelity studio recording, professional arrangement';
   const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. ${qualityTags}`;
 
@@ -4880,13 +4880,13 @@ async function generateAudioInternal(options, logger) {
         }
       }
     } catch (err) {
-      logger.warn(premiumQuality ? 'Stability failed for premium generation' : 'Stability failed, trying Replicate...', { error: err.message });
+      logger.warn('Stability failed, trying Replicate...', { error: err.message });
     }
   }
 
-  // Fallback to Replicate only for non-premium drafts. A one-click premium
-  // project should fail clearly rather than quietly shipping a weak beat.
-  if (replicateKey && !premiumQuality) {
+  // Keep the full project pipeline moving when Stability is unavailable. The
+  // last known-good four-asset build used this failover for every quality tier.
+  if (replicateKey) {
     const replicate = new Replicate({ auth: replicateKey });
     const output = await replicate.run(
       "facebook/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38",
@@ -7239,9 +7239,6 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       await refundCredits(req, 'beat request missing prompt');
       return res.status(400).json({ error: 'Prompt is required' });
     }
-    const premiumQuality = ['premium', 'ultra', 'high', 'billboard', 'billboard-ready']
-      .includes(String(quality).toLowerCase());
-
     // Build arrangement description for the prompt if provided
     let arrangementDesc = '';
     if (arrangement && Array.isArray(arrangement) && arrangement.length > 0) {
@@ -7445,9 +7442,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       }
     }
 
-    // 2. Replicate MusicGen (fallback for drafts only). Premium requests must
-    // never silently downgrade to a visibly weaker engine.
-    if (replicateKey && !audioUrl && !premiumQuality) {
+    // 2. Replicate MusicGen fallback. A premium label must not make one
+    // provider a single point of failure for the complete asset pipeline.
+    if (replicateKey && !audioUrl) {
       try {
         logger.info('Using Replicate Music GPT (stereo-large)');
         const replicate = new Replicate({ auth: replicateKey });
@@ -7519,8 +7516,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       }
     }
 
-    // 3. FAL.ai (last fallback for drafts only)
-    if (falKey && !audioUrl && !premiumQuality) {
+    // 3. FAL.ai last fallback
+    if (falKey && !audioUrl) {
       try {
         const response = await fetchWithRetry('https://queue.fal.run/beatoven/music-generation', {
           method: 'POST',
@@ -7624,9 +7621,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       // CASE 2: Global/Generic failure
       res.status(500).json({
         error: 'AI Generation Failed',
-        details: premiumQuality
-          ? 'Premium beat generation is unavailable because the primary Stable Audio provider did not return a valid result. No lower-quality fallback was returned. Please verify STABILITY_API_KEY and try again.'
-          : 'All audio models are currently busy or reached their quota. Please try again in a few minutes.',
+        details: 'All configured audio models failed or reached their quota. Please try again in a few minutes.',
         isRealGeneration: false,
         providerErrors
       });
@@ -8527,18 +8522,18 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
       durationSeconds 
     });
 
-    // 1. Try Google Veo 3.0 Fast as PRIMARY (best quality, approved)
+    // 1. Try the current Gemini API Veo Fast model as primary.
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
-        const modelId = "veo-3.0-fast-generate-001";
+        const modelId = "veo-3.1-fast-generate-preview";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:predictLongRunning?key=${apiKey}`;
         
         try {
             const veo3Duration = Math.min(durationSeconds, 8);
             if (durationSeconds > 8) {
-              logger.warn(`⚠️ Video duration capped: requested ${durationSeconds}s → ${veo3Duration}s (Veo 3.0 Fast max 8s)`);
+              logger.warn(`⚠️ Video duration capped: requested ${durationSeconds}s → ${veo3Duration}s (Veo 3.1 Fast max 8s)`);
             }
-            logger.info('Trying Veo 3.0 Fast as primary video generator...');
+            logger.info('Trying Veo 3.1 Fast as primary video generator...');
             
             // Build instances with image if provided
             const instance = { prompt: enhancedPrompt };
@@ -8578,7 +8573,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
                           const fileName = `video_${Date.now()}.mp4`;
                           const uploadResult = await uploadToStorage(authedUrl, req.user.uid, fileName, 'video/mp4');
                           permanentUrl = uploadResult.url;
-                          logger.info('Veo 3.0 Fast video (direct) uploaded to Firebase Storage');
+                          logger.info('Veo 3.1 Fast video (direct) uploaded to Firebase Storage');
                         } catch (uploadErr) {
                           logger.warn('Veo 3.0 Fast direct upload failed', uploadErr.message);
                         }
@@ -8596,9 +8591,9 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
                       }
                     }
 
-                    return res.json({ output: finalVideoUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-3.0-fast', permanentUrl: finalVideoUrl });
+                    return res.json({ output: finalVideoUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-3.1-fast', permanentUrl: finalVideoUrl });
                   }
-                  return res.json({ output: operationData, type: 'video', source: 'veo-3.0-fast' });
+                  return res.json({ output: operationData, type: 'video', source: 'veo-3.1-fast' });
                 }
                 
                 // Async operation: store for frontend polling (avoids Vercel proxy timeout)
@@ -8606,7 +8601,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
                 const veo3FastOp = {
                   operationName: operationData.name,
                   apiKey,
-                  source: 'veo-3.0-fast',
+                  source: 'veo-3.1-fast',
                   createdAt: Date.now(),
                   attempts: 0,
                   consecutiveErrors: 0,
@@ -8622,13 +8617,13 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
                 pendingVideoOps.set(opId, veo3FastOp);
                 _savePendingVideoOp(opId, veo3FastOp);
                 logger.info('Video operation stored for async polling', { opId, operationName: operationData.name });
-                return res.json({ status: 'processing', operationId: opId, source: 'veo-3.0-fast' });
+                return res.json({ status: 'processing', operationId: opId, source: 'veo-3.1-fast' });
             } else if (response.status === 401 || response.status === 402 || response.status === 429) {
                 systemCreditIssue = true;
             }
             
             const errorText = await response.text();
-            logger.error('Veo 3.0 Fast API error', { status: response.status, error: errorText });
+            logger.error('Veo 3.1 Fast API error', { status: response.status, error: errorText });
             
             // If Veo 3.0 Fast fails, try Veo 2.0 as fallback
             logger.info('Trying Veo 2.0 as fallback...');
@@ -8857,7 +8852,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
       setup: {
         replicate: 'Add credits at https://replicate.com/account/billing',
         veo: 'Enable Generative AI API at https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com',
-        veoModels: ['veo-2.0-generate-001', 'veo-3.1-generate-preview']
+        veoModels: ['veo-3.1-fast-generate-preview', 'veo-3.1-generate-preview']
       },
       status: 503
     });

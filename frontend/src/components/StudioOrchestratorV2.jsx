@@ -2301,7 +2301,7 @@ export default function StudioOrchestratorV2({
   const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
   const [quickMode, setQuickMode] = useState(true); // Quick Create vs Advanced Mode
   const [quickGenre, setQuickGenre] = useState('Modern Hip-Hop'); // Genre for Quick Create
-  const [quickOutcome, setQuickOutcome] = useState('song-draft'); // First win before an optional full package
+  const [quickOutcome, setQuickOutcome] = useState('full-package'); // Restore the original one-click four-generator journey
   const [selectedOutputPreset, setSelectedOutputPreset] = useState('Full Song Release'); // Output format preset
   // Collapsible section state — all sections start collapsed for a clean first impression
   const [expandedSections, setExpandedSections] = useState({
@@ -2439,6 +2439,28 @@ export default function StudioOrchestratorV2({
 
   // Pipeline progress helper
   const updatePipelineStep = useCallback((stepId, status, errorMessage = '') => {
+    // A running, completed, or failed asset must be visible. Previously the
+    // pipeline could work behind fully collapsed cards, which made generation
+    // look like it never started and hid the retry controls on failure.
+    const sectionForStep = {
+      lyrics: 'lyrics',
+      vocals: 'lyrics',
+      'beat-desc': 'audio',
+      'beat-audio': 'audio',
+      'visual-desc': 'visual',
+      image: 'visual',
+      video: 'video',
+      mux: 'video',
+      final: 'productionHub'
+    }[stepId];
+    if (sectionForStep && status !== 'pending') {
+      setExpandedSections(prev => ({
+        ...prev,
+        [sectionForStep]: true,
+        ...(stepId === 'vocals' ? { vocalEngine: true } : {})
+      }));
+    }
+
     const next = pipelineStepsRef.current.map(step =>
       step.id === stepId
         ? {
@@ -3338,7 +3360,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             } else if (slot === 'visual') {
               updatePipelineStep('image', 'active');
               pipelinePromises.image = handleGenerateImage(data.output)
-                .then(() => updatePipelineStep('image', 'done'))
+                .then(() => {
+                  const imageCreated = !!mediaUrlsRef.current.image;
+                  updatePipelineStep(
+                    'image',
+                    imageCreated ? 'done' : 'error',
+                    imageCreated ? '' : 'Album artwork was not created. Retry from the open artwork card.'
+                  );
+                })
                 .catch((err) => {
                   updatePipelineStep('image', 'error');
                   toast.error(`Image generation failed: ${err?.message || 'Unknown error'}`, { id: 'orch-image-fail' });
@@ -3517,7 +3546,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         devLog('[Pipeline] Starting video generation with mixed audio:', !!mediaUrlsRef.current.mixedAudio);
         updatePipelineStep('video', 'active');
         await handleGenerateVideo(pipelinePromises.videoDescription);
-        updatePipelineStep('video', 'done');
+        const videoCreated = !!mediaUrlsRef.current.video;
+        updatePipelineStep(
+          'video',
+          videoCreated ? 'done' : 'error',
+          videoCreated ? '' : 'Video was not created. Review the open video card and retry.'
+        );
       }
 
       // AUTO-MUX: Combine video with mixed audio (vocal+beat) to produce final video with full soundtrack
