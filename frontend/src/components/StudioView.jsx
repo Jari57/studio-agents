@@ -5092,11 +5092,6 @@ ABSOLUTE RULES (violating any = failure):
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
       setAgentPreviews(prev => ({ ...prev, [targetAgentSnapshot.id]: newItem }));
       
-      // A&R Auto-Grade — score the generation in background
-      if (!newItem.isError && (newItem.snippet || newItem.content)) {
-        gradeGeneration(newItem, prompt);
-      }
-      
       // Success toast (error cases already returned early above)
       toast.success(`Generation complete! Review your result.`, { id: toastId });
       
@@ -13149,6 +13144,25 @@ ABSOLUTE RULES (violating any = failure):
               </div>
 
               {/* A&R GRADE CARD — Billboard Quality Score */}
+              {!previewItem.isExistingAsset && !arGrade && !isGrading && (
+                <button
+                  type="button"
+                  onClick={() => gradeGeneration(previewItem, previewPrompt)}
+                  style={{
+                    margin: '0 1.5rem 0.75rem',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '12px',
+                    background: 'rgba(251,191,36,0.08)',
+                    border: '1px solid rgba(251,191,36,0.25)',
+                    color: '#fbbf24',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Ask A&amp;R to review (uses AI)
+                </button>
+              )}
+
               {(arGrade || isGrading) && !previewItem.isExistingAsset && (
                 <div style={{
                   margin: '0 1.5rem 0.75rem',

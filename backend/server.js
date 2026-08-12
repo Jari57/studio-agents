@@ -1007,6 +1007,8 @@ const allowedOrigins = isDevelopment
   'ionic://localhost',        // Ionic fallback
   'https://studioagentsai.com',
   'https://www.studioagentsai.com',
+  'https://studioagents.ai',
+  'https://www.studioagents.ai',
   'https://studio-agents.vercel.app',
   'https://web-production-b5922.up.railway.app',
   process.env.FRONTEND_URL]
@@ -1014,6 +1016,8 @@ const allowedOrigins = isDevelopment
       process.env.FRONTEND_URL,
   'https://studioagentsai.com',
   'https://www.studioagentsai.com',
+  'https://studioagents.ai',
+  'https://www.studioagents.ai',
   'https://studio-agents.vercel.app',
   'https://studio-agents-backend-production.up.railway.app',
   'https://web-production-b5922.up.railway.app',
@@ -1441,6 +1445,12 @@ app.get('/health', async (req, res) => {
 app.get('/api/health', (req, res) => {
   const isHealthy = apiKey && genAI;
   const stabilityAudio = getStabilityAudioSettings();
+  const hasReplicate = !!(process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN);
+  const hasFal = !!(process.env.FAL_API_KEY || process.env.FAL_KEY);
+  const hasStability = !!process.env.STABILITY_API_KEY;
+  const hasElevenLabs = !!process.env.ELEVENLABS_API_KEY;
+  const hasSuno = !!process.env.SUNO_API_KEY;
+  const hasUberduck = !!(process.env.UBERDUCK_API_KEY && process.env.UBERDUCK_API_SECRET);
   res.status(isHealthy ? 200 : 503).json({
     status: isHealthy ? 'ok' : 'degraded',
     timestamp: new Date().toISOString(),
@@ -1449,8 +1459,14 @@ app.get('/api/health', (req, res) => {
       api: 'up',
       gemini: apiKey ? 'configured' : 'missing',
       firebase: firebaseInitialized ? 'connected' : 'not configured',
-      premiumBeat: process.env.STABILITY_API_KEY ? 'configured' : 'missing',
-      premiumBeatModel: stabilityAudio.model
+      premiumBeat: hasStability ? 'configured' : 'missing',
+      premiumBeatModel: stabilityAudio.model,
+      capabilities: {
+        beats: (hasStability || hasReplicate || hasFal) ? 'ready' : 'missing provider',
+        albumArt: (hasStability || hasReplicate || hasFal) ? 'ready' : 'missing provider',
+        vocals: (hasSuno || hasElevenLabs || hasReplicate || hasUberduck) ? 'ready' : 'missing provider',
+        video: (hasReplicate || apiKey) ? 'ready' : 'missing provider'
+      }
     }
   });
 });
