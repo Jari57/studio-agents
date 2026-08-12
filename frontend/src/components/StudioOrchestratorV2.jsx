@@ -3300,10 +3300,22 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             return data.output;
           } else {
             const errorText = await response.text();
+            let errorMessage = `Request failed (${response.status})`;
+            try {
+              const errorPayload = JSON.parse(errorText);
+              errorMessage = errorPayload.message || errorPayload.details || errorPayload.error || errorMessage;
+            } catch {
+              if (errorText.trim()) errorMessage = errorText.trim();
+            }
             console.error(`[handleGenerate] ${slot} failed:`, response.status, errorText);
             setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
             updatePipelineStep(stepId, 'error');
-            toast.error(`Agent ${agent.name} failed: ${response.status}`, { id: `orch-agent-${slot}`, icon: '❌' });
+            const actionMessage = response.status === 401
+              ? 'Sign in again to continue.'
+              : response.status === 403
+                ? errorMessage
+                : errorMessage;
+            toast.error(`Agent ${agent.name}: ${actionMessage}`, { id: `orch-agent-${slot}`, icon: '❌' });
             return null;
           }
         } catch (err) {

@@ -1037,7 +1037,11 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  // StudioOrchestratorV2 attaches X-Pipeline-Session so the SSE progress
+  // stream can correlate generation work. Keep every client-owned custom
+  // header here; otherwise the browser rejects the preflight before the
+  // generation request reaches this server.
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Pipeline-Session'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 86400
 }));
