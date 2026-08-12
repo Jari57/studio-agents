@@ -4979,15 +4979,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       if (audioPrompt && !generatingMedia.audio) {
         toast.loading('Generating beat first, then video...', { id: 'gen-video', duration: 300000 });
         try {
-          await handleGenerateAudio(audioPrompt);
+          const beatCreated = await handleGenerateAudio(audioPrompt);
           // Re-read after beat generation
           const updatedMedia = mediaUrlsRef.current || {};
-          if (!updatedMedia.mixedAudio && !updatedMedia.audio) {
-            toast.error('Beat generation failed — try creating a beat first, then video', { id: 'gen-video' });
+          if (!beatCreated || (!updatedMedia.mixedAudio && !updatedMedia.audio)) {
+            const beatError = lastAudioErrorRef.current || 'Beat generation failed. Create a beat first, then retry video.';
+            toast.error(`Video paused: ${beatError}`, { id: 'gen-video', duration: 8000 });
             return;
           }
-        } catch {
-          toast.error('Beat generation failed — create a beat first', { id: 'gen-video' });
+        } catch (error) {
+          const beatError = lastAudioErrorRef.current || error?.message || 'Beat generation failed. Create a beat first, then retry video.';
+          toast.error(`Video paused: ${beatError}`, { id: 'gen-video', duration: 8000 });
           return;
         }
       } else {
