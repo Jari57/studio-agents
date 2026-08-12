@@ -3279,7 +3279,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               // Beat description ready → queue beat audio generation (starts immediately)
               updatePipelineStep('beat-audio', 'active');
               pipelinePromises.beatAudio = handleGenerateAudio(data.output)
-                .then(() => updatePipelineStep('beat-audio', 'done'))
+                .then((generated) => updatePipelineStep('beat-audio', generated ? 'done' : 'error'))
                 .catch((err) => {
                   updatePipelineStep('beat-audio', 'error');
                   toast.error(`Beat generation failed: ${err?.message || 'Unknown error'}`, { id: 'orch-beat-audio-fail' });
@@ -3658,7 +3658,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     // PREVENT DUPLICATE CALLS
     if (generatingMedia.audio) {
       devWarn('[handleGenerateAudio] Already generating audio, skipping');
-      return;
+      return false;
     }
 
     // Use directInput (only if string), outputsRef, or current outputs (fallback)
@@ -3673,7 +3673,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     if (!audioPrompt) {
       console.error('[handleGenerateAudio] No audio prompt found');
       toast.error('Generate Beat DNA first', { id: 'orch-need-beat' });
-      return;
+      return false;
     }
     
     setGeneratingMedia(prev => ({ ...prev, audio: true }));
@@ -3729,10 +3729,6 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         const text = await response.text();
         console.error('[handleGenerateAudio] Non-JSON response:', text);
         throw new Error(`Invalid audio response (${response.status})`);
-      }
-
-      if (!response.ok) {
-        throw new Error(data?.error || `Audio generation failed (${response.status})`);
       }
 
       if (response.ok) {
@@ -3807,9 +3803,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           }
 
           toast.success('AI beat generated!', { id: 'gen-audio' });
+          return true;
         } else {
           console.error('[handleGenerateAudio] No URL in successful response:', data);
           toast.error('No audio returned from server', { id: 'gen-audio' });
+          return false;
         }
       } else {
         // Use already-parsed data
@@ -3843,10 +3841,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         } else {
           toast.error(errData.details || errData.error || `Audio generation failed (${response.status})`, { id: 'gen-audio' });
         }
+        return false;
       }
     } catch (err) {
       console.error('[Orchestrator] Audio generation catch block:', err);
       toast.error(`Generation failed: ${err.message}`, { id: 'gen-audio' });
+      return false;
     } finally {
       setGeneratingMedia(prev => ({ ...prev, audio: false }));
     }
