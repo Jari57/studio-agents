@@ -62,7 +62,7 @@ const PRODUCTION_PHASES = [
     duration: '30 seconds',
     color: CYAN,
     icon: Music,
-    description: 'The AI Orchestrator generates your instrumental via Stability AI\'s stable-audio-2.5 — up to 3 minutes in a single generation. No stitching, no loops.',
+    description: 'The AI Orchestrator creates a structured instrumental draft from your genre, tempo, mood, and arrangement. Treat each result as a production foundation: audition it, iterate, then finish the strongest take in your DAW.',
     steps: [
       {
         action: 'Upload Audio DNA (Optional)',
@@ -76,8 +76,8 @@ const PRODUCTION_PHASES = [
       },
       {
         action: 'Hit Generate on the Audio Slot',
-        detail: 'The Orchestrator sends your concept + genre + BPM + Audio DNA to Stability AI. In ~30 seconds, you get a full 2:30+ instrumental.',
-        tip: 'If you don\'t love it — hit regenerate. Every generation is unique. You get unlimited variations.'
+        detail: 'The Orchestrator sends a focused producer brief—concept, genre, exact BPM, arrangement, and optional Audio DNA—to the best available audio engine.',
+        tip: 'Generative takes vary. Audition the groove, harmony, transitions, and vocal space before spending credits on vocals or video.'
       },
       {
         action: 'Preview & Evaluate',
@@ -212,12 +212,12 @@ const PRODUCTION_PHASES = [
       {
         action: 'Select Mix Preset',
         detail: 'Choose from: Rapper Over Beat (hip-hop mix), Singer Over Beat (vocal-forward), Social Viral (compressed for social), Podcast Intro, TV Commercial.',
-        tip: '"Rapper Over Beat" uses beat ducking — the instrumental automatically drops when vocals hit. This is the Billboard standard.'
+        tip: '"Rapper Over Beat" uses beat ducking so the instrumental makes room when vocals hit. Adjust stems in your DAW for release-level control.'
       },
       {
         action: 'Render Final Mix',
-        detail: 'Hit "Render Master" — FFmpeg processes your vocal + beat into a mastered output. Volume leveling, EQ balance, and format matching happen automatically.',
-        tip: 'The output is mixing-ready, not mastering-ready. For distribution, run through the Mastering endpoint (44.1kHz/16-bit WAV or FLAC).'
+        detail: 'Hit "Render Master" for an automated preview mix with volume leveling, broad EQ balance, ducking, and format matching.',
+        tip: 'Automated processing cannot replace mix decisions made against your stems. Export to a DAW for release-level vocal rides, corrective EQ, and mastering.'
       },
       {
         action: 'Master for Distribution',

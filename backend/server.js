@@ -590,7 +590,15 @@ const requireAuth = (req, res, next) => {
 };
 
 const requireAuthForPersonalVoice = (req, res, next) => {
-  if (req.body?.isPersonalVoice === true || req.body?.style === 'cloned') {
+  // New clients explicitly declare the source. Honour that declaration so a
+  // stale `style: cloned` preference cannot turn a curated studio voice into
+  // a personal-voice request. Legacy clients without the flag retain the
+  // secure cloned-style default.
+  const explicitlyDeclared = typeof req.body?.isPersonalVoice === 'boolean';
+  const requestsPersonalVoice = explicitlyDeclared
+    ? req.body.isPersonalVoice
+    : req.body?.style === 'cloned';
+  if (requestsPersonalVoice) {
     return requireAuth(req, res, next);
   }
   next();
@@ -848,6 +856,25 @@ async function fetchWithRetry(url, options = {}, { timeoutMs = 30000, maxRetries
     }
   }
   throw lastError;
+}
+
+async function runReplicateWithRateLimitRetry(replicate, model, options, operationName) {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await replicate.run(model, options);
+    } catch (error) {
+      const message = String(error?.message || '');
+      const rateLimited = error?.status === 429 || error?.response?.status === 429 || /\b429\b|rate.?limit/i.test(message);
+      if (!rateLimited || attempt === maxAttempts) throw error;
+
+      const retryMatch = message.match(/retry[_ -]?after[^0-9]*(\d+)/i);
+      const retrySeconds = Math.max(Number(retryMatch?.[1]) || 10, 1);
+      logger.warn(`Replicate rate-limited ${operationName}; retrying`, { attempt, retrySeconds });
+      await new Promise(resolve => setTimeout(resolve, retrySeconds * 1000));
+    }
+  }
+  throw new Error(`${operationName} exhausted Replicate retries`);
 }
 
 const app = express();
@@ -5388,7 +5415,10 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     // A cloned/personal voice is private biometric material. Curated ElevenLabs
     // voices remain available through the normal studio path, but callers must
     // prove ownership before sending a personal voice ID or reference sample.
-    const isPersonalVoice = req.body.isPersonalVoice === true || style === 'cloned';
+    const explicitlyDeclaredVoiceSource = typeof req.body.isPersonalVoice === 'boolean';
+    const isPersonalVoice = explicitlyDeclaredVoiceSource
+      ? req.body.isPersonalVoice
+      : style === 'cloned';
     if (isPersonalVoice) {
       if (!req.user) {
         await refundCredits(req, 'personal vocal authentication required');
@@ -7363,8 +7393,17 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     };
     const arrangementHint = arrangementDesc || structureHints[songStructure] || structureHints['full'];
 
-    // Construct the final prompt with clear structure
-    const musicPrompt = `Create a ${genre} ${mood} instrumental beat at ${bpm} BPM. ${arrangementHint} Style: ${prompt}. Production: ${qualityTags}`;
+    // Construct a focused producer brief. The older prompt appended dozens of
+    // mastering terms and sometimes conflicting instruments; that reduces model
+    // adherence and cannot guarantee a finished commercial master.
+    const musicPrompt = buildBeatGenerationPrompt({
+      genre,
+      mood,
+      bpm,
+      arrangementHint,
+      creativeBrief: prompt,
+      stem
+    });
 
     // Engine Selection Logic - Always prefer Stability AI for highest quality
     let finalEngine = engine;
@@ -7397,6 +7436,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
         logger.info('Using Stability AI');
         const formData = new FormData();
         formData.append('prompt', stableMusicPrompt);
+        formData.append('negative_prompt', 'vocals, singing, speech, producer tag, clipping, distortion, muddy bass, harsh cymbals, abrupt ending, random genre switch');
         formData.append('duration', Math.min(durationSeconds, 180).toString());
         formData.append('model', stabilityAudio.model);
         formData.append('output_format', 'mp3');
@@ -7459,7 +7499,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
               normalization_strategy: "loudness",
               top_k: 250,
               top_p: 0.0,
-              temperature: referenceAudio ? 0.5 : 0.7,   // Lower = tighter, more coherent musicality
+              temperature: referenceAudio ? 0.5 : (highMusicality ? 0.6 : 0.7),
               classifier_free_guidance: referenceAudio ? 12 : 9  // Higher = stricter prompt adherence
         };
         if (durationSeconds > 65) {
@@ -7472,11 +7512,13 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
           logger.info('🧬 Audio DNA exact-clone mode: MusicGen melody conditioning activated');
         }
 
-        const output = await replicate.run(
+        const output = await runReplicateWithRateLimitRetry(
+          replicate,
           "facebook/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38",
           {
             input: musicGenInput
-          }
+          },
+          'beat generation'
         );
 
         if (output) {
@@ -9024,6 +9066,45 @@ async function refundPendingVideoOp(op, reason) {
   }, reason);
   op.refunded = true;
   op.creditCharged = 0;
+}
+
+// Keep generation prompts musical and achievable. Loudness targets, mastering
+// processors and celebrity names do not make a generative model sound mastered;
+// they crowd out the arrangement, groove and instrumentation instructions that
+// the model can actually follow.
+const BEAT_PRODUCTION_PROFILES = Object.freeze({
+  'hip-hop': 'deep kick and controlled 808, swung hats, sparse melodic motif, strong two-bar pocket',
+  trap: 'gliding 808, syncopated kick, crisp triplet hats, dark minor-key motif, dramatic drop',
+  drill: 'sliding sub bass, bouncing hats, tense minor-key piano or strings, open vocal pocket',
+  'boom-bap': 'sample-textured drums, firm kick-snare pocket, warm bass, chopped soul or jazz motif',
+  'r&b': 'warm electric keys, rounded bass, restrained drums, extended chords, intimate vocal space',
+  pop: 'clear chord progression, memorable instrumental hook, tight drums, lift into each chorus',
+  electronic: 'focused synth palette, controlled sub, rhythmic sidechain movement, defined build and drop',
+  afrobeat: 'interlocking percussion, warm bass groove, bright guitar or keyboard motif, spacious syncopation',
+  amapiano: 'log-drum bass movement, shaker-led groove, piano stabs, patient tension and release',
+  reggaeton: 'clean dembow groove, deep bass, concise melodic hook, percussion-led section changes',
+  rock: 'natural drum kit, locked bass and guitars, contrasting verse and chorus dynamics',
+  country: 'acoustic guitar, supportive bass and drums, melodic fills, natural room character',
+  jazz: 'human swing, conversational bass and drums, extended harmony, restrained melodic phrases',
+  'lo-fi': 'soft drums, warm keys, subtle tape texture, mellow bass, relaxed micro-timing',
+});
+
+function buildBeatGenerationPrompt({ genre, mood, bpm, arrangementHint, creativeBrief, stem }) {
+  const rawGenre = String(genre || 'hip-hop').toLowerCase();
+  const genreKey = rawGenre.includes('r&b') ? 'r&b' : rawGenre.split('/')[0].trim();
+  const palette = BEAT_PRODUCTION_PROFILES[genreKey]
+    || 'cohesive instrumentation, intentional groove, a memorable motif, clear section contrast';
+  const stemDirection = stem && stem !== 'Full Mix' ? `Feature the ${stem} stem clearly.` : '';
+
+  return [
+    `Instrumental ${genre} production at exactly ${bpm} BPM with a ${mood} emotional direction.`,
+    `Sonic palette: ${palette}.`,
+    arrangementHint,
+    `Creative brief: ${creativeBrief}.`,
+    stemDirection,
+    'Prioritize coherent harmony, human-feeling timing, clean transients, controlled low end, and headroom for a lead vocal.',
+    'No vocals, spoken words, producer tags, abrupt cutoff, clipping, or unrelated genre changes.'
+  ].filter(Boolean).join(' ');
 }
 
 // Persist a pending video op to Firestore so it survives restarts (best-effort)

@@ -59,6 +59,28 @@ function ensureFfmpegAvailable(logger) {
   throw new Error('FFmpeg is required for video composition and beat sync. Install system ffmpeg or ensure ffmpeg-static is in node_modules.');
 }
 
+async function runReplicateWithRateLimitRetry(replicate, model, input, logger, segmentNumber) {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await replicate.run(model, { input });
+    } catch (error) {
+      const message = String(error?.message || '');
+      const isRateLimited = error?.status === 429 || error?.response?.status === 429 || /\b429\b|rate.?limit/i.test(message);
+      if (!isRateLimited || attempt === maxAttempts) throw error;
+
+      const retryMatch = message.match(/retry[_ -]?after[^0-9]*(\d+)/i);
+      const retrySeconds = Math.max(Number(retryMatch?.[1]) || 10, 1);
+      if (logger) logger.warn(`Replicate rate-limited segment ${segmentNumber}; retrying serially`, {
+        attempt,
+        retrySeconds
+      });
+      await new Promise(resolve => setTimeout(resolve, retrySeconds * 1000));
+    }
+  }
+  throw new Error(`Segment ${segmentNumber} exhausted Replicate retries`);
+}
+
 /**
  * Generate video segments using Replicate (Minimax or other models)
  * Handles automatic retries and fallback logic
@@ -86,8 +108,9 @@ async function generateVideoSegments(
     const replicate = new Replicate({ auth: replicateKey });
     const segments = [];
 
-    // Generate segments in parallel batches of 3 for speed
-    const BATCH_SIZE = 3;
+    // Replicate accounts can advertise a burst limit of one request. Serial
+    // generation avoids deterministic 429s on segments two and three.
+    const BATCH_SIZE = 1;
     for (let batchStart = 0; batchStart < prompts.length; batchStart += BATCH_SIZE) {
       const batch = prompts.slice(batchStart, batchStart + BATCH_SIZE);
       if (logger) logger.info(`Processing batch ${Math.floor(batchStart / BATCH_SIZE) + 1}/${Math.ceil(prompts.length / BATCH_SIZE)} (segments ${batchStart + 1}-${batchStart + batch.length})`);
@@ -119,7 +142,7 @@ async function generateVideoSegments(
             inputPayload.first_frame_image = imageUrl;
           }
 
-          return replicate.run("minimax/video-01", { input: inputPayload })
+          return runReplicateWithRateLimitRetry(replicate, "minimax/video-01", inputPayload, logger, globalIdx + 1)
             .then(output => {
               if (logger) logger.info(`Segment ${globalIdx + 1} generated`, { url: String(output) });
               return {

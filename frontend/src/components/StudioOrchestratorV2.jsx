@@ -3275,7 +3275,7 @@ Think top-tier YouTube thumbnails: high contrast, emotional expressions, bold te
         ${slot === 'video' ? `Write a short-form video storyboard optimized for Reels/Shorts/TikTok: fast cuts, bold hooks, dynamic transitions, trending formats.
 CRITICAL: The video must grab attention in under 2 seconds. Use jump cuts, text overlays, and pacing that matches platform algorithms.
 Include: camera angles, text overlays, transition types, music cues, and engagement hooks (comments bait, share triggers).` : ''}`
-          : `You are ${agent.name}, an elite Billboard-standard ${agent.category} specialist with multiple Grammy and Billboard #1 credits.
+          : `You are ${agent.name}, an experienced ${agent.category} specialist building a release-focused creative foundation.
         Your mission: create content for a ${style} track about "${songIdea}" in ${language} that is indistinguishable from a major-label release.
         Output Format: ${outputFormat || 'music'} — tailor all output to match ${outputFormat} broadcast/distribution standards.
         ${contextLyrics ? `LYRICS CONTEXT — use these to match the emotional arc, tempo, and vibe:\n"${String(contextLyrics).substring(0, 1500)}"` : ''}
@@ -3292,7 +3292,7 @@ REQUIREMENTS:
 - Match the flow and delivery style of current chart-topping ${style} artists
 - FORBIDDEN: Do NOT write any intro text, title lines, genre labels, commentary, descriptions, or explanations. Output ONLY singable/rappable lyrics with [Section] labels.` : ''}
         ${slot === 'audio' ? `BEAT DNA AGENT INSTRUCTIONS:
-Describe a Billboard-ready instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}, BPM: ${projectBpm}).
+Describe a cohesive, release-focused instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}, BPM: ${projectBpm}).
 REQUIREMENTS:
 - Reference specific production techniques: drum patterns, bass type, synth textures, FX
 - Name the sonic palette: what instruments, what key, what mood progression
@@ -3498,7 +3498,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       // reading a stale mediaUrls closure that could skip vocals incorrectly.
       const lyricsForVocals = lyricsResult || outputsRef.current.lyrics || outputs.lyrics || '';
       const alreadyHasVocals = !!(mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal);
-      if (includeVocals && lyricsForVocals && (freshGeneration || !alreadyHasVocals)) {
+      const pipelineBeatReady = !!mediaUrlsRef.current.audio;
+      if (includeVocals && lyricsForVocals && !pipelineBeatReady) {
+        // Keep dependent generation honest: an unaligned vocal take is not a
+        // successful Full Package result. Preserve the lyrics/artwork and let
+        // the user retry the failed beat before spending on dependent stages.
+        updatePipelineStep('vocals', 'error', 'Waiting for the beat. Retry Beat Audio, then generate vocals.');
+        devWarn('[Pipeline] Skipping vocals because the beat prerequisite is unavailable');
+      } else if (includeVocals && lyricsForVocals && (freshGeneration || !alreadyHasVocals)) {
         devLog('[Pipeline] Starting vocal generation with beat URL for mixing');
         updatePipelineStep('vocals', 'active');
         await handleGenerateVocals(lyricsForVocals);
@@ -3540,6 +3547,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       // Generate video LAST — uses mixedAudio (vocal+beat) when available, falls back to beat only
       // Use ref for latest state (closure mediaUrls may be stale after async ops)
       if (pipelinePromises.videoDescription && !mediaUrlsRef.current.video) {
+        if (!mediaUrlsRef.current.audio) {
+          updatePipelineStep('video', 'error', 'Waiting for the beat. Retry Beat Audio before generating video.');
+          devWarn('[Pipeline] Skipping video because the beat prerequisite is unavailable');
+        } else {
         if (mixFailed) {
           toast('Generating video with beat-only audio — mix creation failed', { icon: '⚠️', duration: 5000 });
         }
@@ -3552,6 +3563,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           videoCreated ? 'done' : 'error',
           videoCreated ? '' : 'Video was not created. Review the open video card and retry.'
         );
+        }
       }
 
       // AUTO-MUX: Combine video with mixed audio (vocal+beat) to produce final video with full soundtrack
@@ -3810,7 +3822,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           seed: seed,
           stem: stemType
         }),
-        signal: createTimeoutSignal(120000)
+        // The backend may spend up to 60s on Stability before falling through
+        // to Replicate. Keep the first request alive across that failover so a
+        // successful fallback is not reported as a failed first attempt.
+        signal: createTimeoutSignal(300000)
       });
       
       devLog('[handleGenerateAudio] Response status:', response.status);
@@ -4102,7 +4117,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           // Pass beat URL so backend mixes vocal+beat during generation (no extra credit cost)
           backingTrackUrl: mediaUrlsRef.current.audio || null
         }),
-        signal: createTimeoutSignal(120000)
+        // Replicate Bark singing can legitimately poll for up to 180 seconds.
+        // A shorter browser timeout abandoned the request while the backend
+        // continued and persisted the vocal, making the same job appear to
+        // fail first and work later.
+        signal: createTimeoutSignal(300000)
       });
 
       let data;
@@ -4243,7 +4262,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         probe.src = objUrl;
       });
       if (durationSec !== null && durationSec < 15) {
-        toast.error(`Voice sample is ${Math.round(durationSec)}s — please use at least 15 seconds of clear singing or speaking for a billboard-quality clone.`);
+        toast.error(`Voice sample is ${Math.round(durationSec)}s — please use at least 15 seconds of clear singing or speaking for a higher-quality voice match.`);
         e.target.value = '';
         return;
       }
@@ -7709,7 +7728,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 }}
                 title="Select Righteous Quality Output Format"
               >
-                <option value="music">🎵 Billboard Music Mix</option>
+                <option value="music">🎵 Release-focused Music Mix</option>
                 <option value="social">📱 Social Media Ready</option>
                 <option value="podcast">🎙️ Broadcast Podcast</option>
                 <option value="tv">📺 TV/Commercial Ready</option>
