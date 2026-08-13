@@ -12485,13 +12485,15 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
       });
     }
 
-    // For longer videos, return status and queue for processing
-    // This is a long-running operation (5-30 minutes for 3-minute video)
-    const isLongForm = requestedDuration > 30;
+    // Every provider-backed video is a long-running operation. Even a 30s
+    // result needs multiple provider and FFmpeg stages and can exceed the
+    // browser's request timeout. Always return a job immediately and let the
+    // existing status endpoint carry the operation to completion.
+    const shouldQueueVideo = true;
     
-    if (isLongForm) {
+    if (shouldQueueVideo) {
       // Queue for background processing
-      logger.info('Long-form video queued for background processing', {
+      logger.info('Synced video queued for background processing', {
         duration: requestedDuration
       });
 
@@ -12534,7 +12536,10 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
               try { fs.unlinkSync(finalUrl); } catch {}
               finalUrl = uploadResult.url;
             } catch (upErr) {
-              logger.warn('Background video upload failed', { error: upErr.message });
+              // A Railway-local path is not usable by the browser and will be
+              // lost on restart. Treat publication failure as a failed job so
+              // the UI reports truthfully and the generation is refunded.
+              throw new Error(`Video rendered but could not be published: ${upErr.message}`);
             }
           }
           videoJobs.set(jobId, {
@@ -12551,6 +12556,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
           });
           logger.info('Background video generation complete', { jobId });
         } else {
+          await refundCredits(req, 'background synced video generation failed');
           videoJobs.set(jobId, {
             ...videoJobs.get(jobId),
             status: 'failed',
@@ -12560,7 +12566,8 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
             updatedAt: Date.now()
           });
         }
-      }).catch(error => {
+      }).catch(async (error) => {
+        await refundCredits(req, 'background synced video generation failed');
         videoJobs.set(jobId, {
           ...videoJobs.get(jobId),
           status: 'failed',
@@ -12575,8 +12582,8 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
       return res.status(202).json({
         status: 'processing',
         jobId,
-        message: `Music video generation started (${requestedDuration}s). This may take 5-30 minutes.`,
-        estimatedTime: requestedDuration > 60 ? '10-30 minutes' : '5-15 minutes',
+        message: `Music video generation started (${requestedDuration}s). You can keep working while it renders.`,
+        estimatedTime: requestedDuration > 60 ? '5-15 minutes' : '2-6 minutes',
         pollUrl: `/api/video-job-status/${jobId}`
       });
     }
