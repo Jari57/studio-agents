@@ -4878,8 +4878,8 @@ async function generateAudioInternal(options, logger) {
   const stabilityKey = process.env.STABILITY_API_KEY;
   const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
   const stabilityAudio = getStabilityAudioSettings();
-  let qualityTags = 'Billboard 100 top charts, high-fidelity studio recording, professional arrangement';
-  const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. ${qualityTags}`;
+  const qualityTags = 'clean transient separation, coherent drum groove, controlled low end, natural instrument attacks, evolving arrangement, no test tones, no sustained whine, no clipping, no duplicated drums, no digital glitches';
+  const musicPrompt = `${genre} ${mood} instrumental, ${bpm} BPM. ${prompt}. ${qualityTags}`;
 
   // Try Stability AI first (premium)
   if (stabilityKey) {
@@ -4911,23 +4911,27 @@ async function generateAudioInternal(options, logger) {
     }
   }
 
-  // Keep the full project pipeline moving when Stability is unavailable. The
-  // last known-good four-asset build used this failover for every quality tier.
+  // Keep the one-click path on the same current instrumental model as the
+  // public beat endpoint so quality does not depend on which UI started it.
   if (replicateKey) {
     const replicate = new Replicate({ auth: replicateKey });
-    const output = await replicate.run(
-      "facebook/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38",
+    const output = await runReplicateWithRateLimitRetry(
+      replicate,
+      'minimax/music-2.6',
       {
         input: {
-          prompt: musicPrompt,
-          duration: Math.min(durationSeconds, 65),
-          model_version: 'large',
-          output_format: "mp3"
+          prompt: musicPrompt.slice(0, 2000),
+          is_instrumental: true,
+          lyrics_optimizer: false,
+          audio_format: 'mp3',
+          sample_rate: 44100,
+          bitrate: 256000
         }
-      }
+      },
+      'one-click MiniMax beat generation'
     );
 
-    const directUrl = Array.isArray(output) ? output[0] : output;
+    const directUrl = typeof output.url === 'function' ? output.url() : String(output);
     const audioResponse = await fetch(directUrl);
     const audioData = await audioResponse.arrayBuffer();
     return `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
@@ -7482,7 +7486,53 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       }
     }
 
-    // 2. Replicate MusicGen fallback. A premium label must not make one
+    // 2. MiniMax Music 2.6: current full-length instrumental model. Use this
+    // ahead of legacy MusicGen for cleaner arrangement, BPM/key adherence and
+    // sufficient duration for an actual song foundation.
+    if (replicateKey && !audioUrl && !referenceAudio) {
+      try {
+        logger.info('Using Replicate MiniMax Music 2.6 (instrumental)');
+        const replicate = new Replicate({ auth: replicateKey });
+        const qualityDirection = 'Instrumental only. Clean transient separation, one coherent drum groove, controlled low end, natural instrument attacks, evolving song arrangement, no test tones, no sustained electronic whine, no clipping, no duplicated drums, no digital glitches.';
+        const output = await runReplicateWithRateLimitRetry(
+          replicate,
+          'minimax/music-2.6',
+          {
+            input: {
+              prompt: `${musicPrompt}. ${qualityDirection}`.slice(0, 2000),
+              is_instrumental: true,
+              lyrics_optimizer: false,
+              audio_format: 'mp3',
+              sample_rate: 44100,
+              bitrate: 256000
+            }
+          },
+          'MiniMax beat generation'
+        );
+
+        if (output) {
+          const directUrl = typeof output.url === 'function' ? output.url() : String(output);
+          const audioResponse = await fetchWithRetry(directUrl, {}, { timeoutMs: 60000 });
+          if (audioResponse.ok) {
+            const audioData = await audioResponse.arrayBuffer();
+            if (audioData.byteLength > 100) {
+              audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
+              provider = 'minimax-music-2.6';
+              logger.info('Successfully fetched MiniMax instrumental', { size: audioData.byteLength });
+            } else {
+              providerErrors.push({ provider: 'minimax-music-2.6', error: `Audio data too small (${audioData.byteLength} bytes)` });
+            }
+          } else {
+            providerErrors.push({ provider: 'minimax-music-2.6', error: `Download failed HTTP ${audioResponse.status}` });
+          }
+        }
+      } catch (err) {
+        providerErrors.push({ provider: 'minimax-music-2.6', error: err.message });
+        logger.error('MiniMax Music 2.6 failed; continuing to MusicGen fallback', { error: err.message });
+      }
+    }
+
+    // 3. Replicate MusicGen legacy fallback. A premium label must not make one
     // provider a single point of failure for the complete asset pipeline.
     if (replicateKey && !audioUrl) {
       try {
@@ -7558,7 +7608,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       }
     }
 
-    // 3. FAL.ai last fallback
+    // 4. FAL.ai last fallback
     if (falKey && !audioUrl) {
       try {
         const response = await fetchWithRetry('https://queue.fal.run/beatoven/music-generation', {

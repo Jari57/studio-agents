@@ -304,17 +304,22 @@ async function generateSyncedMusicVideo(
 
     // Step 2: Determine video segmentation strategy
     let videoSegments = [];
-    const numSegments = Math.ceil(requestedDuration / 5); // Each segment is max 5s
+    const timelineSegments = Math.max(1, Math.ceil(requestedDuration / 5));
+    // Video-01 regularly takes 90+ seconds per five-second shot. Generating
+    // every timeline segment serially made a 30-second video take ~10 minutes.
+    // Generate at most two distinct shots, then edit/repeat them to length.
+    const generatedSegmentCount = Math.min(2, timelineSegments);
 
     if (logger) logger.info('Step 2: Generating video segments', {
       totalDuration: requestedDuration,
-      numSegments
+      timelineSegments,
+      generatedSegmentCount
     });
 
     // Generate prompts for each segment (beat-aware)
     const segmentPrompts = generateSegmentedPrompts(
       videoPrompt,
-      numSegments,
+      generatedSegmentCount,
       beatAnalysis.bpm,
       logger
     );
@@ -322,7 +327,7 @@ async function generateSyncedMusicVideo(
     // Generate video segments
     videoSegments = await generateVideoSegments(
       segmentPrompts,
-      Math.ceil(requestedDuration / numSegments),
+      5,
       replicateKey,
       logger,
       imageUrl,
@@ -338,7 +343,7 @@ async function generateSyncedMusicVideo(
     );
 
     // Download video segments for local composition
-    const downloadedSegments = [];
+    const downloadedSourceSegments = [];
     for (let i = 0; i < videoSegments.length; i++) {
        const segPath = path.join(tempDir, `segment_${i}_${Date.now()}.mp4`);
       
@@ -346,23 +351,30 @@ async function generateSyncedMusicVideo(
         if (logger) logger.info(`Downloading segment ${i+1}/${videoSegments.length}...`);
         await downloadFile(videoSegments[i].url, segPath);
         
-        downloadedSegments.push({
+        downloadedSourceSegments.push({
           path: segPath,
           duration: videoSegments[i].duration,
-          beatMarkers: alignBeatsToSegment(beatAnalysis.beats, i, numSegments)
+          beatMarkers: alignBeatsToSegment(beatAnalysis.beats, i, timelineSegments)
         });
       } catch (dlError) {
         if (logger) logger.warn(`Failed to download segment ${i}`, {
           error: dlError.message
         });
         // Try fallback to URL
-        downloadedSegments.push({
+        downloadedSourceSegments.push({
           path: videoSegments[i].url,
           duration: videoSegments[i].duration,
-          beatMarkers: alignBeatsToSegment(beatAnalysis.beats, i, numSegments)
+          beatMarkers: alignBeatsToSegment(beatAnalysis.beats, i, timelineSegments)
         });
       }
     }
+
+    // Tile the bounded source shots across the requested timeline. This keeps
+    // the full audio/video duration while avoiding six paid, slow generations.
+    const downloadedSegments = Array.from({ length: timelineSegments }, (_, i) => ({
+      ...downloadedSourceSegments[i % downloadedSourceSegments.length],
+      beatMarkers: alignBeatsToSegment(beatAnalysis.beats, i, timelineSegments)
+    }));
 
     // Compose with beat sync
     let finalVideoUrl = videoSegments[0].url; // Use first segment as base for now
@@ -436,7 +448,8 @@ async function generateSyncedMusicVideo(
       duration: Math.min(requestedDuration, metadata.duration || requestedDuration),
       bpm: beatAnalysis.bpm,
       beatCount: beatAnalysis.beats.length,
-      segments: videoSegments.length,
+      segments: timelineSegments,
+      generatedSegments: videoSegments.length,
       metadata,
       timestamp: new Date().toISOString()
     };
