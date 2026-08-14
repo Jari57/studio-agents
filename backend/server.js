@@ -7662,8 +7662,14 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
         const bucket = getStorageBucket();
         if (bucket) {
           try {
-            const fileName = `beat_${genre}_${bpm}bpm_${Date.now()}.mp3`;
-            const result = await uploadToStorage(audioUrl, req.user.uid, fileName, 'audio/mpeg');
+            // Replicate MusicGen returns WAV. Preserve the real container and
+            // content type instead of storing WAV bytes behind an .mp3 name.
+            const generatedMimeType = audioUrl.startsWith('data:audio/wav')
+              ? 'audio/wav'
+              : 'audio/mpeg';
+            const generatedExtension = generatedMimeType === 'audio/wav' ? 'wav' : 'mp3';
+            const fileName = `beat_${genre}_${bpm}bpm_${Date.now()}.${generatedExtension}`;
+            const result = await uploadToStorage(audioUrl, req.user.uid, fileName, generatedMimeType);
             permanentUrl = result.url;
             storagePath = result.path;
             logger.info('📤 Beat uploaded to Firebase Storage', { path: storagePath });

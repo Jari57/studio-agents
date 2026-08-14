@@ -1345,7 +1345,11 @@ function ProductionControlHub({
   videoDnaUrl = null
 }) {
   // Check completion status
-  const completedCount = Object.values(outputs).filter(Boolean).length;
+  // Only the four generator cards belong in this counter. Older/restored
+  // projects can carry extra output keys such as `mix`, which previously
+  // produced impossible states like "5/4" and "-1 remaining".
+  const generatorOutputKeys = ['lyrics', 'audio', 'visual', 'video'];
+  const completedCount = generatorOutputKeys.filter(key => Boolean(outputs?.[key])).length;
   const totalSlots = 4;
   const allComplete = completedCount === totalSlots;
   const hasAnyOutput = completedCount > 0;
@@ -3640,13 +3644,30 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       ? { lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' }
       : { lyrics: 'ghost', audio: 'beat', visual: null, video: null };
 
+    // Resolve one coherent run configuration before generation. React state
+    // setters are asynchronous; calling handleGenerate immediately after the
+    // preset used to send the previous BPM (often 120) on the first request,
+    // while the UI later displayed the genre preset (for example 130).
+    const detectedGenre = detectGenreFromPrompt(songIdea);
+    const runGenre = detectedGenre || quickGenre;
+    const explicitBpmMatch = songIdea.match(/\b(\d{2,3})\s*bpm\b/i);
+    const explicitBpm = explicitBpmMatch ? Number(explicitBpmMatch[1]) : null;
+    const validExplicitBpm = explicitBpm && explicitBpm >= 40 && explicitBpm <= 240
+      ? explicitBpm
+      : null;
+
     setSelectedAgents(agentSelection);
-    applyGenrePreset(quickGenre);
-    handleGenerate({
+    setQuickGenre(runGenre);
+    applyGenrePreset(runGenre);
+    if (validExplicitBpm) setProjectBpm(validExplicitBpm);
+
+    const generationOptions = {
       agentSelection,
       includeVocals: isFullPackage,
       completionMessage: isFullPackage ? 'Full package complete!' : 'Song draft ready — review it, then add vocals or visuals when you are ready.'
-    });
+    };
+    // Run through the latest callback after React commits the preset/BPM state.
+    setTimeout(() => handleGenerateRef.current?.(generationOptions), 0);
   };
 
   // Regenerate single slot
@@ -8941,7 +8962,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 <span style={{ fontSize: '0.88rem', fontWeight: '700', color: expandedSections.productionHub ? '#a5b4fc' : 'rgba(255,255,255,0.65)' }}>Production Control Hub</span>
                 {Object.values(outputs).some(Boolean) && (
                   <span style={{ fontSize: '0.62rem', fontWeight: '700', color: '#4ade80', background: 'rgba(34,197,94,0.1)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.2)' }}>
-                    {Object.values(outputs).filter(Boolean).length}/4 ready
+                    {['lyrics', 'audio', 'visual', 'video'].filter(key => Boolean(outputs?.[key])).length}/4 ready
                   </span>
                 )}
               </div>
