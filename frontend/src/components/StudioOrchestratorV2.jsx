@@ -5195,12 +5195,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           toast.loading(`Music video rendering... 0%`, { id: 'gen-video', duration: 1200000 });
           const maxPolls = 120; // 120 × 10s = 20 min max
           let jobSuccess = false;
+          let jobFinished = false;
           for (let i = 0; i < maxPolls; i++) {
             if (!mountedRef.current) break; // Component unmounted — stop polling
             await new Promise(r => setTimeout(r, 10000)); // Poll every 10s
             try {
               const statusRes = await fetch(`${BACKEND_URL}/api/video-job-status/${data.jobId}`, { headers });
               const statusData = await statusRes.json();
+              if (!statusRes.ok || statusData.status === 'not_found') {
+                toast.error(statusData.message || 'Video job could not be recovered. Any charged credits were returned.', { id: 'gen-video' });
+                jobFinished = true;
+                break;
+              }
               devLog(`[Orchestrator] Video job poll ${i + 1}:`, statusData.status, statusData.progress);
               if (statusData.status === 'completed' && statusData.videoUrl) {
                 setMusicVideoUrl(statusData.videoUrl);
@@ -5210,6 +5216,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 setGenerationProviders(prev => ({ ...prev, video: 'synced-music-video' }));
                 toast.success(`Music video created! Syncing audio...`, { id: 'gen-video' });
                 jobSuccess = true;
+                jobFinished = true;
 
                 // Auto-mux audio into the video so it's not silent
                 const muxAudio = (mediaUrlsRef.current || {}).mixedAudio || (mediaUrlsRef.current || {}).audio || finalAudioSource;
@@ -5238,6 +5245,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               }
               if (statusData.status === 'failed') {
                 toast.error(statusData.error || 'Video generation failed', { id: 'gen-video' });
+                jobFinished = true;
                 break;
               }
               // Still processing — update progress
@@ -5246,7 +5254,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               console.error('[Orchestrator] Video job poll error:', pollErr);
             }
           }
-          if (!jobSuccess) {
+          if (!jobSuccess && !jobFinished) {
             toast.error('Video generation timed out — check back later', { id: 'gen-video' });
           }
           return;
@@ -5584,12 +5592,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           devLog('[Orchestrator] Professional video job started:', data.jobId);
           const maxPolls = 120;
           let jobSuccess = false;
+          let jobFinished = false;
           for (let i = 0; i < maxPolls; i++) {
             if (!mountedRef.current) break; // Component unmounted — stop polling
             await new Promise(r => setTimeout(r, 10000));
             try {
               const statusRes = await fetch(`${BACKEND_URL}/api/video-job-status/${data.jobId}`, { headers });
               const statusData = await statusRes.json();
+              if (!statusRes.ok || statusData.status === 'not_found') {
+                toast.error(statusData.message || 'Video job could not be recovered. Any charged credits were returned.', { id: 'prof-video' });
+                jobFinished = true;
+                break;
+              }
               devLog(`[Orchestrator] Prof video poll ${i + 1}:`, statusData.status, statusData.progress);
               if (statusData.status === 'completed' && statusData.videoUrl) {
                 setMusicVideoUrl(statusData.videoUrl);
@@ -5614,9 +5628,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   toast.success('🎬 Music video with audio ready!', { id: 'prof-video' });
                 }
                 jobSuccess = true;
+                jobFinished = true;
                 break;
               } else if (statusData.status === 'failed') {
                 toast.error(`❌ Video rendering failed: ${statusData.error || 'Unknown error'}`, { id: 'prof-video' });
+                jobFinished = true;
                 break;
               } else {
                 const pct = statusData.progress || Math.round((i / maxPolls) * 100);
@@ -5626,7 +5642,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               devWarn('[Orchestrator] Prof video poll error:', pollErr);
             }
           }
-          if (!jobSuccess) {
+          if (!jobSuccess && !jobFinished) {
             toast.error('❌ Video rendering timed out. Check back later.', { id: 'prof-video' });
           }
         }

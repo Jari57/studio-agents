@@ -137,8 +137,16 @@ const DashboardView = ({
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  backgroundColor: systemStatus.status === 'healthy' ? 'var(--color-emerald)' : 'var(--color-red)',
-                  boxShadow: systemStatus.status === 'healthy' ? '0 0 8px var(--color-emerald)' : '0 0 8px var(--color-red)'
+                  backgroundColor: systemStatus.status === 'configured'
+                    ? 'var(--color-amber, #f59e0b)'
+                    : systemStatus.status === 'checking'
+                      ? 'var(--color-slate, #64748b)'
+                      : 'var(--color-red)',
+                  boxShadow: systemStatus.status === 'configured'
+                    ? '0 0 8px var(--color-amber, #f59e0b)'
+                    : systemStatus.status === 'checking'
+                      ? 'none'
+                      : '0 0 8px var(--color-red)'
                 }}
               />
             </div>

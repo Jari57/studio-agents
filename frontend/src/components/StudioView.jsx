@@ -558,7 +558,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [adminApiStatus, setAdminApiStatus] = useState(null);
   const [isAdminLoading, setIsAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState(null);
-  const [systemStatus, setSystemStatus] = useState({ status: 'healthy', message: 'All Systems Operational' });
+  const [systemStatus, setSystemStatus] = useState({ status: 'checking', message: 'Checking service readiness' });
 
   // --- UI TOGGLES & INTERACTION ---
   const [showOrchestrator, setShowOrchestrator] = useState(false);
@@ -1977,10 +1977,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         clearTimeout(timeout);
         if (!res.ok) throw new Error('Backend unreachable');
         const data = await res.json();
+        const capabilities = data.services?.capabilities || {};
+        const capabilityStates = Object.values(capabilities).map(capability => capability?.status);
+        const hasMissingProvider = capabilityStates.length === 0
+          || capabilityStates.some(status => String(status || '').startsWith('missing'));
         healthFailCountRef.current = 0;
         setSystemStatus({ 
-          status: 'healthy', 
-          message: 'All Systems Operational',
+          status: hasMissingProvider ? 'degraded' : 'configured',
+          message: hasMissingProvider
+            ? (capabilityStates.length === 0 ? 'Provider readiness is unavailable' : 'Some creation providers need configuration')
+            : 'Creation providers configured — access is verified when you generate',
           details: data 
         });
       } catch (err) {

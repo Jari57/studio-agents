@@ -87,7 +87,7 @@ async function runReplicateWithRateLimitRetry(replicate, model, input, logger, s
  */
 async function generateVideoSegments(
   prompts, // Array of prompts for each segment
-  duration = 5, // Duration per segment in seconds
+  duration = 6, // MiniMax Video-01 returns fixed six-second clips
   replicateKey,
   logger,
   imageUrl = null,
@@ -132,8 +132,7 @@ async function generateVideoSegments(
 
           const inputPayload = {
             prompt,
-            prompt_optimizer: true,
-            duration: Math.min(duration, 5) // Minimax max is 5s
+            prompt_optimizer: true
           };
 
           // Use image as first frame for EVERY segment to maintain visual identity
@@ -148,7 +147,7 @@ async function generateVideoSegments(
               return {
                 url: String(output),
                 prompt,
-                duration,
+                duration: 6,
                 segmentIndex: globalIdx
               };
             });
@@ -216,17 +215,12 @@ async function generateSingleVideo(
 
     const replicate = new Replicate({ auth: replicateKey });
 
-    // Cap duration at model limits
-    let effectiveDuration = duration;
-    if (model.includes('minimax')) {
-      effectiveDuration = Math.min(duration, 5); // Minimax max is 5s
-    }
+    const effectiveDuration = model.includes('minimax') ? 6 : duration;
 
     const output = await replicate.run(model, {
       input: {
         prompt,
-        prompt_optimizer: true,
-        duration: effectiveDuration
+        prompt_optimizer: true
       }
     });
 
@@ -304,8 +298,8 @@ async function generateSyncedMusicVideo(
 
     // Step 2: Determine video segmentation strategy
     let videoSegments = [];
-    const timelineSegments = Math.max(1, Math.ceil(requestedDuration / 5));
-    // Video-01 regularly takes 90+ seconds per five-second shot. Generating
+    const timelineSegments = Math.max(1, Math.ceil(requestedDuration / 6));
+    // Video-01 regularly takes 90+ seconds per six-second shot. Generating
     // every timeline segment serially made a 30-second video take ~10 minutes.
     // Generate at most two distinct shots, then edit/repeat them to length.
     const generatedSegmentCount = Math.min(2, timelineSegments);
@@ -327,7 +321,7 @@ async function generateSyncedMusicVideo(
     // Generate video segments
     videoSegments = await generateVideoSegments(
       segmentPrompts,
-      5,
+      6,
       replicateKey,
       logger,
       imageUrl,

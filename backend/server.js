@@ -281,15 +281,29 @@ const DEMO_ACCOUNTS = {
 
 // =============================================================================
 // =============================================================================
-// VIDEO JOB TRACKING - In-memory store for async video generation jobs
+// VIDEO JOB TRACKING - memory cache backed by Firestore for restart safety
 // =============================================================================
 const videoJobs = new Map();
-// Auto-cleanup: remove completed/failed jobs after 1 hour
-setInterval(() => {
+// Auto-cleanup: fail and refund abandoned work; remove terminal jobs after 1 hour.
+setInterval(async () => {
   const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
   for (const [jobId, job] of videoJobs) {
+    if (job.status === 'processing' && job.updatedAt < thirtyMinutesAgo) {
+      await refundVideoJob(job, 'synced video job expired before completion');
+      Object.assign(job, {
+        status: 'failed',
+        progress: 0,
+        message: 'Video rendering expired before completion. Your credits were returned.',
+        error: 'Video rendering expired before completion. Please retry.',
+        updatedAt: Date.now()
+      });
+      await _saveVideoJob(jobId, job);
+      continue;
+    }
     if ((job.status === 'completed' || job.status === 'failed') && job.updatedAt < oneHourAgo) {
       videoJobs.delete(jobId);
+      await _deleteVideoJob(jobId);
     }
   }
 }, 5 * 60 * 1000); // Check every 5 minutes
@@ -9157,6 +9171,120 @@ function buildBeatGenerationPrompt({ genre, mood, bpm, arrangementHint, creative
   ].filter(Boolean).join(' ');
 }
 
+// Synced-video jobs outlive the HTTP request that created them. Persist only
+// operational metadata (never provider keys or prompts) so Railway restarts do
+// not turn a paid render into an unexplained 404.
+async function _saveVideoJob(jobId, jobData) {
+  if (!firebaseInitialized) return;
+  const db = getFirestoreDb();
+  if (!db) return;
+  try {
+    await db.collection('video_jobs').doc(jobId).set({
+      ...jobData,
+      jobId,
+      savedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    logger.warn('video_jobs persist failed', { jobId, error: err.message });
+  }
+}
+
+async function _deleteVideoJob(jobId) {
+  if (!firebaseInitialized) return;
+  const db = getFirestoreDb();
+  if (!db) return;
+  try {
+    await db.collection('video_jobs').doc(jobId).delete();
+  } catch (err) {
+    logger.warn('video_jobs delete failed', { jobId, error: err.message });
+  }
+}
+
+async function _loadVideoJob(jobId) {
+  if (!firebaseInitialized) return null;
+  const db = getFirestoreDb();
+  if (!db) return null;
+  try {
+    const doc = await db.collection('video_jobs').doc(jobId).get();
+    if (!doc.exists) return null;
+    const job = { ...doc.data(), jobId };
+    videoJobs.set(jobId, job);
+    return job;
+  } catch (err) {
+    logger.warn('video_jobs lookup failed', { jobId, error: err.message });
+    return null;
+  }
+}
+
+// The deterministic history document makes this refund idempotent even when a
+// timeout, promise rejection and restart recovery observe the same failure.
+async function refundVideoJob(job, reason) {
+  if (!job || job.refunded || !job.creditCharged || !job.userId || !firebaseInitialized) return false;
+  const db = getFirestoreDb();
+  if (!db) return false;
+  const userRef = db.collection('users').doc(job.userId);
+  const refundRef = userRef.collection('credit_history').doc(`video-job-${job.jobId}`);
+  try {
+    await db.runTransaction(async (t) => {
+      const [userDoc, refundDoc] = await Promise.all([t.get(userRef), t.get(refundRef)]);
+      if (refundDoc.exists) return;
+      const credits = userDoc.exists ? (userDoc.data().credits || 0) : 0;
+      t.set(userRef, { credits: credits + job.creditCharged }, { merge: true });
+      t.create(refundRef, {
+        type: 'refund',
+        amount: job.creditCharged,
+        feature: job.featureType || 'video-synced',
+        reason,
+        balanceBefore: credits,
+        balanceAfter: credits + job.creditCharged,
+        jobId: job.jobId,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    logger.info('Synced-video credits refunded', { jobId: job.jobId, userId: job.userId, reason });
+    job.refunded = true;
+    job.creditCharged = 0;
+    return true;
+  } catch (err) {
+    logger.error('Synced-video credit refund failed', { jobId: job.jobId, error: err.message });
+    return false;
+  }
+}
+
+async function _restoreVideoJobs() {
+  if (!firebaseInitialized) return;
+  const db = getFirestoreDb();
+  if (!db) return;
+  try {
+    const snap = await db.collection('video_jobs').orderBy('updatedAt', 'desc').limit(200).get();
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    let restored = 0;
+    for (const doc of snap.docs) {
+      const job = { ...doc.data(), jobId: doc.id };
+      if ((job.updatedAt || job.createdAt || 0) < oneHourAgo) {
+        await _deleteVideoJob(doc.id);
+        continue;
+      }
+      if (job.status === 'processing') {
+        await refundVideoJob(job, 'server restarted while synced video was processing');
+        Object.assign(job, {
+          status: 'failed',
+          progress: 0,
+          message: 'Rendering was interrupted by a service restart. Your credits were returned.',
+          error: 'Rendering was interrupted. Please retry.',
+          updatedAt: Date.now()
+        });
+        await _saveVideoJob(doc.id, job);
+      }
+      videoJobs.set(doc.id, job);
+      restored++;
+    }
+    if (restored > 0) logger.info(`Restored ${restored} synced-video jobs from Firestore`);
+  } catch (err) {
+    logger.warn('Failed to restore synced-video jobs from Firestore', { error: err.message });
+  }
+}
+
 // Persist a pending video op to Firestore so it survives restarts (best-effort)
 function _savePendingVideoOp(opId, opData) {
   if (!firebaseInitialized) return;
@@ -9187,29 +9315,32 @@ async function _restorePendingVideoOps() {
     const tenMinAgo = Date.now() - 10 * 60 * 1000;
     const snap = await db.collection('video_ops').where('status', '==', 'processing').get();
     let restored = 0;
-    snap.forEach(doc => {
+    for (const doc of snap.docs) {
       const data = doc.data();
       if (data.createdAt > tenMinAgo) {
         // Mark as failed since we lost the API key required to continue polling
-        pendingVideoOps.set(doc.id, {
+        const restoredOp = {
           ...data,
           status: 'failed',
           error: 'Server restarted while your video was processing. Please regenerate.',
           apiKey: null,
           replicateKey: null
-        });
+        };
+        await refundPendingVideoOp(restoredOp, 'server restarted while video was processing');
+        pendingVideoOps.set(doc.id, restoredOp);
         _deletePendingVideoOp(doc.id);
         restored++;
       } else {
         // Too old — just clean up Firestore
         _deletePendingVideoOp(doc.id);
       }
-    });
+    }
     if (restored > 0) logger.info(`♻️ Restored ${restored} pending video ops from Firestore (marked failed)`);
   } catch (err) {
     logger.warn('Failed to restore video ops from Firestore', { error: err.message });
   }
 }
+_restoreVideoJobs();
 _restorePendingVideoOps();
 
 // ── Async format conversions: track MP3→WAV / WAV→MP3 jobs ──
@@ -12449,6 +12580,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
     const effectiveImageUrl = referenceImage || imageUrl;
 
     if (!audioUrl || !videoPrompt) {
+      await refundCredits(req, 'synced video request was missing required fields');
       return res.status(400).json({ 
         error: 'Missing required fields',
         required: ['audioUrl', 'videoPrompt']
@@ -12478,6 +12610,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     
     if (!replicateKey) {
+      await refundCredits(req, 'synced video provider is not configured');
       return res.status(503).json({
         error: 'Video generation unavailable',
         details: 'REPLICATE_API_KEY not configured',
@@ -12500,19 +12633,28 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
       // Generate a unique job ID
       const jobId = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      // Track job in memory
-      videoJobs.set(jobId, {
+      // Track the charge with the job so a later failure or service restart can
+      // refund exactly once without retaining the Express request object.
+      const queuedJob = {
+        jobId,
         status: 'processing',
         progress: 0,
         message: 'Starting video generation...',
         createdAt: Date.now(),
         updatedAt: Date.now(),
         userId: req.user.uid,
+        creditCharged: req.creditCharged || 0,
+        featureType: req.featureType || 'video-synced',
+        refunded: false,
         duration: requestedDuration,
         title: songTitle,
         videoUrl: null,
         error: null
-      });
+      };
+      videoJobs.set(jobId, queuedJob);
+      await _saveVideoJob(jobId, queuedJob);
+
+      const jobUserId = req.user.uid;
 
       // Start async generation (don't await)
       generateSyncedMusicVideo(
@@ -12532,7 +12674,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
             try {
               const videoBuffer = fs.readFileSync(finalUrl);
               const fileName = `synced_video_${songTitle.replace(/[^a-zA-Z0-9.-]/g, '_')}_${Date.now()}.mp4`;
-              const uploadResult = await uploadToStorage(videoBuffer, req.user.uid, fileName, 'video/mp4');
+              const uploadResult = await uploadToStorage(videoBuffer, jobUserId, fileName, 'video/mp4');
               try { fs.unlinkSync(finalUrl); } catch {}
               finalUrl = uploadResult.url;
             } catch (upErr) {
@@ -12542,7 +12684,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
               throw new Error(`Video rendered but could not be published: ${upErr.message}`);
             }
           }
-          videoJobs.set(jobId, {
+          const completedJob = {
             ...videoJobs.get(jobId),
             status: 'completed',
             progress: 100,
@@ -12553,29 +12695,35 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
             beats: result.beatCount,
             segments: result.segments,
             updatedAt: Date.now()
-          });
+          };
+          videoJobs.set(jobId, completedJob);
+          await _saveVideoJob(jobId, completedJob);
           logger.info('Background video generation complete', { jobId });
         } else {
-          await refundCredits(req, 'background synced video generation failed');
-          videoJobs.set(jobId, {
-            ...videoJobs.get(jobId),
+          const failedJob = { ...videoJobs.get(jobId) };
+          await refundVideoJob(failedJob, 'background synced video generation failed');
+          Object.assign(failedJob, {
             status: 'failed',
             progress: 0,
             message: result.error || 'Video generation failed',
             error: result.error,
             updatedAt: Date.now()
           });
+          videoJobs.set(jobId, failedJob);
+          await _saveVideoJob(jobId, failedJob);
         }
       }).catch(async (error) => {
-        await refundCredits(req, 'background synced video generation failed');
-        videoJobs.set(jobId, {
-          ...videoJobs.get(jobId),
+        const failedJob = { ...videoJobs.get(jobId) };
+        await refundVideoJob(failedJob, 'background synced video generation failed');
+        Object.assign(failedJob, {
           status: 'failed',
           progress: 0,
           message: error.message || 'Video generation failed',
           error: error.message,
           updatedAt: Date.now()
         });
+        videoJobs.set(jobId, failedJob);
+        await _saveVideoJob(jobId, failedJob);
         logger.error('Background video generation failed', { jobId, error: error.message });
       });
 
@@ -12686,7 +12834,7 @@ app.get('/api/video-job-status-test/:jobId', async (req, res) => {
 app.get('/api/video-job-status/:jobId', verifyFirebaseToken, requireAuth, apiLimiter, async (req, res) => {
   try {
     const { jobId } = req.params;
-    const job = videoJobs.get(jobId);
+    const job = videoJobs.get(jobId) || await _loadVideoJob(jobId);
 
     if (!job) {
       return res.status(404).json({ jobId, status: 'not_found', message: 'Job not found or expired' });
