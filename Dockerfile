@@ -11,6 +11,15 @@ WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm ci
 COPY backend .
+
+# Railway is the production asset-generation backend. Vercel deploys only the
+# frontend, so backend reliability has to be enforced in the Docker build that
+# Railway actually runs. Fail the image build if the orchestrator loses bounded
+# provider waits, explicit partial-failure handling, or phase timing.
+COPY scripts/verify-video-reliability.mjs /app/scripts/verify-video-reliability.mjs
+RUN node --check services/videoGenerationOrchestrator.js \
+  && node /app/scripts/verify-video-reliability.mjs
+
 COPY --from=frontend-builder /app/frontend/dist ./public
 RUN npm prune --omit=dev
 
