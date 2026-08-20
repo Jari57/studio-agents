@@ -242,12 +242,15 @@ async function runImage() {
     agentId: 'visual',
   }, 150000);
   const reference = mediaCandidate(payload, 'image');
-  return {
+  const inspection = await inspectMedia(reference, 'image');
+  const summary = {
     asset: 'image',
     provider: payload?.provider || payload?.source || payload?.model || 'unknown',
     durationMs: now() - startedAt,
-    inspection: await inspectMedia(reference, 'image'),
+    inspection,
   };
+  await persistCanaryMedia('image', reference, summary);
+  return summary;
 }
 
 async function runVocal() {
@@ -328,6 +331,14 @@ async function runVideo() {
     beat = await loadCanaryMedia('beat');
   }
   if (!beat?.url) throw new Error('video certification could not obtain a durable beat URL');
+
+  let image = await loadCanaryMedia('image');
+  if (!image) {
+    await runImage();
+    image = await loadCanaryMedia('image');
+  }
+  if (!image?.url) throw new Error('video certification could not obtain a durable first-frame image URL');
+
   const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
   if (!replicateKey) throw new Error('Replicate video provider is not configured');
 
@@ -338,14 +349,14 @@ async function runVideo() {
     6,
     replicateKey,
     canaryLogger,
-    null,
+    image.url,
     null,
   );
   if (!result?.success || result?.quality !== 'complete') throw new Error(`video orchestrator returned a non-complete result: ${compactError(result)}`);
   const inspection = await inspectMedia(result.videoUrl, 'video', true);
   return {
     asset: 'video',
-    provider: 'replicate-minimax-orchestrator',
+    provider: 'replicate-hailuo-2.3-fast-orchestrator',
     durationMs: now() - startedAt,
     requestedDuration: 6,
     deliveredDuration: result.duration || null,
@@ -354,6 +365,7 @@ async function runVideo() {
     phaseMs: result.phaseMs || null,
     beatProvider: beat.summary?.provider || null,
     beatProviderErrors: beat.summary?.providerErrors || [],
+    imageProvider: image.summary?.provider || null,
   };
 }
 
