@@ -2,9 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const serverPath = path.resolve('/app/backend/server.js');
-const source = fs.readFileSync(serverPath, 'utf8');
+let source = fs.readFileSync(serverPath, 'utf8');
 
-const previous = `    // Engine Selection Logic - Always prefer Stability AI for highest quality
+const previousEngineSelection = `    // Engine Selection Logic - Always prefer Stability AI for highest quality
     let finalEngine = engine;
     if (engine === 'auto' || !engine || engine === 'music-gpt') {
       if (stabilityKey) {
@@ -15,7 +15,7 @@ const previous = `    // Engine Selection Logic - Always prefer Stability AI for
     }
 `;
 
-const replacement = `    // Provider-aware engine selection. A configured Stability key is not enough:
+const providerAwareEngineSelection = `    // Provider-aware engine selection. A configured Stability key is not enough:
     // an account with zero balance used to hold every customer request for a full
     // provider timeout before falling back to MiniMax. Cache a fast balance probe
     // and skip the unavailable provider before starting paid generation work.
@@ -64,17 +64,207 @@ const replacement = `    // Provider-aware engine selection. A configured Stabil
     }
 `;
 
-const occurrences = source.split(previous).length - 1;
-if (occurrences < 1) {
+const engineOccurrences = source.split(previousEngineSelection).length - 1;
+if (engineOccurrences < 1) {
   console.error('Could not find the Studio audio engine-selection contract.');
   process.exit(1);
 }
+source = source.split(previousEngineSelection).join(providerAwareEngineSelection);
 
-const patched = source.split(previous).join(replacement);
-if (!patched.includes('__studioStabilityAudioAvailability')) {
-  console.error('Provider routing patch did not apply.');
+const previousReplicateHelper = `async function runReplicateWithRateLimitRetry(replicate, model, options, operationName) {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await replicate.run(model, options);
+    } catch (error) {
+      const message = String(error?.message || '');
+      const rateLimited = error?.status === 429 || error?.response?.status === 429 || /\\b429\\b|rate.?limit/i.test(message);
+      if (!rateLimited || attempt === maxAttempts) throw error;
+
+      const retryMatch = message.match(/retry[_ -]?after[^0-9]*(\\d+)/i);
+      const retrySeconds = Math.max(Number(retryMatch?.[1]) || 10, 1);
+      logger.warn(\`Replicate rate-limited \${operationName}; retrying\`, { attempt, retrySeconds });
+      await new Promise(resolve => setTimeout(resolve, retrySeconds * 1000));
+    }
+  }
+  throw new Error(\`\${operationName} exhausted Replicate retries\`);
+}
+`;
+
+const boundedReplicateHelper = `async function runReplicateWithRateLimitRetry(_replicate, model, options, operationName) {
+  // __studioReplicateBoundedPrediction
+  // The SDK's replicate.run() can wait indefinitely and previously let one beat
+  // request cascade through several multi-minute fallbacks. Use the prediction
+  // REST API so the server owns the deadline and can cancel unfinished paid work.
+  const token = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+  if (!token) throw new Error('Replicate provider is not configured');
+
+  const timeoutMs = Math.max(
+    30000,
+    Math.min(Number(process.env.REPLICATE_GENERATION_TIMEOUT_MS) || 90000, 150000)
+  );
+  const maxCreateAttempts = 2;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxCreateAttempts; attempt++) {
+    let predictionId = '';
+    let predictionStarted = false;
+    const startedAt = Date.now();
+    try {
+      const colon = model.indexOf(':');
+      const modelName = colon === -1 ? model : model.slice(0, colon);
+      const version = colon === -1 ? '' : model.slice(colon + 1);
+      const createUrl = version
+        ? 'https://api.replicate.com/v1/predictions'
+        : 'https://api.replicate.com/v1/models/' + modelName + '/predictions';
+      const createBody = version
+        ? { version, input: options?.input || {} }
+        : { input: options?.input || {} };
+
+      const createResponse = await fetchWithTimeout(createUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + token,
+          'Content-Type': 'application/json',
+          Prefer: 'wait=10'
+        },
+        body: JSON.stringify(createBody)
+      }, 20000);
+
+      if (createResponse.status === 429) {
+        const retrySeconds = Math.max(Number(createResponse.headers.get('retry-after')) || 8, 1);
+        lastError = new Error('Replicate rate limit reached');
+        if (attempt < maxCreateAttempts) {
+          logger.warn(\`Replicate rate-limited \${operationName}; retrying\`, { attempt, retrySeconds });
+          await new Promise(resolve => setTimeout(resolve, Math.min(retrySeconds, 15) * 1000));
+          continue;
+        }
+        throw lastError;
+      }
+
+      const createText = await createResponse.text();
+      let prediction;
+      try { prediction = JSON.parse(createText); } catch { prediction = {}; }
+      if (!createResponse.ok) {
+        const detail = String(prediction?.detail || prediction?.error || createText || '').slice(0, 500);
+        const error = new Error(\`Replicate could not start \${operationName} (HTTP \${createResponse.status}): \${detail}\`);
+        error.status = createResponse.status;
+        throw error;
+      }
+
+      predictionId = String(prediction?.id || '');
+      if (!predictionId) throw new Error(\`Replicate did not return a prediction ID for \${operationName}\`);
+      predictionStarted = true;
+
+      while (!['succeeded', 'failed', 'canceled'].includes(String(prediction?.status || ''))) {
+        if (Date.now() - startedAt >= timeoutMs) {
+          await fetchWithTimeout(
+            'https://api.replicate.com/v1/predictions/' + encodeURIComponent(predictionId) + '/cancel',
+            { method: 'POST', headers: { Authorization: 'Bearer ' + token } },
+            10000
+          ).catch(() => undefined);
+          const timeoutError = new Error(\`\${operationName} exceeded the \${Math.round(timeoutMs / 1000)}-second provider budget and was canceled\`);
+          timeoutError.code = 'PROVIDER_TIMEOUT';
+          throw timeoutError;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const statusResponse = await fetchWithTimeout(
+          'https://api.replicate.com/v1/predictions/' + encodeURIComponent(predictionId),
+          { headers: { Authorization: 'Bearer ' + token } },
+          15000
+        );
+        if (!statusResponse.ok) {
+          if (statusResponse.status >= 500) continue;
+          throw new Error(\`Replicate status check failed for \${operationName} (HTTP \${statusResponse.status})\`);
+        }
+        prediction = await statusResponse.json();
+      }
+
+      if (prediction.status === 'succeeded' && prediction.output) {
+        logger.info('Replicate prediction completed within budget', {
+          operationName,
+          predictionId,
+          durationMs: Date.now() - startedAt
+        });
+        return prediction.output;
+      }
+
+      const providerError = String(prediction?.error || prediction?.logs || prediction?.status || 'unknown failure').slice(0, 700);
+      const failed = new Error(\`Replicate \${operationName} failed: \${providerError}\`);
+      failed.code = 'PROVIDER_FAILED';
+      throw failed;
+    } catch (error) {
+      lastError = error;
+      const message = String(error?.message || '');
+      logger.warn('Replicate prediction attempt failed', {
+        operationName,
+        attempt,
+        predictionId: predictionId || null,
+        durationMs: Date.now() - startedAt,
+        code: error?.code || null,
+        error: message.slice(0, 500)
+      });
+
+      // Once a paid prediction started, do not silently create a duplicate. A
+      // provider failure or our deadline is final for this provider attempt.
+      if (predictionStarted || error?.code === 'PROVIDER_TIMEOUT' || error?.code === 'PROVIDER_FAILED') throw error;
+      const retryable = error?.status === 429 || error?.status >= 500 || /network|fetch|timeout|rate.?limit/i.test(message);
+      if (!retryable || attempt === maxCreateAttempts) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1500 * attempt));
+    }
+  }
+
+  throw lastError || new Error(\`\${operationName} could not start\`);
+}
+`;
+
+if (!source.includes(previousReplicateHelper)) {
+  console.error('Could not find the unbounded Replicate helper.');
+  process.exit(1);
+}
+source = source.replace(previousReplicateHelper, boundedReplicateHelper);
+
+const audioStart = source.indexOf("app.post('/api/generate-audio'");
+const audioEndMarker = '// ═══════════════════════════════════════════════════════════════════\n// AUDIO MIXING';
+const audioEnd = source.indexOf(audioEndMarker, audioStart);
+if (audioStart === -1 || audioEnd === -1) {
+  console.error('Could not isolate the Studio audio-generation route.');
   process.exit(1);
 }
 
-fs.writeFileSync(serverPath, patched);
-console.log(`Provider-aware beat routing applied to ${occurrences} route occurrence(s).`);
+let audioRoute = source.slice(audioStart, audioEnd);
+// Stability, FAL, and generated-file downloads get one bounded attempt. Provider
+// selection—not repeated waiting—is the fallback strategy.
+audioRoute = audioRoute.replaceAll('{ timeoutMs: 60000 }', '{ timeoutMs: 45000, maxRetries: 0 }');
+
+// The current MiniMax model is the normal no-reference path. Do not follow a
+// slow MiniMax failure with another legacy Replicate model for the same request.
+// MusicGen remains available when reference-audio melody conditioning is needed.
+const legacyFallback = `    if (replicateKey && !audioUrl) {
+      try {
+        logger.info('Using Replicate Music GPT (stereo-large)');`;
+const referenceOnlyFallback = `    if (replicateKey && !audioUrl && referenceAudio) {
+      try {
+        logger.info('Using Replicate Music GPT (stereo-large) for reference-audio conditioning');`;
+if (!audioRoute.includes(legacyFallback)) {
+  console.error('Could not find the legacy MusicGen fallback contract.');
+  process.exit(1);
+}
+audioRoute = audioRoute.replace(legacyFallback, referenceOnlyFallback);
+source = source.slice(0, audioStart) + audioRoute + source.slice(audioEnd);
+
+for (const required of [
+  '__studioStabilityAudioAvailability',
+  '__studioReplicateBoundedPrediction',
+  'reference-audio conditioning',
+  'maxRetries: 0'
+]) {
+  if (!source.includes(required)) {
+    console.error('Provider reliability patch is incomplete: ' + required);
+    process.exit(1);
+  }
+}
+
+fs.writeFileSync(serverPath, source);
+console.log(`Provider-aware beat routing applied to ${engineOccurrences} route occurrence(s); Replicate generation is bounded and cancelable.`);
