@@ -234,6 +234,20 @@ if (audioStart === -1 || audioEnd === -1) {
 }
 
 let audioRoute = source.slice(audioStart, audioEnd);
+
+// Existing frontend clients send `duration`, while the backend only read
+// `durationSeconds`. That silently turned every request into the 60-second
+// default and made provider work slower than the UI promised.
+const durationBinding = 'durationSeconds: rawDuration = 60';
+if (!audioRoute.includes(durationBinding)) {
+  console.error('Could not find the audio duration request contract.');
+  process.exit(1);
+}
+audioRoute = audioRoute.replace(
+  durationBinding,
+  'durationSeconds: rawDuration = req.body?.duration ?? 60'
+);
+
 // Stability, FAL, and generated-file downloads get one bounded attempt. Provider
 // selection—not repeated waiting—is the fallback strategy.
 audioRoute = audioRoute.replaceAll('{ timeoutMs: 60000 }', '{ timeoutMs: 45000, maxRetries: 0 }');
@@ -271,6 +285,7 @@ source = source.slice(0, audioStart) + audioRoute + source.slice(audioEnd);
 for (const required of [
   '__studioStabilityAudioAvailability',
   '__studioReplicateBoundedPrediction',
+  'req.body?.duration ?? 60',
   'explicit long-form instrumental generation',
   'interactive beat generation',
   'maxRetries: 0'
@@ -282,4 +297,4 @@ for (const required of [
 }
 
 fs.writeFileSync(serverPath, source);
-console.log(`Provider-aware beat routing applied to ${engineOccurrences} route occurrence(s); interactive beats use bounded MusicGen and long-form generation remains explicit.`);
+console.log(`Provider-aware beat routing applied to ${engineOccurrences} route occurrence(s); requested duration is honored, interactive beats use bounded MusicGen, and long-form generation remains explicit.`);
