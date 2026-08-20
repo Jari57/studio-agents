@@ -226,8 +226,7 @@ if (!source.includes(previousReplicateHelper)) {
 source = source.replace(previousReplicateHelper, boundedReplicateHelper);
 
 const audioStart = source.indexOf("app.post('/api/generate-audio'");
-const audioEndMarker = '// ═══════════════════════════════════════════════════════════════════\n// AUDIO MIXING';
-const audioEnd = source.indexOf(audioEndMarker, audioStart);
+const audioEnd = source.indexOf("app.post('/api/mix-audio'", audioStart);
 if (audioStart === -1 || audioEnd === -1) {
   console.error('Could not isolate the Studio audio-generation route.');
   process.exit(1);
