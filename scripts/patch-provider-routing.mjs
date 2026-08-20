@@ -27,7 +27,7 @@ const replacement = `    // Provider-aware engine selection. A configured Stabil
       } else {
         try {
           const balanceResponse = await fetch('https://api.stability.ai/v1/user/balance', {
-            headers: { Authorization: \\`Bearer \\${stabilityKey}\\`, Accept: 'application/json' },
+            headers: { Authorization: 'Bearer ' + stabilityKey, Accept: 'application/json' },
             signal: AbortSignal.timeout(3000)
           });
           const balancePayload = await balanceResponse.json().catch(() => ({}));
