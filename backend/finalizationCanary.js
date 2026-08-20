@@ -6,13 +6,13 @@ const { generateSyncedMusicVideo } = require('./services/videoGenerationOrchestr
 
 const CANARY_KEY = 'studio-finalize-20260820-f4b931';
 const JOB_TTL_MS = 45 * 60 * 1000;
-const jobs = new Map();
-const successfulMedia = new Map();
+const JOBS_COLLECTION = '_system_finalization_canary_jobs';
+const MEDIA_COLLECTION = '_system_finalization_canary_media';
+const STORAGE_PREFIX = '_system/finalization-canary';
 let canaryLogger = console;
+let access = {};
 
-function now() {
-  return Date.now();
-}
+function now() { return Date.now(); }
 
 function compactError(error) {
   let message;
@@ -30,6 +30,45 @@ function safeProviderErrors(value) {
     provider: String(item?.provider || 'unknown').slice(0, 80),
     error: compactError(item?.error || item?.message || 'unknown provider failure').slice(0, 500),
   }));
+}
+
+function serializable(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function firestore() {
+  const db = access.getFirestoreDb?.();
+  if (!db) throw new Error('Firestore is unavailable for durable provider certification');
+  return db;
+}
+
+function storageBucket() {
+  const bucket = access.getStorageBucket?.();
+  if (!bucket) throw new Error('Firebase Storage is unavailable for durable provider certification');
+  return bucket;
+}
+
+async function saveJob(job) {
+  await firestore().collection(JOBS_COLLECTION).doc(job.id).set(serializable(job), { merge: true });
+}
+
+async function loadJob(id) {
+  const snap = await firestore().collection(JOBS_COLLECTION).doc(id).get();
+  return snap.exists ? snap.data() : null;
+}
+
+function publicJob(job) {
+  if (!job) return null;
+  return {
+    id: job.id,
+    asset: job.asset,
+    status: job.status,
+    createdAt: new Date(job.createdAt).toISOString(),
+    startedAt: job.startedAt ? new Date(job.startedAt).toISOString() : null,
+    completedAt: job.completedAt ? new Date(job.completedAt).toISOString() : null,
+    result: job.result || null,
+    error: job.error || null,
+  };
 }
 
 function mediaCandidate(payload, kind) {
@@ -51,59 +90,93 @@ function dataUriBuffer(reference) {
   };
 }
 
-async function inspectMedia(reference, kind, cleanupLocal = false) {
+async function materializeMedia(reference, kind) {
   if (!reference) throw new Error(`${kind} response did not contain a media reference`);
-
   if (fs.existsSync(reference)) {
-    const bytes = fs.readFileSync(reference);
-    if (bytes.length < 1000) throw new Error(`${kind} local media was too small (${bytes.length} bytes)`);
-    const result = {
+    return {
+      bytes: fs.readFileSync(reference),
+      contentType: kind === 'video' ? 'video/mp4' : 'application/octet-stream',
       transport: 'local-file',
-      contentType: kind === 'video' ? 'video/mp4' : `${kind}/unknown`,
-      bytes: bytes.length,
-    };
-    if (cleanupLocal) {
-      try { fs.unlinkSync(reference); } catch {}
-    }
-    return result;
-  }
-
-  if (reference.startsWith('data:')) {
-    const decoded = dataUriBuffer(reference);
-    if (!decoded) throw new Error(`${kind} returned an invalid data URI`);
-    if (decoded.bytes.length < 1000) throw new Error(`${kind} media was too small (${decoded.bytes.length} bytes)`);
-    return {
-      transport: 'data-uri',
-      contentType: decoded.contentType,
-      bytes: decoded.bytes.length,
     };
   }
-
+  const decoded = dataUriBuffer(reference);
+  if (decoded) return { ...decoded, transport: 'data-uri' };
   if (!/^https?:\/\//i.test(reference)) {
-    const bytes = Buffer.from(reference, 'base64');
-    if (bytes.length < 1000) throw new Error(`${kind} media was too small (${bytes.length} bytes)`);
     return {
-      transport: 'base64',
+      bytes: Buffer.from(reference, 'base64'),
       contentType: kind === 'image' ? 'image/unknown' : `${kind}/unknown`,
-      bytes: bytes.length,
+      transport: 'base64',
     };
   }
-
   const response = await fetch(reference, {
-    headers: { Range: 'bytes=0-65535', 'User-Agent': 'StudioAgentsFinalCanary/2.0' },
+    headers: { 'User-Agent': 'StudioAgentsFinalCanary/3.0' },
     signal: AbortSignal.timeout(30000),
   });
-  if (!response.ok && response.status !== 206) {
-    throw new Error(`${kind} media URL returned HTTP ${response.status}`);
-  }
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length < 1000) throw new Error(`${kind} media URL returned too little data (${bytes.length} bytes)`);
+  if (!response.ok) throw new Error(`${kind} media URL returned HTTP ${response.status}`);
   return {
+    bytes: Buffer.from(await response.arrayBuffer()),
+    contentType: response.headers.get('content-type') || `${kind}/unknown`,
     transport: 'url',
     host: new URL(reference).host,
-    contentType: response.headers.get('content-type') || `${kind}/unknown`,
-    bytes: bytes.length,
   };
+}
+
+async function inspectMedia(reference, kind, cleanupLocal = false) {
+  const materialized = await materializeMedia(reference, kind);
+  if (materialized.bytes.length < 1000) throw new Error(`${kind} media was too small (${materialized.bytes.length} bytes)`);
+  if (cleanupLocal && fs.existsSync(reference)) {
+    try { fs.unlinkSync(reference); } catch {}
+  }
+  return {
+    transport: materialized.transport,
+    ...(materialized.host ? { host: materialized.host } : {}),
+    contentType: materialized.contentType,
+    bytes: materialized.bytes.length,
+  };
+}
+
+async function persistCanaryMedia(kind, reference, summary) {
+  const materialized = await materializeMedia(reference, kind);
+  if (materialized.bytes.length < 1000) throw new Error(`${kind} media was too small to persist`);
+  const db = firestore();
+  const previous = await db.collection(MEDIA_COLLECTION).doc(kind).get();
+  const oldPath = previous.exists ? previous.data()?.path : null;
+  const extension = /mpeg|mp3/i.test(materialized.contentType) ? 'mp3'
+    : /wav/i.test(materialized.contentType) ? 'wav'
+      : /png/i.test(materialized.contentType) ? 'png'
+        : /jpe?g/i.test(materialized.contentType) ? 'jpg'
+          : kind === 'video' ? 'mp4' : 'bin';
+  const objectPath = `${STORAGE_PREFIX}/${kind}-${now()}.${extension}`;
+  const token = crypto.randomUUID();
+  const file = storageBucket().file(objectPath);
+  await file.save(materialized.bytes, {
+    resumable: false,
+    metadata: {
+      contentType: materialized.contentType,
+      cacheControl: 'private, no-store, max-age=0',
+      metadata: { firebaseStorageDownloadTokens: token },
+    },
+  });
+  const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(storageBucket().name)}/o/${encodeURIComponent(objectPath)}?alt=media&token=${encodeURIComponent(token)}`;
+  await db.collection(MEDIA_COLLECTION).doc(kind).set({
+    kind,
+    path: objectPath,
+    url,
+    createdAt: now(),
+    summary: serializable(summary),
+  });
+  if (oldPath && oldPath !== objectPath) {
+    storageBucket().file(oldPath).delete({ ignoreNotFound: true }).catch(() => undefined);
+  }
+  return { url, path: objectPath };
+}
+
+async function loadCanaryMedia(kind) {
+  const snap = await firestore().collection(MEDIA_COLLECTION).doc(kind).get();
+  if (!snap.exists) return null;
+  const data = snap.data();
+  if (!data?.url || now() - Number(data.createdAt || 0) > JOB_TTL_MS) return null;
+  return data;
 }
 
 async function callLocal(path, body, timeoutMs) {
@@ -113,7 +186,7 @@ async function callLocal(path, body, timeoutMs) {
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      'User-Agent': 'StudioAgentsFinalCanary/2.0',
+      'User-Agent': 'StudioAgentsFinalCanary/3.0',
       'X-Studio-Final-Canary': 'true',
       'X-Forwarded-For': `198.51.100.${Math.floor(Math.random() * 180) + 20}`,
     },
@@ -122,11 +195,7 @@ async function callLocal(path, body, timeoutMs) {
   });
   const text = await response.text();
   let payload;
-  try {
-    payload = JSON.parse(text);
-  } catch {
-    payload = { raw: text.slice(0, 1000) };
-  }
+  try { payload = JSON.parse(text); } catch { payload = { raw: text.slice(0, 1000) }; }
   if (!response.ok) {
     const failure = {
       error: payload?.error || null,
@@ -149,7 +218,7 @@ async function runBeat() {
     mood: 'focused',
     quality: 'premium',
     outputFormat: 'music',
-    engine: 'stability',
+    engine: 'auto',
   }, 210000);
   const reference = mediaCandidate(payload, 'audio');
   const inspection = await inspectMedia(reference, 'audio');
@@ -161,7 +230,7 @@ async function runBeat() {
     realGeneration: payload?.isRealGeneration !== false,
     providerErrors: safeProviderErrors(payload?.providerErrors),
   };
-  successfulMedia.set('beat', { reference, createdAt: now(), summary });
+  await persistCanaryMedia('beat', reference, summary);
   return summary;
 }
 
@@ -173,15 +242,12 @@ async function runImage() {
     agentId: 'visual',
   }, 150000);
   const reference = mediaCandidate(payload, 'image');
-  const inspection = await inspectMedia(reference, 'image');
-  const summary = {
+  return {
     asset: 'image',
     provider: payload?.provider || payload?.source || payload?.model || 'unknown',
     durationMs: now() - startedAt,
-    inspection,
+    inspection: await inspectMedia(reference, 'image'),
   };
-  successfulMedia.set('image', { reference, createdAt: now(), summary });
-  return summary;
 }
 
 async function runVocal() {
@@ -199,136 +265,74 @@ async function runVocal() {
     isPersonalVoice: false,
   }, 210000);
   const reference = mediaCandidate(payload, 'audio');
-  const inspection = await inspectMedia(reference, 'audio');
-  const summary = {
+  return {
     asset: 'vocal',
     provider: payload?.provider || payload?.source || payload?.model || 'unknown',
     durationMs: now() - startedAt,
-    inspection,
+    inspection: await inspectMedia(reference, 'audio'),
     providerErrors: safeProviderErrors(payload?.providerErrors),
   };
-  successfulMedia.set('vocal', { reference, createdAt: now(), summary });
-  return summary;
 }
 
-async function probeJson(name, url, options = {}) {
+async function probeJson(url, options = {}) {
   const startedAt = now();
   try {
     const response = await fetch(url, { ...options, signal: AbortSignal.timeout(20000) });
-    const payload = await response.json().catch(() => ({}));
     return {
-      name,
-      configured: true,
       ok: response.ok,
       status: response.status,
       durationMs: now() - startedAt,
-      payload,
+      payload: await response.json().catch(() => ({})),
     };
   } catch (error) {
-    return {
-      name,
-      configured: true,
-      ok: false,
-      status: 0,
-      durationMs: now() - startedAt,
-      error: compactError(error),
-      payload: {},
-    };
+    return { ok: false, status: 0, durationMs: now() - startedAt, error: compactError(error), payload: {} };
   }
 }
 
 async function runProviderDiagnostics() {
   const startedAt = now();
   const checks = {};
-
   const stabilityKey = process.env.STABILITY_API_KEY;
   if (stabilityKey) {
-    const result = await probeJson('stability', 'https://api.stability.ai/v1/user/balance', {
-      headers: { Authorization: `Bearer ${stabilityKey}`, Accept: 'application/json' },
-    });
-    checks.stability = {
-      configured: true,
-      ok: result.ok,
-      status: result.status,
-      durationMs: result.durationMs,
-      creditsPositive: Number(result.payload?.credits) > 0,
-      error: compactError(result.payload?.message || result.payload?.name || result.error || ''),
-    };
+    const r = await probeJson('https://api.stability.ai/v1/user/balance', { headers: { Authorization: `Bearer ${stabilityKey}` } });
+    checks.stability = { configured: true, ok: r.ok, status: r.status, durationMs: r.durationMs, creditsPositive: Number(r.payload?.credits) > 0, error: compactError(r.payload?.message || r.payload?.name || r.error || '') };
   } else checks.stability = { configured: false, ok: false };
 
   const elevenKey = process.env.ELEVENLABS_API_KEY;
   if (elevenKey) {
-    const result = await probeJson('elevenlabs', 'https://api.elevenlabs.io/v1/user/subscription', {
-      headers: { 'xi-api-key': elevenKey, Accept: 'application/json' },
-    });
-    const remaining = Number(result.payload?.character_limit || 0) - Number(result.payload?.character_count || 0);
-    checks.elevenlabs = {
-      configured: true,
-      ok: result.ok,
-      status: result.status,
-      durationMs: result.durationMs,
-      tier: String(result.payload?.tier || result.payload?.status || 'unknown').slice(0, 80),
-      charactersRemainingPositive: Number.isFinite(remaining) ? remaining > 0 : null,
-      error: compactError(result.payload?.detail?.message || result.payload?.detail || result.error || ''),
-    };
+    const r = await probeJson('https://api.elevenlabs.io/v1/user/subscription', { headers: { 'xi-api-key': elevenKey } });
+    checks.elevenlabs = { configured: true, ok: r.ok, status: r.status, durationMs: r.durationMs, error: compactError(r.payload?.detail?.message || r.payload?.detail || r.error || '') };
   } else checks.elevenlabs = { configured: false, ok: false };
 
   const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
   if (replicateKey) {
-    const result = await probeJson('replicate', 'https://api.replicate.com/v1/account', {
-      headers: { Authorization: `Bearer ${replicateKey}`, Accept: 'application/json' },
-    });
-    checks.replicate = {
-      configured: true,
-      ok: result.ok,
-      status: result.status,
-      durationMs: result.durationMs,
-      accountResolved: Boolean(result.payload?.username || result.payload?.name || result.payload?.type),
-      error: compactError(result.payload?.detail || result.payload?.error || result.error || ''),
-    };
+    const r = await probeJson('https://api.replicate.com/v1/account', { headers: { Authorization: `Bearer ${replicateKey}` } });
+    checks.replicate = { configured: true, ok: r.ok, status: r.status, durationMs: r.durationMs, accountResolved: Boolean(r.payload?.username || r.payload?.name || r.payload?.type), error: compactError(r.payload?.detail || r.payload?.error || r.error || '') };
   } else checks.replicate = { configured: false, ok: false };
 
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
-    const result = await probeJson('gemini', `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(geminiKey)}`, {
-      headers: { Accept: 'application/json' },
-    });
-    const models = Array.isArray(result.payload?.models) ? result.payload.models.map(model => String(model?.name || '')) : [];
-    checks.gemini = {
-      configured: true,
-      ok: result.ok,
-      status: result.status,
-      durationMs: result.durationMs,
-      textModelVisible: models.some(name => /gemini-2\.5-(flash|pro)/.test(name)),
-      veoModelVisible: models.some(name => /veo/i.test(name)),
-      error: compactError(result.payload?.error?.message || result.error || ''),
-    };
+    const r = await probeJson(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(geminiKey)}`);
+    const models = Array.isArray(r.payload?.models) ? r.payload.models.map(model => String(model?.name || '')) : [];
+    checks.gemini = { configured: true, ok: r.ok, status: r.status, durationMs: r.durationMs, textModelVisible: models.some(name => /gemini-2\.5-(flash|pro)/.test(name)), veoModelVisible: models.some(name => /veo/i.test(name)), error: compactError(r.payload?.error?.message || r.error || '') };
   } else checks.gemini = { configured: false, ok: false };
 
-  return {
-    asset: 'providers',
-    durationMs: now() - startedAt,
-    checks,
-  };
+  return { asset: 'providers', durationMs: now() - startedAt, checks };
 }
 
 async function runVideo() {
   const startedAt = now();
-  let beat = successfulMedia.get('beat');
-  if (!beat || now() - beat.createdAt > JOB_TTL_MS) {
-    const summary = await runBeat();
-    beat = successfulMedia.get('beat');
-    if (beat) beat.summary = summary;
+  let beat = await loadCanaryMedia('beat');
+  if (!beat) {
+    await runBeat();
+    beat = await loadCanaryMedia('beat');
   }
-  if (!beat?.reference) throw new Error('video certification could not obtain a valid beat');
-
-  const port = Number(process.env.PORT || 3000);
-  const localBeatUrl = `http://127.0.0.1:${port}/api/finalize-provider-canary-media/beat?key=${encodeURIComponent(CANARY_KEY)}`;
+  if (!beat?.url) throw new Error('video certification could not obtain a durable beat URL');
   const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
   if (!replicateKey) throw new Error('Replicate video provider is not configured');
 
   const result = await generateSyncedMusicVideo(
-    localBeatUrl,
+    beat.url,
     'Cinematic night recording studio, slow camera push toward a glowing microphone, subtle blue and gold lighting, polished music video shot.',
     'Studio Agents Final Certification',
     6,
@@ -337,9 +341,7 @@ async function runVideo() {
     null,
     null,
   );
-  if (!result?.success || result?.quality !== 'complete') {
-    throw new Error(`video orchestrator returned a non-complete result: ${compactError(result)}`);
-  }
+  if (!result?.success || result?.quality !== 'complete') throw new Error(`video orchestrator returned a non-complete result: ${compactError(result)}`);
   const inspection = await inspectMedia(result.videoUrl, 'video', true);
   return {
     asset: 'video',
@@ -356,124 +358,80 @@ async function runVideo() {
 }
 
 async function runAsset(asset) {
+  if (asset === 'providers') return runProviderDiagnostics();
   if (asset === 'beat') return runBeat();
   if (asset === 'image') return runImage();
   if (asset === 'vocal') return runVocal();
   if (asset === 'video') return runVideo();
-  if (asset === 'providers') return runProviderDiagnostics();
   throw new Error('asset must be providers, beat, image, vocal, or video');
 }
 
-function publicJob(job) {
-  if (!job) return null;
-  return {
-    id: job.id,
-    asset: job.asset,
-    status: job.status,
-    createdAt: new Date(job.createdAt).toISOString(),
-    startedAt: job.startedAt ? new Date(job.startedAt).toISOString() : null,
-    completedAt: job.completedAt ? new Date(job.completedAt).toISOString() : null,
-    result: job.result || null,
-    error: job.error || null,
-  };
-}
-
-function prune() {
-  const cutoff = now() - JOB_TTL_MS;
-  for (const [id, job] of jobs) if (job.createdAt < cutoff) jobs.delete(id);
-  for (const [key, media] of successfulMedia) if (media.createdAt < cutoff) successfulMedia.delete(key);
-}
-
-async function serveCanaryMedia(req, res) {
-  if (String(req.query?.key || '') !== CANARY_KEY) return res.status(404).end();
-  const kind = String(req.params?.kind || '');
-  const media = successfulMedia.get(kind);
-  if (!media?.reference) return res.status(404).json({ error: 'Canary media unavailable' });
-
-  const decoded = dataUriBuffer(media.reference);
-  if (decoded) {
-    res.setHeader('Content-Type', decoded.contentType);
-    res.setHeader('Content-Length', String(decoded.bytes.length));
-    res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).send(decoded.bytes);
+async function cleanup() {
+  const db = firestore();
+  for (const collection of [JOBS_COLLECTION, MEDIA_COLLECTION]) {
+    const snapshot = await db.collection(collection).limit(100).get();
+    if (!snapshot.empty) {
+      const batch = db.batch();
+      snapshot.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+    }
   }
-
-  if (/^https?:\/\//.test(media.reference)) {
-    const upstream = await fetch(media.reference, { signal: AbortSignal.timeout(30000) });
-    if (!upstream.ok) return res.status(502).json({ error: `Upstream media returned ${upstream.status}` });
-    const bytes = Buffer.from(await upstream.arrayBuffer());
-    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'application/octet-stream');
-    res.setHeader('Content-Length', String(bytes.length));
-    res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).send(bytes);
-  }
-
-  return res.status(500).json({ error: 'Unsupported canary media reference' });
+  const [files] = await storageBucket().getFiles({ prefix: `${STORAGE_PREFIX}/` });
+  await Promise.allSettled(files.map(file => file.delete({ ignoreNotFound: true })));
+  return { jobsDeleted: true, mediaFilesDeleted: files.length };
 }
 
-module.exports = function registerFinalizationCanary(app, logger) {
+module.exports = function registerFinalizationCanary(app, logger, serviceAccess = {}) {
   canaryLogger = logger || console;
-  prune();
-
-  app.get('/api/finalize-provider-canary-media/:kind', (req, res) => {
-    serveCanaryMedia(req, res).catch(error => {
-      logger?.error?.('[finalization-canary] media serve failed', { error: compactError(error) });
-      if (!res.headersSent) res.status(500).json({ error: 'Canary media serve failed' });
-    });
-  });
+  access = serviceAccess;
 
   app.get('/api/finalize-provider-canary', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
-    if (String(req.query?.key || '') !== CANARY_KEY) {
-      return res.status(404).json({ error: 'Not found' });
-    }
-
-    prune();
+    if (String(req.query?.key || '') !== CANARY_KEY) return res.status(404).json({ error: 'Not found' });
     const action = String(req.query?.action || 'status');
-    if (action === 'start') {
-      const asset = String(req.query?.asset || '');
-      if (!['providers', 'beat', 'image', 'vocal', 'video'].includes(asset)) {
-        return res.status(400).json({ error: 'asset must be providers, beat, image, vocal, or video' });
-      }
-      const existing = [...jobs.values()].find(job => job.asset === asset && (job.status === 'queued' || job.status === 'running'));
-      if (existing) return res.status(202).json({ job: publicJob(existing), reused: true });
 
-      const id = `${asset}-${crypto.randomUUID()}`;
-      const job = { id, asset, status: 'queued', createdAt: now(), result: null, error: null };
-      jobs.set(id, job);
-      setImmediate(async () => {
-        job.status = 'running';
-        job.startedAt = now();
-        try {
-          job.result = await runAsset(asset);
-          job.status = 'completed';
-        } catch (error) {
-          job.error = compactError(error);
-          job.status = 'failed';
-          logger?.error?.('[finalization-canary] asset failed', { asset, jobId: id, error: job.error });
-        } finally {
-          job.completedAt = now();
+    try {
+      if (action === 'start') {
+        const asset = String(req.query?.asset || '');
+        if (!['providers', 'beat', 'image', 'vocal', 'video'].includes(asset)) return res.status(400).json({ error: 'asset must be providers, beat, image, vocal, or video' });
+        const id = `${asset}-${crypto.randomUUID()}`;
+        const job = { id, asset, status: 'queued', createdAt: now(), startedAt: null, completedAt: null, result: null, error: null };
+        await saveJob(job);
+        setImmediate(async () => {
+          job.status = 'running';
+          job.startedAt = now();
+          await saveJob(job).catch(() => undefined);
+          try {
+            job.result = serializable(await runAsset(asset));
+            job.status = 'completed';
+          } catch (error) {
+            job.error = compactError(error);
+            job.status = 'failed';
+            logger?.error?.('[finalization-canary] asset failed', { asset, jobId: id, error: job.error });
+          } finally {
+            job.completedAt = now();
+            await saveJob(job).catch(saveError => logger?.error?.('[finalization-canary] job persistence failed', { jobId: id, error: compactError(saveError) }));
+          }
+        });
+        return res.status(202).json({ job: publicJob(job) });
+      }
+
+      if (action === 'status') {
+        const id = String(req.query?.jobId || '');
+        if (id) {
+          const job = await loadJob(id);
+          if (!job) return res.status(404).json({ error: 'Canary job not found' });
+          return res.status(200).json({ job: publicJob(job) });
         }
-      });
-      return res.status(202).json({ job: publicJob(job) });
-    }
-
-    if (action === 'status') {
-      const id = String(req.query?.jobId || '');
-      if (id) {
-        const job = jobs.get(id);
-        if (!job) return res.status(404).json({ error: 'Canary job not found' });
-        return res.status(200).json({ job: publicJob(job) });
+        const snapshot = await firestore().collection(JOBS_COLLECTION).limit(30).get();
+        return res.status(200).json({ jobs: snapshot.docs.map(doc => publicJob(doc.data())) });
       }
-      return res.status(200).json({ jobs: [...jobs.values()].map(publicJob) });
-    }
 
-    if (action === 'cleanup') {
-      jobs.clear();
-      successfulMedia.clear();
-      return res.status(200).json({ ok: true, cleaned: true });
+      if (action === 'cleanup') return res.status(200).json({ ok: true, cleaned: true, ...(await cleanup()) });
+      return res.status(400).json({ error: 'Unknown action' });
+    } catch (error) {
+      logger?.error?.('[finalization-canary] route failed', { action, error: compactError(error) });
+      return res.status(500).json({ error: compactError(error) });
     }
-
-    return res.status(400).json({ error: 'Unknown action' });
   });
 };
