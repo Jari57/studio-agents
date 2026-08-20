@@ -2,7 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const serverPath = path.resolve('/app/backend/server.js');
+const videoOrchestratorPath = path.resolve('/app/backend/services/videoGenerationOrchestrator.js');
 let source = fs.readFileSync(serverPath, 'utf8');
+let videoSource = fs.readFileSync(videoOrchestratorPath, 'utf8');
 
 const previousEngineSelection = `    // Engine Selection Logic - Always prefer Stability AI for highest quality
     let finalEngine = engine;
@@ -282,6 +284,58 @@ if (!audioRoute.includes(legacyFallback)) {
 audioRoute = audioRoute.replace(legacyFallback, boundedInteractiveFallback);
 source = source.slice(0, audioStart) + audioRoute + source.slice(audioEnd);
 
+// The old video-01 model routinely takes 2.5–5 minutes for a six-second clip.
+// Use Hailuo 2.3 Fast when the pipeline has album art (the normal full-package
+// path), and current Hailuo 2.3 for text-only generation. Both accept explicit
+// six-second duration and 768p resolution.
+const oldSegmentInput = `          const inputPayload = {
+            prompt,
+            prompt_optimizer: true
+          };`;
+const newSegmentInput = `          const inputPayload = {
+            prompt,
+            prompt_optimizer: true,
+            duration: 6,
+            resolution: '768p'
+          };`;
+if (!videoSource.includes(oldSegmentInput)) {
+  console.error('Could not find the video segment input contract.');
+  process.exit(1);
+}
+videoSource = videoSource.replace(oldSegmentInput, newSegmentInput);
+
+const oldSegmentModelCall = `          return runReplicateWithRateLimitRetry(replicate, 'minimax/video-01', inputPayload, logger, globalIdx + 1)`;
+const newSegmentModelCall = `          const segmentModel = imageUrl ? 'minimax/hailuo-2.3-fast' : 'minimax/hailuo-2.3';
+          return runReplicateWithRateLimitRetry(replicate, segmentModel, inputPayload, logger, globalIdx + 1)`;
+if (!videoSource.includes(oldSegmentModelCall)) {
+  console.error('Could not find the legacy video segment model call.');
+  process.exit(1);
+}
+videoSource = videoSource.replace(oldSegmentModelCall, newSegmentModelCall);
+
+const oldSingleDefault = "  model = 'minimax/video-01',";
+if (!videoSource.includes(oldSingleDefault)) {
+  console.error('Could not find the legacy single-video model default.');
+  process.exit(1);
+}
+videoSource = videoSource.replace(oldSingleDefault, "  model = 'minimax/hailuo-2.3',");
+
+const oldSingleInput = `        input: {
+          prompt,
+          prompt_optimizer: true
+        }`;
+const newSingleInput = `        input: {
+          prompt,
+          prompt_optimizer: true,
+          duration: 6,
+          resolution: '768p'
+        }`;
+if (!videoSource.includes(oldSingleInput)) {
+  console.error('Could not find the single-video input contract.');
+  process.exit(1);
+}
+videoSource = videoSource.replace(oldSingleInput, newSingleInput);
+
 for (const required of [
   '__studioStabilityAudioAvailability',
   '__studioReplicateBoundedPrediction',
@@ -295,6 +349,17 @@ for (const required of [
     process.exit(1);
   }
 }
+for (const required of [
+  'minimax/hailuo-2.3-fast',
+  "model = 'minimax/hailuo-2.3'",
+  "resolution: '768p'"
+]) {
+  if (!videoSource.includes(required)) {
+    console.error('Video provider patch is incomplete: ' + required);
+    process.exit(1);
+  }
+}
 
 fs.writeFileSync(serverPath, source);
-console.log(`Provider-aware beat routing applied to ${engineOccurrences} route occurrence(s); requested duration is honored, interactive beats use bounded MusicGen, and long-form generation remains explicit.`);
+fs.writeFileSync(videoOrchestratorPath, videoSource);
+console.log(`Provider routing applied to ${engineOccurrences} audio route occurrence(s); interactive beats and current Hailuo video models are bounded and explicit.`);
