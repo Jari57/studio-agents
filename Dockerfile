@@ -17,8 +17,12 @@ COPY backend .
 # Railway actually runs. Fail the image build if the orchestrator loses bounded
 # provider waits, explicit partial-failure handling, or phase timing.
 COPY scripts/verify-video-reliability.mjs /app/scripts/verify-video-reliability.mjs
+COPY scripts/inject-finalization-canary.mjs /app/scripts/inject-finalization-canary.mjs
 RUN node --check services/videoGenerationOrchestrator.js \
-  && node /app/scripts/verify-video-reliability.mjs
+  && node /app/scripts/verify-video-reliability.mjs \
+  && node /app/scripts/inject-finalization-canary.mjs \
+  && node --check server.js \
+  && node --check finalizationCanary.js
 
 COPY --from=frontend-builder /app/frontend/dist ./public
 RUN npm prune --omit=dev
