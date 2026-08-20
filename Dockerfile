@@ -15,12 +15,16 @@ COPY backend .
 # Railway is the production asset-generation backend. Vercel deploys only the
 # frontend, so backend reliability has to be enforced in the Docker build that
 # Railway actually runs. Fail the image build if the orchestrator loses bounded
-# provider waits, explicit partial-failure handling, or phase timing.
+# provider waits, explicit partial-failure handling, phase timing, or the
+# provider-availability preflight that prevents known-dead premium calls.
 COPY scripts/verify-video-reliability.mjs /app/scripts/verify-video-reliability.mjs
+COPY scripts/patch-provider-routing.mjs /app/scripts/patch-provider-routing.mjs
 COPY scripts/inject-finalization-canary.mjs /app/scripts/inject-finalization-canary.mjs
 RUN node --check services/videoGenerationOrchestrator.js \
   && node /app/scripts/verify-video-reliability.mjs \
+  && node /app/scripts/patch-provider-routing.mjs \
   && node /app/scripts/inject-finalization-canary.mjs \
+  && grep -q '__studioStabilityAudioAvailability' server.js \
   && node --check server.js \
   && node --check finalizationCanary.js
 
