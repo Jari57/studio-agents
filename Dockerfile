@@ -13,20 +13,19 @@ RUN npm ci
 COPY backend .
 
 # Railway is the production asset-generation backend. Vercel deploys only the
-# frontend, so backend reliability has to be enforced in the Docker build that
-# Railway actually runs. Fail the image build if the orchestrator loses bounded
-# provider waits, explicit partial-failure handling, phase timing, or the
-# provider-availability preflight that prevents known-dead premium calls.
+# frontend, so backend reliability is enforced in the Docker build Railway runs.
+# The build fails closed if bounded provider waits, database-safe state, current
+# video routing, requested-duration handling, or explicit failure semantics regress.
 COPY scripts/verify-video-reliability.mjs /app/scripts/verify-video-reliability.mjs
 COPY scripts/patch-provider-routing.mjs /app/scripts/patch-provider-routing.mjs
-COPY scripts/inject-finalization-canary.mjs /app/scripts/inject-finalization-canary.mjs
-RUN node --check services/videoGenerationOrchestrator.js \
+RUN node /app/scripts/patch-provider-routing.mjs \
+  && node --check services/videoGenerationOrchestrator.js \
   && node /app/scripts/verify-video-reliability.mjs \
-  && node /app/scripts/patch-provider-routing.mjs \
-  && node /app/scripts/inject-finalization-canary.mjs \
-  && grep -q '__studioStabilityAudioAvailability' server.js \
-  && node --check server.js \
-  && node --check finalizationCanary.js
+  && grep -Fq '__studioStabilityAudioAvailability' server.js \
+  && grep -Fq '__studioReplicateBoundedPrediction' server.js \
+  && grep -Fq 'req.body?.duration ?? 60' server.js \
+  && grep -Fq 'minimax/hailuo-2.3-fast' services/videoGenerationOrchestrator.js \
+  && node --check server.js
 
 COPY --from=frontend-builder /app/frontend/dist ./public
 RUN npm prune --omit=dev
