@@ -17,8 +17,8 @@ const previousEngineSelection = `    // Engine Selection Logic - Always prefer S
 
 const providerAwareEngineSelection = `    // Provider-aware engine selection. A configured Stability key is not enough:
     // an account with zero balance used to hold every customer request for a full
-    // provider timeout before falling back to MiniMax. Cache a fast balance probe
-    // and skip the unavailable provider before starting paid generation work.
+    // provider timeout before falling back. Cache a fast balance probe and skip
+    // the unavailable provider before starting paid generation work.
     let stabilityUsable = false;
     if (stabilityKey) {
       const cached = globalThis.__studioStabilityAudioAvailability;
@@ -126,7 +126,8 @@ const boundedReplicateHelper = `async function runReplicateWithRateLimitRetry(_r
         headers: {
           Authorization: 'Bearer ' + token,
           'Content-Type': 'application/json',
-          Prefer: 'wait=10'
+          Prefer: 'wait=10',
+          'Cancel-After': Math.round(timeoutMs / 1000) + 's'
         },
         body: JSON.stringify(createBody)
       }, 20000);
@@ -237,26 +238,41 @@ let audioRoute = source.slice(audioStart, audioEnd);
 // selection—not repeated waiting—is the fallback strategy.
 audioRoute = audioRoute.replaceAll('{ timeoutMs: 60000 }', '{ timeoutMs: 45000, maxRetries: 0 }');
 
-// The current MiniMax model is the normal no-reference path. Do not follow a
-// slow MiniMax failure with another legacy Replicate model for the same request.
-// MusicGen remains available when reference-audio melody conditioning is needed.
+// MiniMax Music 2.6 intentionally creates full-length songs and can take several
+// minutes. Keep it for explicit long-form requests only. Interactive 30–65 second
+// beat requests use MusicGen, which honors a bounded requested duration.
+const miniMaxDefaultPath = `    if (replicateKey && !audioUrl && !referenceAudio) {
+      try {
+        logger.info('Using Replicate MiniMax Music 2.6 (instrumental)');`;
+const miniMaxLongFormPath = `    if (replicateKey && !audioUrl && !referenceAudio && durationSeconds > 65) {
+      try {
+        logger.info('Using Replicate MiniMax Music 2.6 for explicit long-form instrumental generation');`;
+if (!audioRoute.includes(miniMaxDefaultPath)) {
+  console.error('Could not find the MiniMax full-length beat path.');
+  process.exit(1);
+}
+audioRoute = audioRoute.replace(miniMaxDefaultPath, miniMaxLongFormPath);
+
 const legacyFallback = `    if (replicateKey && !audioUrl) {
       try {
         logger.info('Using Replicate Music GPT (stereo-large)');`;
-const referenceOnlyFallback = `    if (replicateKey && !audioUrl && referenceAudio) {
+const boundedInteractiveFallback = `    if (replicateKey && !audioUrl && (referenceAudio || durationSeconds <= 65)) {
       try {
-        logger.info('Using Replicate Music GPT (stereo-large) for reference-audio conditioning');`;
+        logger.info(referenceAudio
+          ? 'Using bounded Replicate MusicGen for reference-audio conditioning'
+          : 'Using bounded Replicate MusicGen for interactive beat generation');`;
 if (!audioRoute.includes(legacyFallback)) {
-  console.error('Could not find the legacy MusicGen fallback contract.');
+  console.error('Could not find the MusicGen fallback contract.');
   process.exit(1);
 }
-audioRoute = audioRoute.replace(legacyFallback, referenceOnlyFallback);
+audioRoute = audioRoute.replace(legacyFallback, boundedInteractiveFallback);
 source = source.slice(0, audioStart) + audioRoute + source.slice(audioEnd);
 
 for (const required of [
   '__studioStabilityAudioAvailability',
   '__studioReplicateBoundedPrediction',
-  'reference-audio conditioning',
+  'explicit long-form instrumental generation',
+  'interactive beat generation',
   'maxRetries: 0'
 ]) {
   if (!source.includes(required)) {
@@ -266,4 +282,4 @@ for (const required of [
 }
 
 fs.writeFileSync(serverPath, source);
-console.log(`Provider-aware beat routing applied to ${engineOccurrences} route occurrence(s); Replicate generation is bounded and cancelable.`);
+console.log(`Provider-aware beat routing applied to ${engineOccurrences} route occurrence(s); interactive beats use bounded MusicGen and long-form generation remains explicit.`);
