@@ -4,11 +4,17 @@
   "description": "Studio Agents AI - Backend API Server",
   "main": "server.js",
   "scripts": {
+    "apply:credit-reservations": "node scripts/apply-credit-reservation-hardening.js",
+    "prestart": "npm run apply:credit-reservations",
     "start": "node server.js",
-    "build": "echo 'No build step required for Node.js backend'",
+    "prebuild": "npm run apply:credit-reservations",
+    "build": "node --check server.js",
+    "predev": "npm run apply:credit-reservations",
     "dev": "node server.js",
+    "preprod": "npm run apply:credit-reservations",
     "prod": "node server.js",
     "lint": "eslint .",
+    "pretest": "npm run apply:credit-reservations",
     "test": "node --test test/*.test.js"
   },
   "keywords": [],

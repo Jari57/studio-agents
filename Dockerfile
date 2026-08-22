@@ -14,13 +14,17 @@ COPY backend .
 
 # Railway is the production asset-generation backend. Vercel deploys only the
 # frontend, so backend reliability is enforced in the Docker build Railway runs.
-# The build fails closed if bounded provider waits, database-safe state, current
-# video routing, requested-duration handling, or explicit failure semantics regress.
+# The build fails closed if credit reservations, bounded provider waits,
+# database-safe state, current video routing, requested-duration handling, or
+# explicit failure semantics regress.
 COPY scripts/verify-video-reliability.mjs /app/scripts/verify-video-reliability.mjs
 COPY scripts/patch-provider-routing.mjs /app/scripts/patch-provider-routing.mjs
-RUN node /app/scripts/patch-provider-routing.mjs \
+RUN node scripts/apply-credit-reservation-hardening.js \
+  && node /app/scripts/patch-provider-routing.mjs \
+  && node --check services/creditReservation.js \
   && node --check services/videoGenerationOrchestrator.js \
   && node /app/scripts/verify-video-reliability.mjs \
+  && grep -Fq "createCreditReservationService" server.js \
   && grep -Fq '__studioStabilityAudioAvailability' server.js \
   && grep -Fq '__studioReplicateBoundedPrediction' server.js \
   && grep -Fq 'req.body?.duration ?? 60' server.js \
