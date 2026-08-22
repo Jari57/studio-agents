@@ -1,8 +1,11 @@
 # Backend runtime is hosted on Railway, but Vercel previews must receive the
-# deterministic backend test inputs used by the release gate.
+# deterministic backend test inputs and patch script used by the release gate.
 backend/*
 !backend/package.json
 !backend/package-lock.json
+!backend/server.js
+!backend/scripts/
+!backend/scripts/**
 !backend/services/
 !backend/services/**
 !backend/test/
