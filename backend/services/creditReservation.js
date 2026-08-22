@@ -18,7 +18,7 @@ function stableSerialize(value) {
 
   return `{${Object.keys(value)
     .sort()
-    .filter((key) => key !== 'idempotencyKey')
+    .filter((key) => !['idempotencyKey', 'requestId', 'generationId'].includes(key))
     .map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`)
     .join(',')}}`;
 }
@@ -66,6 +66,20 @@ function settlementOutcomeForStatus(statusCode) {
   return statusCode >= 200 && statusCode < 300 ? 'consume' : 'refund';
 }
 
+function creditOptionsFromRequest(req) {
+  return {
+    duration: Number(req.body?.duration || req.body?.durationSeconds || 30),
+  };
+}
+
+function resolveCreditAmount(getCreditCost, feature, req) {
+  const amount = Number(getCreditCost(feature, creditOptionsFromRequest(req)));
+  if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(amount)) {
+    throw new Error(`Invalid credit price for ${feature}`);
+  }
+  return amount;
+}
+
 function errorPayload(kind, reservationId) {
   if (kind === 'completed') {
     return {
@@ -108,14 +122,23 @@ function errorPayload(kind, reservationId) {
 }
 
 function createCreditReservationService({
-  db,
+  getDb,
   admin,
-  getUid,
+  getUserId,
+  getUserEmail = () => null,
+  getCreditCost,
+  shouldSkip = () => false,
   reservationTtlMs = DEFAULT_RESERVATION_TTL_MS,
   logger = console,
 }) {
-  if (typeof getUid !== 'function') {
-    throw new TypeError('createCreditReservationService requires getUid(req).');
+  if (typeof getDb !== 'function') {
+    throw new TypeError('createCreditReservationService requires getDb().');
+  }
+  if (typeof getUserId !== 'function') {
+    throw new TypeError('createCreditReservationService requires getUserId(req).');
+  }
+  if (typeof getCreditCost !== 'function') {
+    throw new TypeError('createCreditReservationService requires getCreditCost(feature, options).');
   }
 
   const fieldValue = admin?.firestore?.FieldValue;
@@ -142,18 +165,16 @@ function createCreditReservationService({
     return { key: supplied || randomUUID(), generated: !supplied };
   }
 
-  function reservationRefs(userId, idempotencyKey) {
+  function reservationRefs(db, userId, idempotencyKey) {
     const reservationId = reservationDocumentId(userId, idempotencyKey);
     const reservationRef = db.collection('creditReservations').doc(reservationId);
     const userRef = db.collection('users').doc(userId);
     return { reservationId, reservationRef, userRef };
   }
 
-  async function reserve(req, feature, amount) {
-    const userId = getUid(req);
-    if (!userId) {
-      return { kind: 'unauthorized' };
-    }
+  async function reserve(req, feature, amount, db) {
+    const userId = getUserId(req);
+    if (!userId) return { kind: 'unauthorized' };
 
     const { key: idempotencyKey, generated } = requestKey(req);
     const fingerprint = requestFingerprint({
@@ -162,15 +183,13 @@ function createCreditReservationService({
       amount,
       body: req.body || {},
     });
-    const { reservationId, reservationRef, userRef } = reservationRefs(userId, idempotencyKey);
-    const historyRef = userRef.collection('creditHistory').doc();
+    const { reservationId, reservationRef, userRef } = reservationRefs(db, userId, idempotencyKey);
+    const historyRef = userRef.collection('credit_history').doc();
     const nowMs = Date.now();
 
     const result = await db.runTransaction(async (transaction) => {
-      const [reservationSnapshot, userSnapshot] = await Promise.all([
-        transaction.get(reservationRef),
-        transaction.get(userRef),
-      ]);
+      const reservationSnapshot = await transaction.get(reservationRef);
+      const userSnapshot = await transaction.get(userRef);
       const existing = reservationSnapshot.exists ? reservationSnapshot.data() : null;
       const disposition = resolveExistingReservation(existing, fingerprint, nowMs);
 
@@ -187,7 +206,7 @@ function createCreditReservationService({
             feature: existing.feature || feature,
             reason: 'reservation_expired',
             reservationId,
-            createdAt: serverTimestamp(),
+            timestamp: serverTimestamp(),
           });
         }
         transaction.set(reservationRef, {
@@ -201,7 +220,7 @@ function createCreditReservationService({
 
       if (disposition.kind !== 'reserve') return disposition;
 
-      const currentCredits = userSnapshot.exists && Number.isFinite(userSnapshot.data()?.credits)
+      const currentCredits = userSnapshot.exists && Number.isFinite(Number(userSnapshot.data()?.credits))
         ? Number(userSnapshot.data().credits)
         : DEFAULT_STARTING_CREDITS;
       if (currentCredits < amount) {
@@ -210,7 +229,10 @@ function createCreditReservationService({
 
       const balanceAfter = currentCredits - amount;
       transaction.set(userRef, {
+        email: getUserEmail(req) || userSnapshot.data()?.email || null,
         credits: balanceAfter,
+        tier: userSnapshot.data()?.tier || 'free',
+        createdAt: userSnapshot.exists ? (userSnapshot.data()?.createdAt || serverTimestamp()) : serverTimestamp(),
         updatedAt: serverTimestamp(),
       }, { merge: true });
       transaction.set(reservationRef, {
@@ -228,9 +250,11 @@ function createCreditReservationService({
         type: 'reserve',
         amount: -amount,
         feature,
+        reason: `${feature} generation reserved`,
         reservationId,
+        balanceBefore: currentCredits,
         balanceAfter,
-        createdAt: serverTimestamp(),
+        timestamp: serverTimestamp(),
       });
 
       return { kind: 'reserved', balanceAfter };
@@ -246,10 +270,12 @@ function createCreditReservationService({
       reservationId,
       reservationRef,
       userRef,
+      db,
     };
   }
 
   async function settleReservation(req, outcome, reason) {
+    const db = req.creditReservationDb;
     if (!db || !req.creditReservationId || !req.creditReservationRef || !req.creditUserRef) {
       return false;
     }
@@ -264,7 +290,7 @@ function createCreditReservationService({
       if (reservation.status !== 'reserved') return false;
 
       const amount = Number(reservation.amount || req.creditCharged || 0);
-      const historyRef = req.creditUserRef.collection('creditHistory').doc();
+      const historyRef = req.creditUserRef.collection('credit_history').doc();
       if (outcome === 'refund' && amount > 0) {
         transaction.set(req.creditUserRef, {
           credits: increment(amount),
@@ -276,15 +302,16 @@ function createCreditReservationService({
           feature: reservation.feature || req.creditFeature,
           reason: String(reason || 'generation_failed'),
           reservationId: req.creditReservationId,
-          createdAt: serverTimestamp(),
+          timestamp: serverTimestamp(),
         });
       } else {
         transaction.set(historyRef, {
           type: 'consume',
           amount: 0,
           feature: reservation.feature || req.creditFeature,
+          reason: 'generation completed',
           reservationId: req.creditReservationId,
-          createdAt: serverTimestamp(),
+          timestamp: serverTimestamp(),
         });
       }
 
@@ -327,23 +354,38 @@ function createCreditReservationService({
     });
   }
 
-  function checkCreditsFor(feature, amount) {
+  function checkCreditsFor(feature) {
     return async (req, res, next) => {
-      if (!db) {
+      const skipReason = shouldSkip(req, feature);
+      if (skipReason) {
         req.creditCharged = 0;
+        req.creditSkipReason = String(skipReason);
         return next();
       }
 
+      const db = getDb();
+      if (!db) {
+        return res.status(503).json({
+          error: 'Credit verification is temporarily unavailable. No generation was started and no credit was charged.',
+          code: 'CREDIT_RESERVATION_UNAVAILABLE',
+        });
+      }
+
+      let amount;
       try {
-        const result = await reserve(req, feature, amount);
+        amount = resolveCreditAmount(getCreditCost, feature, req);
+        const result = await reserve(req, feature, amount, db);
         if (result.kind === 'unauthorized') {
-          return res.status(401).json({ error: 'Unauthorized' });
+          return res.status(401).json({ error: 'Authentication required' });
         }
         if (result.kind === 'insufficient') {
           return res.status(403).json({
-            error: 'Insufficient credits',
+            error: 'Insufficient Credits',
+            details: `This action requires ${amount} credits. Please upgrade your plan or purchase more credits.`,
             required: amount,
             available: result.available,
+            feature,
+            isUserCreditIssue: true,
           });
         }
         if (result.kind !== 'reserved') {
@@ -354,15 +396,17 @@ function createCreditReservationService({
 
         req.creditCharged = amount;
         req.creditFeature = feature;
+        req.featureType = feature;
         req.creditReservationId = result.reservationId;
         req.creditReservationRef = result.reservationRef;
         req.creditUserRef = result.userRef;
+        req.creditReservationDb = result.db;
         req.creditIdempotencyKey = result.idempotencyKey;
         res.setHeader('Idempotency-Key', result.idempotencyKey);
         res.setHeader('X-Credit-Reservation-Id', result.reservationId);
         res.setHeader(
           'Access-Control-Expose-Headers',
-          'Idempotency-Key, X-Credit-Reservation-Id',
+          'Idempotency-Key, X-Credit-Reservation-Id, X-Idempotency-Key-Generated',
         );
         if (result.generated) res.setHeader('X-Idempotency-Key-Generated', 'true');
         attachAutomaticSettlement(req, res);
@@ -370,10 +414,11 @@ function createCreditReservationService({
       } catch (error) {
         logger.error?.('[credits] reservation failed', {
           feature,
+          amount,
           error: error?.message || String(error),
         });
         return res.status(503).json({
-          error: 'Credit reservation could not be verified. No generation was started.',
+          error: 'Credit verification is temporarily unavailable. No generation was started and no credit was charged.',
           code: 'CREDIT_RESERVATION_UNAVAILABLE',
         });
       }
@@ -398,9 +443,11 @@ function createCreditReservationService({
 module.exports = {
   DEFAULT_RESERVATION_TTL_MS,
   createCreditReservationService,
+  creditOptionsFromRequest,
   normalizeIdempotencyKey,
   requestFingerprint,
   reservationDocumentId,
+  resolveCreditAmount,
   resolveExistingReservation,
   settlementOutcomeForStatus,
   stableSerialize,
