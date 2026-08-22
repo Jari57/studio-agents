@@ -40,6 +40,9 @@ jobs:
       - name: Verify backend installation
         run: cd backend && npm list --depth=0
 
+      - name: Run backend unit tests
+        run: cd backend && npm test
+
       - name: Block production high/critical dependency vulnerabilities
         run: |
           cd backend && npm audit --omit=dev --audit-level=high
