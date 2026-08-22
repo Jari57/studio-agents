@@ -1,9 +1,10 @@
 'use strict';
 
-const { createHash, randomUUID } = require('node:crypto');
+const { createHash } = require('node:crypto');
 
 const DEFAULT_STARTING_CREDITS = 25;
 const DEFAULT_RESERVATION_TTL_MS = 20 * 60 * 1000;
+const DEFAULT_IMPLICIT_DEDUPE_WINDOW_MS = 30 * 1000;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
 
 function normalizeIdempotencyKey(value) {
@@ -29,6 +30,28 @@ function sha256(value) {
 
 function requestFingerprint({ userId, feature, amount, body }) {
   return sha256(stableSerialize({ userId, feature, amount, body: body || {} }));
+}
+
+function implicitIdempotencyKey({
+  userId,
+  feature,
+  amount,
+  body,
+  nowMs = Date.now(),
+  windowMs = DEFAULT_IMPLICIT_DEDUPE_WINDOW_MS,
+}) {
+  const safeWindow = Number.isFinite(windowMs) && windowMs > 0
+    ? Math.floor(windowMs)
+    : DEFAULT_IMPLICIT_DEDUPE_WINDOW_MS;
+  const bucket = Math.floor(nowMs / safeWindow);
+  const digest = sha256(stableSerialize({
+    userId,
+    feature,
+    amount,
+    body: body || {},
+    bucket,
+  }));
+  return `auto-${digest.slice(0, 48)}`;
 }
 
 function reservationDocumentId(userId, idempotencyKey) {
@@ -129,6 +152,7 @@ function createCreditReservationService({
   getCreditCost,
   shouldSkip = () => false,
   reservationTtlMs = DEFAULT_RESERVATION_TTL_MS,
+  implicitDedupeWindowMs = DEFAULT_IMPLICIT_DEDUPE_WINDOW_MS,
   logger = console,
 }) {
   if (typeof getDb !== 'function') {
@@ -156,13 +180,26 @@ function createCreditReservationService({
     return fieldValue?.increment ? fieldValue.increment(amount) : amount;
   }
 
-  function requestKey(req) {
+  function requestKey(req, { userId, feature, amount, nowMs }) {
     const headerValue = typeof req.get === 'function'
       ? req.get('Idempotency-Key') || req.get('X-Idempotency-Key')
       : req.headers?.['idempotency-key'] || req.headers?.['x-idempotency-key'];
     const bodyValue = req.body?.idempotencyKey || req.body?.requestId || req.body?.generationId;
     const supplied = normalizeIdempotencyKey(headerValue || bodyValue);
-    return { key: supplied || randomUUID(), generated: !supplied };
+    if (supplied) return { key: supplied, generated: false, implicit: false };
+
+    return {
+      key: implicitIdempotencyKey({
+        userId,
+        feature,
+        amount,
+        body: req.body || {},
+        nowMs,
+        windowMs: implicitDedupeWindowMs,
+      }),
+      generated: true,
+      implicit: true,
+    };
   }
 
   function reservationRefs(db, userId, idempotencyKey) {
@@ -172,11 +209,40 @@ function createCreditReservationService({
     return { reservationId, reservationRef, userRef };
   }
 
+  function settlementContext(subject) {
+    const db = subject?.creditReservationDb || getDb();
+    const reservationId = subject?.creditReservationId || subject?.reservationId || null;
+    const userId = subject?.creditReservationUserId
+      || subject?.userId
+      || subject?.user?.uid
+      || null;
+
+    if (!db || !reservationId || !userId) return null;
+
+    return {
+      db,
+      reservationId,
+      userId,
+      reservationRef: subject?.creditReservationRef
+        || db.collection('creditReservations').doc(reservationId),
+      userRef: subject?.creditUserRef
+        || db.collection('users').doc(userId),
+      feature: subject?.creditFeature || subject?.featureType || subject?.feature || 'generation',
+      amount: Number(subject?.creditCharged || subject?.amount || 0),
+      subject,
+    };
+  }
+
   async function reserve(req, feature, amount, db) {
     const userId = getUserId(req);
     if (!userId) return { kind: 'unauthorized' };
 
-    const { key: idempotencyKey, generated } = requestKey(req);
+    const nowMs = Date.now();
+    const {
+      key: idempotencyKey,
+      generated,
+      implicit,
+    } = requestKey(req, { userId, feature, amount, nowMs });
     const fingerprint = requestFingerprint({
       userId,
       feature,
@@ -185,7 +251,6 @@ function createCreditReservationService({
     });
     const { reservationId, reservationRef, userRef } = reservationRefs(db, userId, idempotencyKey);
     const historyRef = userRef.collection('credit_history').doc();
-    const nowMs = Date.now();
 
     const result = await db.runTransaction(async (transaction) => {
       const reservationSnapshot = await transaction.get(reservationRef);
@@ -241,6 +306,7 @@ function createCreditReservationService({
         amount,
         requestHash: fingerprint,
         keyHash: sha256(idempotencyKey),
+        implicitKey: implicit,
         status: 'reserved',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -267,6 +333,7 @@ function createCreditReservationService({
       amount,
       idempotencyKey,
       generated,
+      implicit,
       reservationId,
       reservationRef,
       userRef,
@@ -274,48 +341,47 @@ function createCreditReservationService({
     };
   }
 
-  async function settleReservation(req, outcome, reason) {
-    const db = req.creditReservationDb;
-    if (!db || !req.creditReservationId || !req.creditReservationRef || !req.creditUserRef) {
-      return false;
-    }
-    if (req.creditReservationSettlementPromise) {
-      return req.creditReservationSettlementPromise;
+  async function settleReservation(subject, outcome, reason) {
+    const context = settlementContext(subject);
+    if (!context) return false;
+    if (subject.creditReservationSettlementPromise) {
+      return subject.creditReservationSettlementPromise;
     }
 
-    const settlement = db.runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(req.creditReservationRef);
+    const settlement = context.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(context.reservationRef);
       if (!snapshot.exists) return false;
       const reservation = snapshot.data() || {};
       if (reservation.status !== 'reserved') return false;
 
-      const amount = Number(reservation.amount || req.creditCharged || 0);
-      const historyRef = req.creditUserRef.collection('credit_history').doc();
+      const amount = Number(reservation.amount || context.amount || 0);
+      const feature = reservation.feature || context.feature;
+      const historyRef = context.userRef.collection('credit_history').doc();
       if (outcome === 'refund' && amount > 0) {
-        transaction.set(req.creditUserRef, {
+        transaction.set(context.userRef, {
           credits: increment(amount),
           updatedAt: serverTimestamp(),
         }, { merge: true });
         transaction.set(historyRef, {
           type: 'refund',
           amount,
-          feature: reservation.feature || req.creditFeature,
+          feature,
           reason: String(reason || 'generation_failed'),
-          reservationId: req.creditReservationId,
+          reservationId: context.reservationId,
           timestamp: serverTimestamp(),
         });
       } else {
         transaction.set(historyRef, {
           type: 'consume',
           amount: 0,
-          feature: reservation.feature || req.creditFeature,
-          reason: 'generation completed',
-          reservationId: req.creditReservationId,
+          feature,
+          reason: String(reason || 'generation_completed'),
+          reservationId: context.reservationId,
           timestamp: serverTimestamp(),
         });
       }
 
-      transaction.set(req.creditReservationRef, {
+      transaction.set(context.reservationRef, {
         status: outcome === 'refund' ? 'refunded' : 'consumed',
         refundReason: outcome === 'refund' ? String(reason || 'generation_failed') : null,
         refundedAt: outcome === 'refund' ? serverTimestamp() : null,
@@ -325,16 +391,16 @@ function createCreditReservationService({
       return true;
     });
 
-    req.creditReservationSettlementPromise = settlement;
+    subject.creditReservationSettlementPromise = settlement;
     try {
       const changed = await settlement;
-      req.creditReservationFinalized = true;
-      if (outcome === 'refund') req.creditCharged = 0;
+      subject.creditReservationFinalized = true;
+      if (outcome === 'refund') subject.creditCharged = 0;
       return changed;
     } catch (error) {
-      req.creditReservationSettlementPromise = null;
+      subject.creditReservationSettlementPromise = null;
       logger.error?.('[credits] reservation settlement failed', {
-        reservationId: req.creditReservationId,
+        reservationId: context.reservationId,
         outcome,
         error: error?.message || String(error),
       });
@@ -342,8 +408,37 @@ function createCreditReservationService({
     }
   }
 
+  function reservationMetadataFor(req) {
+    if (!req?.creditReservationId || !req?.creditReservationUserId) return {};
+    return {
+      creditReservationId: req.creditReservationId,
+      creditReservationUserId: req.creditReservationUserId,
+      creditFeature: req.creditFeature || req.featureType || 'generation',
+      creditCharged: Number(req.creditCharged || 0),
+    };
+  }
+
+  function deferCreditReservation(req) {
+    if (!req?.creditReservationId) return false;
+    req.creditReservationDeferred = true;
+    return true;
+  }
+
+  async function settleDetachedReservation(metadata, outcome, reason) {
+    return settleReservation(metadata, outcome, reason);
+  }
+
   function attachAutomaticSettlement(req, res) {
+    const originalJson = res.json.bind(res);
+    res.json = (body) => {
+      if (body && body.status === 'processing' && (body.operationId || body.jobId)) {
+        deferCreditReservation(req);
+      }
+      return originalJson(body);
+    };
+
     res.once('finish', () => {
+      if (req.creditReservationDeferred) return;
       const outcome = settlementOutcomeForStatus(res.statusCode);
       void settleReservation(req, outcome, `http_${res.statusCode}`).catch(() => {});
     });
@@ -398,6 +493,7 @@ function createCreditReservationService({
         req.creditFeature = feature;
         req.featureType = feature;
         req.creditReservationId = result.reservationId;
+        req.creditReservationUserId = result.userId;
         req.creditReservationRef = result.reservationRef;
         req.creditUserRef = result.userRef;
         req.creditReservationDb = result.db;
@@ -435,15 +531,20 @@ function createCreditReservationService({
 
   return {
     checkCreditsFor,
+    deferCreditReservation,
     refundCredits,
+    reservationMetadataFor,
+    settleDetachedReservation,
     settleReservation,
   };
 }
 
 module.exports = {
+  DEFAULT_IMPLICIT_DEDUPE_WINDOW_MS,
   DEFAULT_RESERVATION_TTL_MS,
   createCreditReservationService,
   creditOptionsFromRequest,
+  implicitIdempotencyKey,
   normalizeIdempotencyKey,
   requestFingerprint,
   reservationDocumentId,

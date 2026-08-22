@@ -6,6 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const {
+  DEFAULT_IMPLICIT_DEDUPE_WINDOW_MS,
+  implicitIdempotencyKey,
   normalizeIdempotencyKey,
   requestFingerprint,
   reservationDocumentId,
@@ -58,6 +60,23 @@ test('fingerprints are stable across object key order and ignore transport keys'
   );
 });
 
+test('legacy callers without a key receive short-window duplicate protection', () => {
+  const common = {
+    userId: 'user-1',
+    feature: 'beat',
+    amount: 10,
+    body: { prompt: 'warm keys', durationSeconds: 60 },
+    windowMs: DEFAULT_IMPLICIT_DEDUPE_WINDOW_MS,
+  };
+  const first = implicitIdempotencyKey({ ...common, nowMs: 45_000 });
+  const duplicate = implicitIdempotencyKey({ ...common, nowMs: 59_999 });
+  const laterIntent = implicitIdempotencyKey({ ...common, nowMs: 60_000 });
+
+  assert.equal(first, duplicate);
+  assert.notEqual(first, laterIntent);
+  assert.match(first, /^auto-[a-f0-9]{48}$/);
+});
+
 test('reservation IDs do not expose the user or client key', () => {
   const id = reservationDocumentId('user-secret', 'request-secret-123');
   assert.equal(id.length, 64);
@@ -97,7 +116,7 @@ test('expired reservations are explicitly recovered before a retry', () => {
   );
 });
 
-test('only successful HTTP responses consume a reservation', () => {
+test('only successful HTTP responses consume a synchronous reservation', () => {
   assert.equal(settlementOutcomeForStatus(200), 'consume');
   assert.equal(settlementOutcomeForStatus(202), 'consume');
   assert.equal(settlementOutcomeForStatus(299), 'consume');
@@ -134,7 +153,7 @@ test('stable serialization is deterministic for nested generation inputs', () =>
   );
 });
 
-test('server entrypoint uses the durable service and removes immediate deduction', () => {
+test('server entrypoint uses durable reservations and removes immediate deduction', () => {
   const server = fs.readFileSync(path.resolve(__dirname, '..', 'server.js'), 'utf8');
   assert.match(server, /createCreditReservationService\(\{/);
   assert.match(server, /getDb: getFirestoreDb/);
@@ -142,4 +161,17 @@ test('server entrypoint uses the durable service and removes immediate deduction
   assert.match(server, /anonymous-free-limit/);
   assert.doesNotMatch(server, /const checkCreditsFor = \(featureType\) => \{/);
   assert.match(server, /refundCredits/);
+});
+
+test('async video jobs keep the reservation until provider completion', () => {
+  const server = fs.readFileSync(path.resolve(__dirname, '..', 'server.js'), 'utf8');
+  const service = fs.readFileSync(path.resolve(__dirname, '..', 'services', 'creditReservation.js'), 'utf8');
+
+  assert.match(service, /body\.status === 'processing' && \(body\.operationId \|\| body\.jobId\)/);
+  assert.match(server, /\.\.\.reservationMetadataFor\(req\)/);
+  assert.match(server, /settleDetachedReservation\(op, 'consume', 'asynchronous video generation completed'\)/);
+  assert.match(server, /settleDetachedReservation\(completedJob, 'consume', 'synced video generation completed'\)/);
+  assert.match(server, /settleDetachedReservation\(op, 'refund'/);
+  assert.match(server, /settleDetachedReservation\(job, 'refund'/);
+  assert.match(server, /refundPendingVideoOp\(op, 'video polling failed repeatedly'\)/);
 });
