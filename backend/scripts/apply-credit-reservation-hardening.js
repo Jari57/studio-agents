@@ -268,13 +268,20 @@ if (!source.includes("settleDetachedReservation(job, 'refund'")) {
 }
 
 if (!source.includes("await settleDetachedReservation(op, 'consume', 'asynchronous video generation completed');")) {
-  const completedMarker = "      op.status = 'completed';";
+  const nestedCompletedMarker = "      op.status = 'completed';";
   source = replaceExactCount(
     source,
-    completedMarker,
+    nestedCompletedMarker,
     "      await settleDetachedReservation(op, 'consume', 'asynchronous video generation completed');\n      op.status = 'completed';",
-    4,
-    'asynchronous video consumption',
+    3,
+    'nested asynchronous video consumption',
+  );
+
+  source = replaceOnce(
+    source,
+    "    op.status = 'completed';\n    op.result = { status: 'completed', output: result, type: 'video', source: op.source };",
+    "    await settleDetachedReservation(op, 'consume', 'asynchronous video generation completed');\n    op.status = 'completed';\n    op.result = { status: 'completed', output: result, type: 'video', source: op.source };",
+    'raw asynchronous video consumption',
   );
 }
 
