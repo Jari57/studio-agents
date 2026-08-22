@@ -12,7 +12,7 @@ backend/*
 !backend/test/**
 
 # Infrastructure and local artifacts
-scripts/
+/scripts/
 test-results/
 railway.json
 Procfile
