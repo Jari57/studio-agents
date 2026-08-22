@@ -9,6 +9,7 @@ const {
   normalizeIdempotencyKey,
   requestFingerprint,
   reservationDocumentId,
+  resolveCreditAmount,
   resolveExistingReservation,
   settlementOutcomeForStatus,
   stableSerialize,
@@ -21,18 +22,28 @@ test('normalizes only bounded safe idempotency keys', () => {
   assert.equal(normalizeIdempotencyKey('x'.repeat(201)), null);
 });
 
-test('fingerprints are stable across object key order and ignore transport key', () => {
+test('fingerprints are stable across object key order and ignore transport keys', () => {
   const left = requestFingerprint({
     userId: 'user-1',
     feature: 'music',
     amount: 5,
-    body: { prompt: 'warm piano', duration: 60, idempotencyKey: 'client-key-a' },
+    body: {
+      prompt: 'warm piano',
+      duration: 60,
+      idempotencyKey: 'client-key-a',
+      requestId: 'transport-a',
+    },
   });
   const right = requestFingerprint({
     userId: 'user-1',
     feature: 'music',
     amount: 5,
-    body: { duration: 60, idempotencyKey: 'client-key-b', prompt: 'warm piano' },
+    body: {
+      generationId: 'transport-b',
+      duration: 60,
+      idempotencyKey: 'client-key-b',
+      prompt: 'warm piano',
+    },
   });
   assert.equal(left, right);
   assert.equal(left.length, 64);
@@ -95,6 +106,27 @@ test('only successful HTTP responses consume a reservation', () => {
   assert.equal(settlementOutcomeForStatus(302), 'refund');
 });
 
+test('the reservation uses Studio Agents pricing, including extended duration', () => {
+  const getCreditCost = (feature, options) => {
+    if (feature === 'beat' && options.duration > 30) return 10;
+    if (feature === 'beat') return 5;
+    return 1;
+  };
+
+  assert.equal(
+    resolveCreditAmount(getCreditCost, 'beat', { body: { durationSeconds: 30 } }),
+    5,
+  );
+  assert.equal(
+    resolveCreditAmount(getCreditCost, 'beat', { body: { durationSeconds: 60 } }),
+    10,
+  );
+  assert.throws(
+    () => resolveCreditAmount(() => Number.NaN, 'beat', { body: {} }),
+    /Invalid credit price/,
+  );
+});
+
 test('stable serialization is deterministic for nested generation inputs', () => {
   assert.equal(
     stableSerialize({ b: [2, { y: true, x: false }], a: 'one' }),
@@ -104,7 +136,10 @@ test('stable serialization is deterministic for nested generation inputs', () =>
 
 test('server entrypoint uses the durable service and removes immediate deduction', () => {
   const server = fs.readFileSync(path.resolve(__dirname, '..', 'server.js'), 'utf8');
-  assert.match(server, /createCreditReservationService/);
-  assert.doesNotMatch(server, /const checkCreditsFor = \(feature, amount\) => \{/);
+  assert.match(server, /createCreditReservationService\(\{/);
+  assert.match(server, /getDb: getFirestoreDb/);
+  assert.match(server, /getCreditCost,/);
+  assert.match(server, /anonymous-free-limit/);
+  assert.doesNotMatch(server, /const checkCreditsFor = \(featureType\) => \{/);
   assert.match(server, /refundCredits/);
 });
