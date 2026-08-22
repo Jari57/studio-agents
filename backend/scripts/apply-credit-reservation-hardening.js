@@ -40,7 +40,7 @@ function replaceBlock(content, startMarker, endMarker, replacement, label) {
 
 const legacyStartMarker = 'const checkCreditsFor = (featureType) => {';
 const legacyEndMarker = '// Fetch with timeout helper';
-const serviceMarker = "createCreditReservationService({";
+const serviceMarker = 'createCreditReservationService({';
 
 const serviceWiring = `const { createCreditReservationService } = require('./services/creditReservation');
 const {
@@ -73,7 +73,7 @@ if (!source.includes(serviceMarker)) {
     source,
     legacyStartMarker,
     legacyEndMarker,
-    `${serviceWiring}${legacyEndMarker}`,
+    serviceWiring,
     'credit middleware replacement',
   );
 }
@@ -201,7 +201,7 @@ if (!source.includes("settleDetachedReservation(op, 'refund'")) {
     source,
     pendingRefundStart,
     pendingRefundEnd,
-    `${pendingRefundReplacement}${pendingRefundEnd}`,
+    pendingRefundReplacement,
     'pending-video refund replacement',
   );
 }
@@ -262,7 +262,7 @@ if (!source.includes("settleDetachedReservation(job, 'refund'")) {
     source,
     syncedRefundStart,
     syncedRefundEnd,
-    `${syncedRefundReplacement}${syncedRefundEnd}`,
+    syncedRefundReplacement,
     'synced-video refund replacement',
   );
 }
