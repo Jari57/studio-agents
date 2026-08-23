@@ -1,16 +1,47 @@
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const baseUrl = (process.env.STUDIO_CANARY_BASE_URL || 'https://studioagentsai.com').replace(/\/$/, '');
-const firebaseApiKey = process.env.STUDIO_FIREBASE_API_KEY || 'AIzaSyATzZmmJoABVEFYLro6ggpf_i9eoJ1eSfA';
 const requestTimeoutMs = 150_000;
 const routeWaitMs = 20 * 60_000;
+const firebaseKeyPattern = /^AIza[0-9A-Za-z_-]{30,}$/;
+
+function resolveFirebaseApiKey() {
+  const explicit = String(process.env.STUDIO_FIREBASE_API_KEY || '').trim();
+  if (explicit) {
+    if (!firebaseKeyPattern.test(explicit)) {
+      throw new Error('STUDIO_FIREBASE_API_KEY is present but does not look like a Firebase web API key.');
+    }
+    return { apiKey: explicit, source: 'production-canary secret' };
+  }
+
+  const configPath = resolve(process.cwd(), 'frontend/src/firebase.js');
+  let source = '';
+  try {
+    source = readFileSync(configPath, 'utf8');
+  } catch (error) {
+    throw new Error(`Could not read ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  const match = source.match(/\bapiKey\s*:\s*["']([^"']+)["']/);
+  const apiKey = String(match?.[1] || '').trim();
+  if (!firebaseKeyPattern.test(apiKey)) {
+    throw new Error('The released frontend Firebase configuration does not contain a valid web API key.');
+  }
+
+  return { apiKey, source: 'frontend/src/firebase.js' };
+}
+
+const firebaseConfig = resolveFirebaseApiKey();
+const firebaseApiKey = firebaseConfig.apiKey;
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
 function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 }
 
 async function request(url, init = {}, timeoutMs = requestTimeoutMs) {
@@ -98,7 +129,9 @@ async function main() {
   const password = `Canary-${randomBytes(18).toString('base64url')}!9a`;
   let idToken = null;
   let backendDeleted = false;
-  const evidence = [];
+  const evidence = [
+    { check: 'firebase-config', status: 'pass', source: firebaseConfig.source },
+  ];
 
   await waitForAccountDeletionRoute();
   evidence.push({ check: 'account-deletion-route', status: 'ready' });
