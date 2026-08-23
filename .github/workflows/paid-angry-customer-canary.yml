@@ -1,0 +1,54 @@
+name: Paid angry-customer canary
+
+on:
+  pull_request:
+    paths:
+      - scripts/paid-angry-customer-canary.mjs
+      - .github/workflows/paid-angry-customer-canary.yml
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Studio Agents frontend/API origin
+        required: false
+        default: https://studioagentsai.com
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-paid-customer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out canary contract
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate canary syntax
+        run: node --check scripts/paid-angry-customer-canary.mjs
+
+  production-paid-customer:
+    if: github.event_name != 'pull_request'
+    needs: validate-canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production-canary
+    steps:
+      - name: Check out exact released canary
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify one provider job, one charge, failure refund, and complete deletion
+        env:
+          STUDIO_CANARY_BASE_URL: ${{ inputs.base_url || 'https://studioagentsai.com' }}
+        run: node scripts/paid-angry-customer-canary.mjs
