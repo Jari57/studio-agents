@@ -166,14 +166,18 @@ function createAccountDeletionHandler({
     const userRef = db.collection('users').doc(userId);
     const userSnapshot = await userRef.get();
     const userData = userSnapshot.exists ? userSnapshot.data() : {};
+    let stage = 'billing';
 
     try {
       // Billing goes first. If Stripe cannot confirm deletion, preserve all
       // local records and assets so the customer is never silently billed by
       // an orphaned remote customer after losing access to Studio Agents.
       await deleteBilling({ getStripe, userData, userId });
+      stage = 'storage';
       await deleteStorage({ getStorageBucket, userId });
+      stage = 'data';
       await deleteData({ db, userId, userRef });
+      stage = 'identity';
       await deleteIdentity({ admin, userId });
 
       res.setHeader('Cache-Control', 'no-store, max-age=0');
@@ -185,17 +189,24 @@ function createAccountDeletionHandler({
     } catch (error) {
       logger.error?.('[account-deletion] deletion failed', {
         userId,
+        stage,
         code: error?.code || null,
         error: error?.message || String(error),
       });
 
-      const billingFailure = String(error?.code || '').startsWith('BILLING_')
-        || Boolean(userData?.stripeCustomerId && !isStripeMissingResource(error));
+      const billingFailure = stage === 'billing';
+      const stageMessage = {
+        storage: 'Studio Agents could not remove every private asset, so the account and sign-in were preserved for a safe retry.',
+        data: 'Studio Agents could not remove every saved record. Sign in again before retrying or contact support.',
+        identity: 'Saved Studio Agents data was removed, but sign-in deletion did not complete. Contact support so the remaining identity can be removed.',
+      }[stage];
+
       return res.status(billingFailure ? 502 : 503).json({
         error: billingFailure
           ? 'Studio Agents could not confirm deletion of the remote billing profile, so the account was left intact.'
-          : 'Studio Agents could not complete account deletion. Sign in again before retrying or contact support.',
-        code: error?.code || 'ACCOUNT_DELETE_FAILED',
+          : stageMessage || 'Studio Agents could not complete account deletion. Sign in again before retrying or contact support.',
+        code: error?.code || `ACCOUNT_DELETE_${stage.toUpperCase()}_FAILED`,
+        stage,
       });
     }
   };
