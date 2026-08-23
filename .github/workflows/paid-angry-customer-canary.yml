@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - scripts/paid-angry-customer-canary.mjs
+      - frontend/src/firebase.js
       - .github/workflows/paid-angry-customer-canary.yml
   push:
     branches: [main]
@@ -33,8 +34,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Validate canary syntax
-        run: node --check scripts/paid-angry-customer-canary.mjs
+      - name: Validate canary syntax and Firebase config discovery
+        env:
+          STUDIO_FIREBASE_API_KEY: ${{ secrets.STUDIO_FIREBASE_API_KEY }}
+        run: |
+          node --check scripts/paid-angry-customer-canary.mjs
+          node -e "const fs=require('node:fs'); const text=fs.readFileSync('frontend/src/firebase.js','utf8'); const match=text.match(/\\bapiKey\\s*:\\s*[\"']([^\"']+)[\"']/); if (!/^AIza[0-9A-Za-z_-]{30,}$/.test(match?.[1]||'')) process.exit(1);"
 
   production-paid-customer:
     if: github.event_name != 'pull_request'
@@ -52,6 +57,7 @@ jobs:
       - name: Run production canary and publish release status
         env:
           STUDIO_CANARY_BASE_URL: ${{ inputs.base_url || 'https://studioagentsai.com' }}
+          STUDIO_FIREBASE_API_KEY: ${{ secrets.STUDIO_FIREBASE_API_KEY }}
           GH_TOKEN: ${{ github.token }}
           STATUS_TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
