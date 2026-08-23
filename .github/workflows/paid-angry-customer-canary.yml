@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: studio-paid-customer-${{ github.ref }}
@@ -48,7 +49,47 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Verify one provider job, one charge, failure refund, and complete deletion
+      - name: Run production canary and publish release status
         env:
           STUDIO_CANARY_BASE_URL: ${{ inputs.base_url || 'https://studioagentsai.com' }}
-        run: node scripts/paid-angry-customer-canary.mjs
+          GH_TOKEN: ${{ github.token }}
+          STATUS_TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -u
+          status_endpoint="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}"
+
+          publish_status() {
+            local state="$1"
+            local description="$2"
+            curl --fail-with-body --silent --show-error \
+              --request POST \
+              --header "Accept: application/vnd.github+json" \
+              --header "Authorization: Bearer ${GH_TOKEN}" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              "${status_endpoint}" \
+              --data "{\"state\":\"${state}\",\"context\":\"studio-paid-angry-customer\",\"description\":\"${description}\",\"target_url\":\"${STATUS_TARGET_URL}\"}"
+          }
+
+          publish_status pending "Production paid-customer canary is running"
+          set +e
+          node scripts/paid-angry-customer-canary.mjs > paid-canary-evidence.json 2>&1
+          canary_exit=$?
+          set -e
+          cat paid-canary-evidence.json
+
+          if [ "${canary_exit}" -eq 0 ]; then
+            publish_status success "Duplicate, refund, history, and deletion canary passed"
+          else
+            publish_status failure "Paid-customer canary failed; production remains amber"
+          fi
+
+          exit "${canary_exit}"
+      - name: Upload paid-customer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-paid-angry-customer-${{ github.sha }}
+          path: paid-canary-evidence.json
+          if-no-files-found: warn
+          retention-days: 7
