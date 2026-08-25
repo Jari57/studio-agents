@@ -8119,13 +8119,195 @@ ABSOLUTE RULES (violating any = failure):
                           >
                             <Volume2 size={16} />
                           </button>
-                          <button 
-                            className={`btn-pill ${showVoiceSettings ? 'primary' : 'glass'}`}
-                            onClick={() => setShowVoiceSettings(!showVoiceSettings)}
-                            title="Voice Settings"
-                          >
-                            <Settings size={16} />
-                          </button>
+                          <div className="voice-settings-container">
+                            <button
+                              className={`btn-pill ${showVoiceSettings ? 'primary' : 'glass'}`}
+                              onClick={() => {
+                                setShowVoiceSettings(!showVoiceSettings);
+                                setShowVoiceHelp(false);
+                              }}
+                              title="Voice Settings"
+                              aria-expanded={showVoiceSettings}
+                              aria-controls="agents-voice-settings"
+                            >
+                              <Settings size={16} />
+                            </button>
+
+                            {showVoiceSettings && (
+                              <div
+                                id="agents-voice-settings"
+                                className="voice-settings-dropdown animate-fadeInUp"
+                                role="dialog"
+                                aria-label="Personal voice and vocal settings"
+                              >
+                                <div className="settings-group">
+                                  <label htmlFor="agents-voice-type">AI Voice Type</label>
+                                  <select
+                                    id="agents-voice-type"
+                                    value={voiceSettings.style || 'rapper'}
+                                    onChange={(e) => setVoiceSettings({...voiceSettings, style: e.target.value})}
+                                    className="settings-select"
+                                  >
+                                    <optgroup label="AI Rappers">
+                                      <option value="rapper">Male Rapper</option>
+                                      <option value="rapper-female">Female Rapper</option>
+                                    </optgroup>
+                                    <optgroup label="AI Singers">
+                                      <option value="singer">Male Singer (R&amp;B/Soul)</option>
+                                      <option value="singer-female">Female Singer (Pop/R&amp;B)</option>
+                                    </optgroup>
+                                    <optgroup label="Speech and narration">
+                                      <option value="narrator">Narrator (Deep Voice)</option>
+                                      <option value="spoken">Spoken Word</option>
+                                    </optgroup>
+                                    <optgroup label="Personal voice">
+                                      <option value="cloned" disabled={!voiceSettings.speakerUrl && !voiceSampleUrl && !elevenLabsVoiceId}>
+                                        My Personal Voice {!voiceSettings.speakerUrl && !voiceSampleUrl && !elevenLabsVoiceId && '(Create first)'}
+                                      </option>
+                                    </optgroup>
+                                  </select>
+                                </div>
+
+                                <div className="settings-group" style={{
+                                  padding: '10px',
+                                  background: 'rgba(255,255,255,0.03)',
+                                  borderRadius: '8px',
+                                  marginTop: '8px',
+                                  border: '1px dashed rgba(255,255,255,0.1)'
+                                }}>
+                                  <label style={{ fontSize: '0.75rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <Cloud size={14} className="text-cyan" />
+                                    {voiceSettings.speakerUrl ? 'Personal voice ready' : 'Create your personal voice'}
+                                  </label>
+
+                                  {voiceSettings.speakerUrl ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                      <div style={{ fontSize: '0.7rem', color: 'var(--color-green)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <Check size={12} /> Locked to your activated voice
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setVoiceSettings({...voiceSettings, speakerUrl: null, style: 'rapper'});
+                                          setVoiceSampleUrl(null);
+                                          setElevenLabsVoiceId('');
+                                          localStorage.removeItem('studio_cloned_voice_url');
+                                          localStorage.removeItem('studio_cloned_elevenlabs_id');
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: 'var(--color-red)', fontSize: '0.7rem', cursor: 'pointer' }}
+                                      >
+                                        Reset
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <label
+                                      htmlFor="agents-voice-upload-input"
+                                      style={{
+                                        display: 'block',
+                                        padding: '12px',
+                                        textAlign: 'center',
+                                        cursor: 'pointer',
+                                        border: '1px dashed rgba(255,255,255,0.2)',
+                                        borderRadius: '6px',
+                                        fontSize: '0.75rem',
+                                        color: 'var(--text-secondary)'
+                                      }}
+                                    >
+                                      <Upload size={16} style={{ marginBottom: '4px' }} />
+                                      <div>Upload a clean 15-30s clip (.wav/.mp3)</div>
+                                      <div style={{ marginTop: '4px', fontSize: '0.65rem', opacity: 0.7 }}>
+                                        You must own the voice or have explicit permission. We ask for confirmation before upload.
+                                      </div>
+                                      <input
+                                        id="agents-voice-upload-input"
+                                        type="file"
+                                        accept="audio/*"
+                                        hidden
+                                        onChange={handleUploadVoiceSample}
+                                      />
+                                    </label>
+                                  )}
+                                </div>
+
+                                {(voiceSettings.style === 'rapper' || voiceSettings.style === 'rapper-female') && (
+                                  <div className="settings-group">
+                                    <label htmlFor="agents-rap-style">Rap Flow &amp; Delivery</label>
+                                    <select
+                                      id="agents-rap-style"
+                                      value={voiceSettings.rapStyle || 'aggressive'}
+                                      onChange={(e) => setVoiceSettings({...voiceSettings, rapStyle: e.target.value})}
+                                      className="settings-select"
+                                    >
+                                      <option value="aggressive">Aggressive</option>
+                                      <option value="melodic">Melodic</option>
+                                      <option value="trap">Trap</option>
+                                      <option value="drill">Drill</option>
+                                      <option value="boom-bap">Boom-Bap</option>
+                                      <option value="fast">Fast Flow</option>
+                                      <option value="chill">Chill</option>
+                                      <option value="hype">Hype</option>
+                                    </select>
+                                  </div>
+                                )}
+
+                                {(voiceSettings.style === 'singer' || voiceSettings.style === 'singer-female') && (
+                                  <div className="settings-group">
+                                    <label htmlFor="agents-singer-genre">Music Genre</label>
+                                    <select
+                                      id="agents-singer-genre"
+                                      value={voiceSettings.genre || 'r&b'}
+                                      onChange={(e) => {
+                                        setVoiceSettings({...voiceSettings, genre: e.target.value});
+                                        setHeroGenre(e.target.value);
+                                      }}
+                                      className="settings-select"
+                                    >
+                                      <option value="r&b">R&amp;B / Soul</option>
+                                      <option value="pop">Pop</option>
+                                      <option value="hip-hop">Hip-Hop</option>
+                                      <option value="soul">Soul / Gospel</option>
+                                      <option value="country">Country / Folk</option>
+                                      <option value="rock">Rock / Metal</option>
+                                      <option value="jazz">Jazz / Blues</option>
+                                    </select>
+                                  </div>
+                                )}
+
+                                <div className="settings-split" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                  <div className="settings-group" style={{ flex: 1 }}>
+                                    <label htmlFor="agents-voice-language">Language</label>
+                                    <select
+                                      id="agents-voice-language"
+                                      value={voiceSettings.language}
+                                      onChange={(e) => setVoiceSettings({...voiceSettings, language: e.target.value})}
+                                      className="settings-select"
+                                    >
+                                      {['English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Japanese', 'Korean', 'Chinese'].map(language => (
+                                        <option key={language} value={language}>{language}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="settings-group" style={{ flex: 1 }}>
+                                    <label htmlFor="agents-voice-duration">Duration</label>
+                                    <select
+                                      id="agents-voice-duration"
+                                      value={voiceSettings.duration || 60}
+                                      onChange={(e) => setVoiceSettings({...voiceSettings, duration: parseInt(e.target.value)})}
+                                      className="settings-select"
+                                    >
+                                      <option value={30}>30 seconds</option>
+                                      <option value={60}>1 minute</option>
+                                      <option value={90}>1.5 minutes</option>
+                                      <option value={120}>2 minutes</option>
+                                      <option value={180}>3 minutes</option>
+                                      <option value={240}>4 minutes</option>
+                                      <option value={300}>5 minutes</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <textarea 

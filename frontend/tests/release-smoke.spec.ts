@@ -84,6 +84,43 @@ test.describe('release smoke checks', () => {
     await expect(page.getByRole('button', { name: 'Project Hub', exact: true })).toHaveAttribute('title', 'Project Hub');
   });
 
+  test('Vocal Lab exposes usable personal voice settings in the main agents workspace', async ({ page }) => {
+    await page.addInitScript(() => {
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = (input, init) => {
+        const url = typeof input === 'string' ? input : input.url;
+        if (url.includes('/api/health')) {
+          return Promise.resolve(new Response(JSON.stringify({ status: 'healthy' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }));
+        }
+        return originalFetch(input, init);
+      };
+    });
+    await page.goto(FRONTEND_URL, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => localStorage.setItem('studio_user_plan', 'pro'));
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await enterStudio(page);
+
+    await page.locator('button.agent-sidebar-item[data-name="Vocal Lab"]').click({ force: true });
+    const guideButton = page.getByRole('button', { name: /Got it, let's go!/i });
+    await guideButton.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+    if (await guideButton.isVisible().catch(() => false)) await guideButton.click({ force: true });
+
+    const settingsButton = page.getByRole('button', { name: 'Voice Settings', exact: true });
+    await settingsButton.click({ force: true });
+    await expect(settingsButton).toHaveAttribute('aria-expanded', 'true');
+
+    const settings = page.getByRole('dialog', { name: 'Personal voice and vocal settings' });
+    await expect(settings).toBeVisible();
+    await expect(settings).toContainText('Upload a clean 15-30s clip');
+    await expect(settings).toContainText('own the voice or have explicit permission');
+    await expect(settings.getByLabel('AI Voice Type')).toBeVisible();
+    await expect(settings.getByLabel('Language')).toBeVisible();
+    await expect(settings.getByLabel('Duration')).toBeVisible();
+  });
+
   test('a provider failure remains visible and offers a safe retry', async ({ page }) => {
     await page.route('**/api/generate', async (route) => {
       await route.fulfill({
