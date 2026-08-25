@@ -12344,8 +12344,9 @@ button, .nav-link, .agent-card-premium {
 
 /* The legacy <=1024px rule collapses navigation labels, but the scoped V3.5
    shell previously overrode its 80px width later in the cascade. Keep a real
-   compact rail through laptop widths so the workspace remains primary. */
-@media (max-width: 1180px) {
+   compact rail through standard 1280/1366px laptop widths so the workspace
+   remains primary. */
+@media (max-width: 1366px) {
   .studio-shell .studio-sidebar {
     width: 84px;
     padding: 16px 8px 12px;
