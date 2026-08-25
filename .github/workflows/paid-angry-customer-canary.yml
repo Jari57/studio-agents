@@ -65,6 +65,7 @@ jobs:
         run: |
           set -u
           status_endpoint="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}"
+          release_status_endpoint="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/status"
 
           publish_status() {
             local state="$1"
@@ -77,6 +78,49 @@ jobs:
               "${status_endpoint}" \
               --data "{\"state\":\"${state}\",\"context\":\"studio-paid-angry-customer\",\"description\":\"${description}\",\"target_url\":\"${STATUS_TARGET_URL}\"}"
           }
+
+          wait_for_deployment_context() {
+            local context="$1"
+            local state="pending"
+
+            for _attempt in $(seq 1 60); do
+              state="$(
+                curl --fail-with-body --silent --show-error \
+                  --header "Accept: application/vnd.github+json" \
+                  --header "Authorization: Bearer ${GH_TOKEN}" \
+                  --header "X-GitHub-Api-Version: 2022-11-28" \
+                  "${release_status_endpoint}" |
+                  jq -r --arg context "${context}" '[.statuses[] | select(.context == $context)][0].state // "pending"'
+              )"
+
+              case "${state}" in
+                success)
+                  echo "Deployment ready: ${context}"
+                  return 0
+                  ;;
+                failure|error)
+                  echo "Deployment failed: ${context} (${state})" >&2
+                  return 1
+                  ;;
+                *)
+                  echo "Waiting for deployment: ${context} (${state})"
+                  sleep 10
+                  ;;
+              esac
+            done
+
+            echo "Timed out waiting for deployment: ${context}" >&2
+            return 1
+          }
+
+          publish_status pending "Waiting for production deployments"
+          if ! wait_for_deployment_context "Vercel – studio-agents" ||
+             ! wait_for_deployment_context "studio-agents-backend - studio-agents-backend"; then
+            printf '%s\n' '{"ok":false,"error":"Production deployment did not become ready before the paid-customer canary."}' > paid-canary-evidence.json
+            cat paid-canary-evidence.json
+            publish_status failure "Production deployment was not ready; canary did not run"
+            exit 1
+          fi
 
           publish_status pending "Production paid-customer canary is running"
           set +e
