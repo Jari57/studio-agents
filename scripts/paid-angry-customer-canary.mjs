@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 const baseUrl = (process.env.STUDIO_CANARY_BASE_URL || 'https://studioagentsai.com').replace(/\/$/, '');
 const requestTimeoutMs = 150_000;
 const routeWaitMs = 20 * 60_000;
+const includeMedia = process.env.STUDIO_CANARY_MEDIA === '1';
 const firebaseKeyPattern = /^AIza[0-9A-Za-z_-]{30,}$/;
 
 function resolveFirebaseApiKey() {
@@ -117,6 +118,39 @@ async function waitForCredits(token, expected, timeoutMs = 30_000) {
   throw new Error(`Expected ${expected} credits after settlement; latest balance ${latest}`);
 }
 
+function mediaUrl(payload, kind) {
+  if (!payload || typeof payload !== 'object') return '';
+  if (kind === 'audio') return String(payload.audioUrl || payload.audio || '');
+  return String(payload.videoUrl || payload.video || payload.output || '');
+}
+
+async function waitForVideo(token, initialPayload) {
+  if (mediaUrl(initialPayload, 'video')) return initialPayload;
+
+  const operationId = String(initialPayload?.operationId || '');
+  const jobId = String(initialPayload?.jobId || '');
+  assert(operationId || jobId, 'Video generation returned neither an asset nor a trackable job');
+
+  const path = operationId
+    ? `/api/video-status/${encodeURIComponent(operationId)}`
+    : `/api/video-job-status/${encodeURIComponent(jobId)}`;
+  const deadline = Date.now() + 12 * 60_000;
+  let latest = initialPayload;
+
+  while (Date.now() < deadline) {
+    await sleep(5_000);
+    const polled = await api(path, token);
+    assert(polled.response.status === 200, `Video status returned ${polled.response.status}: ${polled.text.slice(0, 300)}`);
+    latest = polled.payload;
+    if (mediaUrl(latest, 'video')) return latest;
+    if (latest?.status === 'failed') {
+      throw new Error(`Video provider failed: ${latest.error || latest.details || 'unknown provider error'}`);
+    }
+  }
+
+  throw new Error(`Video generation did not finish within 12 minutes; last status ${latest?.status || 'unknown'}`);
+}
+
 async function deleteFirebaseIdentityFallback(idToken) {
   if (!idToken) return;
   await firebaseRequest('delete', { idToken }).catch(() => {});
@@ -194,6 +228,58 @@ async function main() {
     const refundedBalance = await waitForCredits(idToken, chargedBalance, 45_000);
     evidence.push({ check: 'failed-generation-refund', status: 'pass', credits: refundedBalance });
 
+    if (includeMedia) {
+      const audio = await api('/api/generate-audio', idToken, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': `canary-audio-${nonce}` },
+        body: JSON.stringify({
+          prompt: 'Original 30-second Brooklyn boom-bap instrumental canary with crisp drums, warm bass, no vocals, and a clean ending.',
+          bpm: 92,
+          durationSeconds: 30,
+          genre: 'boom-bap',
+          mood: 'confident',
+          engine: 'auto',
+          quality: 'premium',
+        }),
+      });
+      assert(audio.response.status >= 200 && audio.response.status < 300,
+        `Audio generation returned ${audio.response.status}: ${audio.text.slice(0, 600)}`);
+      const audioAsset = mediaUrl(audio.payload, 'audio');
+      assert(audioAsset.startsWith('https://') || audioAsset.startsWith('data:audio/'),
+        'Audio generation did not return a playable asset');
+      assert(audio.payload?.isRealGeneration === true, 'Audio generation was not marked as real provider output');
+      const afterAudio = await waitForCredits(idToken, refundedBalance - 5, 60_000);
+      evidence.push({
+        check: 'real-audio-generation',
+        status: 'pass',
+        provider: audio.payload?.provider || 'unknown',
+        credits: afterAudio,
+      });
+
+      const videoStart = await api('/api/generate-video', idToken, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': `canary-video-${nonce}` },
+        body: JSON.stringify({
+          prompt: 'Original five-second cinematic night shot of a Brooklyn recording studio, slow camera push, no text or logos.',
+          durationSeconds: 5,
+          style: 'cinematic',
+        }),
+      });
+      assert(videoStart.response.status >= 200 && videoStart.response.status < 300,
+        `Video generation returned ${videoStart.response.status}: ${videoStart.text.slice(0, 600)}`);
+      const video = await waitForVideo(idToken, videoStart.payload);
+      const videoAsset = mediaUrl(video, 'video');
+      assert(videoAsset.startsWith('https://') || videoAsset.startsWith('data:video/'),
+        'Video generation did not return a playable asset');
+      const afterVideo = await waitForCredits(idToken, afterAudio - 15, 60_000);
+      evidence.push({
+        check: 'real-video-generation',
+        status: 'pass',
+        provider: video.provider || video.model || 'unknown',
+        credits: afterVideo,
+      });
+    }
+
     const history = await api('/api/user/credits/history', idToken);
     assert(history.response.status === 200, `Credit history returned ${history.response.status}`);
     const transactions = Array.isArray(history.payload) ? history.payload : history.payload?.history;
@@ -222,6 +308,7 @@ async function main() {
     console.log(JSON.stringify({
       ok: true,
       baseUrl,
+      includeMedia,
       checkedAt: new Date().toISOString(),
       durationMs: Date.now() - startedAt,
       evidence,

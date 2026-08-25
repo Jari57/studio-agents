@@ -593,6 +593,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [mediaLoadError, setMediaLoadError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationFailure, setGenerationFailure] = useState(null);
   const [agentPreviews, setAgentPreviews] = useState({});
   const [saveStatus, setSaveStatus] = useState('idle');
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
@@ -616,11 +617,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     return localStorage.getItem(`studio_transcript_${uid}`) || '';
   });
   const [lastVoiceCommand, setLastVoiceCommand] = useState(null);
-  const [voiceSettings, setVoiceSettings] = useState({
-    gender: 'male', region: 'US', language: 'English', style: 'rapper',
-    rapStyle: 'aggressive', genre: 'hip-hop', duration: 60, voiceName: 'rapper-male-1',
-    speakerUrl: localStorage.getItem('studio_cloned_voice_url') || null,
-    bpm: 90
+  const [voiceSettings, setVoiceSettings] = useState(() => {
+    const storedSpeakerUrl = localStorage.getItem('studio_cloned_voice_url') || null;
+    const storedCloneId = localStorage.getItem('studio_cloned_elevenlabs_id') || null;
+    return {
+      gender: 'male', region: 'US', language: 'English',
+      style: storedSpeakerUrl || storedCloneId ? 'cloned' : 'rapper',
+      rapStyle: 'aggressive', genre: 'hip-hop', duration: 60, voiceName: 'rapper-male-1',
+      speakerUrl: storedSpeakerUrl,
+      bpm: 90
+    };
   });
   const [heroGenre, setHeroGenre] = useState('hip-hop');
   const [heroIntensity, setHeroIntensity] = useState(5);
@@ -2527,11 +2533,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
                 if (userData.clonedVoiceId) {
                   setElevenLabsVoiceId(userData.clonedVoiceId);
                   localStorage.setItem('studio_cloned_elevenlabs_id', userData.clonedVoiceId);
+                  setVoiceSettings(prev => ({ ...prev, style: 'cloned' }));
                   devLog('[Auth] Cloned voice ID loaded from Firestore:', userData.clonedVoiceId);
                 }
                 // Restore cloned voice speakerUrl to voiceSettings
                 if (userData.voiceSampleUrl) {
-                  setVoiceSettings(prev => ({ ...prev, speakerUrl: userData.voiceSampleUrl }));
+                  setVoiceSettings(prev => ({ ...prev, speakerUrl: userData.voiceSampleUrl, style: userData.clonedVoiceId ? 'cloned' : prev.style }));
                   localStorage.setItem('studio_cloned_voice_url', userData.voiceSampleUrl);
                 }
 
@@ -4071,8 +4078,23 @@ const fetchUserCredits = useCallback(async (uid) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!user) {
+      toast.error('Sign in before creating a private personal voice.');
+      setShowLoginModal(true);
+      e.target.value = '';
+      return;
+    }
+
+    const ownershipConfirmed = window.confirm(
+      'Create a personal voice from this recording? By continuing, you confirm this is your own voice or you have explicit permission to clone it.'
+    );
+    if (!ownershipConfirmed) {
+      e.target.value = '';
+      return;
+    }
+
     setIsUploadingSample(true);
-    const loadingId = toast.loading('Cloning voice via ElevenLabs IVC...', { id: 'voice-upload' });
+    const loadingId = toast.loading('Creating your private personal voice...', { id: 'voice-upload' });
 
     try {
       const token = user ? await user.getIdToken() : null;
@@ -4097,48 +4119,47 @@ const fetchUserCredits = useCallback(async (uid) => {
             })
           });
           const uploadResult = await uploadResp.json();
-          const rawUrl = uploadResp.ok && uploadResult.url ? uploadResult.url : null;
+          if (!uploadResp.ok || !uploadResult.url || !uploadResult.assetId) {
+            throw new Error(uploadResult.details || uploadResult.error || 'The private voice sample could not be saved.');
+          }
+          const rawUrl = uploadResult.url;
 
           // Step 2: Call ElevenLabs IVC voice cloning endpoint
-          let clonedVoiceId = null;
-          try {
-            const cloneResp = await fetch(`${BACKEND_URL}/api/voice-clone`, {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({
-                samples: [base64Data],
-                voiceName: `Clone ${user?.displayName || 'Voice'} ${new Date().toLocaleDateString()}`
-              })
-            });
-            const cloneResult = await cloneResp.json();
-            if (cloneResp.ok && cloneResult.voiceId) {
-              clonedVoiceId = cloneResult.voiceId;
-              devLog('[Studio] ElevenLabs IVC clone created:', clonedVoiceId);
-            } else {
-              devWarn('[Studio] IVC clone failed, falling back to XTTS:', cloneResult.error || cloneResult.details);
-            }
-          } catch (ivcErr) {
-            devWarn('[Studio] IVC clone unavailable, falling back to XTTS:', ivcErr.message);
+          const cloneResp = await fetch(`${BACKEND_URL}/api/voice-clone`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              samples: [base64Data],
+              sourceAssetIds: [uploadResult.assetId],
+              voiceName: `Clone ${user.displayName || 'Voice'} ${new Date().toLocaleDateString()}`,
+              cloneConsent: {
+                confirmed: true,
+                mode: 'strict',
+                version: '2026-08-24'
+              }
+            })
+          });
+          const cloneResult = await cloneResp.json();
+          if (!cloneResp.ok || !cloneResult.voiceId) {
+            throw new Error(cloneResult.details || cloneResult.error || 'The voice provider could not create your personal voice.');
           }
+          const clonedVoiceId = cloneResult.voiceId;
+          devLog('[Studio] ElevenLabs IVC clone created:', clonedVoiceId);
 
-          // Step 3: Update all state — both IVC voice ID and raw URL
-          if (rawUrl) {
-            setVoiceSampleUrl(rawUrl);
-            setVoiceSettings(prev => ({ ...prev, speakerUrl: rawUrl, style: 'cloned' }));
-            localStorage.setItem('studio_cloned_voice_url', rawUrl);
-          }
-          if (clonedVoiceId) {
-            setElevenLabsVoiceId(clonedVoiceId);
-            localStorage.setItem('studio_cloned_elevenlabs_id', clonedVoiceId);
-          }
+          // Step 3: Activate one durable personal-voice identity for every run.
+          setVoiceSampleUrl(rawUrl);
+          setVoiceSettings(prev => ({ ...prev, speakerUrl: rawUrl, style: 'cloned' }));
+          setElevenLabsVoiceId(clonedVoiceId);
+          localStorage.setItem('studio_cloned_voice_url', rawUrl);
+          localStorage.setItem('studio_cloned_elevenlabs_id', clonedVoiceId);
 
           // Step 4: Persist to Firestore
           if (user?.uid && db) {
             try {
               const userRef = doc(db, 'users', user.uid);
               const updateData = { lastVoiceUpdate: Date.now() };
-              if (rawUrl) updateData.voiceSampleUrl = rawUrl;
-              if (clonedVoiceId) updateData.clonedVoiceId = clonedVoiceId;
+              updateData.voiceSampleUrl = rawUrl;
+              updateData.clonedVoiceId = clonedVoiceId;
               await updateDoc(userRef, updateData);
               devLog('[Studio] Persisted voice clone to profile');
             } catch (saveErr) {
@@ -4146,23 +4167,24 @@ const fetchUserCredits = useCallback(async (uid) => {
             }
           }
 
-          if (clonedVoiceId) {
-            toast.success('Voice cloned via ElevenLabs IVC! Premium quality ready.', { id: loadingId });
-          } else if (rawUrl) {
-            toast.success('Voice uploaded! Using XTTS voice matching.', { id: loadingId });
-          } else {
-            throw new Error('Both IVC clone and file upload failed');
-          }
+          toast.success('Personal voice ready. Future Vocal Lab runs will stay locked to it.', { id: loadingId });
         } catch (err) {
           devWarn('[Studio] Voice clone error:', err);
-          toast.error('Voice cloning failed: ' + (err.message || 'Unknown error'), { id: loadingId });
+          toast.error('Personal voice was not activated: ' + (err.message || 'Unknown error'), { id: loadingId, duration: 8000 });
         } finally {
           setIsUploadingSample(false);
+          e.target.value = '';
         }
+      };
+      reader.onerror = () => {
+        toast.error('The voice recording could not be read.', { id: loadingId });
+        setIsUploadingSample(false);
+        e.target.value = '';
       };
     } catch (_err) {
       toast.error('Failed to read file');
       setIsUploadingSample(false);
+      e.target.value = '';
     }
   };
 
@@ -4245,6 +4267,17 @@ const fetchUserCredits = useCallback(async (uid) => {
     const isAudioAgent = ['beat', 'sample', 'samples', 'music-gpt', 'beat-maker', 'beat-lab', 'beat-architect', 'beat-arch', 'drum-machine', 'drums', 'instrument', 'drop', 'film', 'sample-master', 'score-edit', 'drop-zone', 'music-architect', 'audio-gen', 'video-scorer', 'session', 'edm', 'sound-design'].includes(agentId);
     const isSpeechAgent = ['vocal', 'vocal-arch', 'vocal-gen', 'vocal-performer', 'vocal-performance', 'vocal-lab', 'vocal-labs', 'podcast', 'voiceover', 'voice-gen', 'voice-cloner'].includes(agentId) && agentId !== 'ghost';
     const isMasterAgent = ['master', 'master-lab', 'mastering'].includes(agentId);
+    const personalVoiceSelected = isSpeechAgent && voiceSettings.style === 'cloned';
+
+    if (personalVoiceSelected && (!user || !elevenLabsVoiceId)) {
+      const failureMessage = !user
+        ? 'Sign in to use a private personal voice.'
+        : 'Your saved voice sample is not an activated personal voice yet. Open Voice Settings and create it again.';
+      setGenerationFailure({ agentId, message: failureMessage });
+      toast.error(failureMessage, { duration: 8000 });
+      if (!user) setShowLoginModal(true);
+      return;
+    }
 
     let featureType = 'text';
     if (isImageAgent) featureType = 'image';
@@ -4322,6 +4355,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     setIsGenerating(true);
+    setGenerationFailure(null);
 
     const toastId = toast.loading(
       (isVideoAgent || isSpeechAgent || isAudioAgent) 
@@ -4515,11 +4549,11 @@ ABSOLUTE RULES (violating any = failure):
             })
           });
         } catch (_err) {
-          throw new Error('Brain Phase Connection Failed. Server may be offline.');
+          throw new Error('Creative Brain could not connect. Your credits were not charged; please try again.');
         }
 
         if (!brainResponse.ok) {
-          throw new Error(`Creative Brain failed to initialize (${brainResponse.status})`);
+          throw new Error(`Creative Brain failed to initialize (${brainResponse.status}). Your credits were not charged; please try again.`);
         }
 
         brainData = await brainResponse.json();
@@ -4612,7 +4646,11 @@ ABSOLUTE RULES (violating any = failure):
           speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl,
           backingTrackUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
           audioId: referencedAudioId,
-          referenceSongUrl: referenceSongUrl || null
+          referenceSongUrl: referenceSongUrl || null,
+          isPersonalVoice: personalVoiceSelected,
+          preferredProvider: personalVoiceSelected
+            ? ((voiceSampleUrl || voiceSettings.speakerUrl) ? 'minimax-music' : 'elevenlabs-clone')
+            : null
         };
       } else if (isMasterAgent) {
         // Mastering Lab -requires an existing audio asset to master
@@ -4718,14 +4756,18 @@ ABSOLUTE RULES (violating any = failure):
               break;
             }
             // Failed
-            toast.error(statusData.error || 'Video generation failed', { id: toastId });
+            const failureMessage = statusData.error || 'Video generation failed. Your credits were not charged.';
+            setGenerationFailure({ agentId, message: failureMessage });
+            toast.error(failureMessage, { id: toastId });
             return;
           } catch (pollErr) {
             devWarn('[Studio] Video status poll error:', pollErr);
           }
         }
         if (!pollSuccess) {
-          toast.error('Video generation timed out — please try again', { id: toastId });
+          const failureMessage = 'Video generation timed out. Your credits were not charged; please try again.';
+          setGenerationFailure({ agentId, message: failureMessage });
+          toast.error(failureMessage, { id: toastId });
           return;
         }
       }
@@ -4752,7 +4794,9 @@ ABSOLUTE RULES (violating any = failure):
               break;
             }
             if (statusData.status === 'failed') {
-              toast.error(statusData.error || 'Video generation failed', { id: toastId });
+              const failureMessage = statusData.error || 'Video generation failed. Your credits were not charged.';
+              setGenerationFailure({ agentId, message: failureMessage });
+              toast.error(failureMessage, { id: toastId });
               return;
             }
           } catch (pollErr) {
@@ -4760,39 +4804,42 @@ ABSOLUTE RULES (violating any = failure):
           }
         }
         if (!syncPollSuccess) {
-          toast.error('Video generation timed out. Check back later.', { id: toastId });
+          const failureMessage = 'Video generation timed out. Your credits were not charged; please try again.';
+          setGenerationFailure({ agentId, message: failureMessage });
+          toast.error(failureMessage, { id: toastId });
           return;
         }
       }
 
       if (!response.ok) {
         devWarn('[Studio] Execution Phase Error:', data.error || data.details || response.status);
+        let failureMessage = data.details || data.error || `${targetAgentSnapshot.name} could not finish this generation.`;
         
         // Map common errors to user-friendly messages
         if (response.status === 403) {
           if (data.isUserCreditIssue) {
-            toast.error(`Insufficient credits! ${targetAgentSnapshot.name} needs ${data.required || 'more'} credits.`, { id: toastId });
+            failureMessage = `Insufficient credits. ${targetAgentSnapshot.name} needs ${data.required || 'more'} credits.`;
             setDashboardTab('subscription');
             setActiveTab('mystudio');
           } else {
-            toast.error("Insufficient credits for media generation.", { id: toastId });
+            failureMessage = 'Insufficient credits for media generation.';
           }
         } else if (response.status === 401) {
           if (data.requiresAuth) {
-            toast.error(data.message || `You've used your free generations. Sign in to continue.`, { id: toastId });
+            failureMessage = data.message || `You've used your free generations. Sign in to continue.`;
           } else {
-            toast.error("Please log in to use AI media generation.", { id: toastId });
+            failureMessage = 'Please log in to use AI media generation.';
           }
           setShowLoginModal(true);
         } else if (response.status === 503 || response.status === 504) {
           if (data.isSystemCreditIssue) {
-            toast.error("System maintenance: AI credits are being refreshed. Your credits were NOT charged. Try again shortly.", { id: toastId });
+            failureMessage = data.details || 'The media provider is temporarily out of capacity. Your credits were not charged.';
           } else {
-            toast.error("Media server is currently overloaded or out of credits. Try again in a minute.", { id: toastId });
+            failureMessage = data.details || 'The media provider is temporarily unavailable. Your credits were not charged.';
           }
-        } else {
-          toast.error(`Media generation failed: ${data.error || 'Server error'}`, { id: toastId });
         }
+        setGenerationFailure({ agentId, message: failureMessage });
+        toast.error(failureMessage, { id: toastId, duration: 8000 });
         // CRITICAL: Stop processing — do not try to build a result item from error data
         return;
       }
@@ -5097,6 +5144,7 @@ ABSOLUTE RULES (violating any = failure):
       }
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
       setAgentPreviews(prev => ({ ...prev, [targetAgentSnapshot.id]: newItem }));
+      setGenerationFailure(null);
       
       // Success toast (error cases already returned early above)
       toast.success(`Generation complete! Review your result.`, { id: toastId });
@@ -5109,7 +5157,9 @@ ABSOLUTE RULES (violating any = failure):
 
     } catch (error) {
       devWarn("Generation error", error);
-      toast.error(error.message || 'Generation failed. Check your connection and try again.', { id: toastId });
+      const failureMessage = error.message || 'Generation failed. Your credits were not charged; please try again.';
+      setGenerationFailure({ agentId, message: failureMessage });
+      toast.error(failureMessage, { id: toastId, duration: 8000 });
       Analytics.errorOccurred('generation_failed', error.message);
     } finally {
       setIsGenerating(false);
@@ -6464,7 +6514,7 @@ ABSOLUTE RULES (violating any = failure):
                                   <option value="spoken">💬 Spoken Word</option>
                                 </optgroup>
                                 <optgroup label="🧬 Custom/Advanced">
-                                  <option value="cloned" disabled={!voiceSettings.speakerUrl && !voiceSampleUrl}>🧬 Cloned Voice {!voiceSettings.speakerUrl && !voiceSampleUrl && '(Upload first)'}</option>
+                                  <option value="cloned" disabled={!voiceSettings.speakerUrl && !voiceSampleUrl && !elevenLabsVoiceId}>🧬 My Personal Voice {!voiceSettings.speakerUrl && !voiceSampleUrl && !elevenLabsVoiceId && '(Create first)'}</option>
                                 </optgroup>
                               </select>
                             </div>
@@ -6517,66 +6567,14 @@ ABSOLUTE RULES (violating any = failure):
                                   onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                                 >
                                   <Upload size={16} style={{ marginBottom: '4px' }} />
-                                  <div>Upload 5-10s clip (.wav/.mp3)</div>
+                                  <div>Upload a clean 15-30s clip (.wav/.mp3)</div>
+                                  <div style={{ marginTop: '4px', fontSize: '0.65rem', opacity: 0.7 }}>You will confirm voice ownership before upload.</div>
                                   <input 
                                     id="voice-upload-input"
                                     type="file" 
                                     accept="audio/*"
                                     hidden
-                                    onChange={async (e) => {
-                                      const file = e.target.files[0];
-                                      if (!file) return;
-                                      
-                                      const toastId = toast.loading('Cloning voice via ElevenLabs IVC...');
-                                      try {
-                                        // Upload raw file for XTTS fallback
-                                        const url = await uploadFile(file, `voices/${user?.uid || 'guest'}_${Date.now()}`);
-                                        setVoiceSettings({
-                                          ...voiceSettings, 
-                                          speakerUrl: url,
-                                          style: 'cloned'
-                                        });
-                                        setVoiceSampleUrl(url);
-                                        localStorage.setItem('studio_cloned_voice_url', url);
-
-                                        // Also call ElevenLabs IVC for premium clone
-                                        try {
-                                          const token = user ? await user.getIdToken() : null;
-                                          const ivcHeaders = { 'Content-Type': 'application/json' };
-                                          if (token) ivcHeaders['Authorization'] = `Bearer ${token}`;
-                                          
-                                          const reader = new FileReader();
-                                          reader.readAsDataURL(file);
-                                          reader.onload = async () => {
-                                            try {
-                                              const cloneResp = await fetch(`${BACKEND_URL}/api/voice-clone`, {
-                                                method: 'POST',
-                                                headers: ivcHeaders,
-                                                body: JSON.stringify({
-                                                  samples: [reader.result],
-                                                  voiceName: `Clone ${user?.displayName || 'Voice'} ${new Date().toLocaleDateString()}`
-                                                })
-                                              });
-                                              const cloneResult = await cloneResp.json();
-                                              if (cloneResp.ok && cloneResult.voiceId) {
-                                                setElevenLabsVoiceId(cloneResult.voiceId);
-                                                localStorage.setItem('studio_cloned_elevenlabs_id', cloneResult.voiceId);
-                                                devLog('[Studio] IVC clone created from Voice Settings:', cloneResult.voiceId);
-                                              }
-                                            } catch (ivcErr) {
-                                              devWarn('[Studio] IVC clone unavailable:', ivcErr.message);
-                                            }
-                                          };
-                                        } catch (ivcErr) {
-                                          devWarn('[Studio] IVC clone setup failed:', ivcErr.message);
-                                        }
-
-                                        toast.success('Voice cloned! Ready for premium vocals.', { id: toastId });
-                                      } catch (err) {
-                                        devWarn('Voice upload error:', err);
-                                        toast.error('Failed to upload voice. Try again.', { id: toastId });
-                                      }
-                                    }}
+                                    onChange={handleUploadVoiceSample}
                                   />
                                 </div>
                               )}
@@ -6874,7 +6872,7 @@ ABSOLUTE RULES (violating any = failure):
                           <Mic size={14} color="#fbbf24" style={{ marginTop: '2px', flexShrink: 0 }} />
                           <div>
                             <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#fbbf24' }}>Voice Clone</div>
-                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Upload a 5-10s voice clip to clone your voice. AI sings/raps in your tone for every vocal generation.</div>
+                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Upload a clean 15-30s voice clip and confirm ownership. Vocal Lab will lock future runs to that personal voice.</div>
                           </div>
                         </div>
 
@@ -7168,10 +7166,17 @@ ABSOLUTE RULES (violating any = failure):
                         <select
                           value={elevenLabsVoiceId}
                           onChange={(e) => {
-                            setElevenLabsVoiceId(e.target.value);
-                            localStorage.setItem(`studio_elevenlabs_voice_id_${user?.uid || localStorage.getItem('studio_user_id') || 'guest'}`, e.target.value);
-                            // Clear generic sample if a specific premium voice is chosen
-                            if (e.target.value) setVoiceSampleUrl(null);
+                            const nextVoiceId = e.target.value;
+                            const selectedVoice = elVoices.find(v => v.voice_id === nextVoiceId);
+                            const selectedPersonalClone = selectedVoice?.category === 'cloned';
+                            setElevenLabsVoiceId(nextVoiceId);
+                            localStorage.setItem(`studio_elevenlabs_voice_id_${user?.uid || localStorage.getItem('studio_user_id') || 'guest'}`, nextVoiceId);
+                            if (selectedPersonalClone) {
+                              setVoiceSettings(prev => ({ ...prev, style: 'cloned' }));
+                            } else if (nextVoiceId) {
+                              setVoiceSampleUrl(null);
+                              setVoiceSettings(prev => ({ ...prev, speakerUrl: null, style: prev.style === 'cloned' ? 'rapper' : prev.style }));
+                            }
                           }}
                           className="w-full haptic-press"
                           style={{
@@ -8132,6 +8137,23 @@ ABSOLUTE RULES (violating any = failure):
                           padding: isMobile ? '12px' : '20px'
                         }}
                       ></textarea>
+
+                      {isGenerating && (
+                        <div className="generation-state generation-state-working" role="status" aria-live="polite">
+                          <strong>{selectedAgent.name} is creating your result.</strong>
+                          <span>This may take up to two minutes. Credits settle only after the provider returns a usable asset.</span>
+                        </div>
+                      )}
+
+                      {!isGenerating && generationFailure?.agentId === selectedAgent.id && (
+                        <div className="generation-state generation-state-error" role="alert">
+                          <strong>{selectedAgent.name} could not finish.</strong>
+                          <span>{generationFailure.message}</span>
+                          <button type="button" className="btn-pill glass" onClick={() => handleGenerate()}>
+                            Try again
+                          </button>
+                        </div>
+                      )}
                       
                       <div className="generation-actions" style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                         <button 
@@ -10988,6 +11010,8 @@ ABSOLUTE RULES (violating any = failure):
         <nav className="studio-nav-links">
           <button 
             data-tour="nav-studio"
+            aria-label="My Studio"
+            title="My Studio"
             className={`nav-link ${activeTab === 'mystudio' ? 'active' : ''}`}
             onClick={() => { setActiveTab('mystudio'); setSelectedAgent(null); }}
           >
@@ -10996,6 +11020,8 @@ ABSOLUTE RULES (violating any = failure):
           </button>
           <button 
             data-tour="nav-team"
+            aria-label="Agents Team"
+            title="Agents Team"
             className={`nav-link ${activeTab === 'agents' ? 'active' : ''}`}
             onClick={() => { setActiveTab('agents'); setSelectedAgent(null); }}
           >
@@ -11004,6 +11030,8 @@ ABSOLUTE RULES (violating any = failure):
           </button>
           <button 
             data-tour="nav-projects"
+            aria-label="Project Hub"
+            title="Project Hub"
             className={`nav-link ${activeTab === 'hub' ? 'active' : ''}`}
             onClick={() => { setActiveTab('hub'); setSelectedAgent(null); }}
           >
@@ -11011,6 +11039,8 @@ ABSOLUTE RULES (violating any = failure):
             <span>Project Hub</span>
           </button>
           <button
+            aria-label="Social Media Hub"
+            title="Social Media Hub"
             className={`nav-link ${activeTab === 'activity' ? 'active' : ''}`}
             onClick={() => { setActiveTab('activity'); setSelectedAgent(null); setActivitySection('connections'); }}
           >
@@ -11019,6 +11049,8 @@ ABSOLUTE RULES (violating any = failure):
           </button>
           <button 
             data-tour="nav-more"
+            aria-label="Resources"
+            title="Resources"
             className={`nav-link ${activeTab === 'resources' ? 'active' : ''}`}
             onClick={() => { setActiveTab('resources'); setSelectedAgent(null); }}
           >
@@ -11026,6 +11058,8 @@ ABSOLUTE RULES (violating any = failure):
             <span>Resources</span>
           </button>
           <button 
+            aria-label="Industry Pulse"
+            title="Industry Pulse"
             className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}
             onClick={() => { setActiveTab('news'); setSelectedAgent(null); }}
           >
@@ -11033,6 +11067,8 @@ ABSOLUTE RULES (violating any = failure):
             <span>Industry Pulse</span>
           </button>
           <button 
+            aria-label="Support"
+            title="Support"
             className={`nav-link ${activeTab === 'support' ? 'active' : ''}`}
             onClick={() => { setActiveTab('support'); setSelectedAgent(null); }}
           >

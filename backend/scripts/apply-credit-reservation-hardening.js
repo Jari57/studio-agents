@@ -4,7 +4,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const serverPath = path.resolve(__dirname, '..', 'server.js');
-let source = fs.readFileSync(serverPath, 'utf8');
+const originalSource = fs.readFileSync(serverPath, 'utf8');
+const usesCrLf = originalSource.includes('\r\n');
+let source = originalSource.replace(/\r\n/g, '\n');
 
 function countOccurrences(content, marker) {
   return content.split(marker).length - 1;
@@ -336,5 +338,5 @@ if (source.includes(legacyStartMarker)) {
   throw new Error('Credit reservation postcondition failed: legacy deduction middleware remains.');
 }
 
-fs.writeFileSync(serverPath, source, 'utf8');
+fs.writeFileSync(serverPath, usesCrLf ? source.replace(/\n/g, '\r\n') : source, 'utf8');
 console.log('[credits] durable reservations, async settlement, and duplicate-submit protection are applied');

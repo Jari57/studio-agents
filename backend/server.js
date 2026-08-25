@@ -694,141 +694,29 @@ const _checkAdmin = (req, res, next) => {
 // =============================================================================
 
 // Factory function to create credit check middleware with specific cost
-const checkCreditsFor = (featureType) => {
-  return async (req, res, next) => {
-    if (!firebaseInitialized) {
-      logger.warn('⚠️ Firebase not initialized - skipping credit check');
-      return next();
-    }
-    
-    if (!req.user) {
-      // Anonymous users: free limit already enforced by requireAuthOrFreeLimit
-      // Skip credit deduction (they don't have accounts)
-      return next(); 
-    }
+const { createCreditReservationService } = require('./services/creditReservation');
+const {
+  checkCreditsFor,
+  refundCredits,
+  reservationMetadataFor,
+  settleDetachedReservation,
+} = createCreditReservationService({
+  getDb: getFirestoreDb,
+  admin,
+  getUserId: (req) => req.user?.uid || null,
+  getUserEmail: (req) => req.user?.email || null,
+  getCreditCost,
+  shouldSkip: (req, featureType) => {
+    if (!req.user) return 'anonymous-free-limit';
+    if (ADMIN_EMAILS.includes((req.user.email || '').toLowerCase())) return 'admin';
+    if (featureType === 'text' && req.body?.isBrainPhase === true) return 'brain-phase';
+    return false;
+  },
+  logger,
+});
 
-    // Skip credit check for admin users
-    if (ADMIN_EMAILS.includes((req.user.email || '').toLowerCase())) {
-      logger.info(`✅ Admin user ${req.user.email} - skipping credit check`);
-      return next();
-    }
-
-    // Skip credit deduction for Brain/prompt-expansion phase on the text endpoint only
-    // The real media endpoint (image/audio/video) will charge credits
-    if (featureType === 'text' && req.body?.isBrainPhase === true) {
-      logger.info(`🧠 Brain phase (text) — skipping credit deduction for ${req.user.uid}`);
-      return next();
-    }
-
-    // Calculate credit cost based on feature and request options
-    const options = {
-      duration: req.body?.duration || req.body?.durationSeconds || 30
-    };
-    const creditCost = getCreditCost(featureType, options);
-
-    const db = getFirestoreDb();
-    if (!db) return next();
-    
-    const userRef = db.collection('users').doc(req.user.uid);
-
-    try {
-      await db.runTransaction(async (t) => {
-        const doc = await t.get(userRef);
-        
-        if (!doc.exists) {
-          // Initialize new user with 25 trial credits (allows trying expensive features like video)
-          const initialCredits = 25;
-          if (creditCost > initialCredits) {
-            throw new Error('INSUFFICIENT_CREDITS');
-          }
-          t.set(userRef, { 
-            email: req.user.email,
-            credits: initialCredits - creditCost, 
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            tier: 'free'
-          });
-          logger.info(`✨ New user initialized with ${initialCredits} trial credits, charged ${creditCost}: ${req.user.uid}`);
-          return;
-        }
-
-        const userData = doc.data();
-        const credits = userData.credits !== undefined ? userData.credits : 0;
-
-        if (credits < creditCost) {
-          throw new Error('INSUFFICIENT_CREDITS');
-        }
-
-        t.update(userRef, { credits: credits - creditCost });
-        
-        // Log credit transaction
-        t.create(db.collection('users').doc(req.user.uid).collection('credit_history').doc(), {
-          type: 'deduct',
-          amount: creditCost,
-          feature: featureType,
-          reason: `${featureType} generation`,
-          balanceBefore: credits,
-          balanceAfter: credits - creditCost,
-          timestamp: admin.firestore.FieldValue.serverTimestamp()
-        });
-      });
-
-      // Store credit info on request for response
-      req.creditCharged = creditCost;
-      req.featureType = featureType;
-      
-      logger.info(`💰 ${creditCost} credits charged for ${featureType} (user: ${req.user.uid})`);
-      next();
-    } catch (error) {
-      if (error.message === 'INSUFFICIENT_CREDITS') {
-        logger.warn(`🚫 Insufficient credits for ${featureType} (cost: ${creditCost}) user ${req.user.uid}`);
-        return res.status(403).json({ 
-          error: 'Insufficient Credits', 
-          details: `This action requires ${creditCost} credits. Please upgrade your plan or purchase more credits.`,
-          required: creditCost,
-          feature: featureType,
-          isUserCreditIssue: true
-        });
-      }
-      
-      logger.error('🔥 Credit check transaction failed:', error);
-      return res.status(500).json({ error: 'Transaction Failed', details: 'Could not verify credit balance.' });
-    }
-  };
-};
-
-// Legacy middleware for backwards compatibility (1 credit)
+// Legacy alias retained for routes that still use the default one-credit check.
 const _checkCredits = checkCreditsFor('default');
-
-// Refund credits when a paid generation fails (best-effort, won't throw)
-async function refundCredits(req, reason = 'generation failed') {
-  if (!req.creditCharged || !req.user || !firebaseInitialized) return;
-  if (ADMIN_EMAILS.includes((req.user.email || '').toLowerCase())) return;
-  const db = getFirestoreDb();
-  if (!db) return;
-  const userRef = db.collection('users').doc(req.user.uid);
-  try {
-    await db.runTransaction(async (t) => {
-      const doc = await t.get(userRef);
-      const credits = doc.exists ? (doc.data().credits || 0) : 0;
-      t.update(userRef, { credits: credits + req.creditCharged });
-      t.create(userRef.collection('credit_history').doc(), {
-        type: 'refund',
-        amount: req.creditCharged,
-        feature: req.featureType,
-        reason,
-        balanceBefore: credits,
-        balanceAfter: credits + req.creditCharged,
-        timestamp: admin.firestore.FieldValue.serverTimestamp()
-      });
-    });
-    logger.info(`💸 Refunded ${req.creditCharged} credits for ${req.featureType} (user: ${req.user.uid}): ${reason}`);
-    // Prevent duplicate refunds when more than one failure handler observes the
-    // same request.
-    req.creditCharged = 0;
-  } catch (err) {
-    logger.error('🔥 Credit refund failed:', err.message);
-  }
-}
 
 // Fetch with timeout helper for external API calls
 async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
@@ -1630,10 +1518,12 @@ app.get('/api/status/apis', verifyFirebaseToken, requireAdmin, async (req, res) 
         headers: { 'Authorization': `Bearer ${stabilityKey}` }
       }).then(async r => {
         const d = await r.json().catch(() => ({}));
+        const credits = Number(d.credits);
+        const hasUsableBalance = Number.isFinite(credits) && credits > 0;
         status.audioProviders.stability = {
-          active: r.ok,
+          active: r.ok && hasUsableBalance,
           credits: d.credits ?? 'unknown',
-          status: r.ok ? 'ok' : `HTTP ${r.status}`,
+          status: !r.ok ? `HTTP ${r.status}` : hasUsableBalance ? 'ok' : 'insufficient-credits',
         };
       }).catch(e => { status.audioProviders.stability = { active: false, error: e.message }; })
     );
@@ -1645,12 +1535,18 @@ app.get('/api/status/apis', verifyFirebaseToken, requireAdmin, async (req, res) 
         headers: { 'xi-api-key': elevenLabsKey }
       }).then(async r => {
         const d = await r.json().catch(() => ({}));
+        const characterCount = Number(d.character_count);
+        const characterLimit = Number(d.character_limit);
+        const hasCapacity = !Number.isFinite(characterCount)
+          || !Number.isFinite(characterLimit)
+          || characterLimit <= 0
+          || characterCount < characterLimit;
         status.audioProviders.elevenlabs = {
-          active: r.ok,
+          active: r.ok && hasCapacity,
           charactersUsed: d.character_count ?? 'unknown',
           characterLimit: d.character_limit ?? 'unknown',
           tier: d.tier ?? 'unknown',
-          status: r.ok ? 'ok' : `HTTP ${r.status}`,
+          status: !r.ok ? `HTTP ${r.status}` : hasCapacity ? 'ok' : 'quota-exhausted',
         };
       }).catch(e => { status.audioProviders.elevenlabs = { active: false, error: e.message }; })
     );
@@ -1800,7 +1696,15 @@ app.get('/api/admin/health-deep', verifyFirebaseToken, requireAdmin, async (req,
             headers: { 'Authorization': `Bearer ${process.env.STABILITY_API_KEY}` }
           });
           const d = await r.json().catch(() => ({}));
-          results.checks.stability = { status: r.ok ? 'ok' : 'error', latencyMs: Date.now() - t, credits: d.credits };
+          const credits = Number(d.credits);
+          const hasUsableBalance = Number.isFinite(credits) && credits > 0;
+          results.checks.stability = {
+            status: r.ok && hasUsableBalance ? 'ok' : 'error',
+            reason: r.ok && !hasUsableBalance ? 'insufficient-credits' : undefined,
+            latencyMs: Date.now() - t,
+            credits: d.credits,
+            httpStatus: r.status,
+          };
         } catch (e) {
           results.checks.stability = { status: 'error', error: e.message };
         }
@@ -8711,6 +8615,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
                 // Async operation: store for frontend polling (avoids Vercel proxy timeout)
                 const opId = crypto.randomBytes(16).toString('hex');
                 const veo3FastOp = {
+                  opId,
                   operationName: operationData.name,
                   apiKey,
                   source: 'veo-3.1-fast',
@@ -8723,7 +8628,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
                   audioUrl: audioUrl || null,
                   userId: req.user?.uid || null,
                   userEmail: req.user?.email || '',
-                  creditCharged: req.creditCharged || 0,
+                  ...reservationMetadataFor(req),
                   refunded: false
                 };
                 pendingVideoOps.set(opId, veo3FastOp);
@@ -8809,6 +8714,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
                 // Async operation: store for frontend polling (avoids Vercel proxy timeout)
                 const opId = crypto.randomBytes(16).toString('hex');
                 const veo2Op = {
+                  opId,
                   operationName: veo2Data.name,
                   apiKey,
                   source: 'veo-2.0',
@@ -8821,7 +8727,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
                   audioUrl: audioUrl || null,
                   userId: req.user?.uid || null,
                   userEmail: req.user?.email || '',
-                  creditCharged: req.creditCharged || 0,
+                  ...reservationMetadataFor(req),
                   refunded: false
                 };
                 pendingVideoOps.set(opId, veo2Op);
@@ -8914,6 +8820,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
           // Store for async polling (same pattern as Veo)
           const opId = crypto.randomBytes(16).toString('hex');
           const replicateOp = {
+                  opId,
             replicatePredictionId: prediction.id,
             replicateKey: replicateKey,
             source: 'replicate-minimax',
@@ -8926,7 +8833,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
             audioUrl: audioUrl || null,
             userId: req.user?.uid || null,
             userEmail: req.user?.email || '',
-            creditCharged: req.creditCharged || 0,
+            ...reservationMetadataFor(req),
             refunded: false
           };
           pendingVideoOps.set(opId, replicateOp);
@@ -9128,14 +9035,57 @@ async function replaceVideoAudio(videoUrl, audioUrl, userId) {
 const pendingVideoOps = new Map(); // id → { operationName, apiKey, source, createdAt, attempts, consecutiveErrors, status, result, error }
 
 async function refundPendingVideoOp(op, reason) {
-  if (!op || op.refunded || !op.creditCharged || !op.userId) return;
-  await refundCredits({
-    creditCharged: op.creditCharged,
-    featureType: 'video',
-    user: { uid: op.userId, email: op.userEmail || '' }
-  }, reason);
-  op.refunded = true;
-  op.creditCharged = 0;
+  if (!op || op.refunded || !op.creditCharged || !op.userId) return false;
+
+  if (op.creditReservationId) {
+    const refunded = await settleDetachedReservation(op, 'refund', reason);
+    if (refunded) {
+      op.refunded = true;
+      op.creditCharged = 0;
+    }
+    return refunded;
+  }
+
+  // Transitional fallback for a job created by the pre-reservation release.
+  // The deterministic history ID makes this legacy refund idempotent.
+  if (!firebaseInitialized) return false;
+  const db = getFirestoreDb();
+  if (!db) return false;
+  const userRef = db.collection('users').doc(op.userId);
+  const legacyId = String(op.opId || op.operationName || op.replicatePredictionId || 'unknown')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 180);
+  const refundRef = userRef.collection('credit_history').doc(`video-op-${legacyId}`);
+  try {
+    await db.runTransaction(async (transaction) => {
+      const [userDoc, refundDoc] = await Promise.all([
+        transaction.get(userRef),
+        transaction.get(refundRef),
+      ]);
+      if (refundDoc.exists) return;
+      const credits = userDoc.exists ? Number(userDoc.data().credits || 0) : 0;
+      transaction.set(userRef, { credits: credits + op.creditCharged }, { merge: true });
+      transaction.create(refundRef, {
+        type: 'refund',
+        amount: op.creditCharged,
+        feature: 'video',
+        reason,
+        balanceBefore: credits,
+        balanceAfter: credits + op.creditCharged,
+        operationId: op.opId || null,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+    op.refunded = true;
+    op.creditCharged = 0;
+    return true;
+  } catch (error) {
+    logger.error('Legacy pending-video credit refund failed', {
+      operationId: op.opId || null,
+      error: error.message,
+    });
+    return false;
+  }
 }
 
 // Keep generation prompts musical and achievable. Loudness targets, mastering
@@ -9226,17 +9176,32 @@ async function _loadVideoJob(jobId) {
 // timeout, promise rejection and restart recovery observe the same failure.
 async function refundVideoJob(job, reason) {
   if (!job || job.refunded || !job.creditCharged || !job.userId || !firebaseInitialized) return false;
+
+  if (job.creditReservationId) {
+    const refunded = await settleDetachedReservation(job, 'refund', reason);
+    if (refunded) {
+      logger.info('Synced-video reservation refunded', { jobId: job.jobId, userId: job.userId, reason });
+      job.refunded = true;
+      job.creditCharged = 0;
+    }
+    return refunded;
+  }
+
+  // Transitional fallback for a queued job created before reservations shipped.
   const db = getFirestoreDb();
   if (!db) return false;
   const userRef = db.collection('users').doc(job.userId);
   const refundRef = userRef.collection('credit_history').doc(`video-job-${job.jobId}`);
   try {
-    await db.runTransaction(async (t) => {
-      const [userDoc, refundDoc] = await Promise.all([t.get(userRef), t.get(refundRef)]);
+    await db.runTransaction(async (transaction) => {
+      const [userDoc, refundDoc] = await Promise.all([
+        transaction.get(userRef),
+        transaction.get(refundRef),
+      ]);
       if (refundDoc.exists) return;
-      const credits = userDoc.exists ? (userDoc.data().credits || 0) : 0;
-      t.set(userRef, { credits: credits + job.creditCharged }, { merge: true });
-      t.create(refundRef, {
+      const credits = userDoc.exists ? Number(userDoc.data().credits || 0) : 0;
+      transaction.set(userRef, { credits: credits + job.creditCharged }, { merge: true });
+      transaction.create(refundRef, {
         type: 'refund',
         amount: job.creditCharged,
         feature: job.featureType || 'video-synced',
@@ -9244,15 +9209,15 @@ async function refundVideoJob(job, reason) {
         balanceBefore: credits,
         balanceAfter: credits + job.creditCharged,
         jobId: job.jobId,
-        timestamp: admin.firestore.FieldValue.serverTimestamp()
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
       });
     });
-    logger.info('Synced-video credits refunded', { jobId: job.jobId, userId: job.userId, reason });
+    logger.info('Legacy synced-video credits refunded', { jobId: job.jobId, userId: job.userId, reason });
     job.refunded = true;
     job.creditCharged = 0;
     return true;
-  } catch (err) {
-    logger.error('Synced-video credit refund failed', { jobId: job.jobId, error: err.message });
+  } catch (error) {
+    logger.error('Legacy synced-video credit refund failed', { jobId: job.jobId, error: error.message });
     return false;
   }
 }
@@ -9521,7 +9486,8 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
           }
         }
 
-        op.status = 'completed';
+        await settleDetachedReservation(op, 'consume', 'asynchronous video generation completed');
+      op.status = 'completed';
         op.result = { status: 'completed', output: finalUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: finalUrl };
         _deletePendingVideoOp(req.params.id);
         return res.json(op.result);
@@ -9602,6 +9568,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
         }
       }
 
+      await settleDetachedReservation(op, 'consume', 'asynchronous video generation completed');
       op.status = 'completed';
       op.result = { status: 'completed', output: finalUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: finalUrl };
       _deletePendingVideoOp(req.params.id);
@@ -9641,6 +9608,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
         }
       }
 
+      await settleDetachedReservation(op, 'consume', 'asynchronous video generation completed');
       op.status = 'completed';
       op.result = { status: 'completed', output: finalUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: finalUrl };
       _deletePendingVideoOp(req.params.id);
@@ -9648,6 +9616,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
     }
 
     // Unknown format — return raw
+    await settleDetachedReservation(op, 'consume', 'asynchronous video generation completed');
     op.status = 'completed';
     op.result = { status: 'completed', output: result, type: 'video', source: op.source };
     _deletePendingVideoOp(req.params.id);
@@ -9659,6 +9628,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
     if (op.consecutiveErrors >= 5) {
       op.status = 'failed';
       op.error = `Polling failed: ${err.message}`;
+      await refundPendingVideoOp(op, 'video polling failed repeatedly');
       _deletePendingVideoOp(req.params.id);
       return res.status(500).json({ status: 'failed', error: op.error });
     }
@@ -12649,7 +12619,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
         createdAt: Date.now(),
         updatedAt: Date.now(),
         userId: req.user.uid,
-        creditCharged: req.creditCharged || 0,
+        ...reservationMetadataFor(req),
         featureType: req.featureType || 'video-synced',
         refunded: false,
         duration: requestedDuration,
@@ -12702,6 +12672,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
             segments: result.segments,
             updatedAt: Date.now()
           };
+          await settleDetachedReservation(completedJob, 'consume', 'synced video generation completed');
           videoJobs.set(jobId, completedJob);
           await _saveVideoJob(jobId, completedJob);
           logger.info('Background video generation complete', { jobId });
@@ -13072,6 +13043,26 @@ app.get('/api/convert-format/:id', verifyFirebaseToken, requireAuth, (req, res) 
       assetId: conversion.assetId
     });
   }
+});
+
+const { registerAccountDeletionRoute } = require('./services/accountDeletion');
+registerAccountDeletionRoute(app, {
+  verifyFirebaseToken,
+  getFirestoreDb,
+  getStorageBucket,
+  getStripe: () => stripe,
+  admin,
+  logger,
+  hasActiveUserWork: (userId) => {
+    const activeStatuses = new Set(['queued', 'processing', 'pending', 'starting']);
+    for (const job of videoJobs.values()) {
+      if (job?.userId === userId && activeStatuses.has(String(job.status || '').toLowerCase())) return true;
+    }
+    for (const operation of pendingVideoOps.values()) {
+      if (operation?.userId === userId && activeStatuses.has(String(operation.status || '').toLowerCase())) return true;
+    }
+    return false;
+  },
 });
 
 // ═══════════════════════════════════════════════════════════════════
