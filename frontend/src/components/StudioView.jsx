@@ -4549,11 +4549,11 @@ ABSOLUTE RULES (violating any = failure):
             })
           });
         } catch (_err) {
-          throw new Error('Brain Phase Connection Failed. Server may be offline.');
+          throw new Error('Creative Brain could not connect. Your credits were not charged; please try again.');
         }
 
         if (!brainResponse.ok) {
-          throw new Error(`Creative Brain failed to initialize (${brainResponse.status})`);
+          throw new Error(`Creative Brain failed to initialize (${brainResponse.status}). Your credits were not charged; please try again.`);
         }
 
         brainData = await brainResponse.json();

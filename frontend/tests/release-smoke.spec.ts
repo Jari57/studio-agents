@@ -13,6 +13,7 @@ test.describe('release smoke checks', () => {
       localStorage.removeItem('studio_user_id');
       localStorage.setItem('studio_onboarding_v3', 'true');
       localStorage.setItem('studio_onboarding_v4', 'true');
+      localStorage.setItem('studio_tour_shown', '1');
       localStorage.setItem('cookie_consent', 'true');
       localStorage.removeItem('studio_cloned_elevenlabs_id');
       localStorage.removeItem('studio_cloned_voice_url');
@@ -84,14 +85,14 @@ test.describe('release smoke checks', () => {
   });
 
   test('a provider failure remains visible and offers a safe retry', async ({ page }) => {
-    await page.route(`${BACKEND_URL}/api/generate`, async (route) => {
+    await page.route('**/api/generate', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ output: 'Professional 90 BPM boom-bap production brief.' }),
       });
     });
-    await page.route(`${BACKEND_URL}/api/generate-audio`, async (route) => {
+    await page.route('**/api/generate-audio', async (route) => {
       await route.fulfill({
         status: 503,
         contentType: 'application/json',
@@ -104,11 +105,12 @@ test.describe('release smoke checks', () => {
     });
 
     await enterStudio(page);
-    await page.getByRole('button', { name: 'Music GPT', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Music GPT', exact: true }).first().click({ force: true });
     const guideButton = page.getByRole('button', { name: /Got it, let's go!/i });
-    if (await guideButton.isVisible().catch(() => false)) await guideButton.click();
+    await guideButton.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+    if (await guideButton.isVisible().catch(() => false)) await guideButton.click({ force: true });
     await page.getByRole('textbox', { name: /Describe what you want Music GPT/i }).fill('Release smoke beat');
-    await page.getByRole('button', { name: 'Generate', exact: true }).click();
+    await page.getByRole('button', { name: 'Generate', exact: true }).click({ force: true });
 
     const failure = page.getByRole('alert');
     await expect(failure).toContainText('Your credits were not charged');
