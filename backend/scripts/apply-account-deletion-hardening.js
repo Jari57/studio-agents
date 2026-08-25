@@ -4,7 +4,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const serverPath = path.resolve(__dirname, '..', 'server.js');
-const source = fs.readFileSync(serverPath, 'utf8');
+const originalSource = fs.readFileSync(serverPath, 'utf8');
+const usesCrLf = originalSource.includes('\r\n');
+const source = originalSource.replace(/\r\n/g, '\n');
 const appliedMarker = 'registerAccountDeletionRoute(app';
 const insertionMarker = '// GLOBAL ERROR HANDLER (PRODUCTION HARDENED)';
 
@@ -53,5 +55,5 @@ if (!updated.includes(appliedMarker) || !updated.includes("getStripe: () => stri
   throw new Error('Account deletion registration postcondition failed.');
 }
 
-fs.writeFileSync(serverPath, updated, 'utf8');
+fs.writeFileSync(serverPath, usesCrLf ? updated.replace(/\n/g, '\r\n') : updated, 'utf8');
 console.log('[account-deletion] registered fail-closed complete account deletion');

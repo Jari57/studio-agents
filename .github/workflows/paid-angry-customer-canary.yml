@@ -58,6 +58,7 @@ jobs:
         env:
           STUDIO_CANARY_BASE_URL: ${{ inputs.base_url || 'https://studioagentsai.com' }}
           STUDIO_FIREBASE_API_KEY: ${{ secrets.STUDIO_FIREBASE_API_KEY }}
+          STUDIO_CANARY_MEDIA: '1'
           GH_TOKEN: ${{ github.token }}
           STATUS_TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
@@ -85,7 +86,7 @@ jobs:
           cat paid-canary-evidence.json
 
           if [ "${canary_exit}" -eq 0 ]; then
-            publish_status success "Duplicate, refund, history, and deletion canary passed"
+            publish_status success "Paid audio/video, credits, history, and deletion passed"
           else
             publish_status failure "Paid-customer canary failed; production remains amber"
           fi

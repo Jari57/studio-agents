@@ -12308,6 +12308,79 @@ button, .nav-link, .agent-card-premium {
   color: var(--text-primary);
 }
 
+.generation-state {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--studio-stroke);
+  border-radius: 14px;
+  font-size: 0.85rem;
+}
+
+.generation-state strong {
+  color: var(--text-primary);
+}
+
+.generation-state span {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.generation-state-working {
+  background: linear-gradient(110deg, rgba(168, 85, 247, 0.14), rgba(6, 182, 212, 0.07));
+  border-color: rgba(196, 181, 253, 0.22);
+}
+
+.generation-state-error {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(248, 113, 113, 0.32);
+}
+
+.generation-state-error .btn-pill {
+  width: fit-content;
+  margin-top: 4px;
+}
+
+/* The legacy <=1024px rule collapses navigation labels, but the scoped V3.5
+   shell previously overrode its 80px width later in the cascade. Keep a real
+   compact rail through laptop widths so the workspace remains primary. */
+@media (max-width: 1180px) {
+  .studio-shell .studio-sidebar {
+    width: 84px;
+    padding: 16px 8px 12px;
+    align-items: center;
+  }
+
+  .studio-shell .studio-nav-logo {
+    justify-content: center;
+    margin: 2px 0 20px;
+  }
+
+  .studio-shell .studio-nav-logo .logo-text,
+  .studio-shell .nav-link span,
+  .studio-shell .user-info {
+    display: none;
+  }
+
+  .studio-shell .studio-nav-links,
+  .studio-shell .studio-nav-footer {
+    width: 100%;
+  }
+
+  .studio-shell .nav-link {
+    justify-content: center;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px;
+  }
+
+  .studio-shell .user-profile-mini {
+    justify-content: center;
+    gap: 0;
+  }
+}
+
 .studio-shell.light-theme .studio-inline-state {
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.09), rgba(14, 165, 233, 0.055));
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.8), 0 16px 42px rgba(30, 41, 59, 0.08);

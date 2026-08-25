@@ -593,6 +593,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [mediaLoadError, setMediaLoadError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationFailure, setGenerationFailure] = useState(null);
   const [agentPreviews, setAgentPreviews] = useState({});
   const [saveStatus, setSaveStatus] = useState('idle');
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
@@ -4322,6 +4323,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     setIsGenerating(true);
+    setGenerationFailure(null);
 
     const toastId = toast.loading(
       (isVideoAgent || isSpeechAgent || isAudioAgent) 
@@ -4718,14 +4720,18 @@ ABSOLUTE RULES (violating any = failure):
               break;
             }
             // Failed
-            toast.error(statusData.error || 'Video generation failed', { id: toastId });
+            const failureMessage = statusData.error || 'Video generation failed. Your credits were not charged.';
+            setGenerationFailure({ agentId, message: failureMessage });
+            toast.error(failureMessage, { id: toastId });
             return;
           } catch (pollErr) {
             devWarn('[Studio] Video status poll error:', pollErr);
           }
         }
         if (!pollSuccess) {
-          toast.error('Video generation timed out — please try again', { id: toastId });
+          const failureMessage = 'Video generation timed out. Your credits were not charged; please try again.';
+          setGenerationFailure({ agentId, message: failureMessage });
+          toast.error(failureMessage, { id: toastId });
           return;
         }
       }
@@ -4752,7 +4758,9 @@ ABSOLUTE RULES (violating any = failure):
               break;
             }
             if (statusData.status === 'failed') {
-              toast.error(statusData.error || 'Video generation failed', { id: toastId });
+              const failureMessage = statusData.error || 'Video generation failed. Your credits were not charged.';
+              setGenerationFailure({ agentId, message: failureMessage });
+              toast.error(failureMessage, { id: toastId });
               return;
             }
           } catch (pollErr) {
@@ -4760,39 +4768,42 @@ ABSOLUTE RULES (violating any = failure):
           }
         }
         if (!syncPollSuccess) {
-          toast.error('Video generation timed out. Check back later.', { id: toastId });
+          const failureMessage = 'Video generation timed out. Your credits were not charged; please try again.';
+          setGenerationFailure({ agentId, message: failureMessage });
+          toast.error(failureMessage, { id: toastId });
           return;
         }
       }
 
       if (!response.ok) {
         devWarn('[Studio] Execution Phase Error:', data.error || data.details || response.status);
+        let failureMessage = data.details || data.error || `${targetAgentSnapshot.name} could not finish this generation.`;
         
         // Map common errors to user-friendly messages
         if (response.status === 403) {
           if (data.isUserCreditIssue) {
-            toast.error(`Insufficient credits! ${targetAgentSnapshot.name} needs ${data.required || 'more'} credits.`, { id: toastId });
+            failureMessage = `Insufficient credits. ${targetAgentSnapshot.name} needs ${data.required || 'more'} credits.`;
             setDashboardTab('subscription');
             setActiveTab('mystudio');
           } else {
-            toast.error("Insufficient credits for media generation.", { id: toastId });
+            failureMessage = 'Insufficient credits for media generation.';
           }
         } else if (response.status === 401) {
           if (data.requiresAuth) {
-            toast.error(data.message || `You've used your free generations. Sign in to continue.`, { id: toastId });
+            failureMessage = data.message || `You've used your free generations. Sign in to continue.`;
           } else {
-            toast.error("Please log in to use AI media generation.", { id: toastId });
+            failureMessage = 'Please log in to use AI media generation.';
           }
           setShowLoginModal(true);
         } else if (response.status === 503 || response.status === 504) {
           if (data.isSystemCreditIssue) {
-            toast.error("System maintenance: AI credits are being refreshed. Your credits were NOT charged. Try again shortly.", { id: toastId });
+            failureMessage = data.details || 'The media provider is temporarily out of capacity. Your credits were not charged.';
           } else {
-            toast.error("Media server is currently overloaded or out of credits. Try again in a minute.", { id: toastId });
+            failureMessage = data.details || 'The media provider is temporarily unavailable. Your credits were not charged.';
           }
-        } else {
-          toast.error(`Media generation failed: ${data.error || 'Server error'}`, { id: toastId });
         }
+        setGenerationFailure({ agentId, message: failureMessage });
+        toast.error(failureMessage, { id: toastId, duration: 8000 });
         // CRITICAL: Stop processing — do not try to build a result item from error data
         return;
       }
@@ -5097,6 +5108,7 @@ ABSOLUTE RULES (violating any = failure):
       }
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
       setAgentPreviews(prev => ({ ...prev, [targetAgentSnapshot.id]: newItem }));
+      setGenerationFailure(null);
       
       // Success toast (error cases already returned early above)
       toast.success(`Generation complete! Review your result.`, { id: toastId });
@@ -5109,7 +5121,9 @@ ABSOLUTE RULES (violating any = failure):
 
     } catch (error) {
       devWarn("Generation error", error);
-      toast.error(error.message || 'Generation failed. Check your connection and try again.', { id: toastId });
+      const failureMessage = error.message || 'Generation failed. Your credits were not charged; please try again.';
+      setGenerationFailure({ agentId, message: failureMessage });
+      toast.error(failureMessage, { id: toastId, duration: 8000 });
       Analytics.errorOccurred('generation_failed', error.message);
     } finally {
       setIsGenerating(false);
@@ -8132,6 +8146,23 @@ ABSOLUTE RULES (violating any = failure):
                           padding: isMobile ? '12px' : '20px'
                         }}
                       ></textarea>
+
+                      {isGenerating && (
+                        <div className="generation-state generation-state-working" role="status" aria-live="polite">
+                          <strong>{selectedAgent.name} is creating your result.</strong>
+                          <span>This may take up to two minutes. Credits settle only after the provider returns a usable asset.</span>
+                        </div>
+                      )}
+
+                      {!isGenerating && generationFailure?.agentId === selectedAgent.id && (
+                        <div className="generation-state generation-state-error" role="alert">
+                          <strong>{selectedAgent.name} could not finish.</strong>
+                          <span>{generationFailure.message}</span>
+                          <button type="button" className="btn-pill glass" onClick={() => handleGenerate()}>
+                            Try again
+                          </button>
+                        </div>
+                      )}
                       
                       <div className="generation-actions" style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                         <button 
@@ -10988,6 +11019,8 @@ ABSOLUTE RULES (violating any = failure):
         <nav className="studio-nav-links">
           <button 
             data-tour="nav-studio"
+            aria-label="My Studio"
+            title="My Studio"
             className={`nav-link ${activeTab === 'mystudio' ? 'active' : ''}`}
             onClick={() => { setActiveTab('mystudio'); setSelectedAgent(null); }}
           >
@@ -10996,6 +11029,8 @@ ABSOLUTE RULES (violating any = failure):
           </button>
           <button 
             data-tour="nav-team"
+            aria-label="Agents Team"
+            title="Agents Team"
             className={`nav-link ${activeTab === 'agents' ? 'active' : ''}`}
             onClick={() => { setActiveTab('agents'); setSelectedAgent(null); }}
           >
@@ -11004,6 +11039,8 @@ ABSOLUTE RULES (violating any = failure):
           </button>
           <button 
             data-tour="nav-projects"
+            aria-label="Project Hub"
+            title="Project Hub"
             className={`nav-link ${activeTab === 'hub' ? 'active' : ''}`}
             onClick={() => { setActiveTab('hub'); setSelectedAgent(null); }}
           >
@@ -11011,6 +11048,8 @@ ABSOLUTE RULES (violating any = failure):
             <span>Project Hub</span>
           </button>
           <button
+            aria-label="Social Media Hub"
+            title="Social Media Hub"
             className={`nav-link ${activeTab === 'activity' ? 'active' : ''}`}
             onClick={() => { setActiveTab('activity'); setSelectedAgent(null); setActivitySection('connections'); }}
           >
@@ -11019,6 +11058,8 @@ ABSOLUTE RULES (violating any = failure):
           </button>
           <button 
             data-tour="nav-more"
+            aria-label="Resources"
+            title="Resources"
             className={`nav-link ${activeTab === 'resources' ? 'active' : ''}`}
             onClick={() => { setActiveTab('resources'); setSelectedAgent(null); }}
           >
@@ -11026,6 +11067,8 @@ ABSOLUTE RULES (violating any = failure):
             <span>Resources</span>
           </button>
           <button 
+            aria-label="Industry Pulse"
+            title="Industry Pulse"
             className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}
             onClick={() => { setActiveTab('news'); setSelectedAgent(null); }}
           >
@@ -11033,6 +11076,8 @@ ABSOLUTE RULES (violating any = failure):
             <span>Industry Pulse</span>
           </button>
           <button 
+            aria-label="Support"
+            title="Support"
             className={`nav-link ${activeTab === 'support' ? 'active' : ''}`}
             onClick={() => { setActiveTab('support'); setSelectedAgent(null); }}
           >
