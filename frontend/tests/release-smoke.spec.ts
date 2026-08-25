@@ -1,4 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const FRONTEND_URL = process.env.FRONTEND_URL!;
 const BACKEND_URL = process.env.BACKEND_URL!;
@@ -12,6 +14,8 @@ test.describe('release smoke checks', () => {
       localStorage.setItem('studio_onboarding_v3', 'true');
       localStorage.setItem('studio_onboarding_v4', 'true');
       localStorage.setItem('cookie_consent', 'true');
+      localStorage.removeItem('studio_cloned_elevenlabs_id');
+      localStorage.removeItem('studio_cloned_voice_url');
     });
     await page.goto(`${FRONTEND_URL}/#/studio/agents`, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('.studio-shell')).toBeVisible();
@@ -109,5 +113,15 @@ test.describe('release smoke checks', () => {
     const failure = page.getByRole('alert');
     await expect(failure).toContainText('Your credits were not charged');
     await expect(failure.getByRole('button', { name: 'Try again' })).toBeVisible();
+  });
+
+  test('personal voice requests stay explicit and consent-gated', async () => {
+    const studioSource = readFileSync(resolve(process.cwd(), 'src/components/StudioView.jsx'), 'utf8');
+
+    expect(studioSource).toContain("style: storedSpeakerUrl || storedCloneId ? 'cloned' : 'rapper'");
+    expect(studioSource).toContain('isPersonalVoice: personalVoiceSelected');
+    expect(studioSource).toContain("? ((voiceSampleUrl || voiceSettings.speakerUrl) ? 'minimax-music' : 'elevenlabs-clone')");
+    expect(studioSource).toContain('sourceAssetIds: [uploadResult.assetId]');
+    expect(studioSource).toContain("mode: 'strict'");
   });
 });
