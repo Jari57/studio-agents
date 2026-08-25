@@ -74,7 +74,7 @@ test.describe('release smoke checks', () => {
   });
 
   test('the laptop studio shell uses a compact accessible navigation rail', async ({ page }) => {
-    await page.setViewportSize({ width: 1008, height: 900 });
+    await page.setViewportSize({ width: 1280, height: 900 });
     await enterStudio(page);
 
     const sidebar = page.locator('.studio-sidebar');
