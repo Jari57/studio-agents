@@ -38,6 +38,7 @@ import { purchaseProduct, restorePurchases } from '../utils/storeKit';
 
 // Dev-only logger — no-ops in production builds (tree-shaken by Vite/terser)
 const __DEV__ = import.meta.env.DEV;
+const WEB_CHECKOUT_ENABLED = import.meta.env.VITE_STRIPE_CHECKOUT_ENABLED === 'true';
 const devLog = __DEV__ ? (...args) => console.log(...args) : () => {};
 const devWarn = __DEV__ ? (...args) => console.warn(...args) : () => {};
 
@@ -2878,13 +2879,20 @@ const fetchUserCredits = useCallback(async (uid) => {
       return;
     }
 
+    if (!WEB_CHECKOUT_ENABLED) {
+      toast.error('Web billing is not active yet. No payment was attempted.');
+      return;
+    }
+
     const toastId = toast.loading(`Redirecting to secure checkout for ${amount} credits...`);
 
     try {
       // (card) Call the actual Stripe backend (production or local)
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Authenticated billing session required');
       const response = await fetch(`${BACKEND_URL}/api/stripe/create-credits-checkout-session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           amount: parseInt(amount),
           userId: user?.uid,
@@ -3325,11 +3333,17 @@ const fetchUserCredits = useCallback(async (uid) => {
       return;
     }
 
+    if (!WEB_CHECKOUT_ENABLED) {
+      toast.error('Web billing is not active yet. No payment was attempted.');
+      return;
+    }
+
     try {
       toast.loading('Redirecting to checkout...');
+      const token = await auth.currentUser.getIdToken();
       const response = await fetch(`${BACKEND_URL}/api/stripe/create-checkout-session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           tier,
           userId: user?.uid,

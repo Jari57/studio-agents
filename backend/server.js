@@ -2403,14 +2403,16 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
     const arppu = paidUsers > 0 ? (mrr / paidUsers).toFixed(2) : 0;
     
     // ── 3. UNIT ECONOMICS ──
-    const avgCostPerGen = 0.042; // Weighted avg across all gen types
-    const avgRevenuePerCredit = 0.15; // Based on credit pack pricing
-    const grossMargin = ((avgRevenuePerCredit - avgCostPerGen) / avgRevenuePerCredit * 100).toFixed(1);
+    // Provider invoices and generation-level cost attribution are not ingested
+    // yet. Never manufacture unit economics from a price sheet.
+    const avgCostPerGen = null;
+    const avgRevenuePerCredit = null;
+    const grossMargin = null;
     const avgCreditsPerUser = totalUsers > 0 ? Math.round(totalCredits / totalUsers) : 0;
-    const ltv = arppu * 18; // Avg 18 month retention
-    const cac = 2.50; // Estimated blended CAC (organic + paid)
-    const ltvCacRatio = cac > 0 ? (ltv / cac).toFixed(1) : 'N/A';
-    const paybackMonths = mrr > 0 ? (cac / (arppu * (parseFloat(grossMargin) / 100))).toFixed(1) : 'N/A';
+    const ltv = null;
+    const cac = null;
+    const ltvCacRatio = null;
+    const paybackMonths = 'N/A';
 
     // ── 4. GROWTH METRICS ──
     const dailyGrowthRate = totalUsers > 0 ? ((newUsersToday / totalUsers) * 100).toFixed(2) : 0;
@@ -2457,18 +2459,11 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
     };
 
     // ── 9. BREAKEVEN ANALYSIS ──
-    const fixedMonthlyCosts = {
-      railway: 20,        // Hosting
-      firebase: 25,       // Blaze plan estimated
-      domains: 2,         // Domain costs amortized
-      monitoring: 0,      // Currently free tier
-      total: 47
-    };
-    const variableCostPerUser = avgCostPerGen * avgCreditsPerUser; // Per month
-    const totalVariableCosts = variableCostPerUser * activeUsersDay * 30; // Estimated
-    const totalMonthlyCosts = fixedMonthlyCosts.total + totalVariableCosts;
-    const breakEvenUsers = mrr > 0 ? Math.ceil(totalMonthlyCosts / (mrr / Math.max(paidUsers, 1))) : 0;
-    const monthsToBreakeven = mrr > totalMonthlyCosts ? 0 : (mrr > 0 ? Math.ceil((totalMonthlyCosts - mrr) / (mrr * monthlyGRate || 1)) : 'N/A');
+    const fixedMonthlyCosts = { railway: null, firebase: null, domains: null, monitoring: null, total: null, measured: false };
+    const totalVariableCosts = null;
+    const totalMonthlyCosts = null;
+    const breakEvenUsers = 'N/A';
+    const monthsToBreakeven = 'N/A';
 
     // ── 10. SIGNUPS TREND (last 30 days) ──
     const signupsTrend = [];
@@ -2513,19 +2508,20 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
       unitEconomics: {
         avgCostPerGeneration: avgCostPerGen,
         avgRevenuePerCredit: avgRevenuePerCredit,
-        grossMargin: parseFloat(grossMargin),
-        ltv: parseFloat(ltv.toFixed(2)),
+        grossMargin,
+        ltv,
         cac: cac,
-        ltvCacRatio: parseFloat(ltvCacRatio),
-        paybackMonths: parseFloat(paybackMonths) || paybackMonths,
+        ltvCacRatio,
+        paybackMonths,
+        measurementStatus: 'not_measured',
         creditCosts: CREDIT_COSTS
       },
 
       // Breakeven
       breakeven: {
         fixedMonthlyCosts,
-        estimatedVariableCosts: parseFloat(totalVariableCosts.toFixed(2)),
-        totalMonthlyCosts: parseFloat(totalMonthlyCosts.toFixed(2)),
+        estimatedVariableCosts: totalVariableCosts,
+        totalMonthlyCosts,
         currentMRR: parseFloat(mrr.toFixed(2)),
         breakEvenUsers,
         monthsToBreakeven,

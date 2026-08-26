@@ -12,6 +12,8 @@ import toast from 'react-hot-toast';
 import { AGENTS, BACKEND_URL } from '../../constants';
 import { auth } from '../../firebase';
 
+const WEB_CHECKOUT_ENABLED = import.meta.env.VITE_STRIPE_CHECKOUT_ENABLED === 'true';
+
 // Lazy load AdminAnalytics
 const AdminAnalytics = React.lazy(() => import('../AdminAnalytics'));
 
@@ -844,6 +846,11 @@ const DashboardView = ({
                 <h2>Billing & Wallet</h2>
                 <p>Manage your payment methods and subscription plan.</p>
               </div>
+              {!WEB_CHECKOUT_ENABLED && (
+                <div role="status" style={{ padding: '14px 16px', marginBottom: '1rem', borderRadius: '12px', border: '1px solid rgba(245,158,11,.35)', background: 'rgba(245,158,11,.08)', color: '#fbbf24' }}>
+                  Web billing is not active. Plan and credit-pack checkout remain disabled, and no card will be requested.
+                </div>
+              )}
 
               {/* Wallet Balance Card */}
               <div className="wallet-balance-card" style={{
@@ -868,7 +875,7 @@ const DashboardView = ({
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="btn-pill primary" onClick={() => setShowCreditsModal(true)} style={{ boxShadow: '0 4px 15px rgba(250, 204, 21, 0.3)' }}>
+                    <button className="btn-pill primary" disabled={!WEB_CHECKOUT_ENABLED} onClick={() => setShowCreditsModal(true)} style={{ boxShadow: '0 4px 15px rgba(250, 204, 21, 0.3)', opacity: WEB_CHECKOUT_ENABLED ? 1 : 0.5, cursor: WEB_CHECKOUT_ENABLED ? 'pointer' : 'not-allowed' }}>
                       <Plus size={16} /> Purchase Packs
                     </button>
                   </div>
@@ -894,14 +901,15 @@ const DashboardView = ({
                     <div
                       key={pack.amount}
                       className={`pricing-mini-card ${pack.popular ? 'popular' : ''}`}
-                      onClick={() => buyCreditPack(pack.amount, pack.price)}
+                      onClick={() => WEB_CHECKOUT_ENABLED && buyCreditPack(pack.amount, pack.price)}
                       style={{
                         background: 'var(--glass-bg)',
                         border: pack.popular ? '1px solid #facc15' : '1px solid var(--glass-border)',
                         padding: '20px',
                         borderRadius: '16px',
                         textAlign: 'center',
-                        cursor: 'pointer',
+                        cursor: WEB_CHECKOUT_ENABLED ? 'pointer' : 'not-allowed',
+                        opacity: WEB_CHECKOUT_ENABLED ? 1 : 0.5,
                         transition: 'all 0.3s ease',
                         position: 'relative'
                       }}
@@ -1020,9 +1028,10 @@ const DashboardView = ({
                     </ul>
                     <button
                       className="plan-button-native primary"
+                      disabled={!WEB_CHECKOUT_ENABLED}
                       onClick={() => handleSubscribe({ name: 'Creator', price: '$4.99', period: '/month' })}
                     >
-                      Subscribe
+                      {WEB_CHECKOUT_ENABLED ? 'Subscribe' : 'Billing Not Active'}
                     </button>
                   </div>
 
@@ -1042,9 +1051,10 @@ const DashboardView = ({
                     </ul>
                     <button
                       className="plan-button-native primary"
+                      disabled={!WEB_CHECKOUT_ENABLED}
                       onClick={() => handleSubscribe({ name: 'Studio Pro', price: '$14.99', period: '/month' })}
                     >
-                      Subscribe
+                      {WEB_CHECKOUT_ENABLED ? 'Subscribe' : 'Billing Not Active'}
                     </button>
                   </div>
 
@@ -1065,9 +1075,10 @@ const DashboardView = ({
                     </ul>
                     <button
                       className="plan-button-native primary"
+                      disabled={!WEB_CHECKOUT_ENABLED}
                       onClick={() => handleSubscribe({ name: 'Lifetime Access', price: '$99', period: 'one-time' })}
                     >
-                      Get Lifetime
+                      {WEB_CHECKOUT_ENABLED ? 'Get Lifetime' : 'Billing Not Active'}
                     </button>
                   </div>
                 </div>
