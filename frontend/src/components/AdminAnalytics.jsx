@@ -84,7 +84,7 @@ const AdminAnalytics = ({ BACKEND_URL = '', auth }) => {
   }, [fetchStats]);
 
   const fmt = (n, decimals = 0) => typeof n === 'number' ? n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) : n || '—';
-  const fmtUSD = (n) => typeof n === 'number' ? `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00';
+  const fmtUSD = (n) => typeof n === 'number' ? `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Not measured';
 
   // ── Card Components ──
   const StatCard = ({ title, value, icon: Icon, color, subtitle, trend }) => (
@@ -196,7 +196,7 @@ const AdminAnalytics = ({ BACKEND_URL = '', auth }) => {
             <StatCard title="Conversion Rate" value={`${s.revenue?.conversionRate || 0}%`} icon={Target} color="#f59e0b" subtitle={`${fmt(s.users?.paid)} paid users`} />
             <StatCard title="DAU Estimate" value={fmt(s.users?.dauEstimate)} icon={Activity} color="#06b6d4" subtitle={`WAU: ${fmt(s.users?.wauEstimate)}`} />
             <StatCard title="LTV:CAC Ratio" value={`${s.unitEconomics?.ltvCacRatio || 0}x`} icon={TrendingUp} color="#a855f7" subtitle={`LTV: ${fmtUSD(s.unitEconomics?.ltv)}`} />
-            <StatCard title="Gross Margin" value={`${s.unitEconomics?.grossMargin || 0}%`} icon={PieChart} color="#ec4899" subtitle={`Cost/gen: ${fmtUSD(s.unitEconomics?.avgCostPerGeneration)}`} />
+            <StatCard title="Gross Margin" value={typeof s.unitEconomics?.grossMargin === 'number' ? `${s.unitEconomics.grossMargin}%` : 'Not measured'} icon={PieChart} color="#ec4899" subtitle={`Cost/gen: ${fmtUSD(s.unitEconomics?.avgCostPerGeneration)}`} />
           </div>
 
           {/* Two-column: Breakeven + API Status */}
@@ -297,7 +297,7 @@ const AdminAnalytics = ({ BACKEND_URL = '', auth }) => {
               {[
                 { label: 'Avg Cost / Generation', value: fmtUSD(s.unitEconomics?.avgCostPerGeneration), color: '#ef4444' },
                 { label: 'Avg Revenue / Credit', value: fmtUSD(s.unitEconomics?.avgRevenuePerCredit), color: '#10b981' },
-                { label: 'Gross Margin', value: `${s.unitEconomics?.grossMargin || 0}%`, color: '#10b981' },
+                { label: 'Gross Margin', value: typeof s.unitEconomics?.grossMargin === 'number' ? `${s.unitEconomics.grossMargin}%` : 'Not measured', color: '#10b981' },
                 { label: 'Customer LTV', value: fmtUSD(s.unitEconomics?.ltv), color: '#8b5cf6' },
                 { label: 'CAC (Blended)', value: fmtUSD(s.unitEconomics?.cac), color: '#f59e0b' },
                 { label: 'LTV:CAC Ratio', value: `${s.unitEconomics?.ltvCacRatio || 0}x`, color: '#a855f7' },

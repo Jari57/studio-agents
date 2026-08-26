@@ -17,6 +17,10 @@ const POPUP_FALLBACK_CODES = new Set([
 ]);
 import { AGENT_WHITEPAPER, DEFAULT_WHITEPAPER } from '../data/agentWhitepapers';
 
+// Web checkout is fail-closed. It must be enabled only after Stripe products,
+// webhook delivery, and a production checkout have been verified together.
+const WEB_CHECKOUT_ENABLED = import.meta.env.VITE_STRIPE_CHECKOUT_ENABLED === 'true';
+
 // Lazy loaded complex components (standardizing to React.lazy to prevent 'lazy is not defined' error)
 const MultiAgentDemo = React.lazy(() => import('./MultiAgentDemo'));
 const SingleAgentDemo = React.lazy(() => import('./SingleAgentDemo'));
@@ -1002,8 +1006,13 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         <div className="section-header">
           <div className="section-tag">Pricing</div>
           <h2 className="section-title">
-            Simple, <span className="gradient-text-cyan-purple">Transparent Pricing</span>
+            {WEB_CHECKOUT_ENABLED ? 'Simple, ' : 'Planned, '}<span className="gradient-text-cyan-purple">Transparent Pricing</span>
           </h2>
+          {!WEB_CHECKOUT_ENABLED && (
+            <p style={{ color: 'var(--text-secondary)', marginTop: '10px' }}>
+              Paid checkout is not active. You can create a free beta account without entering payment details.
+            </p>
+          )}
         </div>
 
         <div className="pricing-grid-native">
@@ -1079,9 +1088,17 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
               <button
                 className={`plan-button-native ${plan.popular ? 'primary' : 'secondary'}`}
-                onClick={() => onSubscribe && onSubscribe(plan)}
+                disabled={plan.price !== '$0' && !WEB_CHECKOUT_ENABLED}
+                onClick={() => {
+                  if (plan.price === '$0') {
+                    handleCtaClick('start', 'mystudio');
+                  } else if (WEB_CHECKOUT_ENABLED) {
+                    onSubscribe?.(plan);
+                  }
+                }}
+                style={plan.price !== '$0' && !WEB_CHECKOUT_ENABLED ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
               >
-                {plan.ltd ? 'Get Lifetime Access' : 'Start Free Trial'}
+                {plan.price === '$0' ? 'Create Free Beta Account' : WEB_CHECKOUT_ENABLED ? (plan.ltd ? 'Get Lifetime Access' : 'Subscribe') : 'Billing Not Active'}
               </button>
             </div>
           ))}

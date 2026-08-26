@@ -179,6 +179,9 @@ test.describe('release smoke checks', () => {
     const vocalResourceSource = readFileSync(resolve(process.cwd(), 'src/components/VocalsResourcePage.jsx'), 'utf8');
     const constantsSource = readFileSync(resolve(process.cwd(), 'src/constants.js'), 'utf8');
     const multiAgentDemoSource = readFileSync(resolve(process.cwd(), 'src/components/MultiAgentDemo.jsx'), 'utf8');
+    const studioSource = readFileSync(resolve(process.cwd(), 'src/components/StudioView.jsx'), 'utf8');
+    const dashboardSource = readFileSync(resolve(process.cwd(), 'src/components/studio/DashboardView.jsx'), 'utf8');
+    const backendSource = readFileSync(resolve(process.cwd(), '../backend/server.js'), 'utf8');
 
     expect(landingSource).toContain("{ metric: 'Gross margin', value: 'Not measured'");
     expect(landingSource).not.toContain("{ value: '94%', label: 'Gross Margin' }");
@@ -187,5 +190,10 @@ test.describe('release smoke checks', () => {
     expect(constantsSource).not.toMatch(/world\\?'s most powerful|Udio-style structure|Riffusion-style|deterministic generation|mathematical dna|global creator database|professional vocals/i);
     expect(multiAgentDemoSource).not.toContain('Live Demo');
     expect(landingSource).not.toMatch(/fine-tuned on millions|more artists = more data = better ai/i);
+    expect(landingSource).toContain('Paid checkout is not active');
+    expect(dashboardSource).toContain('Web billing is not active');
+    expect(studioSource).toContain("'Authorization': `Bearer ${token}`");
+    expect(backendSource).not.toMatch(/const avgCostPerGen = 0\.042|const cac = 2\.50|grossMargin: parseFloat/);
+    expect(backendSource).toContain("measurementStatus: 'not_measured'");
   });
 });
