@@ -112,17 +112,17 @@ const VOICE_CLONING_STEPS = [
   },
   {
     step: 3,
-    title: 'Automatic IVC Cloning',
-    description: 'When you upload, your sample is automatically sent to ElevenLabs\' Instant Voice Cloning API. A unique voice_id is created and linked to your account. This takes 10-30 seconds. If IVC is unavailable, XTTS voice matching is used as fallback.',
+    title: 'Activate Your Personal Voice',
+    description: 'After you upload and confirm ownership, choose Create My Voice. The app calls ElevenLabs Instant Voice Cloning and marks the voice active only after a provider voice_id is returned. If activation fails, personal-voice generation stays blocked instead of silently switching voices.',
     icon: Zap,
-    tip: 'Upload from either the DNA Vault or Voice Settings panel — both trigger ElevenLabs IVC cloning.'
+    tip: 'A saved raw sample is not an activated personal voice. Wait for the explicit Personal Voice Ready confirmation.'
   },
   {
     step: 4,
     title: 'Generate with Your Voice',
-    description: 'Select "Cloned" as your voice style. Every vocal generation now uses YOUR voice. The system automatically routes to your custom voice_id with optimized ElevenLabs settings.',
+    description: 'Select your activated personal voice. Personal-voice requests carry the saved provider voice_id and are locked to the clone provider; the request fails explicitly if that provider is unavailable.',
     icon: Sparkles,
-    tip: 'Your cloned voice persists across sessions — clone once, use forever.'
+    tip: 'The saved voice can persist across sessions while your Studio Agents account and the provider voice remain available. You can reset or delete it.'
   }
 ];
 
@@ -151,17 +151,17 @@ const PROVIDER_CHAIN = [
     name: 'Suno API',
     priority: 1,
     color: PINK,
-    description: 'Primary provider for singing styles. Builds Suno-compatible tags from genre, style, and emotion parameters. Uses optional Gemini reference song analysis for intelligent tag generation.',
-    bestFor: 'Singing vocals, musical tracks, full song generation',
-    model: 'Suno v4',
+    description: 'Optional provider for musical singing when a working Suno integration is configured. Availability is checked at runtime; Studio Agents must not imply this route is available when the provider rejects a request.',
+    bestFor: 'Musical singing when configured and healthy',
+    model: 'Provider-selected model',
     icon: Music
   },
   {
     name: 'ElevenLabs',
     priority: 2,
     color: ACCENT,
-    description: 'Primary provider for rap, narration, and speaking voices. 20+ curated voice styles mapped by style × rapStyle × genre. Multilingual support in 29+ languages. Used for all voice cloning via IVC.',
-    bestFor: 'Rap vocals, narration, voice cloning, multilingual output',
+    description: 'Provider for speech, narration, curated voices, and consent-gated personal voice cloning. A personal voice is considered active only when ElevenLabs returns a durable voice ID.',
+    bestFor: 'Speech, narration, and activated personal voices',
     model: 'eleven_multilingual_v2 @ mp3_44100_192',
     icon: Mic2
   },
@@ -195,7 +195,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What audio quality does the system output?',
-    a: 'MP3 at 44.1kHz, 192kbps via ElevenLabs. This is broadcast-quality audio suitable for streaming, social media, and professional production. For maximum quality, use "premium" quality mode which routes to priority processing.'
+    a: 'Provider output format and quality vary by route. ElevenLabs requests may return MP3 at the configured encoding, but every result should be reviewed and mastered before release; Studio Agents does not label unreviewed AI output broadcast-ready.'
   },
   {
     q: 'How does multilingual support work?',
@@ -207,14 +207,14 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What makes this different from basic TTS?',
-    a: 'Basic TTS reads text. Studio Agents\' Vocal Lab uses style-aware routing, genre-specific voice tuning, emotional tags, reference song analysis via Gemini AI, and ElevenLabs\' most expressive model (eleven_multilingual_v2). It\'s not text-to-speech — it\'s text-to-performance.'
+    a: 'Vocal Lab combines text generation, provider routing, voice selection, and optional reference analysis. Some routes are speech synthesis and some configured providers can produce musical vocals; the result and active provider are shown so you can judge it honestly.'
   }
 ];
 
 const OUTPUT_FORMATS = [
   { format: 'Social', description: 'Optimized for TikTok, Reels, Stories — punchy, compressed, attention-grabbing', icon: TrendingUp, color: PINK },
   { format: 'Podcast', description: 'Clean, natural delivery with high clarity and minimal processing', icon: Headphones, color: EMERALD },
-  { format: 'TV', description: 'Broadcast-ready narration with professional tone and pacing', icon: Eye, color: CYAN },
+  { format: 'TV', description: 'Narration preset for review and post-production', icon: Eye, color: CYAN },
   { format: 'Music', description: 'Full dynamic range, maximum expression — designed for mixing into tracks', icon: Music, color: ACCENT }
 ];
 
@@ -309,9 +309,8 @@ export default function VocalsResourcePage({ onBack }) {
           margin: '0 auto 32px',
           lineHeight: '1.7'
         }}>
-          Not text-to-speech — <strong style={{ color: 'white' }}>text-to-performance</strong>.
-          20+ curated voice styles, 8 rap delivery styles, voice cloning via ElevenLabs IVC,
-          and AI-powered reference song analysis. <em>Your voice. Your rules.</em>
+          Provider-backed vocal creation with explicit routing and honest failure states.
+          Personal voices activate only after consent-gated ElevenLabs IVC succeeds, and future runs stay locked to that provider identity.
         </p>
 
         {/* Stats Bar */}
@@ -552,11 +551,11 @@ export default function VocalsResourcePage({ onBack }) {
             fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: '800',
             fontFamily: 'Georgia, serif', marginBottom: '12px'
           }}>
-            Clone Your Voice in 60 Seconds
+            Activate Your Personal Voice
           </h2>
           <p style={{ color: '#9ca3af', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
             ElevenLabs Instant Voice Cloning (IVC) captures your unique vocal identity.
-            Upload samples, clone, and generate — <em>your voice</em>, infinite content.
+            Upload samples, confirm ownership, and wait for provider activation before personal-voice generation is enabled.
           </p>
         </div>
 
@@ -943,8 +942,8 @@ export default function VocalsResourcePage({ onBack }) {
             Your Voice. Your Rules.
           </h2>
           <p style={{ color: '#9ca3af', fontSize: '1.05rem', marginBottom: '32px', lineHeight: '1.7' }}>
-            27 curated voices. 8 rap styles. Voice cloning in 60 seconds. Reference song analysis via Gemini AI.
-            This isn't text-to-speech — it's <em>text-to-performance</em>.
+            Curated studio voices, personal-voice activation, and optional reference analysis are provider-dependent.
+            Provider-backed vocals show their source and fail explicitly when unavailable.
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button

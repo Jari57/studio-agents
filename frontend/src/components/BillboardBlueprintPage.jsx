@@ -124,7 +124,7 @@ const PRODUCTION_PHASES = [
     duration: '45 seconds',
     color: PINK,
     icon: Mic2,
-    description: 'Vocal Lab 2.0 delivers AI vocal performances via ElevenLabs\' eleven_multilingual_v2 model — 27+ curated voices with style-specific tuning. Or clone YOUR voice.',
+    description: 'Vocal Lab routes requests through configured providers. ElevenLabs supports curated speech voices and consent-gated personal voice activation; musical performance quality depends on the active route.',
     steps: [
       {
         action: 'Choose Your Voice',
@@ -133,13 +133,13 @@ const PRODUCTION_PHASES = [
       },
       {
         action: 'Clone Your Voice (Optional)',
-        detail: 'Upload a clear voice sample of at least 15 seconds (singing or speaking). The AI generates a full sung song in YOUR voice — real singing, not text-to-speech. Every future generation uses YOUR voice.',
-        tip: 'Record yourself speaking naturally, not performing. The AI captures timbre and tone — it adds performance on top.'
+        detail: 'Upload a clear voice sample of at least 15 seconds and confirm ownership. Personal voice becomes selectable only after the clone provider returns an activated voice ID.',
+        tip: 'Record a clean sample. If activation fails, Studio Agents blocks the personal-voice route instead of silently substituting another voice.'
       },
       {
         action: 'Generate Vocal Track',
-        detail: 'The lyrics + voice selection + rap style are sent to ElevenLabs. Output: broadcast-quality MP3 at 44.1kHz/192kbps. Full lyrics = full-length vocal track.',
-        tip: 'ElevenLabs has no hard duration cap — output length matches your lyrics length. 800+ words = 2:30+ of vocals.'
+        detail: 'Lyrics, voice selection, and style controls are sent to the configured vocal provider. The returned provider and media URL are attached to the saved creation.',
+        tip: 'Output duration, encoding, and musicality vary by provider. Review and master every result before distribution.'
       },
       {
         action: 'Add Reference Song Analysis',

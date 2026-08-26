@@ -42,11 +42,11 @@ export const AGENTS = [
       icon: Sparkles, 
       colorClass: 'agent-purple', 
       tier: 'free', // FREE TIER
-      description: 'AI lyricist creating bars with Udio-style structure',
+      description: 'AI-assisted lyric drafts with structured song sections',
       capabilities: ['Udio/Suno Structural Tags', 'Rhyme Scheme Analysis', 'Metaphor Generator', 'Flow Mapping'],
       examples: ['[Intro] [Verse 1] [Chorus]: Write a summer pop anthem', 'Create a 16-bar verse about Brooklyn in the style of 90s boom bap'],
       howToUse: 'Enter your topic and mood. Use Suno-style tags like [Bridge] or [Outro] to define the flow. Generate a draft, iterate on lines you want to change, then export to your project.',
-      explanation: 'Ghostwriter 2.0 uses a Large Language Model fine-tuned on professional song structures. It recognizes structural markers and translates your prompt into rhythmic, era-accurate bars.',
+      explanation: 'Ghostwriter uses the configured language model and structured prompts to draft verses, hooks, and bridges. Review rhyme, originality, and personal details before release.',
       helpTips: 'Pro Tip: Use structural tags (e.g., [Drop], [Hook]) to guide the AI. Generate multiple drafts until you\'re happy, then combine with Music GPT.',
       onboarding: [
         "Select a genre and mood to set the creative direction and vocabulary set.",
@@ -65,32 +65,32 @@ export const AGENTS = [
       icon: Zap, 
       colorClass: 'agent-cyan', 
       tier: 'free', 
-      description: 'The world\'s most powerful AI music engine (MusicGen + Riffusion DNA)',
-      capabilities: ['High-Fidelity Audio', 'Riffusion Spectrogram Forks', 'Seed-Persistent DNA', 'Deterministic Generation'],
+      description: 'Music direction and provider-backed audio generation when available',
+      capabilities: ['Song Briefs', 'Arrangement Direction', 'Provider-Routed Audio', 'Version Saving'],
       features: [
-        'Seed-Persistent DNA for consistent stems',
-        'Riffusion spectrogram manipulation',
-        'High-Musicality tagging for Udio-grade detail',
-        'Deterministic generation with fixed seed control',
-        'Multi-format export (WAV, MP3, Stems)'
+        'Structured music prompts and arrangement notes',
+        'Runtime provider routing with visible failures',
+        'Saved generation versions',
+        'Style and instrumentation controls',
+        'Export options when returned by the provider'
       ],
       proTips: [
-        'Use the same Seed for Music and Visuals to maintain "Mathematical DNA" consistency.',
-        'Enable "High Musicality" to inject nuanced production tags into the generator.',
-        'Fork community tracks from the Discover Feed to explore their unique spectrogram DNA.',
-        'Export individual stems for a full DAW-style mixing experience.'
+        'Describe tempo, instrumentation, structure, and mood explicitly.',
+        'Save every provider result you may want to revisit.',
+        'Treat regenerated audio as a new version, not an exact reproduction.',
+        'Review rights and release readiness outside Studio Agents.'
       ],
-      examples: ['[Seed: 442152] Create a high-musicality synthwave track', 'Generate an epic cinematic loop with Riffusion spectrogram logic'],
-      howToUse: 'Music GPT is the core studio engine. Use "Seed Persistence" to lock in sounds for consistent Forks. Enable "High Musicality" for Udio-grade instrumentation and detail.',
-      explanation: 'Music GPT 2.5 integrates Meta\'s MusicGen Large with Riffusion-style seed control. This allows for deterministic generation, meaning you can Fork a community track and maintain its exact sonic quality while tweaking the prompt.',
-      helpTips: 'Pro Tip: Note down your Seeds! A Seed locks the AI\'s "imagination," allowing you to generate stems (Drums Only, Melodies) that fit perfectly with your main track.',
+      examples: ['Create a synthwave track at 110 BPM with a restrained verse and wide chorus', 'Draft a cinematic instrumental brief with percussion and string cues'],
+      howToUse: 'Describe the mood, tempo, instruments, and song structure. Studio Agents sends the request to an available provider and preserves the returned version when you save it.',
+      explanation: 'Music GPT creates production direction and can request provider-backed audio when an audio provider is healthy. Provider output is not deterministic; save versions you want to keep.',
+      helpTips: 'Provider generations can vary. Save useful versions and use the prompt history to document what changed.',
       onboarding: [
-        "Use 'Seed Control' to maintain sonic consistency across multi-track sessions.",
-        "Enable 'High Musicality' to inject nuanced production tags into the generator.",
-        "Fork community tracks from the Discover Feed to explore their unique spectrogram DNA.",
-        "Export individual stems for a full DAW-style mixing experience."
+        "Describe tempo, structure, instruments, and exclusions.",
+        "Confirm the selected provider is healthy before spending credits.",
+        "Save a returned version before requesting another variation.",
+        "Export only formats the provider actually returned."
       ],
-      howTo: 'Define mood, structure, and seed. Perfect for DAW-ready production.',
+      howTo: 'Define mood, tempo, structure, and instrumentation, then review the returned audio.',
       example: 'Mood: "Epic", Seed: "888123"',
       getStarted: 'AI Studio'
     },
@@ -102,8 +102,8 @@ export const AGENTS = [
       icon: Music, 
       colorClass: 'agent-orange', 
       tier: 'free', // FREE TIER
-      description: 'Vibe-aligned artwork with Riffusion-style color mapping',
-      capabilities: ['Style Extraction', 'Riffusion Vibe Mapping', 'Seed-Sync Visuals', 'Social Branding Kits'],
+      description: 'Prompt-based cover concepts with project-aware art direction',
+      capabilities: ['Prompt Development', 'Reference-Guided Direction', 'Cover Variations', 'Export Preparation'],
       features: [
         'Voice input for album descriptions',
         'Text-to-speech concept descriptions',
@@ -119,16 +119,16 @@ export const AGENTS = [
         'Test concepts at small sizes'
       ],
       examples: ['Create a cover that matches the "Luminous" mood of my beat', 'Generate a visual DNA profile based on the music seed'],
-      howToUse: 'Art is synced to your sound. Use "Style Extraction" to upload an image you love, and the AI will blend its aesthetics with your music\'s unique Seed DNA.',
-      explanation: 'Album Artist 2.0 uses Riffusion-style "Audio-to-Visual" mapping. It analyzes the frequency spectrum and BPM of your track to suggest color palettes and textures that feel sonically accurate to the music.',
-      helpTips: 'Pro Tip: If you use a fixed Seed in Music GPT, use the same Seed here! This ensures the visual patterns emerge from the same "Mathematical DNA" as your sound.',
+      howToUse: 'Describe the release, mood, palette, and visual references. Studio Agents turns that direction into an image-provider request.',
+      explanation: 'Album Artist turns the project brief, mood, and optional references into an image-provider prompt. Results require visual review and typography may need manual correction.',
+      helpTips: 'Review faces, hands, typography, likeness, and licensing before release. Add important text manually when exact spelling matters.',
       onboarding: [
-        "Select your music track to auto-extract a vibe-based color palette.",
-        "Input a style reference or 'Visual Seed' to define the aesthetic grid.",
-        "Generate 4 variations and 'Fork' the one that matches your brand's energy.",
-        "Export the 'Social Kit' including animated canvas versions for Spotify."
+        "Describe the release concept, palette, and intended platform.",
+        "Add an optional visual reference you have permission to use.",
+        "Review each provider result for artifacts and rights concerns.",
+        "Export the selected image and finish typography in your design tool."
       ],
-      howTo: 'Describe your concept or sync to audio seed. AI generates cover art.',
+      howTo: 'Describe the concept and review each generated cover variation.',
       example: 'Mood: "Ethereal", Seed: "88212"',
       getStarted: 'Design Art'
     },
@@ -181,32 +181,32 @@ export const AGENTS = [
       comingSoon: false,
       colorClass: 'agent-purple', 
       isPro: true,
-      description: 'AI vocal synthesis with Suno-style emotional tags',
-      capabilities: ['[Emotional Tagging]', 'Udio-Style Phrasing', 'Harmony Logic', 'Tuning & Correction'],
+      description: 'Provider-backed vocals with explicit voice routing',
+      capabilities: ['Style Direction', 'Provider Voice Selection', 'Personal Voice Routing', 'Saved Takes'],
       examples: ['[Soulful Grit] Generate a powerhouse female vocal', '[Haunting Reverb] Create a layered vocal pad'],
       howToUse: 'Input lyrics and use tags like [Raspy], [Operatic], or [Ad-lib] to define the vocal character. The AI maps emotional intensity to your delivery style.',
-      explanation: 'Vocal Lab 2.0 uses "Neural Emotion Mapping" to align vocal delivery with lyrical sentiment. It recognizes Suno-style descriptors to adjust breathiness, grit, and vibrato in real-time.',
+      explanation: 'Vocal Lab sends lyrics and style direction to the selected provider. Personal voice is used only after explicit consent and successful provider activation.',
       helpTips: 'Pro Tip: Layer multiple vocal takes with different tags (e.g., [Lead] + [Harmony]) to create a thick, professional vocal stack directly in the DAW timeline.',
       features: [
-        'Suno-style [Emotional Tagging]',
-        'Udio-Style rhythmic phrasing',
-        'Harmony Logic for backing vocals',
-        'Neural Tuning & Correction',
-        'Multi-language support (29+ languages)'
+        'Bracketed style and delivery direction',
+        'Explicit provider and voice routing',
+        'Saved takes when generation succeeds',
+        'Personal-voice consent and activation status',
+        'Language support reported by the active provider'
       ],
       proTips: [
-        'Use [Raspy] or [Grit] for rock/soul textures.',
-        'Add [Harmony] to the same lyrics to create layered stacks.',
-        'Use [Ad-lib] for background flair between main lines.',
-        'Try [Electronic] tag for Daft Punk style robotic effects.'
+        'Use concise delivery notes such as [soft] or [raspy].',
+        'Generate separate takes when you need lead and backing parts.',
+        'Save a successful take before changing the direction.',
+        'Do not assume a raw upload means a personal voice is activated.'
       ],
       onboarding: [
         "Use [Brackets] for vocal style tags like [Breathy], [Aggressive], or [Whispering].",
-        "Type lyrics directly into the prompt to generate high-fidelity vocal stems.",
+        "Type lyrics directly into the prompt and select an available voice route.",
         "Add genre markers like [90s R&B] or [Industrial Metal] for character.",
         "Combine multiple exports to create harmonies and backing vocals."
       ],
-      howTo: 'Enter lyrics and emotion tags. The AI generates professional vocals.',
+      howTo: 'Enter lyrics and style direction, then review the provider-backed vocal result before saving or exporting.',
       example: 'Lyrics: "I found my ways...", Tag: "[Soulful]"',
       getStarted: 'Vocal Design'
     },
@@ -220,15 +220,9 @@ export const AGENTS = [
       isPro: true,
       isBeta: true,
       comingSoon: false,
-      description: 'AI-driven virtual session players for pro performance',
+      description: 'Session-player arrangement ideas and provider-backed audio when available',
       capabilities: ['Solo Generation', 'Rhythm Section AI', 'Style Mimicry', 'Multi-instrumental'],
-      features: [
-        'Neural Performance Capture',
-        'Vibrato and Expression modeling',
-        'Style Mimicry (Legendary Artists)',
-        'Complex counterpoint logic',
-        'MIDI and Audio stem export'
-      ],
+      features: ['Instrument and style direction', 'Arrangement suggestions', 'Provider-backed audio when available', 'Version saving', 'Export of returned formats'],
       proTips: [
         'Use the "Style Mimicry" to emulate specific guitar icons.',
         'Dial back "Complexity" for background textures.',
@@ -237,7 +231,7 @@ export const AGENTS = [
       ],
       examples: ['Generate a bluesy guitar solo over an A minor backing track', 'Create a funky bassline for a disco beat'],
       howToUse: 'Select your instrument and style. The AI will generate a performance that fits your track\'s key and tempo.',
-      explanation: 'Instrumentalist uses physical modeling and performance capture data to simulate real session players. It doesn\'t just play notes; it understands the nuances of "touch," "vibrato," and "swing" that make a performance feel human.',
+      explanation: 'Instrumentalist converts key, tempo, instrument, and style direction into arrangement guidance and an audio-provider request when that route is available.',
       helpTips: 'Use the "Style Mimicry" feature to have the AI play in the style of a specific legendary musician. If the performance is too complex, use the "Intensity" slider to dial it back.',
       onboarding: ["Select your instrument.", "Choose a playing style.", "Generate and refine."],
       howTo: 'Select an instrument and style. The AI will generate a solo.',
@@ -502,14 +496,14 @@ export const AGENTS = [
       colorClass: 'agent-indigo', 
       hasSocials: true,
       comingSoon: false,
-      description: 'Find the perfect collaborators with AI matching',
+      description: 'Prepare collaborator briefs and outreach without inventing a marketplace',
       capabilities: ['Artist Matching', 'Producer Outreach', 'Session Musician Search', 'Contract Templates'],
       features: [
-        'Proprietary "Creative DNA" Matching',
-        'Outreach Template Generator',
-        'Global Creator Database access',
-        'Budget-aware Match Filtering',
-        'Automated Split-Sheet Generation'
+        'Project brief builder',
+        'Outreach template generator',
+        'Budget and role criteria',
+        'Candidate notes supplied by the user',
+        'Split-sheet preparation guidance'
       ],
       proTips: [
         'Upload your track "Reference" for better matching.',
@@ -518,13 +512,13 @@ export const AGENTS = [
         'Check the "Vibe Score" for creative compatibility.'
       ],
       examples: ['Find a female vocalist with a raspy voice for a rock track', 'Connect with mixing engineers specializing in Dolby Atmos'],
-      howToUse: 'Define your project needs, budget, and "Vibe Match." The AI will scan global databases and social platforms for the best creative matches.',
-      explanation: 'Collab Connect uses a proprietary "Creative DNA" matching algorithm. It looks beyond just "genre" and analyzes the sonic characteristics of an artist\'s previous work to find the most compatible partners for your specific project.',
+      howToUse: 'Define the role, project needs, budget, and timeline. Use the generated brief and outreach copy with candidates you identify or import.',
+      explanation: 'Collab Connect organizes collaborator criteria and outreach. It does not supply or claim a verified creator marketplace.',
       helpTips: 'Upload a "Reference Track" that represents the sound you are going for; this significantly improves the accuracy of the artist matches. Use the "Budget" filter to find collaborators within your range.',
       onboarding: [
         "Upload a demo or snippet of your project to help the AI understand the 'Vibe'.",
         "Specify the type of collaborator you need (Vocalist, Producer, Engineer, etc.).",
-        "Review the 'Match Score' for each candidate based on their previous work and style.",
+        "Review each candidate using verifiable work samples and direct communication.",
         "Use the 'Contract Generator' to create a simple split-sheet or work-for-hire agreement."
       ],
       howTo: 'Describe your project. The AI will find suitable collaborators.',

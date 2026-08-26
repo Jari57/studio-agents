@@ -378,7 +378,7 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
         }}>
           <Zap size={14} color="#8b5cf6" />
           <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Live Demo
+            Interactive Demo
           </span>
         </div>
         <h3 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
