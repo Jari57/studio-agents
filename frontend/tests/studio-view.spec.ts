@@ -130,6 +130,16 @@ test.describe('Studio View — Agent Selection', () => {
     }
   });
 
+  test('agent tier pricing matches the sellable plans', async ({ page }) => {
+    await enterStudio(page);
+
+    const body = page.locator('body');
+    await expect(body).toContainText('Creator · $4.99/mo');
+    await expect(body).toContainText('Studio Pro · $14.99/mo');
+    await expect(body).not.toContainText('-$4.99');
+    await expect(body).not.toContainText('-$9.99');
+  });
+
   test('search/filter agents works', async ({ page }) => {
     await enterStudio(page);
     const search = page.locator('input[placeholder*="search" i], input[placeholder*="filter" i]').first();
