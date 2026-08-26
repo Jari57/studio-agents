@@ -11,6 +11,7 @@ import {
 import toast from 'react-hot-toast';
 import { AGENTS, BACKEND_URL } from '../../constants';
 import { auth } from '../../firebase';
+import { shouldUseNativeIAP } from '../../utils/nativePlatform';
 
 const WEB_CHECKOUT_ENABLED = import.meta.env.VITE_STRIPE_CHECKOUT_ENABLED === 'true';
 
@@ -203,6 +204,7 @@ const DashboardView = ({
                   <span style={{ fontSize: '0.875rem', color: '#facc15', fontWeight: '800' }}>{userCredits}</span>
                 </div>
                 <button
+                  disabled={!WEB_CHECKOUT_ENABLED}
                   onClick={() => setShowCreditsModal(true)}
                   style={{
                     width: '100%',
@@ -213,7 +215,8 @@ const DashboardView = ({
                     border: 'none',
                     fontSize: '0.75rem',
                     fontWeight: '700',
-                    cursor: 'pointer',
+                    cursor: WEB_CHECKOUT_ENABLED ? 'pointer' : 'not-allowed',
+                    opacity: WEB_CHECKOUT_ENABLED ? 1 : 0.5,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -945,7 +948,7 @@ const DashboardView = ({
 
               {/* Subscription Plans Section */}
               {/* When running inside a native app (Capacitor), Apple/Google require IAP */}
-              {typeof window !== 'undefined' && window.Capacitor ? (
+              {shouldUseNativeIAP() ? (
                 <div className="plans-section" style={{ marginTop: '2rem' }}>
                   <div className="payment-header">
                     <h3>Manage Subscription</h3>

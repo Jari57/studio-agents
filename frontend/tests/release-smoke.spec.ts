@@ -192,6 +192,8 @@ test.describe('release smoke checks', () => {
     expect(landingSource).not.toMatch(/fine-tuned on millions|more artists = more data = better ai/i);
     expect(landingSource).toContain('Paid checkout is not active');
     expect(dashboardSource).toContain('Web billing is not active');
+    expect(dashboardSource).toContain('shouldUseNativeIAP() ?');
+    expect(dashboardSource).not.toContain("typeof window !== 'undefined' && window.Capacitor ?");
     expect(studioSource).toContain("'Authorization': `Bearer ${token}`");
     expect(backendSource).not.toMatch(/const avgCostPerGen = 0\.042|const cac = 2\.50|grossMargin: parseFloat/);
     expect(backendSource).toContain("measurementStatus: 'not_measured'");
