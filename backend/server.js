@@ -5517,7 +5517,10 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     const isRapStyle = style.includes('rapper');
 
     // Provider preference — skip non-preferred providers for vocal consistency
-    const wantProvider = preferredProvider || null;
+    // An activated personal voice has one durable provider identity. Do not let
+    // a stale or hand-crafted client preference reroute the same artist sample
+    // through a zero-shot model whose timbre can drift between generations.
+    const wantProvider = isPersonalVoice ? 'elevenlabs-clone' : (preferredProvider || null);
     if (wantProvider) logger.info('🔒 Preferred provider requested', { preferredProvider: wantProvider });
 
     // ═══════════════════════════════════════════════════════════════

@@ -3775,6 +3775,16 @@ const fetchUserCredits = useCallback(async (uid) => {
       return;
     }
 
+    const personalVoiceSelected = voiceSettings.style === 'cloned';
+    if (personalVoiceSelected && (!user || !elevenLabsVoiceId)) {
+      const failureMessage = !user
+        ? 'Sign in to use a private personal voice.'
+        : 'Your saved voice sample is not an activated personal voice yet. Open Voice Settings and create it again.';
+      toast.error(failureMessage, { duration: 8000 });
+      if (!user) setShowLoginModal(true);
+      return;
+    }
+
     // Capture project context immediately to prevent race conditions during long AI wait
     const targetProjectSnapshot = selectedProject;
 
@@ -3829,7 +3839,9 @@ const fetchUserCredits = useCallback(async (uid) => {
           audioId: referencedAudioId || undefined,
           elevenLabsVoiceId: elevenLabsVoiceId,
           referenceSongUrl: referenceSongUrl || null,
-          quality: (elevenLabsVoiceId || voiceSampleUrl || voiceSettings.speakerUrl) ? 'premium' : 'standard'
+          quality: (elevenLabsVoiceId || voiceSampleUrl || voiceSettings.speakerUrl) ? 'premium' : 'standard',
+          isPersonalVoice: personalVoiceSelected,
+          preferredProvider: personalVoiceSelected ? 'elevenlabs-clone' : null
         })
       });
 
@@ -4648,9 +4660,7 @@ ABSOLUTE RULES (violating any = failure):
           audioId: referencedAudioId,
           referenceSongUrl: referenceSongUrl || null,
           isPersonalVoice: personalVoiceSelected,
-          preferredProvider: personalVoiceSelected
-            ? ((voiceSampleUrl || voiceSettings.speakerUrl) ? 'minimax-music' : 'elevenlabs-clone')
-            : null
+          preferredProvider: personalVoiceSelected ? 'elevenlabs-clone' : null
         };
       } else if (isMasterAgent) {
         // Mastering Lab -requires an existing audio asset to master
