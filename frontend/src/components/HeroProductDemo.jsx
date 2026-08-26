@@ -367,7 +367,7 @@ export default function HeroProductDemo({ onTryIt }) {
               }} />
             )}
             <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)' }}>
-              {isPlaying ? 'LIVE' : 'READY'}
+              {isPlaying ? 'DEMO' : 'READY'}
             </span>
           </div>
         </div>

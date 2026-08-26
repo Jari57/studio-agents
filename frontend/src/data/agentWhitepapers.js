@@ -5,13 +5,13 @@ export const AGENT_WHITEPAPER = {
     version: '3.2.1',
     releaseDate: 'October 2024',
     tagline: 'Your AI Co-Writer for Every Genre',
-    overview: 'Ghostwriter is Studio Agents\' flagship lyric generation engine, designed to function as an always-available, infinitely patient songwriting partner. Built on a proprietary Large Language Model (LLM) fine-tuned on millions of professionally written songs, it understands not just words—but rhythm, cadence, and emotional resonance.',
-    problemSolved: 'Writer\'s block costs artists an estimated 40% of their creative time. Traditional co-writing sessions are expensive ($500-2000/session) and require scheduling coordination. Ghostwriter eliminates both barriers, providing instant, unlimited lyrical ideation.',
-    technicalStack: ['Google Gemini Pro (Base LLM)', 'Custom Rhyme Scheme Analyzer', 'Syllable-Flow Mapping Engine', 'Genre-Specific Vocabulary Models', 'Sentiment & Emotion Classifier'],
+    overview: 'Ghostwriter is a structured lyric-drafting workflow backed by the configured language-model provider. It helps organize verses, hooks, bridges, rhyme direction, and revisions; the artist remains responsible for originality and the final writing.',
+    problemSolved: 'Ghostwriter gives artists a structured starting point when a blank page or revision loop slows the writing process. It supports—not replaces—human writing and editing.',
+    technicalStack: ['Configured language-model provider', 'Structured prompting', 'Project context', 'Draft revision workflow'],
     keyFeatures: [
-      { name: 'Multi-Genre Fluency', desc: 'Trained on 50+ genres from Hip-Hop to Country, K-Pop to Death Metal' },
+      { name: 'Genre Direction', desc: 'Accepts genre and mood direction as part of the writing brief' },
       { name: 'Flow Mapping', desc: 'Visualizes syllable placement for precise rhythmic delivery' },
-      { name: 'Reference Artist Mode', desc: 'Mimics the stylistic patterns of legendary writers (Jay-Z, Taylor Swift, etc.)' },
+      { name: 'Reference Direction', desc: 'Uses high-level creative references without claiming artist impersonation' },
       { name: 'Rhyme Density Control', desc: 'Adjust from simple AABB to complex internal rhyme schemes' },
       { name: 'Metaphor Generator', desc: 'Creates unique, non-cliché metaphors based on your theme' }
     ],
@@ -36,18 +36,18 @@ export const AGENT_WHITEPAPER = {
     outputFormats: ['Plain Text', 'Flow Map (PDF)', 'Teleprompter Mode', 'DAW Marker Export'],
     limitations: ['Cannot generate audio/vocals', 'May occasionally produce clichés (use Refine)', 'Reference Artist mode is stylistic, not impersonation'],
     pricing: 'Included in all paid plans. Free tier: 10 generations/month.',
-    successMetrics: '94% user satisfaction | Avg. 3.2 refinements per final lyric | 12M+ lyrics generated'
+    successMetrics: 'Beta measurement pending | Satisfaction and completion metrics will be reported from real customer usage'
   },
   'beat': {
     fullName: 'Beat Lab Pro',
     version: '2.8.0',
     releaseDate: 'November 2024',
     tagline: 'Production Ideas at the Speed of Thought',
-    overview: 'Beat Lab is your AI production assistant, combining algorithmic composition with a curated sample library. It generates drum patterns, chord progressions, and melodic ideas that are musically coherent and genre-appropriate.',
-    problemSolved: 'Producers spend 60% of their time on ideation and sound selection. Beat Lab compresses this phase by providing instant, theory-correct musical foundations—freeing you to focus on arrangement and mixing.',
-    technicalStack: ['Markov Chain Pattern Generator', 'Music Theory Logic Engine', 'Sample Metadata AI', 'BPM & Key Detection', 'MIDI Export Pipeline'],
+    overview: 'Beat Lab helps turn tempo, key, genre, and instrumentation choices into a production brief and musical starting points.',
+    problemSolved: 'Beat Lab speeds up early ideation by organizing rhythm, chord, and arrangement directions for the producer to review.',
+    technicalStack: ['Structured music prompts', 'Project tempo and key context', 'Provider routing', 'Saved version workflow'],
     keyFeatures: [
-      { name: 'Genre-Locked Generation', desc: 'Patterns guaranteed to fit Hip-Hop, EDM, Pop, R&B, and more' },
+      { name: 'Genre Direction', desc: 'Adds genre-specific direction without guaranteeing a result' },
       { name: 'Chord Progression Logic', desc: 'Follows harmonic rules while allowing creative tension' },
       { name: 'Sample Sourcing', desc: 'Suggests royalty-free samples that match your vibe' },
       { name: 'MIDI Export', desc: 'Drag patterns directly into any DAW' },
@@ -74,22 +74,22 @@ export const AGENT_WHITEPAPER = {
     outputFormats: ['MIDI Files', 'Pattern Preview (Audio)', 'Sample Pack Links', 'Theory Analysis PDF'],
     limitations: ['Patterns are MIDI only (no audio)', 'Complex polyrhythms may need manual editing', 'Sample suggestions are external links'],
     pricing: 'Included in all paid plans. Free tier: 5 patterns/month.',
-    successMetrics: '89% export-to-DAW rate | 4.8M patterns generated | Avg. session: 12 minutes'
+    successMetrics: 'Beta measurement pending | Export and completion metrics are not yet established'
   },
   'album': {
     fullName: 'Album Artist AI',
     version: '4.0.0',
     releaseDate: 'December 2024',
     tagline: 'Your Visual Identity, Perfected',
-    overview: 'Album Artist transforms your musical vision into stunning visual art. Powered by Imagen 3, Google\'s most advanced image generation model, it creates cover art, social media kits, and brand assets that are platform-optimized and print-ready.',
-    problemSolved: 'Professional cover art costs $200-2000 and takes 2-4 weeks. Album Artist delivers unlimited, high-quality artwork in minutes—ensuring every single, EP, and album looks major-label quality.',
+    overview: 'Album Artist turns a release brief, mood, palette, and permitted references into an image-provider request. Outputs are creative drafts, not automatically print- or release-ready assets.',
+    problemSolved: 'Album Artist gives creators fast visual starting points and variations. Every output still requires review for typography, likeness, rights, and release suitability.',
     technicalStack: ['Imagen 3 (Google)', 'Resolution Upscaler', 'Platform Optimizer', 'Typography Engine', 'Color Palette Extractor'],
     keyFeatures: [
       { name: 'Multi-Style Generation', desc: 'From photorealistic to abstract, anime to oil painting' },
-      { name: 'Social Kit Export', desc: 'Pre-sized assets for Spotify, Instagram, YouTube, TikTok' },
+      { name: 'Platform Preparation', desc: 'Helps prepare selected images for common platform dimensions' },
       { name: 'Typography Integration', desc: 'Add artist name and title with curated fonts' },
       { name: 'Brand Palette', desc: 'Extract and apply consistent colors across all assets' },
-      { name: 'Print-Ready Export', desc: '300 DPI output for physical merch and vinyl' }
+      { name: 'Export Review', desc: 'Prompts the user to verify resolution, typography, and rights before printing' }
     ],
     whenToUse: [
       'You need cover art for a new release',
@@ -112,22 +112,22 @@ export const AGENT_WHITEPAPER = {
     outputFormats: ['3000x3000 Cover (Spotify/Apple)', 'Social Kit (IG, YT, TikTok)', 'Print-Ready (300 DPI)', 'Brand Board PDF'],
     limitations: ['Cannot generate real human faces (AI policy)', 'Text rendering may need refinement', 'Complex logos should be vector (use external)'],
     pricing: 'Included in all paid plans. Free tier: 3 covers/month.',
-    successMetrics: '97% Spotify acceptance rate | 2.1M covers generated | Avg. 4 variations per final'
+    successMetrics: 'Beta measurement pending | Distribution acceptance is not certified by Studio Agents'
   },
   'video-creator': {
     fullName: 'Video Creator (Veo 3)',
     version: '1.5.0 BETA',
     releaseDate: 'December 2024',
     tagline: 'Cinematic AI Video for Music',
-    overview: 'Video Creator harnesses Veo 3, Google\'s revolutionary video generation model, to create music videos, visualizers, and cinematic content. Describe a scene and watch it come to life.',
-    problemSolved: 'Music videos cost $5,000-500,000 and require crews, locations, and weeks of production. Video Creator enables any artist to visualize their music with cinematic quality in minutes.',
-    technicalStack: ['Veo 3 (Google DeepMind)', 'Audio-Video Sync Engine', 'Style Transfer Pipeline', 'Motion Interpolation', '4K Upscaler'],
+    overview: 'Video Creator sends scene direction to the configured video provider and tracks the resulting operation. Availability, duration, resolution, and consistency depend on the provider.',
+    problemSolved: 'Video Creator helps artists prototype scenes and visual directions before assembling and finishing them in a video editor.',
+    technicalStack: ['Configured video provider', 'Asynchronous operation tracking', 'Private result proxy', 'Retry and failure states'],
     keyFeatures: [
       { name: 'Scene Generation', desc: 'Create any scene from text description' },
-      { name: 'Music Sync', desc: 'Upload audio to sync visuals to beat' },
+      { name: 'Music Reference', desc: 'Attach project audio as creative context when the provider supports it' },
       { name: 'Style Transfer', desc: 'Apply cinematic looks (Film Noir, Anime, etc.)' },
       { name: 'Camera Control', desc: 'Specify drone shots, close-ups, tracking' },
-      { name: 'Loop Mode', desc: 'Perfect for visualizers and social content' }
+      { name: 'Loop Direction', desc: 'Requests loop-friendly motion; seamless output is not guaranteed' }
     ],
     whenToUse: [
       'You need a music video but have no budget',
@@ -150,16 +150,16 @@ export const AGENT_WHITEPAPER = {
     outputFormats: ['1080p MP4', '4K MP4 (Pro)', 'Loop GIF', 'Vertical (9:16)'],
     limitations: ['BETA - occasional artifacts', 'Max 30 seconds per generation', 'Human faces may be inconsistent'],
     pricing: 'Pro plan only during beta. 5 videos/month included.',
-    successMetrics: 'BETA | 340K videos generated | 78% user satisfaction (improving)'
+    successMetrics: 'Beta measurement pending | Provider success and user satisfaction are shown only when real telemetry exists'
   },
   'master': {
     fullName: 'Mastering Lab AI',
     version: '3.5.0',
     releaseDate: 'September 2024',
-    tagline: 'Major Label Sound, Indie Budget',
-    overview: 'Mastering Lab applies professional-grade audio mastering using neural networks trained by Grammy-winning engineers. It analyzes your mix and applies precise EQ, compression, limiting, and stereo enhancement.',
-    problemSolved: 'Professional mastering costs $50-500 per track and requires 3-5 day turnaround. Mastering Lab delivers studio-quality masters in under 60 seconds, with unlimited revisions.',
-    technicalStack: ['Neural Mastering Network', 'LUFS Analyzer', 'Spectral EQ AI', 'Stereo Imaging Engine', 'Multi-Format Encoder'],
+    tagline: 'Automated Mastering Comparisons',
+    overview: 'Mastering Lab provides an automated processing workflow for auditioning loudness and tonal changes. It is not represented as a replacement for a mastering engineer, and every output requires listening and platform checks.',
+    problemSolved: 'Mastering Lab speeds up draft comparisons and export preparation. Processing time and result quality depend on the source mix and active provider.',
+    technicalStack: ['Configured audio-processing provider', 'Loudness measurement', 'Preset comparison', 'Export workflow'],
     keyFeatures: [
       { name: 'Platform Presets', desc: 'Optimized for Spotify, Apple, YouTube, Vinyl' },
       { name: 'Reference Matching', desc: 'Match the sonic profile of a reference track' },
@@ -188,7 +188,7 @@ export const AGENT_WHITEPAPER = {
     outputFormats: ['WAV 24-bit', 'WAV 16-bit', 'FLAC', 'MP3 320kbps', 'Platform-Specific'],
     limitations: ['Cannot fix bad mixes', 'Stem mastering requires Pro plan', 'Some genres may need manual tweaking'],
     pricing: 'Included in all paid plans. Free tier: 2 masters/month.',
-    successMetrics: '92% Spotify loudness compliance | 1.8M tracks mastered | 4.7★ rating'
+    successMetrics: 'Beta measurement pending | Masters require listening and platform validation before release'
   },
   'trend': {
     fullName: 'Trend Hunter AI',
@@ -226,7 +226,7 @@ export const AGENT_WHITEPAPER = {
     outputFormats: ['Trend Report PDF', 'Release Calendar', 'Hashtag List', 'Competitor Dashboard'],
     limitations: ['Trends change rapidly', 'Not all genres have equal data', 'Predictions are probabilistic'],
     pricing: 'Included in all paid plans. Free tier: 1 report/month.',
-    successMetrics: '73% trend prediction accuracy | 890K reports generated'
+    successMetrics: 'Beta measurement pending | No historical prediction-accuracy claim is made'
   },
   'social': {
     fullName: 'Social Pilot AI',
@@ -264,7 +264,7 @@ export const AGENT_WHITEPAPER = {
     outputFormats: ['Caption Library', 'Content Calendar', 'Carousel Templates', 'Analytics Report'],
     limitations: ['Cannot post automatically (requires approval)', 'TikTok video creation is separate', 'Engagement varies by account'],
     pricing: 'Included in all paid plans. Free tier: 5 posts/month.',
-    successMetrics: '67% avg. engagement increase | 2.3M posts generated'
+    successMetrics: 'Beta measurement pending | Engagement lift is not guaranteed or historically established'
   },
   'collab': {
     fullName: 'Collab Connect AI',
@@ -302,7 +302,7 @@ export const AGENT_WHITEPAPER = {
     outputFormats: ['Match List', 'Artist Profiles', 'Split Sheet Template', 'Collaboration Dashboard'],
     limitations: ['Depends on user base in your genre/location', 'Cannot guarantee response rates', 'Quality varies by user'],
     pricing: 'Included in all paid plans. Free tier: 3 matches/month.',
-    successMetrics: '12K+ collaborations formed | 84% match satisfaction'
+    successMetrics: 'Beta measurement pending | Match and collaboration outcomes are not yet established'
   },
   'release': {
     fullName: 'Release Manager AI',
@@ -340,7 +340,7 @@ export const AGENT_WHITEPAPER = {
     outputFormats: ['Release Timeline', 'Playlist Pitch Docs', 'Marketing Calendar', 'Post-Release Report'],
     limitations: ['Cannot submit to DSPs (use distributor)', 'Playlist placement not guaranteed', 'Requires your active participation'],
     pricing: 'Included in all paid plans. Free tier: 1 release/month.',
-    successMetrics: '340% avg. first-week stream increase | 45K releases managed'
+    successMetrics: 'Beta measurement pending | Streaming lift is not guaranteed or historically established'
   }
 };
 
@@ -360,5 +360,5 @@ export const DEFAULT_WHITEPAPER = {
   outputFormats: ['Digital Export'],
   limitations: ['See agent-specific documentation'],
   pricing: 'Included in paid plans.',
-  successMetrics: 'High user satisfaction'
+  successMetrics: 'Beta measurement pending | No satisfaction benchmark is claimed yet'
 };

@@ -443,7 +443,7 @@ ${agent.name} uses a hybrid approach combining:
 • Average response time: <2 seconds
 • Context window: 8,000 tokens (approximately 6,000 words)
 • Concurrent sessions: Unlimited
-• Output quality: Professional-grade, production-ready
+• Output quality: Provider-dependent; artist review and post-production required
 
 **Customization Options:**
 • Tone and style preferences

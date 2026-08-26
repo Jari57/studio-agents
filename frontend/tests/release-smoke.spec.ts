@@ -156,6 +156,7 @@ test.describe('release smoke checks', () => {
 
   test('personal voice requests stay explicit and consent-gated', async () => {
     const studioSource = readFileSync(resolve(process.cwd(), 'src/components/StudioView.jsx'), 'utf8');
+    const orchestratorSource = readFileSync(resolve(process.cwd(), 'src/components/StudioOrchestratorV2.jsx'), 'utf8');
     const backendSource = readFileSync(resolve(process.cwd(), '../backend/server.js'), 'utf8');
 
     expect(studioSource).toContain("style: storedSpeakerUrl || storedCloneId ? 'cloned' : 'rapper'");
@@ -164,6 +165,27 @@ test.describe('release smoke checks', () => {
     expect(studioSource).not.toContain("preferredProvider: personalVoiceSelected\n            ? ((voiceSampleUrl || voiceSettings.speakerUrl) ? 'minimax-music'");
     expect(studioSource).toContain('sourceAssetIds: [uploadResult.assetId]');
     expect(studioSource).toContain("mode: 'strict'");
+    expect(studioSource).toContain('disabled={!elevenLabsVoiceId}');
+    expect(orchestratorSource).toContain("setVoiceSource('personal');");
+    expect(orchestratorSource).toContain('disabled={!clonedVoiceId}');
+    expect(orchestratorSource).toContain('Voice sample saved. Choose Create My Voice to activate it before generation.');
+    expect(orchestratorSource).not.toContain('Model set to "Cloned Voice"');
     expect(backendSource).toContain("const wantProvider = isPersonalVoice ? 'elevenlabs-clone' : (preferredProvider || null);");
+  });
+
+  test('public product copy does not present invented beta economics or usage totals', async () => {
+    const landingSource = readFileSync(resolve(process.cwd(), 'src/components/LandingPage.jsx'), 'utf8');
+    const whitepaperSource = readFileSync(resolve(process.cwd(), 'src/data/agentWhitepapers.js'), 'utf8');
+    const vocalResourceSource = readFileSync(resolve(process.cwd(), 'src/components/VocalsResourcePage.jsx'), 'utf8');
+    const constantsSource = readFileSync(resolve(process.cwd(), 'src/constants.js'), 'utf8');
+    const multiAgentDemoSource = readFileSync(resolve(process.cwd(), 'src/components/MultiAgentDemo.jsx'), 'utf8');
+
+    expect(landingSource).toContain("{ metric: 'Gross margin', value: 'Not measured'");
+    expect(landingSource).not.toContain("{ value: '94%', label: 'Gross Margin' }");
+    expect(whitepaperSource).not.toMatch(/12M\+ lyrics|4\.8M patterns|2\.1M covers|340K videos|1\.8M tracks|890K reports|2\.3M posts|12K\+ collaborations|45K releases/);
+    expect(vocalResourceSource).not.toMatch(/use forever|voice cloning in 60 seconds|broadcast-quality/i);
+    expect(constantsSource).not.toMatch(/world\\?'s most powerful|Udio-style structure|Riffusion-style|deterministic generation|mathematical dna|global creator database|professional vocals/i);
+    expect(multiAgentDemoSource).not.toContain('Live Demo');
+    expect(landingSource).not.toMatch(/fine-tuned on millions|more artists = more data = better ai/i);
   });
 });

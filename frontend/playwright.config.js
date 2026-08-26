@@ -2,8 +2,10 @@ import { defineConfig, devices } from '@playwright/test';
 
 // Keep release tests isolated from a developer's Vite instance. Port 5173 is
 // the normal development port and can easily be serving another application.
-const FRONTEND_URL = 'http://127.0.0.1:4173';
-const BACKEND_URL = 'http://127.0.0.1:3101';
+const FRONTEND_PORT = process.env.PW_FRONTEND_PORT || '4173';
+const BACKEND_PORT = process.env.PW_BACKEND_PORT || '3101';
+const FRONTEND_URL = `http://127.0.0.1:${FRONTEND_PORT}`;
+const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`;
 process.env.FRONTEND_URL = FRONTEND_URL;
 process.env.BACKEND_URL = BACKEND_URL;
 
@@ -47,13 +49,13 @@ export default defineConfig({
       stdout: 'pipe',
       stderr: 'pipe',
       env: {
-        PORT: '3101',
+        PORT: BACKEND_PORT,
         NODE_ENV: 'test',
         FRONTEND_URL,
       },
     },
     {
-      command: 'npm run dev -- --host 127.0.0.1 --port 4173 --strictPort',
+      command: `npm run dev -- --host 127.0.0.1 --port ${FRONTEND_PORT} --strictPort`,
       url: FRONTEND_URL,
       // Never reuse a service on Vite's default port (or any test port).
       reuseExistingServer: false,

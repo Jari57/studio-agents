@@ -6524,7 +6524,7 @@ ABSOLUTE RULES (violating any = failure):
                                   <option value="spoken">💬 Spoken Word</option>
                                 </optgroup>
                                 <optgroup label="🧬 Custom/Advanced">
-                                  <option value="cloned" disabled={!voiceSettings.speakerUrl && !voiceSampleUrl && !elevenLabsVoiceId}>🧬 My Personal Voice {!voiceSettings.speakerUrl && !voiceSampleUrl && !elevenLabsVoiceId && '(Create first)'}</option>
+                                  <option value="cloned" disabled={!elevenLabsVoiceId}>🧬 My Personal Voice {!elevenLabsVoiceId && '(Create first)'}</option>
                                 </optgroup>
                               </select>
                             </div>
@@ -8171,8 +8171,8 @@ ABSOLUTE RULES (violating any = failure):
                                       <option value="spoken">Spoken Word</option>
                                     </optgroup>
                                     <optgroup label="Personal voice">
-                                      <option value="cloned" disabled={!voiceSettings.speakerUrl && !voiceSampleUrl && !elevenLabsVoiceId}>
-                                        My Personal Voice {!voiceSettings.speakerUrl && !voiceSampleUrl && !elevenLabsVoiceId && '(Create first)'}
+                                      <option value="cloned" disabled={!elevenLabsVoiceId}>
+                                        My Personal Voice {!elevenLabsVoiceId && '(Create first)'}
                                       </option>
                                     </optgroup>
                                   </select>
@@ -8187,10 +8187,10 @@ ABSOLUTE RULES (violating any = failure):
                                 }}>
                                   <label style={{ fontSize: '0.75rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     <Cloud size={14} className="text-cyan" />
-                                    {voiceSettings.speakerUrl ? 'Personal voice ready' : 'Create your personal voice'}
+                                    {elevenLabsVoiceId ? 'Personal voice active' : voiceSettings.speakerUrl ? 'Sample saved — activation required' : 'Create your personal voice'}
                                   </label>
 
-                                  {voiceSettings.speakerUrl ? (
+                                  {elevenLabsVoiceId ? (
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                       <div style={{ fontSize: '0.7rem', color: 'var(--color-green)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                         <Check size={12} /> Locked to your activated voice

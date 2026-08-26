@@ -2659,7 +2659,13 @@ export default function StudioOrchestratorV2({
     for (const asset of existingProject.assets) {
       if ((asset.type === 'vocal' || asset.type === 'mix') && asset.settings) {
         if (asset.settings.voiceStyle) setVoiceStyle(asset.settings.voiceStyle);
-        if (asset.settings.elevenLabsVoiceId) setElevenLabsVoiceId(asset.settings.elevenLabsVoiceId);
+        if (asset.settings.elevenLabsVoiceId) {
+          setElevenLabsVoiceId(asset.settings.elevenLabsVoiceId);
+          if (asset.settings.voiceStyle === 'cloned') {
+            setClonedVoiceId(asset.settings.elevenLabsVoiceId);
+            setVoiceSource('personal');
+          }
+        }
         if (asset.settings.voiceSampleUrl) setVoiceSampleUrl(asset.settings.voiceSampleUrl);
         if (asset.settings.vocalQuality) setVocalQuality(asset.settings.vocalQuality);
         if (asset.settings.outputFormat) setOutputFormat(asset.settings.outputFormat);
@@ -2766,6 +2772,7 @@ export default function StudioOrchestratorV2({
           if (userData.clonedVoiceId) {
             setClonedVoiceId(userData.clonedVoiceId);
             setElevenLabsVoiceId(userData.clonedVoiceId);
+            setVoiceSource('personal');
             setVoiceStyle('cloned');
           }
           devLog('[Orchestrator] User DNA profile loaded');
@@ -4318,8 +4325,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           const result = await response.json();
           if (response.ok && result.url) {
             setVoiceSampleUrl(result.url);
-            setVoiceStyle('cloned'); // Automatically switch to cloned mode
-            toast.success('Voice sample uploaded! Model set to "Cloned Voice"', { id: 'voice-upload' });
+            setVoiceSource('studio');
+            toast.success('Voice sample saved. Choose Create My Voice to activate it before generation.', { id: 'voice-upload' });
             
             // Industrial Strength Persistence: Save to User Profile
             if (auth.currentUser) {
@@ -7710,11 +7717,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   if (val.startsWith('saved-')) {
                     const voiceId = val.replace('saved-', '');
                     const voice = savedVoices.find(v => v.id === voiceId);
-                    if (voice) {
-                      setVoiceSampleUrl(voice.url);
+                    const providerVoiceId = voice?.voiceId || (voice?.provider === 'elevenlabs-ivc' ? voice.id : null);
+                    if (voice && providerVoiceId) {
+                      setVoiceSampleUrl(voice.url || null);
+                      setClonedVoiceId(providerVoiceId);
+                      setElevenLabsVoiceId(providerVoiceId);
+                      setVoiceSource('personal');
                       setVoiceStyle('cloned');
                     }
                   } else {
+                    setVoiceSource(val === 'cloned' ? 'personal' : 'studio');
                     setVoiceStyle(val);
                   }
                 }}
@@ -7730,10 +7742,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 }}
               >
                 <optgroup label="🎙️ Your Voice">
-                  <option value="cloned" disabled={!voiceSampleUrl && !clonedVoiceId}>
-                    {(voiceSampleUrl || clonedVoiceId) ? '✨ My Cloned Voice' : '✨ My Voice (Upload sample below)'}
+                  <option value="cloned" disabled={!clonedVoiceId}>
+                    {clonedVoiceId ? '✨ My Activated Personal Voice' : '✨ My Voice (Create it below)'}
                   </option>
-                  {savedVoices.length > 0 && savedVoices.map(voice => (
+                  {savedVoices.filter(voice => voice.voiceId || voice.provider === 'elevenlabs-ivc').map(voice => (
                     <option key={voice.id} value={`saved-${voice.id}`}>🎙️ {voice.name || 'Saved Voice'}</option>
                   ))}
                 </optgroup>

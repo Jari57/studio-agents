@@ -800,9 +800,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         }}>
           {[
             { value: '16', label: 'AI Agents' },
-            { value: '24/7', label: 'Available' },
-            { value: '94%', label: 'Gross Margin' },
-            { value: '100%', label: 'Independent' }
+            { value: '24/7', label: 'Workspace Access' },
+            { value: 'Live', label: 'Provider Status' },
+            { value: 'Yours', label: 'Saved Projects' }
           ].map((stat, i) => (
             <div key={i} style={{
               textAlign: 'center', padding: '20px 24px',
@@ -2616,10 +2616,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     </h4>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
                       {[
-                        { title: 'Multi-Agent Architecture', desc: 'Proprietary orchestration of specialized AI models' },
-                        { title: 'Music-Native Training', desc: 'Fine-tuned on millions of songs, lyrics, and industry data' },
-                        { title: 'Unified Workflow', desc: 'Single platform vs. 10+ fragmented tools' },
-                        { title: 'Network Effects', desc: 'More artists = more data = better AI = more artists' }
+                        { title: 'Multi-Agent Workflow', desc: 'One project can move through writing, audio, visuals, and release planning' },
+                        { title: 'Provider Transparency', desc: 'Generation routes and provider failures are surfaced instead of hidden' },
+                        { title: 'Unified Project Record', desc: 'Prompts, assets, and saved versions stay attached to the project' },
+                        { title: 'Consent Boundaries', desc: 'Personal voice activation requires explicit consent and a provider voice ID' }
                       ].map((item, i) => (
                         <div key={i}>
                           <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#22c55e', marginBottom: '4px' }}>
@@ -2989,13 +2989,13 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       border: '1px solid rgba(255, 255, 255, 0.08)'
                     }}>
                       <h4 style={{ color: 'var(--color-cyan)', fontSize: '0.85rem', fontWeight: '600', marginBottom: '16px' }}>
-                        Unit Economics
+                        Beta operating facts
                       </h4>
                       {[
-                        { metric: 'LTV', value: '$87', note: 'Conservative (12.5mo avg life)' },
-                        { metric: 'CAC', value: '$10-15', note: 'Blended organic + paid' },
-                        { metric: 'LTV:CAC', value: '5.9:1', note: 'Target 10:1 by Year 2' },
-                        { metric: 'Gross Margin', value: '94%', note: 'API costs <$0.60/user/mo' }
+                        { metric: 'Revenue history', value: 'Pre-revenue', note: 'No historical LTV claim' },
+                        { metric: 'Acquisition cost', value: 'Not measured', note: 'Requires paying-customer data' },
+                        { metric: 'Provider cost', value: 'Usage-based', note: 'Varies by media type and vendor' },
+                        { metric: 'Gross margin', value: 'Not measured', note: 'Will be reported from real billing data' }
                       ].map((item, i) => (
                         <div key={i} style={{ 
                           display: 'flex', 
