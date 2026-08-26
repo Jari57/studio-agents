@@ -156,11 +156,14 @@ test.describe('release smoke checks', () => {
 
   test('personal voice requests stay explicit and consent-gated', async () => {
     const studioSource = readFileSync(resolve(process.cwd(), 'src/components/StudioView.jsx'), 'utf8');
+    const backendSource = readFileSync(resolve(process.cwd(), '../backend/server.js'), 'utf8');
 
     expect(studioSource).toContain("style: storedSpeakerUrl || storedCloneId ? 'cloned' : 'rapper'");
     expect(studioSource).toContain('isPersonalVoice: personalVoiceSelected');
-    expect(studioSource).toContain("? ((voiceSampleUrl || voiceSettings.speakerUrl) ? 'minimax-music' : 'elevenlabs-clone')");
+    expect(studioSource.match(/preferredProvider: personalVoiceSelected \? 'elevenlabs-clone' : null/g)).toHaveLength(2);
+    expect(studioSource).not.toContain("preferredProvider: personalVoiceSelected\n            ? ((voiceSampleUrl || voiceSettings.speakerUrl) ? 'minimax-music'");
     expect(studioSource).toContain('sourceAssetIds: [uploadResult.assetId]');
     expect(studioSource).toContain("mode: 'strict'");
+    expect(backendSource).toContain("const wantProvider = isPersonalVoice ? 'elevenlabs-clone' : (preferredProvider || null);");
   });
 });
