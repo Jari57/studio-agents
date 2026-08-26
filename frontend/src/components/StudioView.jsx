@@ -8583,7 +8583,7 @@ ABSOLUTE RULES (violating any = failure):
                   borderLeft: '3px solid rgba(139, 92, 246, 0.6)'
                 }}>
                   <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a855f7', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    <Zap size={12} /> Monthly -$4.99/mo
+                    <Zap size={12} /> Creator · $4.99/mo
                     <span style={{ marginLeft: 'auto', background: 'rgba(139, 92, 246, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
                       {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'monthly').length} agents
                     </span>
@@ -8631,7 +8631,7 @@ ABSOLUTE RULES (violating any = failure):
                   borderLeft: '3px solid rgba(234, 179, 8, 0.6)'
                 }}>
                   <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#eab308', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    <Award size={12} /> Pro -$9.99/mo
+                    <Award size={12} /> Studio Pro · $14.99/mo
                     <span style={{ marginLeft: 'auto', background: 'rgba(234, 179, 8, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
                       {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'pro').length} agents
                     </span>
@@ -8693,7 +8693,7 @@ ABSOLUTE RULES (violating any = failure):
                         AI Agents Studio
                       </h2>
                       <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                        {allAgents.length} specialized agents * Click any card to start creating
+                        {allAgents.length} specialized agents · Click any card to start creating
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: '12px' }}>
@@ -8780,7 +8780,7 @@ ABSOLUTE RULES (violating any = failure):
                         Free Tier
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        -{(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'free').length : 0} agents included
+                        {(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'free').length : 0} agents included
                       </span>
                     </div>
                     {/* FREE TIER Grid */}
@@ -8865,10 +8865,10 @@ ABSOLUTE RULES (violating any = failure):
                     }}>
                       <Zap size={16} style={{ color: '#fbbf24' }} />
                       <span style={{ fontWeight: '700', color: '#fbbf24', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                        Monthly -$4.99/mo
+                        Creator · $4.99/mo
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        -{(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'monthly').length : 0} agents
+                        {(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'monthly').length : 0} agents
                       </span>
                     </div>
                     {/* MONTHLY TIER Grid */}
@@ -8954,10 +8954,10 @@ ABSOLUTE RULES (violating any = failure):
                     }}>
                       <Award size={16} style={{ color: '#a855f7' }} />
                       <span style={{ fontWeight: '700', color: '#a855f7', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                        Pro -$9.99/mo
+                        Studio Pro · $14.99/mo
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        -{(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'pro').length : 0} agents
+                        {(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'pro').length : 0} agents
                       </span>
                     </div>
                     {/* PRO TIER Grid */}
