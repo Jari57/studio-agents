@@ -141,7 +141,7 @@ export const AGENTS = [
       tier: 'free', // FREE TIER
       isBeta: true,
       description: 'Generate video drafts for TikTok, Reels, YouTube Shorts — iterate and refine until you\'re happy.',
-      capabilities: ['Frame-Perfect Beat Sync', 'Platform-Specific Strategies', 'Hook and CTA suggestions', '4K Cinematic Renders'],
+      capabilities: ['Prompt-to-video drafts', 'Platform-specific planning', 'Hook and CTA suggestions', 'Provider-delivered export formats'],
       features: [
         'Voice input for content goals',
         'Text-to-speech concept readouts',
@@ -150,21 +150,20 @@ export const AGENTS = [
         'Trend integration ideas'
       ],
       proTips: [
-        'Think hooks in first 3 seconds',
-        'Leverage current trends',
-        'Focus on shareability',
-        'Optimize for each platform',
-        'Enable "Lyric Overlays" to have the AI automatically parse your Ghostwriter lyrics.'
+        'Put the clearest action in the first three seconds',
+        'Name the destination platform in the prompt',
+        'Describe one camera move at a time',
+        'Review the returned aspect ratio before publishing'
       ],
-      examples: ['Sync a neon flyover to every 4th kick drum', 'Generate a lyric-reactive music video with glitch aesthetics'],
-      howToUse: 'Describe your content goal or song. The AI handles the hook, CTA, and visual pacing for maximum engagement.',
-      explanation: 'Viral Video Agent is a physics-aware engine that calculates "Temporal Rhythm," ensuring that visual transitions happen exactly on the beat of your music while maintaining platform-specific viral logic.',
-      helpTips: 'Pro Tip: Enable "Lyric Overlays" to have the AI automatically parse your Ghostwriter lyrics and place them stylistically within the 3D environment of the video.',
+      examples: ['Slow neon flyover, low-angle camera, 9:16 social teaser', 'Glitch-lit performance scene with a fast opening hook'],
+      howToUse: 'Describe the scene, subject, camera motion, mood, and destination platform. Review the playable provider result before saving or publishing it.',
+      explanation: 'Viral Video Agent turns a scene brief into a provider-rendered video draft. Availability, duration, resolution, and audio support depend on the provider response returned for that request.',
+      helpTips: 'Start with one clear scene, subject, camera move, and destination platform. A configured provider is not the same as verified access; the app confirms access only when the provider accepts your request.',
       onboarding: [
-        "Import your audio stems for multi-layer beat synchronization.",
-        "Choose a cinematic 'DNA' template (e.g., 'Retro VHS' or 'Future Noir').",
-        "Preview the 'Beat-Map' and adjust transition intensity.",
-        "Render in 4K for YouTube and Vertical for TikTok/Reels."
+        "Describe the subject, scene, camera motion, and destination platform.",
+        "Optionally attach a visual reference you have permission to use.",
+        "Submit the request and keep this page open while the provider renders.",
+        "Review the playable result, then save only the format the provider returned."
       ],
       howTo: 'Sync video to beat or describe a scene. Generate, iterate, and export.',
       example: 'Scene: "Infinite Tunnel", Sync: "Heavy"',

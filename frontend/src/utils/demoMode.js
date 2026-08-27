@@ -15,9 +15,19 @@ let isDemoMode = false;
 
 // Secret code to activate demo mode
 const DEMO_CODE = 'pitch';
+const DEMO_MODE_ALLOWED = import.meta.env.DEV;
 
 // Check if demo mode is enabled via URL param or localStorage
 export function checkDemoMode() {
+  // Mock generations must never be reachable in a production build. A stale
+  // localStorage flag from an older release is cleared instead of silently
+  // turning a real creator session into a fictitious success path.
+  if (!DEMO_MODE_ALLOWED) {
+    isDemoMode = false;
+    localStorage.removeItem('demoMode');
+    return false;
+  }
+
   // Check URL param: ?demo=pitch
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('demo') === DEMO_CODE) {
@@ -39,6 +49,7 @@ export function checkDemoMode() {
  * @returns {boolean} Whether demo mode was just activated
  */
 export function checkDemoCode(input) {
+  if (!DEMO_MODE_ALLOWED) return false;
   if (input && input.toLowerCase().trim() === DEMO_CODE) {
     enableDemoMode();
     return true;
@@ -47,6 +58,7 @@ export function checkDemoCode(input) {
 }
 
 export function enableDemoMode() {
+  if (!DEMO_MODE_ALLOWED) return false;
   isDemoMode = true;
   localStorage.setItem('demoMode', 'true');
   console.log('🎭 Demo mode enabled - using mock responses');
@@ -59,6 +71,7 @@ export function disableDemoMode() {
 }
 
 export function toggleDemoMode() {
+  if (!DEMO_MODE_ALLOWED) return false;
   if (isDemoMode) {
     disableDemoMode();
   } else {
@@ -68,7 +81,7 @@ export function toggleDemoMode() {
 }
 
 export function getDemoModeState() {
-  return isDemoMode;
+  return DEMO_MODE_ALLOWED && isDemoMode;
 }
 
 export function getDemoCode() {

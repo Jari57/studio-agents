@@ -12102,15 +12102,15 @@ button, .nav-link, .agent-card-premium {
 }
 
 .studio-shell .studio-sidebar {
-  width: 248px;
-  padding: 18px 14px 14px;
+  width: 212px;
+  padding: 16px 10px 12px;
   background: linear-gradient(180deg, rgba(18, 18, 28, 0.98), rgba(12, 13, 21, 0.96));
   border-right-color: var(--studio-stroke);
   box-shadow: 18px 0 45px rgba(0, 0, 0, 0.12);
 }
 
 .studio-shell .studio-nav-logo {
-  margin: 2px 6px 20px;
+  margin: 2px 4px 16px;
 }
 
 .studio-shell .studio-nav-links {
@@ -12119,8 +12119,8 @@ button, .nav-link, .agent-card-premium {
 }
 
 .studio-shell .nav-link {
-  min-height: 46px;
-  padding: 11px 12px;
+  min-height: 42px;
+  padding: 9px 10px;
   border: 1px solid transparent;
   border-radius: 13px;
   letter-spacing: 0.005em;
@@ -12340,6 +12340,21 @@ button, .nav-link, .agent-card-premium {
 .generation-state-error .btn-pill {
   width: fit-content;
   margin-top: 4px;
+}
+
+.generation-provider-readiness {
+  margin-top: 12px;
+  padding: 10px 12px;
+  color: var(--text-secondary);
+  background: rgba(6, 182, 212, 0.06);
+  border: 1px solid rgba(103, 232, 249, 0.16);
+  border-radius: 12px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.generation-provider-readiness strong {
+  color: var(--text-primary);
 }
 
 /* The legacy <=1024px rule collapses navigation labels, but the scoped V3.5

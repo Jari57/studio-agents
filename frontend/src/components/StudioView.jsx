@@ -594,6 +594,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [mediaLoadError, setMediaLoadError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStage, setGenerationStage] = useState('Preparing your request');
   const [generationFailure, setGenerationFailure] = useState(null);
   const [agentPreviews, setAgentPreviews] = useState({});
   const [saveStatus, setSaveStatus] = useState('idle');
@@ -4381,6 +4382,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     setIsGenerating(true);
+    setGenerationStage('Preparing your request');
     setGenerationFailure(null);
 
     const toastId = toast.loading(
@@ -4388,6 +4390,10 @@ const fetchUserCredits = useCallback(async (uid) => {
         ? `${targetAgentSnapshot?.name || 'AI'} is performing... (Typically 1-2 mins)` 
         : `${targetAgentSnapshot?.name || 'AI'} is working...`
     );
+    let generationRecordId = null;
+    let generationRequestHeaders = null;
+    let generationRecordSettled = false;
+    let generationTerminalError = 'Generation did not complete.';
     
     try {
       // OPTIMISTIC CREDIT DEDUCTION (Authoritative deduction happens in backend)
@@ -4414,6 +4420,32 @@ const fetchUserCredits = useCallback(async (uid) => {
         } catch (err) {
           devWarn('Could not get auth token:', err);
         }
+      }
+      generationRequestHeaders = headers;
+
+      // Persist intent before any paid provider request. A signed-in creator
+      // should never spend credits on a generation the workspace cannot track.
+      if (isLoggedIn) {
+        if (!headers.Authorization) {
+          throw new Error('Your secure session could not be verified. Sign in again before generating.');
+        }
+        setGenerationStage('Saving your request to creation history');
+        const historyResponse = await fetch(`${BACKEND_URL}/api/user/generations`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            type: featureType,
+            agent: targetAgentSnapshot.name,
+            prompt: promptValue,
+            status: 'pending',
+            metadata: { projectId: targetProjectSnapshot?.id || null, featureType }
+          })
+        });
+        const historyData = await historyResponse.json().catch(() => ({}));
+        if (!historyResponse.ok || !historyData.id) {
+          throw new Error('Creation history is unavailable, so generation was stopped before contacting the media provider. Please try again.');
+        }
+        generationRecordId = historyData.id;
       }
 
       // Auto-translate if not English. Translation failures should not block generation.
@@ -4699,6 +4731,7 @@ ABSOLUTE RULES (violating any = failure):
 
       // If it's a media agent, run execution phase
       if (finalEndpoint !== '/api/generate') {
+        setGenerationStage(isVideoAgent ? 'Waiting for the video provider' : 'Waiting for the media provider');
         devLog(`[Studio] Starting Phase 2 (Execution) calling ${finalEndpoint}`, finalBody);
         try {
           // Add timeout for video requests to avoid indefinite hanging
@@ -4739,12 +4772,7 @@ ABSOLUTE RULES (violating any = failure):
         } else {
           const text = await response.text();
           devWarn('Expected JSON but got:', text.substring(0, 100));
-          // Use brain description as fallback if generation failed
-          data = {
-            ...brainData,
-            _isFallback: true,
-            _errText: text.substring(0, 100)
-          };
+          throw new Error(`${targetAgentSnapshot.name} returned an invalid media response. No result was saved and your credits should not be charged.`);
         }
       }
       
@@ -4763,6 +4791,7 @@ ABSOLUTE RULES (violating any = failure):
 
       // Handle async Veo video operations: poll /api/video-status/:id until complete
       if (data.status === 'processing' && data.operationId) {
+        setGenerationStage('Video provider accepted the request; rendering is in progress');
         devLog('[Studio] Video operation started, polling for completion...', data.operationId);
         toast.loading('Video rendering in progress...', { id: toastId, duration: 300000 });
         const maxPolls = 60; // 60 — 5s = 5 minutes
@@ -4798,6 +4827,7 @@ ABSOLUTE RULES (violating any = failure):
 
       // Handle synced music video job polling (multi-segment pipeline)
       if (data.status === 'processing' && data.jobId) {
+        setGenerationStage('Rendering the synced video');
         devLog('[Studio] Synced video job started, polling for completion...', data.jobId);
         toast.loading('Creating multi-segment music video...', { id: toastId, duration: 1200000 });
         const maxPolls = 120; // 120 x 10s = 20 min max
@@ -4809,6 +4839,7 @@ ABSOLUTE RULES (violating any = failure):
             const statusData = await statusRes.json();
             devLog(`[Studio] Synced video poll ${i + 1}:`, statusData.status, statusData.progress);
             if (statusData.status === 'processing') {
+              setGenerationStage(`Rendering the synced video — ${statusData.progress || 0}%`);
               toast.loading(`Music video rendering... ${statusData.progress || 0}%`, { id: toastId });
               continue;
             }
@@ -4920,14 +4951,13 @@ ABSOLUTE RULES (violating any = failure):
            newItem.type = 'image';
         }
         // Check for direct output URL first (most common from backend)
-        else if (data.output && typeof data.output === 'string') {
+         else if (data.output && typeof data.output === 'string') {
           if (data.output.startsWith('data:')) {
             newItem.videoUrl = data.output;
           } else if (data.output.startsWith('http') || data.output.startsWith('/api/')) {
             newItem.videoUrl = data.output;
-          } else {
-            // Assume base64
-            newItem.videoUrl = `data:video/mp4;base64,${data.output}`;
+           } else {
+             throw new Error('The video provider returned data without a playable video URL. No result was saved.');
           }
           newItem.type = 'video';
           newItem.snippet = `(video) Generated video for: "${prompt}"`;
@@ -4985,12 +5015,7 @@ ABSOLUTE RULES (violating any = failure):
             newItem.snippet = isSpeechAgent ? `🎤 AI Generated Vocals: "${prompt}"` : `🎵 AI Generated Beat: "${prompt}"`;
             toast.success(isSpeechAgent ? 'Vocals generated with ElevenLabs V3.5!' : 'Beat generated with MusicGen AI!');
           } else if (data.isSample) {
-            newItem.snippet = isSpeechAgent ? `🎤 Sample Vocal (Preview)` : `🎵 Sample Beat (Preview)`;
-            newItem.billingMessage = data.message;
-            toast.info(data.message || 'Using sample - configure API keys for custom generation', { 
-              duration: 5000,
-              icon: '⚠️'
-            });
+            throw new Error('The provider returned a sample instead of your requested audio. No creation was saved and your credits should not be charged.');
           } else {
             newItem.snippet = isSpeechAgent ? `🎤 Generated vocals for: "${prompt}"` : `🎵 Generated audio for: "${prompt}"`;
           }
@@ -5009,27 +5034,6 @@ ABSOLUTE RULES (violating any = failure):
             isSample: data.isSample
           });
 
-          // SUNO-LIKE FEATURE: Auto-generate cover art for the beat
-          if (agentId === 'beat') {
-             try {
-               devLog('Generating cover art for beat...');
-               const coverRes = await fetch(`${BACKEND_URL}/api/generate-image`, {
-                 method: 'POST',
-                 headers,
-                 body: JSON.stringify({ 
-                   prompt: `Album cover art for a ${data.genre || 'hip-hop'} beat. ${prompt}. High quality, abstract, vibrant.`,
-                   aspectRatio: '1:1'
-                 })
-               });
-               const coverData = await coverRes.json();
-               if (coverData.imageUrl || coverData.images?.[0]) {
-                 newItem.imageUrl = coverData.imageUrl || coverData.images[0];
-                 devLog('Cover art generated for beat');
-               }
-             } catch (coverErr) {
-               devWarn('Failed to generate beat cover art:', coverErr);
-             }
-          }
         } else if (data.audio) {
           // Handle raw audio data (from TTS endpoint)
           const mimeType = data.mimeType || 'audio/wav';
@@ -5115,6 +5119,47 @@ ABSOLUTE RULES (violating any = failure):
         }
       }
 
+      // Media agents fail closed. Text concepts, provider samples, image
+      // fallbacks, synthesis parameters, and unknown blobs are not successful
+      // audio/video/image creations.
+      if (isImageAgent && !newItem.imageUrl) {
+        throw new Error('The image provider did not return a usable image. No result was saved and your credits should not be charged.');
+      }
+      if (isVideoAgent && !newItem.videoUrl) {
+        throw new Error('The video provider did not return a playable video. No result was saved and your credits should not be charged.');
+      }
+      if ((isAudioAgent || isSpeechAgent || isMasterAgent) && !newItem.audioUrl) {
+        throw new Error(`${isSpeechAgent ? 'The vocal' : 'The audio'} provider did not return playable audio. No result was saved and your credits should not be charged.`);
+      }
+
+      if (generationRecordId) {
+        setGenerationStage('Saving the completed creation');
+        generationRecordSettled = true;
+        newItem.generationRecordId = generationRecordId;
+        const settleResponse = await fetch(`${BACKEND_URL}/api/user/generations/${generationRecordId}`, {
+          method: 'PUT',
+          headers: generationRequestHeaders,
+          body: JSON.stringify({
+            status: 'complete',
+            output: newItem.snippet || '',
+            metadata: {
+              projectId: targetProjectSnapshot?.id || null,
+              featureType,
+              provider: data.source || data.provider || null,
+              audioUrl: newItem.audioUrl || null,
+              videoUrl: newItem.videoUrl || null,
+              imageUrl: newItem.imageUrl || null
+            }
+          })
+        });
+        if (!settleResponse.ok) {
+          newItem.persistenceWarning = 'The asset is ready, but creation history has not confirmed the final save yet. Save it to a project before leaving this page.';
+          toast.error(newItem.persistenceWarning, { duration: 10000 });
+        }
+      }
+
+      setGenerationStage('Preparing your result for review');
+
       // Show preview modal instead of auto-saving
       devLog('[Preview] Setting preview item:', { 
         hasSnippet: !!newItem.snippet, 
@@ -5127,45 +5172,6 @@ ABSOLUTE RULES (violating any = failure):
       safeOpenGenerationPreview(newItem);
       setPreviewPrompt(prompt);
 
-      // Ghostwriter auto-vocal: fire a vocal sample in the background from the generated lyrics
-      // Opens in preview as lyrics, then audio appears when vocal is ready (~30-60s)
-      if (agentId === 'ghost' && newItem.snippet && !newItem.isError) {
-        (async () => {
-          try {
-            const lyricsForVocal = newItem.snippet
-              .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Intro)\b)/i, '')
-              .trim() || newItem.snippet;
-            const ghostVocalRes = await fetch(`${BACKEND_URL}/api/generate-speech`, {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({
-                prompt: lyricsForVocal.substring(0, 1000),
-                voice: voiceSettings.voiceName || 'rapper-male-1',
-                style: voiceSettings.style || 'rapper',
-                genre: detectedGenre || heroGenre || 'hip-hop',
-                quality: 'premium',
-                duration: 30,
-                elevenLabsVoiceId: elevenLabsVoiceId || null,
-                speakerUrl: voiceSampleUrl || null
-              })
-            });
-            if (ghostVocalRes.ok) {
-              const ghostVocalData = await ghostVocalRes.json();
-              if (ghostVocalData.audioUrl) {
-                // Update the open preview item with the vocal URL
-                setPreviewItem(prev => prev ? { ...prev, audioUrl: ghostVocalData.audioUrl, type: 'vocal', hasGhostVocal: true } : prev);
-                setAgentPreviews(prev => ({
-                  ...prev,
-                  [agentId]: { ...prev[agentId], audioUrl: ghostVocalData.audioUrl, type: 'vocal' }
-                }));
-                toast.success('Vocal sample ready!', { duration: 3000 });
-              }
-            }
-          } catch (ghostVocalErr) {
-            devWarn('[Ghost] Auto-vocal generation failed:', ghostVocalErr);
-          }
-        })();
-      }
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
       setAgentPreviews(prev => ({ ...prev, [targetAgentSnapshot.id]: newItem }));
       setGenerationFailure(null);
@@ -5182,10 +5188,18 @@ ABSOLUTE RULES (violating any = failure):
     } catch (error) {
       devWarn("Generation error", error);
       const failureMessage = error.message || 'Generation failed. Your credits were not charged; please try again.';
+      generationTerminalError = failureMessage;
       setGenerationFailure({ agentId, message: failureMessage });
       toast.error(failureMessage, { id: toastId, duration: 8000 });
       Analytics.errorOccurred('generation_failed', error.message);
     } finally {
+      if (generationRecordId && !generationRecordSettled && generationRequestHeaders) {
+        fetch(`${BACKEND_URL}/api/user/generations/${generationRecordId}`, {
+          method: 'PUT',
+          headers: generationRequestHeaders,
+          body: JSON.stringify({ status: 'failed', error: generationTerminalError })
+        }).catch(err => devWarn('[GenerationHistory] Failed to settle generation record:', err));
+      }
       setIsGenerating(false);
       // AUTHORITATIVE CREDIT SYNC (Backend has already processed transaction)
       if (isLoggedIn && user?.uid) {
@@ -5357,14 +5371,16 @@ ABSOLUTE RULES (violating any = failure):
           timeoutPromise
         ]);
         
-        // Also log the generation (best-effort, non-blocking)
+        // Older creations without a preflight history record still need a
+        // library entry. New generations are already recorded before provider
+        // execution and must not be duplicated here.
         try {
           const genHeaders = { 'Content-Type': 'application/json' };
           if (auth?.currentUser) {
             const token = await auth.currentUser.getIdToken();
             genHeaders['Authorization'] = `Bearer ${token}`;
           }
-          fetch(`${BACKEND_URL}/api/user/generations`, {
+          if (!itemToSave.generationRecordId) fetch(`${BACKEND_URL}/api/user/generations`, {
             method: 'POST',
             headers: genHeaders,
             body: JSON.stringify({
@@ -5374,7 +5390,7 @@ ABSOLUTE RULES (violating any = failure):
               output: itemToSave.snippet,
               metadata: { projectId: finalProject.id, audioUrl: itemToSave.audioUrl }
             })
-          }).catch(() => { /* The optional asset-library sync is best effort. */ });
+          }).catch(() => { /* The optional legacy asset-library sync is best effort. */ });
         } catch (_err) { /* Saving the project itself already succeeded locally. */ }
 
         toast.success(saveSuccess ? '? Synced to cloud!' : 'Saved locally (sync pending)', { id: toastId });
@@ -8347,7 +8363,13 @@ ABSOLUTE RULES (violating any = failure):
                       {isGenerating && (
                         <div className="generation-state generation-state-working" role="status" aria-live="polite">
                           <strong>{selectedAgent.name} is creating your result.</strong>
-                          <span>This may take up to two minutes. Credits settle only after the provider returns a usable asset.</span>
+                          <span>{generationStage}. Credits settle only after the provider returns a usable asset.</span>
+                        </div>
+                      )}
+
+                      {!isGenerating && systemStatus.status !== 'maintenance' && (
+                        <div className="generation-provider-readiness" role="status">
+                          <strong>Provider readiness:</strong> {systemStatus.message}. A configured key does not guarantee live model access.
                         </div>
                       )}
 
@@ -11294,7 +11316,7 @@ ABSOLUTE RULES (violating any = failure):
             </div>
             <div className="user-info">
               <p className="user-name">{isLoggedIn ? (user?.displayName || 'Pro Creator') : 'Guest Creator'}</p>
-              <p className="user-status">{isLoggedIn ? 'Pro Plan' : 'Free Account'}</p>
+              <p className="user-status">{isLoggedIn ? `${userPlan || 'Free'} plan` : 'Free Account'}</p>
               {isLoggedIn ? (
                 <button 
                   className="sign-out-link" 
