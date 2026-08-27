@@ -2849,6 +2849,12 @@ const fetchUserCredits = useCallback(async (uid) => {
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
+      if (data.unlimited === true || data.isAdmin === true) {
+        setUserCredits(999999);
+        setUserPlan('Lifetime Access');
+        setUserProfile(prev => ({ ...prev, credits: 'Unlimited' }));
+        return;
+      }
       const credits = Number.isFinite(data.credits) ? data.credits : 0;
       setUserCredits(credits);
       setUserProfile(prev => ({ ...prev, credits }));
@@ -3390,21 +3396,26 @@ const fetchUserCredits = useCallback(async (uid) => {
   
   // Pending prompt to apply when agent view renders (for re-run functionality)
   const [pendingPrompt, setPendingPrompt] = useState(null);
+  // Keep draft prompts scoped to the agent that owns them. Reusing one
+  // uncontrolled textarea allowed an Agent A prompt to leak into Agent B.
+  const [agentPromptDrafts, setAgentPromptDrafts] = useState({});
+  const activeAgentPrompt = selectedAgent?.id ? (agentPromptDrafts[selectedAgent.id] || '') : '';
+  const updateAgentPrompt = useCallback((value, agentId = selectedAgent?.id) => {
+    if (!agentId) return;
+    setAgentPromptDrafts(prev => ({ ...prev, [agentId]: String(value || '') }));
+  }, [selectedAgent?.id]);
   
   // Apply pending prompt when agent view becomes active
   useEffect(() => {
     if (pendingPrompt && selectedAgent && activeTab === 'agents') {
-      // Wait for textarea to render, then set value
+      updateAgentPrompt(pendingPrompt, selectedAgent.id);
+      // Wait for textarea to render, then focus it.
       setTimeout(() => {
-        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-        if (textarea) {
-          textarea.value = pendingPrompt;
-          textarea.focus();
-        }
+        textareaRef.current?.focus();
         setPendingPrompt(null);
       }, 100);
     }
-  }, [pendingPrompt, selectedAgent, activeTab]);
+  }, [pendingPrompt, selectedAgent, activeTab, updateAgentPrompt]);
 
   const handleVoiceToText = () => {
     if (isListening) {
@@ -3544,8 +3555,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
       // Generate command
       if (transcript === 'generate' || transcript.includes('start generation') || transcript.includes('create now') || transcript.includes('make it')) {
-        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-        if (textarea && textarea.value.trim()) {
+        if (activeAgentPrompt.trim()) {
           // FIXED: Use ref to avoid TDZ - handleGenerate defined later
           if (handleGenerateRef.current) {
             handleGenerateRef.current();
@@ -3561,16 +3571,8 @@ const fetchUserCredits = useCallback(async (uid) => {
       
       // Clear prompt command
       if (transcript.includes('clear prompt') || transcript.includes('clear text') || transcript.includes('start over') || transcript === 'clear') {
-        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-        if (textarea) {
-          textarea.value = '';
-          try {
-            textarea.dispatchEvent(new Event('input', { bubbles: true }));
-          } catch (_err) {
-            const ev = document.createEvent('Event');
-            ev.initEvent('input', true, true);
-            textarea.dispatchEvent(ev);
-          }
+        if (selectedAgent?.id) {
+          updateAgentPrompt('');
           toast.success('(trash) Prompt cleared');
           handleTextToVoice("Prompt cleared.");
         }
@@ -3579,9 +3581,8 @@ const fetchUserCredits = useCallback(async (uid) => {
       
       // Read back command
       if (transcript.includes('read back') || transcript.includes('read prompt') || transcript.includes('what did i write') || transcript.includes('read it')) {
-        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-        if (textarea && textarea.value.trim()) {
-          handleTextToVoice(textarea.value);
+        if (activeAgentPrompt.trim()) {
+          handleTextToVoice(activeAgentPrompt);
         } else {
           handleTextToVoice("The prompt is empty.");
         }
@@ -3672,17 +3673,9 @@ const fetchUserCredits = useCallback(async (uid) => {
       }
 
       // Default: Append to textarea as dictation
-      const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-      if (textarea) {
-        const newText = (textarea.value + ' ' + finalTranscript).trim();
-        textarea.value = newText;
-        try {
-          textarea.dispatchEvent(new Event('input', { bubbles: true }));
-        } catch (_err) {
-          const ev = document.createEvent('Event');
-          ev.initEvent('input', true, true);
-          textarea.dispatchEvent(ev);
-        }
+      if (selectedAgent?.id) {
+        const newText = (activeAgentPrompt + ' ' + finalTranscript).trim();
+        updateAgentPrompt(newText);
         // Brief visual feedback
         toast.success(`? Added: "${finalTranscript.substring(0, 30)}${finalTranscript.length > 30 ? '...' : ''}"`, { duration: 1500 });
       }
@@ -3976,15 +3969,14 @@ const fetchUserCredits = useCallback(async (uid) => {
   // Connect social accounts handler
 
   const handleTranslatePrompt = async () => {
-    const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-    if (!textarea || !textarea.value || voiceSettings.language === 'English') return;
+    if (!activeAgentPrompt || voiceSettings.language === 'English') return;
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/translate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: textarea.value,
+          text: activeAgentPrompt,
           targetLanguage: 'English',
           sourceLanguage: voiceSettings.language
         })
@@ -3992,7 +3984,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
       const data = await response.json();
       if (data.translatedText) {
-        textarea.value = data.translatedText;
+        updateAgentPrompt(data.translatedText);
         toast.success('Prompt translated to English!');
       }
     } catch (error) {
@@ -4250,19 +4242,8 @@ const fetchUserCredits = useCallback(async (uid) => {
     let promptValue = '';
     if (promptOverride && typeof promptOverride === 'string') {
       promptValue = promptOverride;
-    } else if (textareaRef.current?.value) {
-      promptValue = textareaRef.current.value;
-    }
-
-    if (!promptValue) {
-      const allTextareas = document.querySelectorAll('.studio-textarea');
-      for (const ta of allTextareas) {
-        if (ta.value) {
-          promptValue = ta.value;
-          devLog('[handleGenerate] Prompt recovered from secondary textarea');
-          break;
-        }
-      }
+    } else {
+      promptValue = agentPromptDrafts[targetAgentSnapshot.id] || '';
     }
 
     if (!promptValue || !promptValue.trim()) {
@@ -4276,10 +4257,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     // Check if user typed the demo code ("pitch")
     if (checkDemoCode(promptValue)) {
       setShowDemoBanner(true);
-      // Clear all visible textareas
-      const allTextareas = document.querySelectorAll('.studio-textarea');
-      allTextareas.forEach(t => t.value = '');
-      if (textareaRef.current) textareaRef.current.value = '';
+      updateAgentPrompt('', targetAgentSnapshot.id);
       
       toast.success('(theater) Demo mode activated! Type "pitch" again to generate a demo response.', {
         duration: 5000,
@@ -5532,14 +5510,8 @@ ABSOLUTE RULES (violating any = failure):
     }
     setPreviewItem(null);
     
-    // Set the textarea value to the saved prompt before triggering generation
-    const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-    if (textarea) {
-      textarea.value = previewPrompt;
-    }
-    
-    // Re-trigger generation (handleGenerate reads from textarea)
-    handleGenerate();
+    updateAgentPrompt(previewPrompt);
+    handleGenerate(previewPrompt);
   };
 
   async function fetchActivity(page = 1, section = null) {
@@ -7420,6 +7392,8 @@ ABSOLUTE RULES (violating any = failure):
                     placeholder={`Describe what you want ${selectedAgent.name} to create...`}
                     className="studio-textarea"
                     aria-label={`Prompt for ${selectedAgent.name}`}
+                    value={activeAgentPrompt}
+                    onChange={(event) => updateAgentPrompt(event.target.value)}
                     style={{
                       minHeight: isMobile ? '100px' : '120px',
                       padding: isMobile ? '12px' : '20px'
@@ -8354,6 +8328,9 @@ ABSOLUTE RULES (violating any = failure):
                         ref={textareaRef}
                         placeholder={`Describe what you want ${selectedAgent.name} to create...`}
                         className="studio-textarea"
+                        aria-label={`Prompt for ${selectedAgent.name}`}
+                        value={activeAgentPrompt}
+                        onChange={(event) => updateAgentPrompt(event.target.value)}
                         style={{
                           minHeight: isMobile ? '100px' : '120px',
                           padding: isMobile ? '12px' : '20px'
@@ -14660,7 +14637,7 @@ ABSOLUTE RULES (violating any = failure):
                 </div>
                 <div>
                   <h2 style={{ margin: 0 }}>Studio Credits</h2>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Balance: <strong style={{ color: '#facc15' }}>{userCredits} credits</strong></p>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Balance: <strong style={{ color: '#facc15' }}>{isAdmin ? 'Unlimited' : `${userCredits} credits`}</strong></p>
                 </div>
               </div>
               <button className="modal-close" onClick={() => setShowCreditsModal(false)}>

@@ -84,6 +84,30 @@ test.describe('release smoke checks', () => {
     await expect(page.getByRole('button', { name: 'Project Hub', exact: true })).toHaveAttribute('title', 'Project Hub');
   });
 
+  test('agent prompt drafts remain isolated when the user switches agents', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await enterStudio(page);
+
+    await page.getByRole('button', { name: 'Music GPT', exact: true }).first().click({ force: true });
+    const guideButton = page.getByRole('button', { name: /Got it, let's go!/i });
+    await guideButton.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+    if (await guideButton.isVisible().catch(() => false)) await guideButton.click({ force: true });
+
+    const musicPrompt = page.getByRole('textbox', { name: 'Prompt for Music GPT' });
+    await musicPrompt.fill('Music-only draft that must not leak');
+
+    await page.getByRole('button', { name: 'Album Artist 2.0', exact: true }).first().click({ force: true });
+    await guideButton.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+    if (await guideButton.isVisible().catch(() => false)) await guideButton.click({ force: true });
+
+    const artworkPrompt = page.getByRole('textbox', { name: 'Prompt for Album Artist 2.0' });
+    await expect(artworkPrompt).toHaveValue('');
+    await artworkPrompt.fill('Artwork-only draft that must stay separate');
+
+    await page.getByRole('button', { name: 'Music GPT', exact: true }).first().click({ force: true });
+    await expect(page.getByRole('textbox', { name: 'Prompt for Music GPT' })).toHaveValue('Music-only draft that must not leak');
+  });
+
   test('Vocal Lab exposes usable personal voice settings in the main agents workspace', async ({ page }) => {
     await page.addInitScript(() => {
       const originalFetch = window.fetch.bind(window);
@@ -195,6 +219,10 @@ test.describe('release smoke checks', () => {
     expect(dashboardSource).toContain('shouldUseNativeIAP() ?');
     expect(dashboardSource).not.toContain("typeof window !== 'undefined' && window.Capacitor ?");
     expect(studioSource).toContain("'Authorization': `Bearer ${token}`");
+    expect(studioSource).toContain('agentPromptDrafts[targetAgentSnapshot.id]');
+    expect(studioSource).not.toContain("querySelectorAll('.studio-textarea')");
+    expect(dashboardSource).toContain("const creditDisplay = isAdmin ? 'Unlimited' : userCredits;");
+    expect(backendSource).toContain('unlimited: true');
     expect(backendSource).not.toMatch(/const avgCostPerGen = 0\.042|const cac = 2\.50|grossMargin: parseFloat/);
     expect(backendSource).toContain("measurementStatus: 'not_measured'");
   });

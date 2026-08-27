@@ -3130,6 +3130,17 @@ app.get('/api/user/credits', verifyFirebaseToken, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
+
+  if (ADMIN_EMAILS.includes((req.user.email || '').toLowerCase())) {
+    return res.json({
+      credits: null,
+      unlimited: true,
+      isAdmin: true,
+      tier: 'lifetime',
+      bonus: 0,
+      lifetime: null
+    });
+  }
   
   const db = getFirestoreDb();
   if (!db) {

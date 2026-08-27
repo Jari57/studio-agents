@@ -122,6 +122,7 @@ const DashboardView = ({
   handleSubscribe,
   handleTextToVoice
 }) => {
+  const creditDisplay = isAdmin ? 'Unlimited' : userCredits;
   return (
     <div className="studio-dashboard animate-fadeInUp">
       <div className="dashboard-sidebar-layout">
@@ -201,10 +202,10 @@ const DashboardView = ({
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Credits</span>
-                  <span style={{ fontSize: '0.875rem', color: '#facc15', fontWeight: '800' }}>{userCredits}</span>
+                  <span style={{ fontSize: '0.875rem', color: '#facc15', fontWeight: '800' }}>{creditDisplay}</span>
                 </div>
                 <button
-                  disabled={!WEB_CHECKOUT_ENABLED}
+                  disabled={isAdmin || !WEB_CHECKOUT_ENABLED}
                   onClick={() => setShowCreditsModal(true)}
                   style={{
                     width: '100%',
@@ -215,8 +216,8 @@ const DashboardView = ({
                     border: 'none',
                     fontSize: '0.75rem',
                     fontWeight: '700',
-                    cursor: WEB_CHECKOUT_ENABLED ? 'pointer' : 'not-allowed',
-                    opacity: WEB_CHECKOUT_ENABLED ? 1 : 0.5,
+                    cursor: (!isAdmin && WEB_CHECKOUT_ENABLED) ? 'pointer' : 'not-allowed',
+                    opacity: (!isAdmin && WEB_CHECKOUT_ENABLED) ? 1 : 0.5,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -325,7 +326,7 @@ const DashboardView = ({
                     </div>
                     <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
                       <Zap size={18} color="#facc15" fill="#facc15" style={{ marginBottom: '8px' }} />
-                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#facc15' }}>{userCredits}</div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#facc15' }}>{creditDisplay}</div>
                       <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Avail. Credits</div>
                     </div>
                     <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
@@ -873,12 +874,12 @@ const DashboardView = ({
                   <div className="balance-info">
                     <div className="balance-label" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '4px' }}>Studio Balance</div>
                     <div className="balance-amount" style={{ fontSize: '2.5rem', fontWeight: '800', color: '#facc15', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                      {userCredits} <span className="currency" style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>Credits</span>
+                      {creditDisplay} {!isAdmin && <span className="currency" style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>Credits</span>}
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="btn-pill primary" disabled={!WEB_CHECKOUT_ENABLED} onClick={() => setShowCreditsModal(true)} style={{ boxShadow: '0 4px 15px rgba(250, 204, 21, 0.3)', opacity: WEB_CHECKOUT_ENABLED ? 1 : 0.5, cursor: WEB_CHECKOUT_ENABLED ? 'pointer' : 'not-allowed' }}>
+                    <button className="btn-pill primary" disabled={isAdmin || !WEB_CHECKOUT_ENABLED} onClick={() => setShowCreditsModal(true)} style={{ boxShadow: '0 4px 15px rgba(250, 204, 21, 0.3)', opacity: (!isAdmin && WEB_CHECKOUT_ENABLED) ? 1 : 0.5, cursor: (!isAdmin && WEB_CHECKOUT_ENABLED) ? 'pointer' : 'not-allowed' }}>
                       <Plus size={16} /> Purchase Packs
                     </button>
                   </div>
