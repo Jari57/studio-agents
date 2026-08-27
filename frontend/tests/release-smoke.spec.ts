@@ -146,6 +146,22 @@ test.describe('release smoke checks', () => {
   });
 
   test('a provider failure remains visible and offers a safe retry', async ({ page }) => {
+    // The local test backend intentionally has no provider credentials. Keep
+    // the shell available so this test exercises the mocked generation failure
+    // instead of being trapped behind the unrelated maintenance overlay.
+    await page.addInitScript(() => {
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = (input, init) => {
+        const url = typeof input === 'string' ? input : input.url;
+        if (url.includes('/api/health')) {
+          return Promise.resolve(new Response(JSON.stringify({ status: 'healthy' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }));
+        }
+        return originalFetch(input, init);
+      };
+    });
     await page.route('**/api/generate', async (route) => {
       await route.fulfill({
         status: 200,
@@ -170,7 +186,7 @@ test.describe('release smoke checks', () => {
     const guideButton = page.getByRole('button', { name: /Got it, let's go!/i });
     await guideButton.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
     if (await guideButton.isVisible().catch(() => false)) await guideButton.click({ force: true });
-    await page.getByRole('textbox', { name: /Describe what you want Music GPT/i }).fill('Release smoke beat');
+    await page.getByRole('textbox', { name: 'Prompt for Music GPT' }).fill('Release smoke beat');
     await page.getByRole('button', { name: 'Generate', exact: true }).click({ force: true });
 
     const failure = page.getByRole('alert');
