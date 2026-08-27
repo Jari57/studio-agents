@@ -2777,7 +2777,8 @@ app.put('/api/user/contact', verifyFirebaseToken, async (req, res) => {
 // GENERATION HISTORY ENDPOINTS
 // ============================================================================
 
-// POST /api/user/generations - Log a generation (called after AI generation)
+// POST /api/user/generations - Create a durable generation record before the
+// provider call. The client updates this record to complete or failed.
 app.post('/api/user/generations', verifyFirebaseToken, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
@@ -2789,7 +2790,8 @@ app.post('/api/user/generations', verifyFirebaseToken, async (req, res) => {
   }
   
   try {
-    const { type, agent, prompt, output, metadata } = req.body;
+    const { type, agent, prompt, output, metadata, status } = req.body;
+    const allowedStatuses = new Set(['pending', 'processing', 'complete', 'failed']);
     
     const generation = {
       type: type || 'text', // 'lyrics', 'hook', 'beat', 'mix', etc.
@@ -2797,7 +2799,9 @@ app.post('/api/user/generations', verifyFirebaseToken, async (req, res) => {
       prompt: (prompt || '').slice(0, 1000),
       output: (output || '').slice(0, 5000),
       metadata: metadata || {},
+      status: allowedStatuses.has(status) ? status : 'pending',
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       favorite: false
     };
     
@@ -2808,6 +2812,47 @@ app.post('/api/user/generations', verifyFirebaseToken, async (req, res) => {
   } catch (err) {
     logger.error('Log generation error:', err);
     res.status(500).json({ error: 'Failed to log generation', details: safeErrorDetail(err) });
+  }
+});
+
+// PUT /api/user/generations/:id - Settle a generation record without allowing
+// cross-user writes or arbitrary document fields.
+app.put('/api/user/generations/:id', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+
+  const allowedStatuses = new Set(['processing', 'complete', 'failed']);
+  const status = allowedStatuses.has(req.body?.status) ? req.body.status : null;
+  if (!status) {
+    return res.status(400).json({ error: 'A valid generation status is required' });
+  }
+
+  try {
+    const update = {
+      status,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    if (typeof req.body.output === 'string') update.output = req.body.output.slice(0, 5000);
+    if (req.body.metadata && typeof req.body.metadata === 'object' && !Array.isArray(req.body.metadata)) {
+      update.metadata = req.body.metadata;
+    }
+    if (typeof req.body.error === 'string') update.error = req.body.error.slice(0, 1000);
+
+    const docRef = db.collection('users').doc(req.user.uid)
+      .collection('generations').doc(req.params.id);
+    const snapshot = await docRef.get();
+    if (!snapshot.exists) return res.status(404).json({ error: 'Generation not found' });
+    await docRef.update(update);
+    return res.json({ success: true, id: req.params.id, status });
+  } catch (err) {
+    logger.error('Update generation error:', err);
+    return res.status(500).json({ error: 'Failed to update generation', details: safeErrorDetail(err) });
   }
 });
 
@@ -8608,7 +8653,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
 
                     return res.json({ output: finalVideoUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-3.1-fast', permanentUrl: finalVideoUrl });
                   }
-                  return res.json({ output: operationData, type: 'video', source: 'veo-3.1-fast' });
+                  throw new Error('Veo 3.1 Fast returned neither an operation nor a playable video');
                 }
                 
                 // Async operation: store for frontend polling (avoids Vercel proxy timeout)
@@ -8707,7 +8752,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
 
                     return res.json({ output: finalVideoUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-2.0', permanentUrl: finalVideoUrl });
                   }
-                  return res.json({ output: veo2Data, type: 'video', source: 'veo-2.0' });
+                  throw new Error('Veo 2.0 returned neither an operation nor a playable video');
                 }
                 
                 // Async operation: store for frontend polling (avoids Vercel proxy timeout)
@@ -9614,12 +9659,14 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
       return res.json(op.result);
     }
 
-    // Unknown format — return raw
-    await settleDetachedReservation(op, 'consume', 'asynchronous video generation completed');
-    op.status = 'completed';
-    op.result = { status: 'completed', output: result, type: 'video', source: op.source };
+    // Unknown provider payloads are failures, not completed videos. Returning a
+    // raw object here previously let the client announce success without a
+    // playable asset and consumed the reservation.
+    await settleDetachedReservation(op, 'refund', 'video provider returned no playable asset');
+    op.status = 'failed';
+    op.error = 'The video provider completed without returning a playable video.';
     _deletePendingVideoOp(req.params.id);
-    return res.json(op.result);
+    return res.status(502).json({ status: 'failed', error: op.error });
 
   } catch (err) {
     logger.error('Video status check error', { error: err.message, attempt: op.attempts });
