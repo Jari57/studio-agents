@@ -257,4 +257,15 @@ test.describe('release smoke checks', () => {
     expect(studioSource).toContain('finalBody = { ...finalBody, agentId }');
     expect(studioSource).toContain('requestedDuration > 30');
   });
+
+  test('account deletion uses the fail-closed App Store route', async () => {
+    const studioSource = readFileSync(resolve(process.cwd(), 'src/components/StudioView.jsx'), 'utf8');
+
+    expect(studioSource).toContain("window.prompt('To confirm permanent deletion, type DELETE exactly:')");
+    expect(studioSource).toContain("fetch(`${BACKEND_URL}/api/user/account`");
+    expect(studioSource).toContain("method: 'DELETE'");
+    expect(studioSource).toContain('body: JSON.stringify({ confirmation: typedConfirmation })');
+    expect(studioSource).not.toContain('`${BACKEND_URL}/api/user/delete-account`');
+    expect(studioSource).toContain('mailto:support@studioagentsai.com?subject=Support Request');
+  });
 });

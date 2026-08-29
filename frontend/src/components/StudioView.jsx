@@ -6257,14 +6257,16 @@ ABSOLUTE RULES (violating any = failure):
 
     if (!confirmation) return;
 
-    // Phase 2: Double Verification
-    const typedEmail = window.prompt(`To confirm, please type your email address (${user.email}):`);
-    if (typedEmail !== user.email) {
-      toast.error('Identity verification failed. Account was NOT deleted.');
+    // Phase 2: Explicit destructive-action verification. The hardened server
+    // independently requires the same exact confirmation before it touches
+    // billing, private assets, saved data, or the Firebase identity.
+    const typedConfirmation = window.prompt('To confirm permanent deletion, type DELETE exactly:');
+    if (typedConfirmation !== 'DELETE') {
+      toast.error('Confirmation did not match. Your account was not changed.');
       return;
     }
 
-    toast.loading('Wiping all account data...', { id: 'del-acc' });
+    toast.loading('Deleting billing, private assets, saved data, and sign-in…', { id: 'del-acc' });
 
     try {
       // Get fresh token for sensitive operation
@@ -6273,45 +6275,29 @@ ABSOLUTE RULES (violating any = failure):
         authToken = await auth.currentUser.getIdToken(true);
       }
 
-      // Phase 3: Backend Cloud Wipe (Projects, Firestore, etc.)
-      const response = await fetch(`${BACKEND_URL}/api/user/delete-account`, {
-        method: 'POST',
+      // Phase 3: The fail-closed backend owns the complete ordered deletion.
+      // It preserves the account when billing or storage cannot be confirmed.
+      const response = await fetch(`${BACKEND_URL}/api/user/account`, {
+        method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
           ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
         },
-        body: JSON.stringify({
-          userId: user.uid,
-          confirmedEmail: user.email
-        })
+        body: JSON.stringify({ confirmation: typedConfirmation })
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Cloud data wipe failed');
+        throw new Error(errorData.error || 'Account deletion could not be completed safely');
       }
 
-      // Phase 4: Auth Deletion (This requires recent login, otherwise fails)
-      // If it fails due to "auth/requires-recent-login", we logout the user after successful cloud wipe
-      try {
-        if (auth?.currentUser) {
-          await auth.currentUser.delete();
-        }
-      } catch (authErr) {
-        devWarn('Firebase user delete failed (likely session too old):', authErr.message);
-        if (authErr.code === 'auth/requires-recent-login') {
-          toast.error('Security verification required. Please logout and login again to delete your account profile.', { id: 'del-acc' });
-          return;
-        }
-      }
-
-      toast.success('Account wiped clean. Farewell!', { id: 'del-acc', duration: 5000 });
+      toast.success('Your account and associated data were deleted.', { id: 'del-acc', duration: 5000 });
       
-      // Phase 5: Final Cleanup
+      // Phase 4: Clear local session state after the server confirms completion.
       handleSecureLogout();
     } catch (err) {
       devWarn('Account deletion failure:', err);
-      toast.error(`Deletion partially failed: ${err.message}. Data may persist.`, { id: 'del-acc' });
+      toast.error(`${err.message}. Your session remains available so you can retry or contact support.`, { id: 'del-acc' });
     }
   };
 
@@ -10911,7 +10897,7 @@ ABSOLUTE RULES (violating any = failure):
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <button 
                   className="cta-button-premium"
-                  onClick={() => window.open('mailto:support@studioagents.com?subject=Support Request', '_blank')}
+                  onClick={() => window.open('mailto:support@studioagentsai.com?subject=Support Request', '_blank')}
                 >
                   Email Support
                 </button>
