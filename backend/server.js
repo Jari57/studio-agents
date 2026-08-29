@@ -77,6 +77,7 @@ const Replicate = require('replicate');
 // Services
 const emailService = require('./services/emailService');
 const userPreferencesService = require('./services/userPreferencesService');
+const { createProductionJobService } = require('./services/productionJobService');
 const { analyzeMusicBeats } = require('./services/beatDetectionService');
 const {
   getVideoMetadata,
@@ -565,6 +566,12 @@ function getFirestoreDb() {
   }
   return firestoreDb;
 }
+
+const productionJobs = createProductionJobService({
+  getDb: getFirestoreDb,
+  admin,
+  logger
+});
 
 // Firebase Auth Middleware - Verifies JWT tokens
 const verifyFirebaseToken = async (req, res, next) => {
@@ -5567,12 +5574,19 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     // Determine vocal style category for routing
     const isSingingStyle = style.includes('singer');
     const isRapStyle = style.includes('rapper');
+    const requiresMusicalPerformance = isSingingStyle || isRapStyle || outputFormat === 'music' || !!backingTrackUrl;
+    const strictMusicalQuality = requiresMusicalPerformance
+      && (req.body.quality === 'premium' || req.body.quality === 'ultra');
 
     // Provider preference — skip non-preferred providers for vocal consistency
-    // An activated personal voice has one durable provider identity. Do not let
-    // a stale or hand-crafted client preference reroute the same artist sample
-    // through a zero-shot model whose timbre can drift between generations.
-    const wantProvider = isPersonalVoice ? 'elevenlabs-clone' : (preferredProvider || null);
+    // Musical personal-voice work must use the sung-voice provider. Forcing an
+    // artist clone through a TTS endpoint is the primary cause of spoken,
+    // rhythmically inconsistent "vocals". Narration continues to use the
+    // identity-locked ElevenLabs clone.
+    const supportedStrictPreference = preferredProvider === 'suno' ? 'suno' : null;
+    const wantProvider = isPersonalVoice
+      ? (strictMusicalQuality ? 'minimax-music' : 'elevenlabs-clone')
+      : (strictMusicalQuality ? supportedStrictPreference : (preferredProvider || null));
     if (wantProvider) logger.info('🔒 Preferred provider requested', { preferredProvider: wantProvider });
 
     // ═══════════════════════════════════════════════════════════════
@@ -5949,7 +5963,7 @@ Return ONLY valid JSON, no markdown.`;
     // PRIORITY 1 (SINGERS): Bark SINGING mode — produces actual melody
     // Bark with music note markers generates pitched vocal melody, not flat TTS
     // ═══════════════════════════════════════════════════════════════
-    const skipBarkSinging = skipBarkForClone || (wantProvider && wantProvider !== 'bark-singing');
+    const skipBarkSinging = strictMusicalQuality || skipBarkForClone || (wantProvider && wantProvider !== 'bark-singing');
     if (replicateKey && !audioUrl && isSingingStyle && !skipBarkSinging) {
       try {
         logger.info('🎵 Using Bark SINGING mode', { style, langCode, genre });
@@ -6499,7 +6513,7 @@ Do NOT include any other text.`
     // Skip if style is 'cloned' without elevenLabsVoiceId (handled above)
     // ═══════════════════════════════════════════════════════════════
     const skipElevenLabs = wantProvider && !wantProvider.startsWith('elevenlabs');
-    if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVoiceId) && !skipElevenLabs) {
+    if (elevenLabsKey && !audioUrl && !strictMusicalQuality && !(style === 'cloned' && !req.body.elevenLabsVoiceId) && !skipElevenLabs) {
       try {
         // Voice ID logic: user-provided > rapStyle-aware mapping > style fallback
         let voiceId = req.body.elevenLabsVoiceId;
@@ -6790,7 +6804,7 @@ Do NOT include any other text.`
     // The separate /api/create-final-mix step will overlay vocals on beat later.
     // ═══════════════════════════════════════════════════════════════
     const skipBarkSpoken = skipBarkForClone || (wantProvider && wantProvider !== 'bark');
-    if (replicateKey && !audioUrl && !isSingingStyle && style !== 'cloned' && !skipBarkSpoken) {
+    if (replicateKey && !audioUrl && !requiresMusicalPerformance && style !== 'cloned' && !skipBarkSpoken) {
       try {
         logger.info('🎤 Using Bark for expressive vocal generation', { style, langCode });
         
@@ -6882,7 +6896,7 @@ Do NOT include any other text.`
     // ═══════════════════════════════════════════════════════════════
     const geminiKey = process.env.GEMINI_API_KEY;
     const skipGemini = wantProvider && wantProvider !== 'gemini-tts';
-    if (!audioUrl && geminiKey && !skipGemini) {
+    if (!audioUrl && geminiKey && !strictMusicalQuality && !skipGemini) {
       try {
         logger.info('🎤 Using Gemini TTS fallback');
         let geminiVoice = 'Kore';
@@ -6936,7 +6950,7 @@ Do NOT include any other text.`
       : (uberduckKey?.includes(':') ? `Basic ${Buffer.from(uberduckKey).toString('base64')}` : `Bearer ${uberduckKey}`);
     
     const skipUberduck = wantProvider && wantProvider !== 'uberduck-tts';
-    if (!audioUrl && uberduckKey && !skipUberduck) {
+    if (!audioUrl && uberduckKey && !strictMusicalQuality && !skipUberduck) {
       try {
         logger.info('🔄 Final fallback to Uberduck TTS');
         let selectedVoice = style.includes('female') ? 'azure_en-US-JennyNeural' : 'azure_en-US-GuyNeural';
@@ -7188,6 +7202,12 @@ Do NOT include any other text.`
         }
       }
       
+      const releaseGradeVocalProviders = new Set(['suno', 'minimax-music-clone']);
+      const isReleaseCandidate = releaseGradeVocalProviders.has(provider);
+      const performanceType = isReleaseCandidate
+        ? 'musical-vocal'
+        : (provider === 'bark-singing' ? 'musical-preview' : 'spoken-vocal');
+
       res.json({
         audioUrl: permanentUrl || audioUrl,
         temporaryUrl: permanentUrl ? audioUrl : null,
@@ -7198,6 +7218,10 @@ Do NOT include any other text.`
         wasMixed,
         style,
         isRealGeneration: true,
+        isReleaseCandidate,
+        performanceType,
+        qualityTier: isReleaseCandidate ? 'release-candidate' : 'studio-draft',
+        isDurable: !req.user || !!permanentUrl,
         referenceAnalysis: refSongAnalysis || null,
         message: refSongAnalysis 
           ? `Professional vocal generated via ${provider} — matched to reference (${refSongAnalysis.tone} tone, ${refSongAnalysis.mood} mood)`
@@ -7242,6 +7266,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
 
     const bpm = parseInt(rawBpm) || 90;
     const durationSeconds = Math.max(parseInt(rawDuration) || 60, 30); // Minimum 30s for professional quality
+    const strictPremiumBeat = quality === 'premium' || quality === 'ultra';
     if (!prompt) {
       await refundCredits(req, 'beat request missing prompt');
       return res.status(400).json({ error: 'Prompt is required' });
@@ -7507,7 +7532,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
 
     // 3. Replicate MusicGen legacy fallback. A premium label must not make one
     // provider a single point of failure for the complete asset pipeline.
-    if (replicateKey && !audioUrl) {
+    if (replicateKey && !audioUrl && !strictPremiumBeat) {
       try {
         logger.info('Using Replicate Music GPT (stereo-large)');
         const replicate = new Replicate({ auth: replicateKey });
@@ -7582,7 +7607,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     }
 
     // 4. FAL.ai last fallback
-    if (falKey && !audioUrl) {
+    if (falKey && !audioUrl && !strictPremiumBeat) {
       try {
         const response = await fetchWithRetry('https://queue.fal.run/beatoven/music-generation', {
           method: 'POST',
@@ -7658,6 +7683,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
         }
       }
 
+      const isReleaseCandidate = provider === 'minimax-music-2.6'
+        || String(provider || '').startsWith('stable-audio');
       res.json({
         audioUrl: permanentUrl || audioUrl,
         provider,
@@ -7667,6 +7694,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
                        : durationSeconds,
         wasTruncated: (provider === 'music-gpt' && durationSeconds > 65) || (provider === 'beatoven' && durationSeconds > 60),
         isRealGeneration: true,
+        isReleaseCandidate,
+        qualityTier: isReleaseCandidate ? 'release-candidate' : 'studio-draft',
+        isDurable: !req.user || !!permanentUrl,
         mimeType: audioUrl.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mpeg',
         providerErrors: providerErrors.length > 0 ? providerErrors : undefined
       });
@@ -7834,6 +7864,58 @@ app.post('/api/mix-audio', verifyFirebaseToken, requireAuth, checkCreditsFor('mi
 // ═══════════════════════════════════════════════════════════════════
 // CREATE FINAL MIX - Combines vocals + beat into mastered track
 // ═══════════════════════════════════════════════════════════════════
+app.post('/api/create-session-mix', verifyFirebaseToken, requireAuth, checkCreditsFor('mixing'), generationLimiter, async (req, res) => {
+  const outputFiles = [];
+  try {
+    const { tracks, title, artist, autoDuck = true, lufsTarget = -14 } = req.body || {};
+    if (!Array.isArray(tracks) || tracks.length === 0) {
+      return res.status(400).json({ error: 'Add at least one audible track to the session.' });
+    }
+    if (tracks.length > 12) {
+      return res.status(400).json({ error: 'Producer sessions support up to 12 audio tracks per render.' });
+    }
+
+    const { mixMultipleStems } = require('./services/audioMixingService');
+    const result = await mixMultipleStems(tracks, { autoDuck, lufsTarget }, logger);
+    outputFiles.push(result.outputPath);
+
+    const mixedBuffer = fs.readFileSync(result.outputPath);
+    const safeTitle = String(title || 'producer-session').replace(/[^a-zA-Z0-9-]+/g, '-').slice(0, 80);
+    const uploaded = await uploadToStorage(
+      mixedBuffer,
+      req.user.uid,
+      `${safeTitle || 'producer-session'}-${Date.now()}.mp3`,
+      'audio/mpeg',
+    );
+
+    logger.info('Producer session mix complete', {
+      userId: req.user.uid,
+      trackCount: result.processing.trackCount,
+      title: String(title || '').slice(0, 120),
+      artist: String(artist || '').slice(0, 120),
+    });
+
+    res.json({
+      success: true,
+      mixedAudioUrl: uploaded.url,
+      storagePath: uploaded.path,
+      provider: 'ffmpeg-multistem',
+      quality: result.quality,
+      processing: result.processing,
+      tracks: result.tracks.map(({ id, name, role, volume, pan, offset, trimStart, trimEnd }) => ({
+        id, name, role, volume, pan, offset, trimStart, trimEnd,
+      })),
+    });
+  } catch (err) {
+    logger.error('Producer session mix error', { error: err.message, userId: req.user?.uid });
+    res.status(500).json({ error: 'The producer session could not be rendered.', details: safeErrorDetail(err) });
+  } finally {
+    outputFiles.forEach((filePath) => {
+      try { if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+    });
+  }
+});
+
 app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCreditsFor('mixing'), generationLimiter, async (req, res) => {
   try {
     const { vocalUrl, beatUrl, style = 'rapper', outputFormat = 'music', genre = '', vocalVolume, beatVolume,
@@ -12162,6 +12244,47 @@ app.post('/api/stripe/create-portal-session', verifyFirebaseToken, requireAuth, 
 // =============================================================================
 // PROJECT PERSISTENCE (My Studio)
 // =============================================================================
+
+// Durable production ledger. A record is created before any paid provider call
+// so a full-song run remains visible and recoverable after refresh, navigation,
+// a mobile app suspension, or a provider failure.
+app.post('/api/production-jobs', verifyFirebaseToken, requireAuth, generationLimiter, async (req, res) => {
+  try {
+    const result = await productionJobs.create(req.user.uid, req.body);
+    res.status(result.deduplicated ? 200 : 201).json(result);
+  } catch (error) {
+    logger.error('❌ Production job create failed', { userId: req.user.uid, error: error.message });
+    res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : 'Failed to create a recoverable production job'
+    });
+  }
+});
+
+app.get('/api/production-jobs/active', verifyFirebaseToken, requireAuth, apiLimiter, async (req, res) => {
+  try {
+    const job = await productionJobs.getActive(req.user.uid);
+    res.json({ job });
+  } catch (error) {
+    logger.error('❌ Production job recovery failed', { userId: req.user.uid, error: error.message });
+    res.status(500).json({ error: 'Failed to recover the latest production job' });
+  }
+});
+
+app.patch('/api/production-jobs/:jobId', verifyFirebaseToken, requireAuth, apiLimiter, async (req, res) => {
+  try {
+    const job = await productionJobs.update(req.user.uid, req.params.jobId, req.body);
+    res.json({ job });
+  } catch (error) {
+    logger.error('❌ Production job checkpoint failed', {
+      userId: req.user.uid,
+      jobId: req.params.jobId,
+      error: error.message
+    });
+    res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : 'Failed to checkpoint production progress'
+    });
+  }
+});
 
 // BATCH SYNC - Handle navigator.sendBeacon or mass save
 app.post('/api/projects/sync', verifyFirebaseToken, requireAuth, async (req, res) => {

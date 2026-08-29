@@ -13,6 +13,11 @@ import { db, auth, doc, setDoc, updateDoc, increment, getDoc } from '../firebase
 import { collection, query, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 import { Analytics } from '../utils/analytics';
+import {
+  checkpointProductionJob,
+  createProductionJob,
+  fetchActiveProductionJob
+} from '../services/productionJobs';
 import StudioOnboarding from './StudioOnboarding';
 
 // Dev-only logging — tree-shaken in production
@@ -2256,6 +2261,7 @@ export default function StudioOrchestratorV2({
   // Ref mirror so async pipeline code can read latest values
   const mediaUrlsRef = useRef(mediaUrls);
   mediaUrlsRef.current = mediaUrls;
+  const mediaDurabilityRef = useRef({ audio: true, vocals: true, mixedAudio: true });
   const skipRegenerateGuard = useRef(false); // Skip the save/clear prompt when called from dialog buttons
   const handleGenerateRef = useRef(null); // Stable ref to handleGenerate for callbacks
   const handleCreateProjectRef = useRef(null); // Stable ref to handleCreateProject for callbacks
@@ -2317,6 +2323,8 @@ export default function StudioOrchestratorV2({
   const expandSection = useCallback((key) => setExpandedSections(prev => ({ ...prev, [key]: true })), []);
   const [pipelineSteps, setPipelineSteps] = useState([]); // Live progress feed
   const [retryingStep, setRetryingStep] = useState(null); // ID of pipeline step currently being retried
+  const [recoveredProductionJob, setRecoveredProductionJob] = useState(null);
+  const [isRecoveringProduction, setIsRecoveringProduction] = useState(false);
   const [mixFailed, setMixFailed] = useState(false); // True when /api/create-final-mix returned an error
   const [voiceSampleUrl, setVoiceSampleUrl] = useState(null); // URL of uploaded voice sample for cloning
   const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState(localStorage.getItem('studio_elevenlabs_voice_id') || '');
@@ -2361,6 +2369,11 @@ export default function StudioOrchestratorV2({
   // Industrial Strength State Preservation (Fixes closure issues in auto-triggering)
   const outputsRef = useRef(outputs);
   const pipelineStepsRef = useRef([]); // Ref mirror so finally-block reads latest pipeline steps
+  const productionJobIdRef = useRef(null);
+  const productionRunKeyRef = useRef(null);
+  const productionJobRevisionRef = useRef(0);
+  const productionJobCheckpointRef = useRef(null);
+  const productionRecoveryCheckedRef = useRef(false);
   const lastAudioErrorRef = useRef(''); // Persist provider failures after transient toasts disappear
   const mountedRef = useRef(true); // Track mount state to prevent state updates after unmount
   const recognitionRef = useRef(null);
@@ -2478,6 +2491,14 @@ export default function StudioOrchestratorV2({
     );
     pipelineStepsRef.current = next;
     setPipelineSteps(next);
+    // Persist progress outside React state. This intentionally does not block
+    // the provider pipeline; checkpoints are serialized by the backend and a
+    // later checkpoint always contains the complete current snapshot.
+    void productionJobCheckpointRef.current?.({
+      status: status === 'error' ? 'needs_attention' : 'running',
+      currentStep: stepId,
+      steps: next
+    });
   }, []);
 
   // Reusable helper: mux audio into silent video, with 1 retry and toast feedback
@@ -3045,6 +3066,121 @@ export default function StudioOrchestratorV2({
     return headers;
   }, [authToken]);
 
+  const checkpointCurrentProduction = useCallback(async (overrides = {}) => {
+    const jobId = productionJobIdRef.current;
+    if (!jobId) return null;
+    try {
+      const headers = await getHeaders();
+      if (!headers.Authorization) return null;
+      const payload = {
+        ...overrides,
+        revision: ++productionJobRevisionRef.current,
+        steps: overrides.steps || pipelineStepsRef.current,
+        snapshot: {
+          outputs: outputsRef.current,
+          mediaUrls: mediaUrlsRef.current
+        }
+      };
+      const result = await checkpointProductionJob(headers, jobId, payload);
+      return result.job;
+    } catch (error) {
+      // Generation may continue during a transient checkpoint outage. Keep the
+      // warning visible in development while the next checkpoint retries with
+      // the complete snapshot.
+      console.warn('[ProductionJobs] Checkpoint failed:', error.message);
+      return null;
+    }
+  }, [getHeaders]);
+  productionJobCheckpointRef.current = checkpointCurrentProduction;
+
+  useEffect(() => {
+    if (!isOpen) productionRecoveryCheckedRef.current = false;
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || productionRecoveryCheckedRef.current) return;
+    productionRecoveryCheckedRef.current = true;
+    let cancelled = false;
+
+    const recover = async () => {
+      setIsRecoveringProduction(true);
+      try {
+        const headers = await getHeaders();
+        if (!headers.Authorization) {
+          productionRecoveryCheckedRef.current = false;
+          return;
+        }
+        const { job } = await fetchActiveProductionJob(headers);
+        if (!job || cancelled) return;
+
+        const recoverableSteps = (job.steps || []).map((step) => (
+          step.status === 'active'
+            ? {
+                ...step,
+                status: 'error',
+                endTime: Date.now(),
+                errorMessage: 'This stage was interrupted. Resume the production to continue safely.'
+              }
+            : step
+        ));
+        productionJobIdRef.current = job.id;
+        productionRunKeyRef.current = job.idempotencyKey;
+        productionJobRevisionRef.current = Number(job.revision) || 0;
+        outputsRef.current = { ...outputsRef.current, ...(job.snapshot?.outputs || {}) };
+        mediaUrlsRef.current = { ...mediaUrlsRef.current, ...(job.snapshot?.mediaUrls || {}) };
+        pipelineStepsRef.current = recoverableSteps;
+        setOutputs(outputsRef.current);
+        setMediaUrls(mediaUrlsRef.current);
+        setPipelineSteps(recoverableSteps);
+        setSongIdea(job.prompt || '');
+        if (job.settings?.style) setStyle(job.settings.style);
+        if (job.settings?.language) setLanguage(job.settings.language);
+        if (job.settings?.duration) setDuration(job.settings.duration);
+        if (job.settings?.bpm) setProjectBpm(job.settings.bpm);
+        if (job.settings?.mood) setMood(job.settings.mood);
+        if (job.settings?.structure) setStructure(job.settings.structure);
+        if (job.settings?.outputFormat) setOutputFormat(job.settings.outputFormat);
+        setRecoveredProductionJob({ ...job, steps: recoverableSteps });
+
+        if (job.status === 'running' && recoverableSteps.some((step) => step.status === 'error')) {
+          await checkpointProductionJob(headers, job.id, {
+            revision: ++productionJobRevisionRef.current,
+            status: 'needs_attention',
+            currentStep: recoverableSteps.find((step) => step.status === 'error')?.id,
+            steps: recoverableSteps,
+            snapshot: job.snapshot,
+            lastError: 'Browser session ended before the production completed.'
+          });
+        }
+      } catch (error) {
+        console.warn('[ProductionJobs] Recovery check failed:', error.message);
+      } finally {
+        if (!cancelled) setIsRecoveringProduction(false);
+      }
+    };
+
+    void recover();
+    return () => { cancelled = true; };
+  }, [getHeaders, isOpen]);
+
+  const resumeRecoveredProduction = useCallback(() => {
+    const job = recoveredProductionJob;
+    if (!job || isGenerating) return;
+    productionJobIdRef.current = job.id;
+    productionRunKeyRef.current = job.idempotencyKey;
+    productionJobRevisionRef.current = Math.max(
+      productionJobRevisionRef.current,
+      Number(job.revision) || 0
+    );
+    setRecoveredProductionJob(null);
+    setTimeout(() => handleGenerateRef.current?.({
+      agentSelection: job.agentSelection,
+      includeVocals: job.settings?.includeVocals !== false,
+      completionMessage: 'Recovered production complete!',
+      resumeJob: job
+    }), 0);
+  }, [isGenerating, recoveredProductionJob]);
+
   // Optional A&R review. It is intentionally separate from the critical
   // generation path so a review can never delay or fail asset creation.
   const gradeGeneration = useCallback(async (slot, content, promptText) => {
@@ -3121,7 +3257,12 @@ export default function StudioOrchestratorV2({
   }, []);
 
   // Main generation function
-  const handleGenerate = async ({ agentSelection: agentSelectionOverride = null, includeVocals = true, completionMessage = 'Generation complete!' } = {}) => {
+  const handleGenerate = async ({
+    agentSelection: agentSelectionOverride = null,
+    includeVocals = true,
+    completionMessage = 'Generation complete!',
+    resumeJob = null
+  } = {}) => {
     // PREVENT DUPLICATE CALLS
     if (isGenerating) return;
 
@@ -3129,7 +3270,12 @@ export default function StudioOrchestratorV2({
     let freshGeneration = false;
 
     // If there's existing unsaved content, prompt user to save or clear first
-    if (!skipRegenerateGuard.current) {
+    if (resumeJob) {
+      // Recovery restores the last server checkpoint before this function is
+      // invoked. Preserve completed assets and only run missing stages.
+      skipRegenerateGuard.current = false;
+      freshGeneration = false;
+    } else if (!skipRegenerateGuard.current) {
       const hasContent = Object.values(outputs).some(Boolean) ||
                          Object.values(mediaUrls).some(v => v);
       if (hasContent && !isSaved) {
@@ -3200,23 +3346,66 @@ export default function StudioOrchestratorV2({
     let eventSource = null;
 
     // Build pipeline steps based on active slots
-    const steps = [];
-    if (currentSelectedAgents.lyrics) steps.push({ id: 'lyrics', label: 'Writing lyrics', status: 'pending', startTime: null, endTime: null });
-    if (currentSelectedAgents.audio) steps.push({ id: 'beat-desc', label: 'Composing beat description', status: 'pending', startTime: null, endTime: null });
-    if (currentSelectedAgents.visual) steps.push({ id: 'visual-desc', label: 'Designing album art concept', status: 'pending', startTime: null, endTime: null });
-    if (currentSelectedAgents.audio) steps.push({ id: 'beat-audio', label: 'Generating beat audio', status: 'pending', startTime: null, endTime: null });
-    if (currentSelectedAgents.visual) steps.push({ id: 'image', label: 'Creating album artwork', status: 'pending', startTime: null, endTime: null });
-    // Vocals run whenever lyrics will exist (slot selected OR lyrics already present from a prior run)
-    if (includeVocals && (currentSelectedAgents.lyrics || outputs.lyrics)) steps.push({ id: 'vocals', label: 'Recording AI vocals', status: 'pending', startTime: null, endTime: null });
-    if (currentSelectedAgents.video) steps.push({ id: 'video', label: 'Producing music video', status: 'pending', startTime: null, endTime: null });
-    if (currentSelectedAgents.video && currentSelectedAgents.audio) steps.push({ id: 'mux', label: 'Syncing audio to video', status: 'pending', startTime: null, endTime: null });
-    if (includeVocals) steps.push({ id: 'final', label: 'Creating final mix', status: 'pending', startTime: null, endTime: null });
+    const steps = resumeJob?.steps?.length
+      ? resumeJob.steps.map((step) => step.status === 'done'
+          ? step
+          : { ...step, status: 'pending', errorMessage: '', startTime: null, endTime: null })
+      : [];
+    if (!resumeJob) {
+      if (currentSelectedAgents.lyrics) steps.push({ id: 'lyrics', label: 'Writing lyrics', status: 'pending', startTime: null, endTime: null });
+      if (currentSelectedAgents.audio) steps.push({ id: 'beat-desc', label: 'Composing beat description', status: 'pending', startTime: null, endTime: null });
+      if (currentSelectedAgents.visual) steps.push({ id: 'visual-desc', label: 'Designing album art concept', status: 'pending', startTime: null, endTime: null });
+      if (currentSelectedAgents.audio) steps.push({ id: 'beat-audio', label: 'Generating beat audio', status: 'pending', startTime: null, endTime: null });
+      if (currentSelectedAgents.visual) steps.push({ id: 'image', label: 'Creating album artwork', status: 'pending', startTime: null, endTime: null });
+      // Vocals run whenever lyrics will exist (slot selected OR lyrics already present from a prior run)
+      if (includeVocals && (currentSelectedAgents.lyrics || outputs.lyrics)) steps.push({ id: 'vocals', label: 'Recording AI vocals', status: 'pending', startTime: null, endTime: null });
+      if (currentSelectedAgents.video) steps.push({ id: 'video', label: 'Producing music video', status: 'pending', startTime: null, endTime: null });
+      if (currentSelectedAgents.video && currentSelectedAgents.audio) steps.push({ id: 'mux', label: 'Syncing audio to video', status: 'pending', startTime: null, endTime: null });
+      if (includeVocals) steps.push({ id: 'final', label: 'Creating final mix', status: 'pending', startTime: null, endTime: null });
+    }
     pipelineStepsRef.current = steps;
     setPipelineSteps(steps);
     
     try {
       const headers = await getHeaders();
       devLog('[handleGenerate] headers:', headers);
+
+      if (resumeJob?.id) {
+        productionJobIdRef.current = resumeJob.id;
+        await checkpointProductionJob(headers, resumeJob.id, {
+          revision: ++productionJobRevisionRef.current,
+          status: 'running',
+          incrementAttempt: true,
+          currentStep: steps.find((step) => step.status !== 'done')?.id || steps[0]?.id,
+          steps,
+          snapshot: { outputs: outputsRef.current, mediaUrls: mediaUrlsRef.current }
+        });
+      } else if (headers.Authorization) {
+        productionRunKeyRef.current = crypto.randomUUID();
+        const result = await createProductionJob(headers, {
+          idempotencyKey: productionRunKeyRef.current,
+          prompt: songIdea,
+          projectId: existingProject?.id || null,
+          creatorMode,
+          agentSelection: currentSelectedAgents,
+          settings: {
+            style,
+            language,
+            duration,
+            bpm: projectBpm,
+            mood,
+            structure,
+            outputFormat,
+            includeVocals
+          },
+          steps,
+          snapshot: { outputs: outputsRef.current, mediaUrls: mediaUrlsRef.current }
+        });
+        productionJobIdRef.current = result.job.id;
+        productionJobRevisionRef.current = Number(result.job.revision) || 0;
+      } else if (includeVocals) {
+        throw new Error('Sign in to start a recoverable full-song production.');
+      }
       
       // SSE pipeline session for real-time progress from backend
       const pipelineSessionId = crypto.randomUUID();
@@ -3423,9 +3612,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       let lyricsResult = '';
       
       if (lyricsSlot) {
-        // Skip lyrics generation only if NOT a fresh generation and already have vocals
-        if (!freshGeneration && outputs.lyrics && (mediaUrls.vocals || mediaUrls.lyricsVocal)) {
+        // A recovered lyric checkpoint is authoritative even if the later
+        // vocal stage never started. Reusing it avoids paying for the same
+        // writing stage twice after a refresh.
+        if (!freshGeneration && outputs.lyrics) {
           lyricsResult = outputs.lyrics;
+          updatePipelineStep('lyrics', 'done');
           devLog('[Orchestrator] Skipping lyrics — already generated');
         } else {
           lyricsResult = await generateForSlot(lyricsSlot[0], lyricsSlot[1]);
@@ -3463,8 +3655,41 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       const videoSlot = otherSlots.find(([s]) => s === 'video');
       const parallelSlots = otherSlots.filter(([s]) => s !== 'video'); // audio + visual run together
 
+      // Rehydrate completed descriptions and restart only their missing media
+      // stages. Provider outputs saved in the durable checkpoint are reused.
+      if (resumeJob && outputs.audio) {
+        updatePipelineStep('beat-desc', 'done');
+        if (mediaUrlsRef.current.audio) {
+          updatePipelineStep('beat-audio', 'done');
+        } else {
+          updatePipelineStep('beat-audio', 'active');
+          pipelinePromises.beatAudio = handleGenerateAudio(outputs.audio)
+            .then((generated) => updatePipelineStep(
+              'beat-audio',
+              generated ? 'done' : 'error',
+              generated ? '' : (lastAudioErrorRef.current || 'Premium beat audio was not created.')
+            ))
+            .catch((error) => updatePipelineStep('beat-audio', 'error', error?.message || 'Premium beat audio was not created.'));
+        }
+      }
+      if (resumeJob && outputs.visual) {
+        updatePipelineStep('visual-desc', 'done');
+        if (mediaUrlsRef.current.image) {
+          updatePipelineStep('image', 'done');
+        } else {
+          updatePipelineStep('image', 'active');
+          pipelinePromises.image = handleGenerateImage(outputs.visual)
+            .then(() => updatePipelineStep('image', mediaUrlsRef.current.image ? 'done' : 'error'))
+            .catch((error) => updatePipelineStep('image', 'error', error?.message || 'Album artwork was not created.'));
+        }
+      }
+      if (resumeJob && outputs.video) {
+        pipelinePromises.videoDescription = outputs.video;
+      }
+
       // Filter out slots that already have content (incremental runs)
       const parallelToGenerate = parallelSlots.filter(([slot]) => {
+        if (resumeJob && outputs[slot]) return false;
         if (outputs[slot] && hasMedia(slot)) {
           devLog(`[Orchestrator] Skipping ${slot} — already generated`);
           return false;
@@ -3483,7 +3708,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       // Now generate video description WITH the visual description as context
       // so the video storyboard matches the album art aesthetic
-      if (videoSlot && !(outputs.video && hasMedia('video'))) {
+      if (videoSlot && !pipelinePromises.videoDescription && !(outputs.video && hasMedia('video'))) {
         const visualDesc = outputsRef.current.visual || outputs.visual || '';
         const videoContext = lyricsResult
           ? `${lyricsResult}\n\nVISUAL IDENTITY (album cover & video MUST match this look):\n${visualDesc.substring(0, 600)}`
@@ -3521,8 +3746,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         updatePipelineStep('vocals', 'active');
         await handleGenerateVocals(lyricsForVocals);
         // Mark done only if vocals were actually produced (handleGenerateVocals returns early on auth fail)
-        if (mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal) {
+        if ((mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal) && mediaDurabilityRef.current.vocals !== false) {
           updatePipelineStep('vocals', 'done');
+        } else if (mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal) {
+          updatePipelineStep('vocals', 'error', 'The vocal was created but could not be saved to cloud storage. Download it now, then retry cloud save.');
         } else {
           updatePipelineStep('vocals', 'error');
         }
@@ -3593,17 +3820,35 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       toast.dismiss('gen-all');
       const failedSteps = pipelineStepsRef.current.filter(step => step.status === 'error');
       if (failedSteps.length > 0) {
+        await checkpointCurrentProduction({
+          status: 'needs_attention',
+          currentStep: failedSteps[0].id,
+          steps: pipelineStepsRef.current,
+          lastError: failedSteps.map((step) => `${step.label}: ${step.errorMessage || 'failed'}`).join('; ')
+        });
         toast(
           `${failedSteps.length} asset${failedSteps.length === 1 ? '' : 's'} still need attention. Your completed work is safe; retry the failed step below.`,
           { id: 'orch-partial-complete', icon: '⚠️', duration: 8000 }
         );
       } else {
+        await checkpointCurrentProduction({
+          status: 'completed',
+          currentStep: pipelineStepsRef.current[pipelineStepsRef.current.length - 1]?.id,
+          steps: pipelineStepsRef.current,
+          lastError: ''
+        });
+        setRecoveredProductionJob(null);
         toast.success(completionMessage);
         Analytics.featureUsed(includeVocals ? 'full_song_pipeline' : 'song_draft_pipeline');
       }
       
     } catch (err) {
       console.error('Generation error:', err);
+      await checkpointCurrentProduction({
+        status: 'needs_attention',
+        steps: pipelineStepsRef.current,
+        lastError: err.message || 'The production pipeline stopped unexpectedly.'
+      });
       toast.error(
         <div>
           <strong>Generation failed</strong>
@@ -3878,6 +4123,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         const finalUrl = data.audioUrl || data.output;
         if (finalUrl) {
           lastAudioErrorRef.current = '';
+          mediaDurabilityRef.current.audio = data.isDurable !== false;
           setMediaUrls(prev => ({ ...prev, audio: finalUrl }));
           mediaUrlsRef.current = { ...mediaUrlsRef.current, audio: finalUrl }; // Sync ref for pipeline reads
           setGenerationProviders(prev => ({ ...prev, audio: data.source || data.provider || 'ai' }));
@@ -3940,7 +4186,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             }
           }
 
-          toast.success('AI beat generated!', { id: 'gen-audio' });
+          if (data.isDurable === false) {
+            lastAudioErrorRef.current = 'The beat was created but cloud storage failed. Download it now; it is not yet safe to close this page.';
+            toast.error(lastAudioErrorRef.current, { id: 'gen-audio', duration: 9000 });
+            return false;
+          }
+          toast.success(`Release-candidate beat generated via ${data.provider || 'premium audio'}`, { id: 'gen-audio' });
           return true;
         } else {
           console.error('[handleGenerateAudio] No URL in successful response:', data);
@@ -4162,6 +4413,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       const resolvedAudioUrl = data.audioUrl || data.output;
       if (response.ok && resolvedAudioUrl) {
+        mediaDurabilityRef.current.vocals = data.isDurable !== false;
         // Only mark as mixedAudio if backend explicitly confirms it mixed vocal+beat
         const vocalUpdate = {
           vocals: resolvedAudioUrl,
@@ -4243,7 +4495,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           'uberduck-tts': 'Uberduck TTS'
         };
         const engineName = engineLabels[data.provider] || data.provider || 'AI';
-        toast.success(`Vocals generated via ${engineName}`, { id: 'gen-vocals' });
+        if (data.isDurable === false) {
+          toast.error('Vocal created, but cloud storage failed. Download it before closing this page.', { id: 'gen-vocals', duration: 9000 });
+        } else {
+          toast.success(`${data.qualityTier === 'release-candidate' ? 'Release-candidate vocals' : 'Vocal draft'} generated via ${engineName}`, { id: 'gen-vocals' });
+        }
       } else {
         const errData = data || {};
         toast.error(errData.details || errData.error || 'Vocal generation failed', { id: 'gen-vocals' });
@@ -7007,6 +7263,64 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             </div>
           );
         })()}
+
+        {(isRecoveringProduction || recoveredProductionJob) && !isGenerating && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(124,58,237,0.16), rgba(14,165,233,0.10))',
+            borderRadius: '14px',
+            padding: isMobile ? '14px' : '16px 18px',
+            marginBottom: '16px',
+            border: '1px solid rgba(167,139,250,0.38)',
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: '14px',
+            alignItems: isMobile ? 'stretch' : 'center'
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ddd6fe', fontWeight: 700 }}>
+                <RefreshCw size={16} className={isRecoveringProduction ? 'spin' : ''} />
+                {isRecoveringProduction ? 'Checking your production desk…' : 'Production ready to resume'}
+              </div>
+              {recoveredProductionJob && (
+                <div style={{ marginTop: '5px', color: 'rgba(255,255,255,0.72)', fontSize: '0.8rem', lineHeight: 1.45 }}>
+                  “{recoveredProductionJob.prompt}” was safely checkpointed. Completed assets will be reused; only unfinished stages will run again.
+                </div>
+              )}
+            </div>
+            {recoveredProductionJob && (
+              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                <button
+                  onClick={resumeRecoveredProduction}
+                  style={{
+                    border: 0,
+                    borderRadius: '9px',
+                    padding: '9px 14px',
+                    background: '#8b5cf6',
+                    color: '#fff',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Resume production
+                </button>
+                <button
+                  onClick={() => setRecoveredProductionJob(null)}
+                  aria-label="Dismiss recovered production"
+                  style={{
+                    borderRadius: '9px',
+                    padding: '9px 11px',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    color: 'rgba(255,255,255,0.75)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Later
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Pipeline Progress Feed */}
         {pipelineSteps.length > 0 && (isGenerating || pipelineSteps.some(step => step.status === 'error')) && (

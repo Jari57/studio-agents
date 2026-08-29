@@ -10,6 +10,8 @@ const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
+const dns = require('dns').promises;
+const net = require('net');
 
 // Wire the bundled ffmpeg binary so it works on Railway/Heroku/etc.
 ffmpeg.setFfmpegPath(ffmpegStatic);
@@ -17,7 +19,42 @@ ffmpeg.setFfmpegPath(ffmpegStatic);
 /**
  * Download audio/video file from URL with redirect following and timeout
  */
-function downloadAudio(url, destPath, maxRedirects = 3) {
+const MAX_AUDIO_DOWNLOAD_BYTES = 150 * 1024 * 1024;
+
+function isPrivateAddress(address) {
+  if (net.isIPv4(address)) {
+    const parts = address.split('.').map(Number);
+    return parts[0] === 10
+      || parts[0] === 127
+      || parts[0] === 0
+      || (parts[0] === 169 && parts[1] === 254)
+      || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31)
+      || (parts[0] === 192 && parts[1] === 168);
+  }
+  const normalized = address.toLowerCase();
+  return normalized === '::1' || normalized === '::' || normalized.startsWith('fc')
+    || normalized.startsWith('fd') || normalized.startsWith('fe80:');
+}
+
+async function assertSafeRemoteAudioUrl(value) {
+  const parsed = new URL(value);
+  if (parsed.protocol !== 'https:') throw new Error('Remote audio sources must use HTTPS');
+  if (parsed.username || parsed.password) throw new Error('Credentialed audio URLs are not accepted');
+  const hostname = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (hostname === 'localhost' || hostname.endsWith('.local')) throw new Error('Local audio URLs are not accepted');
+  if (net.isIP(hostname)) {
+    if (isPrivateAddress(hostname)) throw new Error('Private-network audio URLs are not accepted');
+    return;
+  }
+  const addresses = await dns.lookup(hostname, { all: true });
+  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
+    throw new Error('Audio URL resolved to an unsafe network address');
+  }
+}
+
+async function downloadAudio(url, destPath, maxRedirects = 3) {
+  if (typeof url !== 'string') throw new Error('Audio URL must be a string');
+  if (!url.startsWith('data:')) await assertSafeRemoteAudioUrl(url);
   return new Promise((resolve, reject) => {
     // Handle base64 data URLs (vocals/beats returned as data: URIs from AI providers)
     if (url.startsWith('data:')) {
@@ -46,7 +83,10 @@ function downloadAudio(url, destPath, maxRedirects = 3) {
           const redirectUrl = response.headers.location.startsWith('http')
             ? response.headers.location
             : new URL(response.headers.location, requestUrl).href;
-          return doRequest(redirectUrl, redirectsLeft - 1);
+          assertSafeRemoteAudioUrl(redirectUrl)
+            .then(() => doRequest(redirectUrl, redirectsLeft - 1))
+            .catch(reject);
+          return;
         }
 
         if (response.statusCode !== 200) {
@@ -55,6 +95,21 @@ function downloadAudio(url, destPath, maxRedirects = 3) {
           reject(new Error(`Download failed: HTTP ${response.statusCode} for ${requestUrl.substring(0, 80)}`));
           return;
         }
+        const declaredSize = Number(response.headers['content-length'] || 0);
+        if (declaredSize > MAX_AUDIO_DOWNLOAD_BYTES) {
+          response.destroy();
+          file.close();
+          fs.unlink(destPath, () => {});
+          reject(new Error('Audio source is larger than the 150MB session limit'));
+          return;
+        }
+        let received = 0;
+        response.on('data', (chunk) => {
+          received += chunk.length;
+          if (received > MAX_AUDIO_DOWNLOAD_BYTES) {
+            response.destroy(new Error('Audio source exceeded the 150MB session limit'));
+          }
+        });
         response.pipe(file);
         file.on('finish', () => {
           file.close();
@@ -127,7 +182,7 @@ async function mixAudioProfessional(options, logger) {
       });
 
       // Build complex filter graph for professional mixing
-      let filterComplex = [];
+      const filterComplex = [];
 
       // === TRACK PROCESSING ===
 
@@ -332,6 +387,156 @@ async function mixAudioFromUrls(vocalUrl, beatUrl, options, logger) {
   }
 }
 
+const PRODUCER_TRACK_ROLES = new Set(['beat', 'instrument', 'vocal', 'harmony', 'adlib', 'fx']);
+
+function clampNumber(value, min, max, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
+/**
+ * Normalize producer-canvas tracks at the backend trust boundary. The client
+ * can request creative settings, but it cannot inject arbitrary FFmpeg syntax.
+ */
+function normalizeProducerTracks(tracks) {
+  if (!Array.isArray(tracks)) return [];
+  return tracks
+    .filter((track) => track && typeof track.url === 'string' && track.url.length > 0 && !track.muted)
+    .slice(0, 12)
+    .map((track, index) => ({
+      id: String(track.id || `track-${index + 1}`).slice(0, 120),
+      name: String(track.name || `Track ${index + 1}`).slice(0, 160),
+      url: track.url,
+      role: PRODUCER_TRACK_ROLES.has(track.role) ? track.role : 'instrument',
+      volume: clampNumber(track.volume, 0, 1.5, 0.8),
+      pan: clampNumber(track.pan, -1, 1, 0),
+      offset: clampNumber(track.offset, 0, 120, 0),
+      trimStart: clampNumber(track.trimStart, 0, 3600, 0),
+      trimEnd: track.trimEnd == null || track.trimEnd === ''
+        ? null
+        : clampNumber(track.trimEnd, 0.05, 3600, null),
+      fadeIn: clampNumber(track.fadeIn, 0, 30, 0),
+      fadeOut: clampNumber(track.fadeOut, 0, 30, 0),
+      solo: Boolean(track.solo),
+    }));
+}
+
+/**
+ * Builds a deterministic, escaped-by-construction FFmpeg graph. Exported for
+ * tests because this is the heart of the producer mix and must stay auditable.
+ */
+function buildMultiStemFilterGraph(rawTracks, options = {}) {
+  let tracks = normalizeProducerTracks(rawTracks);
+  const soloTracks = tracks.filter((track) => track.solo);
+  if (soloTracks.length > 0) tracks = soloTracks;
+  if (tracks.length === 0) throw new Error('At least one audible track is required');
+
+  const filters = [];
+  const vocalLabels = [];
+  const musicLabels = [];
+
+  tracks.forEach((track, index) => {
+    const label = `track_${index}`;
+    const chain = [
+      `atrim=start=${track.trimStart}${track.trimEnd ? `:end=${Math.max(track.trimEnd, track.trimStart + 0.05)}` : ''}`,
+      'asetpts=PTS-STARTPTS',
+      'aresample=44100',
+      'aformat=sample_fmts=fltp:channel_layouts=stereo',
+      `volume=${track.volume}`,
+    ];
+    if (track.pan !== 0) chain.push(`stereotools=balance_out=${track.pan}`);
+    if (track.fadeIn > 0) chain.push(`afade=t=in:st=0:d=${track.fadeIn}`);
+    if (track.fadeOut > 0 && track.trimEnd) {
+      const visibleDuration = Math.max(0.05, track.trimEnd - track.trimStart);
+      chain.push(`afade=t=out:st=${Math.max(0, visibleDuration - track.fadeOut)}:d=${Math.min(track.fadeOut, visibleDuration)}`);
+    }
+    if (track.offset > 0) chain.push(`adelay=${Math.round(track.offset * 1000)}:all=1`);
+    filters.push(`[${index}:a]${chain.join(',')}[${label}]`);
+    (['vocal', 'harmony', 'adlib'].includes(track.role) ? vocalLabels : musicLabels).push(`[${label}]`);
+  });
+
+  const mixBus = (labels, name) => {
+    if (labels.length === 1) {
+      filters.push(`${labels[0]}anull[${name}]`);
+    } else if (labels.length > 1) {
+      filters.push(`${labels.join('')}amix=inputs=${labels.length}:duration=longest:dropout_transition=2:normalize=0[${name}]`);
+    }
+  };
+
+  mixBus(musicLabels, 'music_bus');
+  mixBus(vocalLabels, 'vocal_bus');
+
+  if (musicLabels.length && vocalLabels.length) {
+    if (options.autoDuck !== false) {
+      filters.push('[vocal_bus]asplit=2[vocal_sidechain][vocal_mix]');
+      filters.push('[music_bus][vocal_sidechain]sidechaincompress=threshold=0.08:ratio=2.5:attack=10:release=220[ducked_music]');
+      filters.push('[ducked_music][vocal_mix]amix=inputs=2:duration=longest:dropout_transition=2:normalize=0[session_mix]');
+    } else {
+      filters.push('[music_bus][vocal_bus]amix=inputs=2:duration=longest:dropout_transition=2:normalize=0[session_mix]');
+    }
+  } else {
+    filters.push(`${musicLabels.length ? '[music_bus]' : '[vocal_bus]'}anull[session_mix]`);
+  }
+
+  const targetLufs = clampNumber(options.lufsTarget, -24, -10, -14);
+  filters.push(`[session_mix]acompressor=threshold=-16dB:ratio=2:attack=15:release=150:makeup=1dB,alimiter=limit=0.94:attack=5:release=80,loudnorm=I=${targetLufs}:TP=-1.5:LRA=9[producer_master]`);
+
+  return { tracks, filterComplex: filters.join(';'), outputLabel: 'producer_master' };
+}
+
+async function mixMultipleStems(rawTracks, options = {}, logger) {
+  const { tracks, filterComplex, outputLabel } = buildMultiStemFilterGraph(rawTracks, options);
+  const tempDir = path.join(__dirname, '../../backend', 'temp');
+  if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+  const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const inputPaths = tracks.map((_, index) => path.join(tempDir, `producer_${stamp}_${index}.audio`));
+  const outputPath = options.outputPath || path.join(tempDir, `producer_master_${stamp}.mp3`);
+
+  try {
+    await Promise.all(tracks.map((track, index) => downloadAudio(track.url, inputPaths[index])));
+    await new Promise((resolve, reject) => {
+      let command = ffmpeg();
+      inputPaths.forEach((inputPath) => { command = command.input(inputPath); });
+      command
+        .complexFilter(filterComplex, outputLabel)
+        .audioCodec('libmp3lame')
+        .audioBitrate('320k')
+        .audioChannels(2)
+        .audioFrequency(44100)
+        .output(outputPath)
+        .on('start', () => logger?.info('Producer canvas render started', { trackCount: tracks.length }))
+        .on('end', resolve)
+        .on('error', (error, _stdout, stderr) => {
+          logger?.error('Producer canvas FFmpeg render failed', {
+            error: error.message,
+            stderr: String(stderr || '').slice(-4000),
+          });
+          reject(error);
+        })
+        .run();
+    });
+    return {
+      success: true,
+      outputPath,
+      quality: 'producer-preview-master',
+      processing: {
+        trackCount: tracks.length,
+        autoDuck: options.autoDuck !== false,
+        lufsTarget: clampNumber(options.lufsTarget, -24, -10, -14),
+      },
+      tracks,
+    };
+  } catch (error) {
+    try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch { /* best-effort temp cleanup */ }
+    throw error;
+  } finally {
+    inputPaths.forEach((inputPath) => {
+      try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch { /* best-effort temp cleanup */ }
+    });
+  }
+}
+
 /**
  * Quick mix preset for common use cases
  */
@@ -479,8 +684,8 @@ function detectBpmFromFile(audioPath, logger) {
 
             if (logger) logger.info('BPM detected from audio', { bpm: finalBpm, peaks: peaks.length, confidence: peaks.length > 10 ? 'high' : 'low' });
             resolve(finalBpm);
-          } catch (parseErr) {
-            try { fs.unlinkSync(analysisPath); } catch {}
+          } catch (_parseErr) {
+            try { fs.unlinkSync(analysisPath); } catch { /* best-effort temp cleanup */ }
             resolve(null);
           }
         });
@@ -504,7 +709,7 @@ function detectBpmFromFile(audioPath, logger) {
  * @returns {Promise<string>} Path to time-stretched audio
  */
 function tempoStretchVocal(vocalPath, vocalBpm, targetBpm, outputPath, logger) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     if (!vocalBpm || !targetBpm || vocalBpm === targetBpm) {
       resolve(vocalPath); // No stretch needed
       return;
@@ -602,7 +807,7 @@ function detectDownbeatOffset(beatPath, bpm, logger) {
           resolve(beatInterval * 4); // 1 bar
         }
 
-        try { if (fs.existsSync(analysisPath)) fs.unlinkSync(analysisPath); } catch {}
+        try { if (fs.existsSync(analysisPath)) fs.unlinkSync(analysisPath); } catch { /* best-effort temp cleanup */ }
       });
     } catch (err) {
       if (logger) logger.warn('Downbeat detection failed', { error: err.message });
@@ -621,7 +826,7 @@ function detectDownbeatOffset(beatPath, bpm, logger) {
  * @returns {Promise<string>} Path to padded audio
  */
 function padVocalStart(vocalPath, paddingSeconds, outputPath, logger) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     if (!paddingSeconds || paddingSeconds <= 0 || paddingSeconds > 10) {
       resolve(vocalPath);
       return;
@@ -659,7 +864,7 @@ function padVocalStart(vocalPath, paddingSeconds, outputPath, logger) {
  * @returns {Promise<string>} Path to processed audio
  */
 function applyAutoTuneEffect(vocalPath, genre, outputPath, logger) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     // Determine auto-tune intensity based on genre
     const genreLower = (genre || '').toLowerCase();
 
@@ -736,6 +941,9 @@ function applyAutoTuneEffect(vocalPath, genre, outputPath, logger) {
 module.exports = {
   mixAudioProfessional,
   mixAudioFromUrls,
+  mixMultipleStems,
+  normalizeProducerTracks,
+  buildMultiStemFilterGraph,
   getMixPreset,
   downloadAudio,
   detectBpmFromFile,

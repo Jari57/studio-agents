@@ -39,6 +39,7 @@ import { purchaseProduct, restorePurchases } from '../utils/storeKit';
 // Dev-only logger — no-ops in production builds (tree-shaken by Vite/terser)
 const __DEV__ = import.meta.env.DEV;
 const WEB_CHECKOUT_ENABLED = import.meta.env.VITE_STRIPE_CHECKOUT_ENABLED === 'true';
+const LEGACY_SESSION_MIXER = false;
 const devLog = __DEV__ ? (...args) => console.log(...args) : () => {};
 const devWarn = __DEV__ ? (...args) => console.warn(...args) : () => {};
 
@@ -64,6 +65,7 @@ const generateId = () => typeof crypto?.randomUUID === 'function'
 // Lazy-loaded sub-components extracted from StudioView
 const CanvasView = React.lazy(() => import('./studio/CanvasView'));
 const DashboardView = React.lazy(() => import('./studio/DashboardView'));
+const ProducerCanvas = React.lazy(() => import('./studio/ProducerCanvas'));
 
 // Lazy load heavy sub-components (standardizing to React.lazy to prevent 'lazy is not defined' error)
 const StudioOrchestrator = React.lazy(() => import('./StudioOrchestratorV2'));
@@ -566,6 +568,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [showStudioSession, setShowStudioSession] = useState(false);
   const [sessionTracks, setSessionTracks] = useState({ 
     audio: null, vocal: null, visual: null,
+    tracks: [], lyricsDraft: '', autoDuck: true, lufsTarget: -14,
     audioVolume: 0.8, vocalVolume: 1.0,
     audioLoop: true, vocalLoop: true,
     audioMuted: false, vocalMuted: false,
@@ -1550,7 +1553,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     const assets = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
 
     setSessionTracks(prev => {
-      const updates = { ...prev };
+      const savedSession = selectedProject?.sessionState;
+      if (savedSession?.tracks?.length && prev.projectId !== selectedProject?.id) {
+        return { ...prev, ...savedSession, projectId: selectedProject.id };
+      }
+
+      const updates = { ...prev, projectId: selectedProject?.id };
       // Auto-load backing track as the audio track (refresh on project change)
       if (backingTrack && (!prev.audio || prev.audio.audioUrl !== backingTrack.audioUrl)) {
         updates.audio = { title: backingTrack.title, audioUrl: backingTrack.audioUrl, bpm: backingTrack.bpm };
@@ -1570,9 +1578,38 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         const visual = assets.find(a => a.videoUrl || a.imageUrl);
         if (visual) updates.visual = visual;
       }
+      if (!Array.isArray(prev.tracks) || prev.tracks.length === 0 || prev.projectId !== selectedProject?.id) {
+        const initialAssets = [];
+        const addUnique = (asset, role) => {
+          if (!asset?.audioUrl || initialAssets.some((item) => item.url === asset.audioUrl)) return;
+          initialAssets.push({
+            id: `lane-${asset.id || generateId()}`,
+            assetId: asset.id || null,
+            name: asset.title || asset.agent || (role === 'vocal' ? 'Vocal layer' : 'Beat layer'),
+            url: asset.audioUrl,
+            role,
+            source: 'studio',
+            volume: role === 'vocal' ? 0.9 : 0.72,
+            pan: 0,
+            offset: 0,
+            trimStart: 0,
+            trimEnd: null,
+            fadeIn: 0,
+            fadeOut: 0,
+            muted: false,
+            solo: false,
+          });
+        };
+        addUnique(backingTrack, 'beat');
+        assets.filter((asset) => asset?.audioUrl).slice(0, 4).forEach((asset) => {
+          const descriptor = `${asset.type || ''} ${asset.agent || ''} ${asset.title || ''}`.toLowerCase();
+          addUnique(asset, descriptor.includes('vocal') || descriptor.includes('singer') || descriptor.includes('rapper') ? 'vocal' : descriptor.includes('beat') ? 'beat' : 'instrument');
+        });
+        updates.tracks = initialAssets;
+      }
       return updates;
     });
-  }, [showStudioSession, selectedProject?.id]);
+  }, [showStudioSession, selectedProject?.id, backingTrack]);
   
   // Persist helpSearch
   useEffect(() => {
@@ -1699,6 +1736,227 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
   // Badge/Achievement tracking
   const badgeTracker = useBadgeTracker(user?.uid);
+
+  const persistProducerProject = async (project, successMessage = '') => {
+    if (!project?.id) return false;
+    setSelectedProject(project);
+    setProjects(prev => Array.isArray(prev) ? prev.map(item => item.id === project.id ? project : item) : [project]);
+    try {
+      if (user?.uid) {
+        const saved = await saveProjectToCloud(user.uid, project, { silent: true });
+        if (!saved) throw new Error('Cloud save did not complete');
+      } else {
+        localStorage.setItem('studio_projects', JSON.stringify(
+          (Array.isArray(projects) ? projects : []).map(item => item.id === project.id ? project : item),
+        ));
+      }
+      if (successMessage) toast.success(successMessage);
+      return true;
+    } catch (error) {
+      devWarn('[ProducerCanvas] Project persistence failed', error);
+      toast.error('The session is still open, but cloud save failed. Try Save again.');
+      return false;
+    }
+  };
+
+  const addProducerAsset = (asset, role = 'instrument') => {
+    if (!asset?.audioUrl) {
+      toast.error('This asset does not contain playable audio.');
+      return;
+    }
+    setSessionTracks(prev => {
+      const currentTracks = Array.isArray(prev.tracks) ? prev.tracks : [];
+      if (currentTracks.some(track => track.url === asset.audioUrl)) {
+        toast('That audio is already in the session.');
+        return prev;
+      }
+      return {
+        ...prev,
+        tracks: [...currentTracks, {
+          id: `lane-${generateId()}`,
+          assetId: asset.id || null,
+          name: asset.title || asset.agent || 'Studio audio',
+          url: asset.audioUrl,
+          role,
+          source: 'studio',
+          volume: ['vocal', 'harmony', 'adlib'].includes(role) ? 0.9 : 0.72,
+          pan: 0,
+          offset: 0,
+          trimStart: 0,
+          trimEnd: null,
+          fadeIn: 0,
+          fadeOut: 0,
+          muted: false,
+          solo: false,
+        }],
+      };
+    });
+  };
+
+  const uploadProducerAudio = async (file, role = 'instrument') => {
+    if (!user?.uid) {
+      toast.error('Sign in to upload and protect your studio files.');
+      return;
+    }
+    if (!file?.type?.startsWith('audio/') && !/\.(wav|mp3|m4a|aac|flac|ogg)$/i.test(file?.name || '')) {
+      toast.error(`${file?.name || 'That file'} is not a supported audio format.`);
+      return;
+    }
+    setIsUploadingSample(true);
+    const uploadToast = toast.loading(`Uploading ${file.name}…`);
+    try {
+      const uploaded = await uploadFile(file, user.uid, `producer/${selectedProject?.id || 'session'}`);
+      const asset = {
+        id: `upload-${generateId()}`,
+        title: file.name.replace(/\.[^.]+$/, ''),
+        type: role === 'vocal' || role === 'harmony' || role === 'adlib' ? 'vocal' : 'audio',
+        agent: 'Producer Upload',
+        date: 'Just now',
+        audioUrl: uploaded.url,
+        storagePath: uploaded.path,
+        source: 'user-upload',
+        metadata: { originalName: file.name, contentType: file.type, size: file.size, role },
+      };
+      addProducerAsset(asset, role);
+      setSelectedProject(prev => {
+        if (!prev) return prev;
+        const updated = { ...prev, assets: [asset, ...(prev.assets || [])], updatedAt: new Date().toISOString() };
+        setProjects(list => Array.isArray(list) ? list.map(item => item.id === updated.id ? updated : item) : [updated]);
+        saveProjectToCloud(user.uid, updated, { silent: true }).catch(error => devWarn('[ProducerCanvas] Uploaded asset cloud record failed', error));
+        return updated;
+      });
+      toast.success(`${file.name} added to the session`, { id: uploadToast });
+    } catch (error) {
+      devWarn('[ProducerCanvas] Audio upload failed', error);
+      toast.error(error.message || 'Audio upload failed.', { id: uploadToast });
+    } finally {
+      setIsUploadingSample(false);
+    }
+  };
+
+  const uploadProducerLyrics = async (file) => {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Lyrics files must be smaller than 2MB.');
+      return;
+    }
+    try {
+      const content = await file.text();
+      if (!content.trim()) throw new Error('The lyrics file is empty.');
+      setSessionTracks(prev => ({ ...prev, lyricsDraft: content }));
+      const asset = {
+        id: `lyrics-${generateId()}`,
+        title: file.name.replace(/\.[^.]+$/, ''),
+        type: 'lyrics',
+        agent: 'Producer Upload',
+        content,
+        date: 'Just now',
+        source: 'user-upload',
+      };
+      setSelectedProject(prev => {
+        if (!prev) return prev;
+        const updated = { ...prev, assets: [asset, ...(prev.assets || [])], updatedAt: new Date().toISOString() };
+        setProjects(list => Array.isArray(list) ? list.map(item => item.id === updated.id ? updated : item) : [updated]);
+        if (user?.uid) saveProjectToCloud(user.uid, updated, { silent: true }).catch(error => devWarn('[ProducerCanvas] Lyrics cloud save failed', error));
+        return updated;
+      });
+      toast.success('Lyrics imported into the session.');
+    } catch (error) {
+      toast.error(error.message || 'Lyrics could not be imported.');
+    }
+  };
+
+  const saveProducerSession = async () => {
+    if (!selectedProject) return;
+    const updated = {
+      ...selectedProject,
+      sessionState: sessionTracks,
+      updatedAt: new Date().toISOString(),
+      lastModified: Date.now(),
+    };
+    await persistProducerProject(updated, 'Producer session saved');
+  };
+
+  const renderProducerSession = async () => {
+    if (!user?.uid || !auth?.currentUser) {
+      toast.error('Sign in before rendering so the master can be saved securely.');
+      return;
+    }
+    const tracks = (sessionTracks.tracks || []).filter(track => track?.url && !track.muted);
+    if (!tracks.length) {
+      toast.error('Add at least one audible track before rendering.');
+      return;
+    }
+    setIsGenerating(true);
+    const renderToast = toast.loading('Building your producer preview master…');
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const response = await fetch(`${BACKEND_URL}/api/create-session-mix`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: selectedProject?.name || selectedProject?.title,
+          artist: user?.displayName || user?.email || 'Studio Artist',
+          tracks,
+          autoDuck: sessionTracks.autoDuck !== false,
+          lufsTarget: sessionTracks.lufsTarget ?? -14,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.mixedAudioUrl) throw new Error(result.error || 'The mix render did not return audio.');
+
+      const renderNumber = (sessionTracks.renderCount || 0) + 1;
+      const renderedAt = new Date().toISOString();
+      const masterAsset = {
+        id: `master-${generateId()}`,
+        title: `${selectedProject?.name || selectedProject?.title || 'Studio'} · Mix ${renderNumber}`,
+        type: 'Master',
+        agent: 'Producer Canvas',
+        date: 'Just now',
+        audioUrl: result.mixedAudioUrl,
+        storagePath: result.storagePath,
+        snippet: `${tracks.length}-lane producer preview master`,
+        content: sessionTracks.lyricsDraft || '',
+        stems: tracks.map(track => ({ id: track.id, name: track.name, role: track.role, audioUrl: track.url })),
+        metadata: {
+          renderedAt,
+          renderPass: renderNumber,
+          bpm: sessionTracks.bpm || 120,
+          key: sessionTracks.key || 'C Major',
+          autoDuck: sessionTracks.autoDuck !== false,
+          lufsTarget: sessionTracks.lufsTarget ?? -14,
+          quality: result.quality,
+          provider: result.provider,
+          processing: result.processing,
+        },
+      };
+      const nextSession = {
+        ...sessionTracks,
+        renderCount: renderNumber,
+        lastRenderTime: renderedAt,
+        renderHistory: [...(sessionTracks.renderHistory || []), { pass: renderNumber, timestamp: Date.now(), assetId: masterAsset.id }],
+      };
+      setSessionTracks(nextSession);
+      setSessionHistory(history => [...history, nextSession]);
+      setHistoryIndex(index => index + 1);
+      const updated = {
+        ...selectedProject,
+        sessionState: nextSession,
+        assets: [masterAsset, ...(selectedProject.assets || [])],
+        updatedAt: renderedAt,
+      };
+      const saved = await persistProducerProject(updated);
+      if (!saved) throw new Error('The master was rendered but its project record did not save.');
+      badgeTracker.trackMix();
+      setPreviewItem(masterAsset);
+      toast.success('Producer preview master rendered and saved.', { id: renderToast });
+    } catch (error) {
+      devWarn('[ProducerCanvas] Render failed', error);
+      toast.error(error.message || 'Producer render failed.', { id: renderToast });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
   const [showResourceContent, setShowResourceContent] = useState(null); // For Legal & Business docs
@@ -9222,6 +9480,7 @@ ABSOLUTE RULES (violating any = failure):
                         setDashboardTab('overview');
                       } else {
                         if (item.id === 'activity') setActivitySection('connections');
+                        if (item.id === 'mystudio') setDashboardTab('overview');
                         setActiveTab(item.id);
                       }
                     }}
@@ -11218,7 +11477,7 @@ ABSOLUTE RULES (violating any = failure):
             aria-label="My Studio"
             title="My Studio"
             className={`nav-link ${activeTab === 'mystudio' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('mystudio'); setSelectedAgent(null); }}
+            onClick={() => { setActiveTab('mystudio'); setDashboardTab('overview'); setSelectedAgent(null); }}
           >
             <Layers size={20} />
             <span>My Studio</span>
@@ -11320,7 +11579,13 @@ ABSOLUTE RULES (violating any = failure):
         <header className="studio-header studio-command-bar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <h2 className="studio-title">
-              {selectedAgent ? selectedAgent.name : (activeTab === 'mystudio' ? 'Dashboard' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1))}
+              {selectedAgent
+                ? selectedAgent.name
+                : activeTab === 'mystudio'
+                  ? 'Dashboard'
+                  : activeTab === 'project_canvas'
+                    ? 'Project Studio'
+                    : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
             </h2>
             {/* Save Status Indicator */}
             {saveStatus !== 'idle' && (
@@ -11716,8 +11981,29 @@ ABSOLUTE RULES (violating any = failure):
           </div>
         )}
 
-        {/* Studio Session Overlay — DAW-Inspired Musician-First Design */}
+        {/* Producer Canvas — multi-lane musician-first production workspace */}
         {showStudioSession && (
+          <Suspense fallback={<div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: '#0b0d12', display: 'grid', placeItems: 'center' }}><StudioInlineState label="Opening Producer Canvas" detail="Restoring your session and studio assets" /></div>}>
+            <ProducerCanvas
+              project={selectedProject}
+              session={sessionTracks}
+              playing={sessionPlaying}
+              rendering={isGenerating}
+              uploading={isUploadingSample}
+              onSessionChange={updateSessionWithHistory}
+              onPlayingChange={setSessionPlaying}
+              onAddAsset={addProducerAsset}
+              onUploadAudio={uploadProducerAudio}
+              onUploadLyrics={uploadProducerLyrics}
+              onSave={saveProducerSession}
+              onRender={renderProducerSession}
+              onClose={() => { setShowStudioSession(false); setSessionPlaying(false); }}
+            />
+          </Suspense>
+        )}
+
+        {/* Retained for one release as a rollback path while saved sessions migrate. */}
+        {showStudioSession && LEGACY_SESSION_MIXER && (
           <div className="studio-session-overlay animate-fadeIn" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(180deg, #0a0a0f, #111118)', zIndex: 10000, display: 'flex', flexDirection: 'column' }}>
             
             {/* ── TOP BAR: Transport + Title ── */}
@@ -14547,7 +14833,7 @@ ABSOLUTE RULES (violating any = failure):
           <div 
             data-tour="nav-studio"
             className={`bottom-nav-item ${activeTab === 'mystudio' ? 'active' : ''}`} 
-            onClick={() => { setActiveTab('mystudio'); setSelectedAgent(null); }}
+            onClick={() => { setActiveTab('mystudio'); setDashboardTab('overview'); setSelectedAgent(null); }}
             role="button"
             tabIndex={0}
             aria-label="My studio"
