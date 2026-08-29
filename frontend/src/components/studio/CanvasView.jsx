@@ -294,18 +294,25 @@ export default function CanvasView({
           body: JSON.stringify({
             prompt: data.output,
             duration: asset.settings?.duration || 90,
-            bpm: asset.settings?.bpm || asset.bpm || 120
+            bpm: asset.settings?.bpm || asset.bpm || 120,
+            quality: 'premium',
+            outputFormat: 'music'
           })
         });
-        if (!audioResponse.ok) throw new Error(`Audio generation failed (${audioResponse.status})`);
+        if (!audioResponse.ok) {
+          const errorPayload = await audioResponse.json().catch(() => ({}));
+          throw new Error(errorPayload.details || errorPayload.error || `Audio generation failed (${audioResponse.status})`);
+        }
         const audioData = await audioResponse.json();
         toast.dismiss('regen-audio');
+        const generatedAudioUrl = audioData.audioUrl || audioData.url;
+        if (!generatedAudioUrl) throw new Error('The premium provider completed without returning playable audio. Your credits were refunded.');
 
         const versionCount = (selectedProject.assets || []).filter(a => (a.type || '').toLowerCase() === 'audio').length;
         const newAsset = {
           ...asset,
           id: `audio-${Date.now()}`,
-          audioUrl: audioData.audioUrl || audioData.url,
+          audioUrl: generatedAudioUrl,
           content: data.output,
           title: `${asset.title?.replace(/ \(Take \d+\)/, '') || 'Beat'} (Take ${versionCount + 1})`,
           version: versionCount + 1,

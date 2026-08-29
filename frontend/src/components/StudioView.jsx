@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, Database as DatabaseIcon, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio as FileMusic, Activity, Film, FileText, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers, Link2
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderOpen, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, Database as DatabaseIcon, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio as FileMusic, Activity, Film, FileText, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers, Link2
 } from 'lucide-react';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import DOMPurify from 'dompurify';
@@ -6395,7 +6395,19 @@ ABSOLUTE RULES (violating any = failure):
     if (activeTab === 'project_canvas' && !selectedAgent) {
       if (!selectedProject) {
         return (
-          <StudioInlineState label="Opening your project" detail="Preparing the canvas and saved assets." />
+          <div className="studio-inline-state" role="status" aria-live="polite">
+            <FolderOpen size={24} aria-hidden="true" />
+            <strong>Choose a project to open the producer canvas</strong>
+            <span>A direct canvas link does not identify which private project you want to edit.</span>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button type="button" className="action-button primary" onClick={() => setActiveTab('hub')}>
+                Open Project Hub
+              </button>
+              <button type="button" className="action-button" onClick={() => setShowProjectTypeChoice(true)}>
+                Start New Project
+              </button>
+            </div>
+          </div>
         );
       }
       return (

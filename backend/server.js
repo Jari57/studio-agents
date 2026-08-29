@@ -7535,7 +7535,10 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
         }
       } catch (err) {
         providerErrors.push({ provider: 'minimax-music-2.6', error: err.message });
-        logger.error('MiniMax Music 2.6 failed; continuing to MusicGen fallback', { error: err.message });
+        logger.error('MiniMax Music 2.6 failed', {
+          error: err.message,
+          fallbackAllowed: !strictPremiumBeat && durationSeconds <= 65
+        });
       }
     }
 

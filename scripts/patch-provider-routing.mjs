@@ -101,9 +101,11 @@ const boundedReplicateHelper = `async function runReplicateWithRateLimitRetry(_r
   const token = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
   if (!token) throw new Error('Replicate provider is not configured');
 
+  const configuredTimeoutMs = Number(process.env.REPLICATE_GENERATION_TIMEOUT_MS);
+  const defaultTimeoutMs = /MiniMax beat generation/i.test(operationName) ? 150000 : 90000;
   const timeoutMs = Math.max(
     30000,
-    Math.min(Number(process.env.REPLICATE_GENERATION_TIMEOUT_MS) || 90000, 150000)
+    Math.min(configuredTimeoutMs || defaultTimeoutMs, 150000)
   );
   const maxCreateAttempts = 2;
   let lastError = null;
