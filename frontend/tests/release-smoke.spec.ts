@@ -268,4 +268,15 @@ test.describe('release smoke checks', () => {
     expect(studioSource).not.toContain('`${BACKEND_URL}/api/user/delete-account`');
     expect(studioSource).toContain('mailto:support@studioagentsai.com?subject=Support Request');
   });
+
+  test('public App Store support resources are present and consistently branded', async () => {
+    const landingSource = readFileSync(resolve(process.cwd(), 'src/components/LandingPage.jsx'), 'utf8');
+    const supportSource = readFileSync(resolve(process.cwd(), 'public/support.html'), 'utf8');
+
+    expect(landingSource).toContain('href="/support.html"');
+    expect(supportSource).toContain('support@studioagentsai.com');
+    expect(supportSource).toContain('href="/privacy.html"');
+    expect(supportSource).toContain('href="/terms.html"');
+    expect(supportSource).toContain('href="/account-deletion.html"');
+  });
 });
