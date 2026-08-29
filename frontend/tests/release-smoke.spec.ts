@@ -237,6 +237,9 @@ test.describe('release smoke checks', () => {
     expect(dashboardSource).toContain('shouldUseNativeIAP() ?');
     expect(dashboardSource).not.toContain("typeof window !== 'undefined' && window.Capacitor ?");
     expect(studioSource).toContain("'Authorization': `Bearer ${token}`");
+    expect(studioSource).toContain('auth.currentUser.getIdToken();');
+    expect(studioSource).toContain('if (response.status === 401 && auth?.currentUser)');
+    expect(studioSource).toContain('auth.currentUser.getIdToken(true);');
     expect(studioSource).toContain('agentPromptDrafts[targetAgentSnapshot.id]');
     expect(studioSource).not.toContain("querySelectorAll('.studio-textarea')");
     expect(dashboardSource).toContain("const creditDisplay = isAdmin ? 'Unlimited' : userCredits;");

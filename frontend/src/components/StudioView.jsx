@@ -1115,13 +1115,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       const cloudProject = pruneLargeProjectData([sanitizedProject])[0];
       devLog(`[TRACE:${traceId}] Sanitized project assets:`, cloudProject.assets?.length, cloudProject.assets?.map(a => a.id));
       
-      // Get auth token for backend API
+      // Use the cached Firebase token for ordinary saves. Forcing a refresh on
+      // every producer action can race Firebase session renewal and incorrectly
+      // reject an otherwise valid signed-in user. Refresh only after a real 401.
       let authToken = null;
       if (auth?.currentUser) {
         try {
-          authToken = await auth.currentUser.getIdToken(true);
+          authToken = await auth.currentUser.getIdToken();
         } catch (tokenErr) {
-          devWarn(`[TRACE:${traceId}] Failed to get fresh auth token:`, tokenErr.message);
+          devWarn(`[TRACE:${traceId}] Failed to get auth token:`, tokenErr.message);
         }
       }
       
@@ -1138,13 +1140,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       
       // Use backend API to save (uses Admin SDK, bypasses security rules)
       // Always use PUT with conflict detection - it creates or updates via merge
-      const response = await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(String(project.id))}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
-        },
-        body: JSON.stringify({
+      const projectUrl = `${BACKEND_URL}/api/projects/${encodeURIComponent(String(project.id))}`;
+      const projectBody = JSON.stringify({
           project: {
             ...cloudProject,
             id: String(project.id),
@@ -1152,8 +1149,26 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
             syncedAt: new Date().toISOString()
           },
           lastUpdatedAt: project.syncedAt || project.updatedAt || null
-        })
+        });
+      const putProject = (token, body = projectBody) => fetch(projectUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body
       });
+
+      let response = await putProject(authToken);
+      if (response.status === 401 && auth?.currentUser) {
+        devWarn(`[TRACE:${traceId}] Save token rejected; refreshing once and retrying`);
+        try {
+          authToken = await auth.currentUser.getIdToken(true);
+          response = await putProject(authToken);
+        } catch (refreshErr) {
+          devWarn(`[TRACE:${traceId}] Auth token refresh failed:`, refreshErr.message);
+        }
+      }
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -1161,21 +1176,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           // Conflict detected — another session modified the project
           // Retry without lastUpdatedAt to force-save (last write wins)
           devWarn(`[TRACE:${traceId}] Conflict detected, retrying without lock`);
-          const retryResponse = await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(String(project.id))}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
-            },
-            body: JSON.stringify({
+          const retryResponse = await putProject(authToken, JSON.stringify({
               project: {
                 ...cloudProject,
                 id: String(project.id),
                 updatedAt: new Date().toISOString(),
                 syncedAt: new Date().toISOString()
               }
-            })
-          });
+            }));
           if (!retryResponse.ok) {
             const retryErr = await retryResponse.json().catch(() => ({}));
             throw new Error(retryErr.error || `HTTP ${retryResponse.status}`);
