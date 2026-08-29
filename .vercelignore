@@ -1,15 +1,6 @@
-# Backend runtime is hosted on Railway, but Vercel previews must receive the
-# deterministic backend test inputs and patch script used by the release gate.
-backend/*
-!backend/package.json
-!backend/package-lock.json
-!backend/server.js
-!backend/scripts/
-!backend/scripts/**
-!backend/services/
-!backend/services/**
-!backend/test/
-!backend/test/**
+# Backend runtime is hosted on Railway, but Vercel's release gate installs and
+# tests the backend before it publishes the frontend. Keep the backend source
+# intact so its hardening scripts, tests, and service contracts are available.
 
 # Infrastructure and local artifacts
 /scripts/
