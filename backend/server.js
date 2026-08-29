@@ -11163,32 +11163,55 @@ const fetchMusicNews = async () => {
   }
 };
 
-// Fetch SoundCloud trending (using curated high-quality mock data for stability)
+// Fetch current SoundCloud tracks only through the official API. If the
+// account-scoped token is not configured or the provider is unavailable, the
+// Music Hub stays empty for this source instead of inventing trend records.
 const fetchSoundCloudTrending = async () => {
-  try {
-    // Current "Hot & New" trending-style tracks for late 2024 / early 2025 vibe
-    const scTrending = [
-      { id: 'sc1', title: 'Moonlight Echoes', author: 'Lorn', category: 'Electronic', likes: 12400, comments: 456, url: 'https://soundcloud.com', time: '2h ago' },
-      { id: 'sc2', title: 'Brooklyn Nightcore', author: 'DJ Prism', category: 'Nightcore/Pop', likes: 8900, comments: 231, url: 'https://soundcloud.com', time: '5h ago' },
-      { id: 'sc3', title: 'Street Meditation', author: 'Knxwledge', category: 'Lofi/Hip-hop', likes: 15600, comments: 892, url: 'https://soundcloud.com', time: '8h ago' },
-      { id: 'sc4', title: 'Neural Pulse', author: 'Arca', category: 'Experimental', likes: 11200, comments: 567, url: 'https://soundcloud.com', time: '12h ago' },
-      { id: 'sc5', title: 'Hyperfocus', author: 'SOPHIE (Legacy Edit)', category: 'Hyperpop', likes: 23000, comments: 1205, url: 'https://soundcloud.com', time: '1d ago' },
-      { id: 'sc6', title: 'Gravel Pit AI Remix', author: 'Wu-Gen', category: 'Hip-Hop', likes: 5600, comments: 122, url: 'https://soundcloud.com', time: '1d ago' },
-      { id: 'sc7', title: 'Acid Rain', author: 'Chance (AI Generated)', category: 'R&B', likes: 4200, comments: 98, url: 'https://soundcloud.com', time: '2d ago' },
-      { id: 'sc8', title: 'Distorted Reality', author: 'Machine Girl', category: 'Breakcore', likes: 9800, comments: 341, url: 'https://soundcloud.com', time: '2d ago' }
-    ];
+  const accessToken = process.env.SOUNDCLOUD_ACCESS_TOKEN?.trim();
+  if (!accessToken) {
+    logger.info('SoundCloud discovery is not configured; returning no tracks.');
+    return [];
+  }
 
-    return scTrending.map(t => ({
-      ...t,
+  try {
+    const response = await fetch('https://api.soundcloud.com/tracks?limit=50&order=hotness&access=playable', {
+      headers: {
+        Accept: 'application/json; charset=utf-8',
+        Authorization: `OAuth ${accessToken}`,
+        'User-Agent': 'StudioAgentsAI/3.5 MusicHub'
+      },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok) throw new Error(`SoundCloud HTTP ${response.status}`);
+    const payload = await response.json();
+    const tracks = Array.isArray(payload) ? payload : Array.isArray(payload?.collection) ? payload.collection : [];
+
+    return tracks.flatMap((track) => {
+      const id = String(track?.id || '').trim();
+      const title = String(track?.title || '').trim();
+      const author = String(track?.user?.username || '').trim();
+      const url = String(track?.permalink_url || '').trim();
+      const createdAt = new Date(track?.created_at || track?.last_modified || '');
+      if (!id || !title || !author || !url.startsWith('https://soundcloud.com/') || Number.isNaN(createdAt.getTime())) return [];
+      return [{
+      id: `soundcloud-${id}`,
+      title,
+      author,
+      category: String(track?.genre || 'Music'),
+      likes: Number(track?.likes_count || 0),
+      comments: Number(track?.comment_count || 0),
+      url,
+      time: createdAt.toISOString(),
       type: 'soundcloud',
       source: 'SoundCloud',
       color: 'agent-orange',
-      timestamp: Date.now() - (parseInt(t.time) || 1) * 3600000,
-      snippet: `Trending on SoundCloud: ${t.title} by ${t.author}`,
-      imageUrl: 'https://a-v2.sndcdn.com/assets/images/sc_facebook_share-952a303.png'
-    }));
+      timestamp: createdAt.getTime(),
+      snippet: `SoundCloud track: ${title} by ${author}`,
+      imageUrl: typeof track?.artwork_url === 'string' ? track.artwork_url : null
+    }];
+    });
   } catch (e) {
-    logger.error('SoundCloud fetch failed', { error: e.message });
+    logger.warn('SoundCloud discovery unavailable; returning no tracks.', { error: e.message });
     return [];
   }
 };
