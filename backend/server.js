@@ -4171,11 +4171,17 @@ RESPOND IN EXACTLY THIS JSON FORMAT (no markdown, no code fences):
   }
 });
 
+const TEXT_AGENT_SYSTEM_INSTRUCTIONS = Object.freeze({
+  collab: 'You are Collab Connect. Produce an actionable collaboration package with these sections: Collaboration Goal, Roles Needed, Candidate Criteria, Outreach Draft, Deliverables, Split-Sheet Questions, Verification Checklist, Next Actions. Never invent candidate identities or claim outreach occurred. Label unsourced candidates as To be sourced.',
+  release: 'You are Release Manager. Produce an operational release package with these sections: Release Goal, Timeline, Asset Checklist, Metadata Checklist, Distribution Steps, Promotion Calendar, Budget Assumptions, Risks, Completion Status, Next Actions. Never claim distribution, approval, scheduling, or payment occurred unless the user supplied proof. Mark external actions pending.',
+});
+
 // GENERATION ROUTE (with optional Firebase auth) - 1 credit for text/lyrics
 app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('text'), generationLimiter, async (req, res) => {
   try {
     const { 
       prompt, 
+      agentId,
       systemInstruction, 
       model: requestedModel, 
       referenceUrl, 
@@ -4211,7 +4217,9 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
     if (duration) sanitizedPrompt += `\nTarget Duration: ${duration} seconds.`;
     if (language) sanitizedPrompt += `\nResponse Language: ${language}`;
 
-    const sanitizedSystemInstruction = sanitizeInput(systemInstruction || '', 2000);
+    const normalizedAgentId = sanitizeInput(agentId || '', 80).toLowerCase();
+    const serverAgentInstruction = TEXT_AGENT_SYSTEM_INSTRUCTIONS[normalizedAgentId] || '';
+    const sanitizedSystemInstruction = sanitizeInput(serverAgentInstruction || systemInstruction || '', 2000);
     
     // ── DNA EXACT-CLONE INJECTION ──
     // DNA assets are the artist's identity — replicate them EXACTLY, no creative deviation
@@ -4259,6 +4267,7 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
     logger.info('🤖 AI generation request', { 
       ip: req.ip, 
       promptLength: sanitizedPrompt.length,
+      agentId: normalizedAgentId || null,
       hasSystemInstruction: !!sanitizedSystemInstruction 
     });
 

@@ -210,7 +210,9 @@ test.describe('release smoke checks', () => {
     expect(orchestratorSource).toContain('disabled={!clonedVoiceId}');
     expect(orchestratorSource).toContain('Voice sample saved. Choose Create My Voice to activate it before generation.');
     expect(orchestratorSource).not.toContain('Model set to "Cloned Voice"');
-    expect(backendSource).toContain("const wantProvider = isPersonalVoice ? 'elevenlabs-clone' : (preferredProvider || null);");
+    expect(backendSource).toContain("const wantProvider = isPersonalVoice");
+    expect(backendSource).toContain("? (strictMusicalQuality ? 'minimax-music' : 'elevenlabs-clone')");
+    expect(backendSource).toContain("if (!ownedVoice || ownedVoice.consent?.confirmed !== true)");
   });
 
   test('public product copy does not present invented beta economics or usage totals', async () => {
@@ -241,5 +243,18 @@ test.describe('release smoke checks', () => {
     expect(backendSource).toContain('unlimited: true');
     expect(backendSource).not.toMatch(/const avgCostPerGen = 0\.042|const cac = 2\.50|grossMargin: parseFloat/);
     expect(backendSource).toContain("measurementStatus: 'not_measured'");
+  });
+
+  test('specialized agents keep their promised output type and mastering accepts playable audio', async () => {
+    const studioSource = readFileSync(resolve(process.cwd(), 'src/components/StudioView.jsx'), 'utf8');
+
+    expect(studioSource).toContain('TEXT_AGENT_OUTPUT_CONTRACTS');
+    expect(studioSource).toContain('Collaboration Goal, Roles Needed, Candidate Criteria');
+    expect(studioSource).toContain('Release Goal, Timeline, Asset Checklist');
+    expect(studioSource).not.toContain("'trends', 'social', 'collab', 'release'");
+    expect(studioSource).toContain('(isAudioAgent || isSpeechAgent || isMasterAgent)');
+    expect(studioSource).toContain('metadata: { projectId: targetProjectSnapshot?.id || null, featureType, agentId }');
+    expect(studioSource).toContain('finalBody = { ...finalBody, agentId }');
+    expect(studioSource).toContain('requestedDuration > 30');
   });
 });

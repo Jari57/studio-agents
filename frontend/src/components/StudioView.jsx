@@ -256,6 +256,11 @@ const CREDIT_COSTS = {
   'default': 1
 };
 
+const TEXT_AGENT_OUTPUT_CONTRACTS = {
+  collab: `You are Collab Connect. Return a practical collaboration package, not artwork and not invented people. Use these exact sections: Collaboration Goal, Roles Needed, Candidate Criteria, Outreach Draft, Deliverables, Split-Sheet Questions, Verification Checklist, Next Actions. Clearly label every candidate as "To be sourced" unless the user supplied a real person.`,
+  release: `You are Release Manager. Return an operational release package, not artwork and not a claim that distribution happened. Use these exact sections: Release Goal, Timeline, Asset Checklist, Metadata Checklist, Distribution Steps, Promotion Calendar, Budget Assumptions, Risks, Completion Status, Next Actions. Mark external submissions and approvals as pending until the user confirms them.`,
+};
+
 // Voice Command Definitions for Whisperer-style UI
 const VOICE_COMMANDS = [
   { command: 'open [agent]', description: 'Launch an agent', example: '"Open Ghostwriter"', category: 'Navigation' },
@@ -4525,7 +4530,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     // Identify feature type and cost
-    const isImageAgent = ['album', 'visual-art', 'cover-art', 'art', 'video-art', 'flux', 'trends', 'social', 'collab', 'release'].includes(agentId);
+    const isImageAgent = ['album', 'visual-art', 'cover-art', 'art', 'video-art', 'flux', 'trends', 'social'].includes(agentId);
     const isVideoAgent = ['video', 'video-creator', 'video-gen', 'sora', 'veo', 'kling'].includes(agentId);
     const isAudioAgent = ['beat', 'sample', 'samples', 'music-gpt', 'beat-maker', 'beat-lab', 'beat-architect', 'beat-arch', 'drum-machine', 'drums', 'instrument', 'drop', 'film', 'sample-master', 'score-edit', 'drop-zone', 'music-architect', 'audio-gen', 'video-scorer', 'session', 'edm', 'sound-design'].includes(agentId);
     const isSpeechAgent = ['vocal', 'vocal-arch', 'vocal-gen', 'vocal-performer', 'vocal-performance', 'vocal-lab', 'vocal-labs', 'podcast', 'voiceover', 'voice-gen', 'voice-cloner'].includes(agentId) && agentId !== 'ghost';
@@ -4554,7 +4559,10 @@ const fetchUserCredits = useCallback(async (uid) => {
         featureType = 'video-synced';
     }
 
-    const cost = CREDIT_COSTS[featureType] || 1;
+    const requestedDuration = Number(voiceSettings.duration || 30);
+    const cost = isAudioAgent && requestedDuration > 30
+      ? CREDIT_COSTS.beat * 2
+      : (CREDIT_COSTS[featureType] || CREDIT_COSTS.default);
     
     // Lyrical Context: Try to find lyrics in the current project to inform other agents
     if (targetProjectSnapshot?.assets) {
@@ -4674,7 +4682,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             agent: targetAgentSnapshot.name,
             prompt: promptValue,
             status: 'pending',
-            metadata: { projectId: targetProjectSnapshot?.id || null, featureType }
+            metadata: { projectId: targetProjectSnapshot?.id || null, featureType, agentId }
           })
         });
         const historyData = await historyResponse.json().catch(() => ({}));
@@ -4755,6 +4763,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
       let brainBody = {
         prompt: prompt,
+        agentId,
         model: selectedModel,
         visualDnaUrl,
         audioDnaUrl,
@@ -4826,7 +4835,7 @@ ABSOLUTE RULES (violating any = failure):
 4. Each sung line: max 12 words. Tight syllables, natural stress on the beat, rhythmically punchy.
 5. Every word must be performable — singable or rapsable. No filler, no essays.
 6. You are a performer writing a track. Write lines the way they will be delivered on stage.`
-            : `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} elite Creative Brain.
+            : TEXT_AGENT_OUTPUT_CONTRACTS[agentId] || `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} elite Creative Brain.
                 ${creatorMode === 'creator' 
                   ? 'Translate user ideas into platform-optimized, viral-quality content briefs for social media, YouTube, podcasts, and marketing.' 
                   : 'Translate user ideas into Billboard-standard production briefs.'}
@@ -4963,6 +4972,10 @@ ABSOLUTE RULES (violating any = failure):
           setIsGenerating(false);
           return;
         }
+      }
+
+      if (finalBody && typeof finalBody === 'object') {
+        finalBody = { ...finalBody, agentId };
       }
 
       // If it's a media agent, run execution phase
@@ -5219,7 +5232,7 @@ ABSOLUTE RULES (violating any = failure):
            newItem.snippet = `(video) Music Video for: "${backingTrack.title}"`;
            // Keep backingTrack set so user can re-generate without re-selecting
         }
-      } else if ((isAudioAgent || isSpeechAgent) && (data.audioUrl || data.audio || data.type === 'synthesis' || data.description || data.message)) {
+      } else if ((isAudioAgent || isSpeechAgent || isMasterAgent) && (data.audioUrl || data.audio || data.type === 'synthesis' || data.description || data.message)) {
         // Handle Audio Response (Lyria/TTS/MusicGen)
         devLog('Audio response received:', { 
           hasAudioUrl: !!data.audioUrl, 
@@ -5248,12 +5261,12 @@ ABSOLUTE RULES (violating any = failure):
           newItem.type = isSpeechAgent ? 'vocal' : 'audio';
           
           if (data.isRealGeneration) {
-            newItem.snippet = isSpeechAgent ? `🎤 AI Generated Vocals: "${prompt}"` : `🎵 AI Generated Beat: "${prompt}"`;
-            toast.success(isSpeechAgent ? 'Vocals generated with ElevenLabs V3.5!' : 'Beat generated with MusicGen AI!');
+            newItem.snippet = isSpeechAgent ? `🎤 AI Generated Vocals: "${prompt}"` : isMasterAgent ? `Mastered audio: "${prompt}"` : `🎵 AI Generated Beat: "${prompt}"`;
+            toast.success(isSpeechAgent ? 'Vocals generated with ElevenLabs V3.5!' : isMasterAgent ? 'Mastered audio is ready.' : 'Beat generated with MusicGen AI!');
           } else if (data.isSample) {
             throw new Error('The provider returned a sample instead of your requested audio. No creation was saved and your credits should not be charged.');
           } else {
-            newItem.snippet = isSpeechAgent ? `🎤 Generated vocals for: "${prompt}"` : `🎵 Generated audio for: "${prompt}"`;
+            newItem.snippet = isSpeechAgent ? `🎤 Generated vocals for: "${prompt}"` : isMasterAgent ? `Mastered audio for: "${prompt}"` : `🎵 Generated audio for: "${prompt}"`;
           }
           
           newItem.isRealGeneration = data.isRealGeneration;
