@@ -8,6 +8,7 @@ const test = require('node:test');
 const root = path.resolve(__dirname, '..', '..');
 const backend = fs.readFileSync(path.join(root, 'backend', 'server.js'), 'utf8');
 const frontend = fs.readFileSync(path.join(root, 'frontend', 'src', 'components', 'StudioView.jsx'), 'utf8');
+const providerPatch = fs.readFileSync(path.join(root, 'scripts', 'patch-provider-routing.mjs'), 'utf8');
 
 test('Collab Connect and Release Manager are server-bound text packages', () => {
   assert.match(backend, /const TEXT_AGENT_SYSTEM_INSTRUCTIONS = Object\.freeze/);
@@ -23,4 +24,10 @@ test('Mastering accepts playable audio and every execution identifies its agent'
   assert.match(frontend, /finalBody = \{ \.\.\.finalBody, agentId \}/);
   assert.match(frontend, /metadata: \{ projectId: targetProjectSnapshot\?\.id \|\| null, featureType, agentId \}/);
   assert.match(frontend, /requestedDuration > 30/);
+});
+
+test('Railway provider hardening accepts the premium-quality MusicGen guard', () => {
+  assert.match(providerPatch, /const qualityGuardedFallback/);
+  assert.match(providerPatch, /!strictPremiumBeat && \(referenceAudio \|\| durationSeconds <= 65\)/);
+  assert.match(providerPatch, /audioRoute\.includes\(qualityGuardedFallback\)/);
 });

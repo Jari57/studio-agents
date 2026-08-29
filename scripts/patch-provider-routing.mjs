@@ -272,16 +272,29 @@ audioRoute = audioRoute.replace(miniMaxDefaultPath, miniMaxLongFormPath);
 const legacyFallback = `    if (replicateKey && !audioUrl) {
       try {
         logger.info('Using Replicate Music GPT (stereo-large)');`;
+const qualityGuardedFallback = `    if (replicateKey && !audioUrl && !strictPremiumBeat) {
+      try {
+        logger.info('Using Replicate Music GPT (stereo-large)');`;
 const boundedInteractiveFallback = `    if (replicateKey && !audioUrl && (referenceAudio || durationSeconds <= 65)) {
       try {
         logger.info(referenceAudio
           ? 'Using bounded Replicate MusicGen for reference-audio conditioning'
           : 'Using bounded Replicate MusicGen for interactive beat generation');`;
-if (!audioRoute.includes(legacyFallback)) {
+const qualityGuardedInteractiveFallback = `    if (replicateKey && !audioUrl && !strictPremiumBeat && (referenceAudio || durationSeconds <= 65)) {
+      try {
+        logger.info(referenceAudio
+          ? 'Using bounded Replicate MusicGen for reference-audio conditioning'
+          : 'Using bounded Replicate MusicGen for interactive beat generation');`;
+if (audioRoute.includes(qualityGuardedFallback)) {
+  // Keep the release-quality boundary: premium/ultra requests must not quietly
+  // downgrade to the legacy draft provider when their premium provider fails.
+  audioRoute = audioRoute.replace(qualityGuardedFallback, qualityGuardedInteractiveFallback);
+} else if (audioRoute.includes(legacyFallback)) {
+  audioRoute = audioRoute.replace(legacyFallback, boundedInteractiveFallback);
+} else {
   console.error('Could not find the MusicGen fallback contract.');
   process.exit(1);
 }
-audioRoute = audioRoute.replace(legacyFallback, boundedInteractiveFallback);
 source = source.slice(0, audioStart) + audioRoute + source.slice(audioEnd);
 
 // The old video-01 model routinely takes 2.5–5 minutes for a six-second clip.
