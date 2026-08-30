@@ -8,6 +8,10 @@ import {
 import { UsersIcon, Twitter, Instagram, VideoIcon, ImageIcon } from 'lucide-react';
 import { BACKEND_URL } from '../../constants';
 
+const createRequestId = (prefix) => `${prefix}-${typeof crypto?.randomUUID === 'function'
+  ? crypto.randomUUID()
+  : `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+
 /**
  * CanvasView - Project Canvas component extracted from StudioView.jsx
  * Displays the production journey view for a selected project with asset grid/carousel,
@@ -240,12 +244,13 @@ export default function CanvasView({
     try {
       const headers = await getHeaders();
       const projectName = selectedProject?.name || 'Untitled';
+      const regenerationId = createRequestId('canvas-regeneration');
 
       if (['text', 'lyrics', 'script'].includes(assetType)) {
         // Text regeneration via /api/generate
         const response = await fetch(`${BACKEND_URL}/api/generate`, {
           method: 'POST',
-          headers,
+          headers: { ...headers, 'Idempotency-Key': `${regenerationId}-text` },
           body: JSON.stringify({
             prompt: `Create fresh ${assetType} content for: "${projectName}"`,
             systemInstruction: `You are ${asset.agent || 'a professional songwriter'}. Create NEW and DIFFERENT ${assetType} for a project called "${projectName}". Be creative and fresh. Write ONLY the creative content with clear section labels. No intro fluff.`,
@@ -275,11 +280,13 @@ export default function CanvasView({
         // Beat regeneration
         const response = await fetch(`${BACKEND_URL}/api/generate`, {
           method: 'POST',
-          headers,
+          headers: { ...headers, 'Idempotency-Key': `${regenerationId}-brief` },
           body: JSON.stringify({
             prompt: `Create a fresh beat/instrumental concept for: "${projectName}"`,
             systemInstruction: `You are ${asset.agent || 'Beat Lab'}. Describe a NEW and DIFFERENT beat/instrumental (${asset.settings?.duration || 90} seconds) with BPM: ${asset.settings?.bpm || asset.bpm || 120}. Focus on mood, instrumentation, and energy. Keep it under 80 words for an AI music generator.`,
-            model: 'gemini-2.5-flash'
+            model: 'gemini-2.5-flash',
+            agentId: 'beat-arch',
+            isBrainPhase: true,
           })
         });
         if (!response.ok) throw new Error(`Server error ${response.status}`);
@@ -290,13 +297,14 @@ export default function CanvasView({
         toast.loading('Generating new beat...', { id: 'regen-audio' });
         const audioResponse = await fetch(`${BACKEND_URL}/api/generate-audio`, {
           method: 'POST',
-          headers,
+          headers: { ...headers, 'Idempotency-Key': `${regenerationId}-audio` },
           body: JSON.stringify({
             prompt: data.output,
-            duration: asset.settings?.duration || 90,
+            durationSeconds: asset.settings?.duration || 90,
             bpm: asset.settings?.bpm || asset.bpm || 120,
             quality: 'premium',
-            outputFormat: 'music'
+            outputFormat: 'music',
+            agentId: 'beat-arch',
           })
         });
         if (!audioResponse.ok) {
@@ -313,6 +321,8 @@ export default function CanvasView({
           ...asset,
           id: `audio-${Date.now()}`,
           audioUrl: generatedAudioUrl,
+          storagePath: audioData.storagePath || audioData.audioStoragePath || null,
+          provider: audioData.provider || audioData.source || null,
           content: data.output,
           title: `${asset.title?.replace(/ \(Take \d+\)/, '') || 'Beat'} (Take ${versionCount + 1})`,
           version: versionCount + 1,
@@ -327,7 +337,7 @@ export default function CanvasView({
         toast.loading('Generating new artwork...', { id: 'regen-image' });
         const response = await fetch(`${BACKEND_URL}/api/generate-image`, {
           method: 'POST',
-          headers,
+          headers: { ...headers, 'Idempotency-Key': `${regenerationId}-image` },
           body: JSON.stringify({
             prompt: `Create stunning album artwork for "${projectName}". Style: modern, high-quality, Billboard-standard cover art.`,
           })
@@ -335,12 +345,16 @@ export default function CanvasView({
         if (!response.ok) throw new Error(`Image generation failed (${response.status})`);
         const data = await response.json();
         toast.dismiss('regen-image');
+        const generatedImageUrl = data.imageUrl || data.url || (typeof data.output === 'string' ? data.output : null);
+        if (!generatedImageUrl) throw new Error('The image provider completed without returning a usable image.');
 
         const versionCount = (selectedProject.assets || []).filter(a => ['image', 'visual'].includes((a.type || '').toLowerCase())).length;
         const newAsset = {
           ...asset,
           id: `image-${Date.now()}`,
-          imageUrl: data.imageUrl || data.url,
+          imageUrl: generatedImageUrl,
+          storagePath: data.storagePath || data.imageStoragePath || null,
+          provider: data.provider || data.source || null,
           title: `${asset.title?.replace(/ \(Take \d+\)/, '') || 'Artwork'} (Take ${versionCount + 1})`,
           version: versionCount + 1,
           date: 'Just now',
@@ -357,25 +371,34 @@ export default function CanvasView({
         toast.loading('Generating new vocals...', { id: 'regen-vocal' });
         const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
           method: 'POST',
-          headers,
+          headers: { ...headers, 'Idempotency-Key': `${regenerationId}-vocal` },
           body: JSON.stringify({
             prompt: lyricsAsset?.content || asset.content || projectName,
             voice: asset.settings?.voiceId || 'rapper-male-1',
             style: asset.settings?.style || 'rapper',
             genre: 'hip-hop',
             duration: 30,
-            backingTrackUrl: beatAsset?.audioUrl || null
+            backingTrackUrl: beatAsset?.audioUrl || null,
+            quality: 'premium',
+            agentId: 'vocal-arch',
           })
         });
-        if (!response.ok) throw new Error(`Vocal generation failed (${response.status})`);
+        if (!response.ok) {
+          const errorPayload = await response.json().catch(() => ({}));
+          throw new Error(errorPayload.details || errorPayload.error || `Vocal generation failed (${response.status})`);
+        }
         const data = await response.json();
         toast.dismiss('regen-vocal');
+        const generatedVocalUrl = data.audioUrl || (typeof data.output === 'string' && /^(https?:|data:audio)/.test(data.output) ? data.output : null);
+        if (!generatedVocalUrl) throw new Error('The vocal provider completed without returning playable audio.');
 
         const versionCount = (selectedProject.assets || []).filter(a => ['vocal', 'synthesis'].includes((a.type || '').toLowerCase())).length;
         const newAsset = {
           ...asset,
           id: `vocal-${Date.now()}`,
-          audioUrl: data.audioUrl || data.output,
+          audioUrl: generatedVocalUrl,
+          storagePath: data.storagePath || data.audioStoragePath || null,
+          provider: data.provider || data.source || null,
           title: `${asset.title?.replace(/ \(Take \d+\)/, '') || 'Vocals'} (Take ${versionCount + 1})`,
           version: versionCount + 1,
           date: 'Just now',
@@ -395,7 +418,7 @@ export default function CanvasView({
         toast.loading('Generating new video...', { id: 'regen-video' });
         const response = await fetch(`${BACKEND_URL}/api/generate-video`, {
           method: 'POST',
-          headers,
+          headers: { ...headers, 'Idempotency-Key': `${regenerationId}-video` },
           body: JSON.stringify({
             imageUrl: imageAsset.imageUrl,
             prompt: `Create a cinematic music video for "${projectName}". Animate the artwork with smooth camera movements and visual effects.`

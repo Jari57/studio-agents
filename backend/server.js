@@ -10228,16 +10228,15 @@ app.post('/api/export-stems-zip', verifyFirebaseToken, requireAuth, generationLi
     const zipFiles = [];
     const safe = (s) => s.replace(/[^a-zA-Z0-9 ._-]/g, '_').substring(0, 60);
 
-    for (const stem of stemDefs) {
+    for (const [stemIndex, stem] of stemDefs.entries()) {
       try {
-        const response = await fetchWithTimeout(stem.url, {}, 30000);
-        if (!response.ok) { logger.warn(`Stem fetch failed: ${stem.label}`, { status: response.status }); continue; }
-        const buf = Buffer.from(await response.arrayBuffer());
-
-        const inPath  = path.join(tmpDir, `in_${Date.now()}.tmp`);
+        // Reuse the production mixer downloader so export inherits the same
+        // HTTPS-only, redirect, private-network, timeout, and size controls.
+        // Raw fetch here would let an authenticated caller probe internal URLs.
+        const inPath  = path.join(tmpDir, `in_${stemIndex}.audio`);
         const outName = `${safe(projectName)} - ${stem.label}.wav`;
         const outPath = path.join(tmpDir, outName);
-        fs.writeFileSync(inPath, buf);
+        await downloadAudio(stem.url, inPath);
 
         await new Promise((resolve, reject) => {
           ffmpegLib(inPath)

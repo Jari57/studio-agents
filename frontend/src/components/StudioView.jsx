@@ -1904,9 +1904,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     const renderToast = toast.loading('Building your producer preview master…');
     try {
       const token = await auth.currentUser.getIdToken();
+      const renderRequestId = `producer-render-${generateId()}`;
       const response = await fetch(`${BACKEND_URL}/api/create-session-mix`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'Idempotency-Key': renderRequestId,
+        },
         body: JSON.stringify({
           title: selectedProject?.name || selectedProject?.title,
           artist: user?.displayName || user?.email || 'Studio Artist',
@@ -4698,6 +4703,11 @@ const fetchUserCredits = useCallback(async (uid) => {
           throw new Error('Creation history is unavailable, so generation was stopped before contacting the media provider. Please try again.');
         }
         generationRecordId = historyData.id;
+        // Tie every paid provider request to the durable creation record. This
+        // lets the backend reject an accidental duplicate caused by a double
+        // submit, a mobile resume, or a network retry instead of charging and
+        // generating the same asset twice.
+        headers['Idempotency-Key'] = `studio-generation-${generationRecordId}`;
       }
 
       // Auto-translate if not English. Translation failures should not block generation.
@@ -5264,6 +5274,8 @@ ABSOLUTE RULES (violating any = failure):
           }
           
           newItem.mimeType = data.mimeType || 'audio/wav';
+          newItem.storagePath = data.storagePath || data.audioStoragePath || null;
+          newItem.provider = data.provider || data.source || null;
           
           // CRITICAL: Ensure type is set to audio or vocal for proper UI rendering
           newItem.type = isSpeechAgent ? 'vocal' : 'audio';
@@ -5529,7 +5541,13 @@ ABSOLUTE RULES (violating any = failure):
         savedAt: new Date().toISOString()
       };
       
-      const uid = isLoggedIn ? localStorage.getItem('studio_user_id') : null;
+      // The authenticated Firebase identity is authoritative. A cached local
+      // storage UID can lag behind account switching and must never select the
+      // owner of a private project or media upload.
+      const uid = isLoggedIn && auth?.currentUser?.uid === user?.uid ? user.uid : null;
+      if (isLoggedIn && !uid) {
+        throw new Error('Your secure session changed. Sign in again before saving this creation.');
+      }
 
       // 1. AUTHORITATIVE MEDIA UPLOAD (Prevents base64 bloat)
       if (uid) {
@@ -5627,6 +5645,32 @@ ABSOLUTE RULES (violating any = failure):
           saveProjectToCloud(uid, finalProject, { silent: true }),
           timeoutPromise
         ]);
+
+        if (saveSuccess && itemToSave.generationRecordId && auth?.currentUser) {
+          try {
+            const token = await auth.currentUser.getIdToken();
+            await fetch(`${BACKEND_URL}/api/user/generations/${itemToSave.generationRecordId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                status: 'complete',
+                output: itemToSave.snippet || '',
+                metadata: {
+                  projectId: finalProject.id,
+                  audioUrl: itemToSave.audioUrl || null,
+                  videoUrl: itemToSave.videoUrl || null,
+                  imageUrl: itemToSave.imageUrl || null,
+                  storagePath: itemToSave.storagePath || itemToSave.audioStoragePath || itemToSave.imageStoragePath || itemToSave.videoStoragePath || null,
+                  provider: itemToSave.provider || null,
+                },
+              }),
+            });
+          } catch (historyError) {
+            // The project is already durable. Keep this non-destructive and let
+            // the normal history refresh reconcile on the next visit.
+            devWarn('[SavePreview] Generation-to-project link update failed:', historyError);
+          }
+        }
         
         // Older creations without a preflight history record still need a
         // library entry. New generations are already recorded before provider
@@ -12510,24 +12554,27 @@ ABSOLUTE RULES (violating any = failure):
                     const hasRealBeat = sessionTracks.audio?.audioUrl && sessionTracks.audio.audioUrl.startsWith('http');
                     const hasRealVocals = sessionTracks.vocal?.audioUrl && sessionTracks.vocal.audioUrl.startsWith('http');
 
-                    if (hasRealBeat || hasRealVocals) {
+                    if (hasRealBeat !== hasRealVocals) {
+                      throw new Error('A Studio Master requires both a playable beat and playable vocals. Add the missing track before rendering.');
+                    }
+
+                    if (hasRealBeat && hasRealVocals) {
                       toast.loading('Mixing your tracks...', { id: 'amo-render' });
                       let mixedAudioUrl = null;
 
-                      if (hasRealBeat && hasRealVocals) {
-                        const mixRes = await fetch(`${BACKEND_URL}/api/create-final-mix`, {
-                          method: 'POST', headers,
-                          body: JSON.stringify({
-                            vocalUrl: sessionTracks.vocal.audioUrl, beatUrl: sessionTracks.audio.audioUrl,
-                            vocalVolume: sessionTracks.vocalVolume ?? 0.85, beatVolume: sessionTracks.audioVolume ?? 0.60,
-                            style: 'rapper', outputFormat: 'music'
-                          })
-                        });
-                        if (mixRes.ok) { const mixData = await mixRes.json(); mixedAudioUrl = mixData.mixedAudioUrl; }
-                        else { devWarn('[RenderMaster] Mix failed, using beat track'); mixedAudioUrl = sessionTracks.audio.audioUrl; }
-                      } else {
-                        mixedAudioUrl = hasRealBeat ? sessionTracks.audio.audioUrl : sessionTracks.vocal.audioUrl;
+                      const mixRes = await fetch(`${BACKEND_URL}/api/create-final-mix`, {
+                        method: 'POST', headers,
+                        body: JSON.stringify({
+                          vocalUrl: sessionTracks.vocal.audioUrl, beatUrl: sessionTracks.audio.audioUrl,
+                          vocalVolume: sessionTracks.vocalVolume ?? 0.85, beatVolume: sessionTracks.audioVolume ?? 0.60,
+                          style: 'rapper', outputFormat: 'music'
+                        })
+                      });
+                      const mixData = await mixRes.json().catch(() => ({}));
+                      if (!mixRes.ok || !mixData.mixedAudioUrl) {
+                        throw new Error(mixData.details || mixData.error || 'The vocal and beat mix did not complete. No master was saved.');
                       }
+                      mixedAudioUrl = mixData.mixedAudioUrl;
 
                       updateSessionWithHistory(prev => ({
                         ...prev, renderCount: renderNumber, lastRenderTime: new Date().toISOString(),
@@ -12546,7 +12593,7 @@ ABSOLUTE RULES (violating any = failure):
 
                       const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets], updatedAt: new Date().toISOString() };
                       setSelectedProject(updated); setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
-                      if (isLoggedIn) { const uid = localStorage.getItem('studio_user_id'); if (uid) saveProjectToCloud(uid, updated).catch(err => devWarn("Failed to sync master to cloud", err)); }
+                      if (isLoggedIn && user?.uid) saveProjectToCloud(user.uid, updated).catch(err => devWarn("Failed to sync master to cloud", err));
                       toast.dismiss('amo-render'); setShowStudioSession(false); setSessionPlaying(false);
                       handleTextToVoice("Master mix complete. Your mixed production is ready."); toast.success('Master mixed and saved to your Hub!');
                       setIsGenerating(false); return;
@@ -12601,7 +12648,7 @@ ABSOLUTE RULES (violating any = failure):
 
                     const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets], updatedAt: new Date().toISOString() };
                     setSelectedProject(updated); setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
-                    if (isLoggedIn) { const uid = localStorage.getItem('studio_user_id'); if (uid) saveProjectToCloud(uid, updated).catch(err => devWarn("Failed to sync master to cloud", err)); }
+                    if (isLoggedIn && user?.uid) saveProjectToCloud(user.uid, updated).catch(err => devWarn("Failed to sync master to cloud", err));
 
                     toast.dismiss('amo-render'); setShowStudioSession(false); setSessionPlaying(false);
                     handleTextToVoice("Master render complete. Your orchestrated production is ready."); toast.success('Master rendered and saved to your Hub!');

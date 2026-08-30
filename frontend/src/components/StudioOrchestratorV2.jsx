@@ -3066,6 +3066,16 @@ export default function StudioOrchestratorV2({
     return headers;
   }, [authToken]);
 
+  const getPaidStepHeaders = useCallback(async (stepId) => {
+    const headers = await getHeaders();
+    const runId = productionJobIdRef.current || productionRunKeyRef.current || crypto.randomUUID();
+    // Include the current durable job revision so duplicate submissions inside
+    // one attempt collapse, while an explicit recovery attempt can run again
+    // after a refunded provider failure.
+    headers['Idempotency-Key'] = `production-${runId}-${stepId}-${productionJobRevisionRef.current}`;
+    return headers;
+  }, [getHeaders]);
+
   const checkpointCurrentProduction = useCallback(async (overrides = {}) => {
     const jobId = productionJobIdRef.current;
     if (!jobId) return null;
@@ -4060,7 +4070,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     toast.loading(`Synthesizing AI beat (${waitTime})...`, { id: 'gen-audio' });
     
     try {
-      const headers = await getHeaders();
+      const headers = await getPaidStepHeaders('beat-audio');
 
       // Clean prompt of AI fluff
       const { content: cleanAudioPrompt } = splitCreativeContent(audioPrompt);
@@ -4093,7 +4103,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           outputFormat: outputFormat, // music, social, podcast, tv
           highMusicality: highMusicality, // Send Udio-style musicality flag
           seed: seed,
-          stem: stemType
+          stem: stemType,
+          agentId: 'beat-arch',
         }),
         // The backend may spend up to 60s on Stability before falling through
         // to Replicate. Keep the first request alive across that failover so a
@@ -4162,6 +4173,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               agent: 'Beat Lab',
               content: cleanAudioPromptText.substring(0, 500),
               audioUrl: finalUrl,
+              storagePath: data.storagePath || data.audioStoragePath || null,
+              provider: data.source || data.provider || null,
               mimeType: data.mimeType || 'audio/mpeg',
               version: audioVersions + 1,
               settings: {
@@ -4283,7 +4296,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     toast.loading('Generating AI Vocals (up to 2 mins)...', { id: 'gen-vocals' });
     
     try {
-      const headers = await getHeaders();
+      const headers = await getPaidStepHeaders('vocals');
 
       // Ensure we only send the actual lyrics content, not the intro/prompt fluff
       const { content: lyricsOnly } = splitCreativeContent(lyricsText);
@@ -4394,7 +4407,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           vibrato: vocalVibrato > 0 ? vocalVibrato : undefined,
           expression: vocalExpression !== 'neutral' ? vocalExpression : undefined,
           // Pass beat URL so backend mixes vocal+beat during generation (no extra credit cost)
-          backingTrackUrl: mediaUrlsRef.current.audio || null
+          backingTrackUrl: mediaUrlsRef.current.audio || null,
+          agentId: 'vocal-arch',
         }),
         // Replicate Bark singing can legitimately poll for up to 180 seconds.
         // A shorter browser timeout abandoned the request while the backend
@@ -4456,6 +4470,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             agent: 'Ghostwriter',
             content: cleanLyrics.substring(0, 500),
             audioUrl: resolvedAudioUrl,
+            storagePath: data.storagePath || data.audioStoragePath || null,
+            provider: data.provider || data.source || null,
             mimeType: data.mimeType || 'audio/wav',
             version: vocalVersions + 1,
             settings: {
@@ -5649,14 +5665,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       return;
     }
 
-    // Need at least vocals or beat
+    // A "final mix" is a real combination of the vocal and beat. A single
+    // source can still be previewed elsewhere, but must not be labeled or saved
+    // as a mastered mix.
     // Use refs for latest state — closure mediaUrls may be stale when called from handleGenerate pipeline
     const currentMediaUrls = mediaUrlsRef.current;
     const hasVocals = !!(currentMediaUrls.vocals || currentMediaUrls.lyricsVocal);
     const hasBeat = !!currentMediaUrls.audio;
 
-    if (!hasVocals && !hasBeat) {
-      toast.error('Generate vocals and/or beat first');
+    if (!hasVocals || !hasBeat) {
+      setMixFailed(true);
+      toast.error('A final master requires both a playable beat and playable vocals.');
       return;
     }
 
@@ -5670,7 +5689,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       if (hasVocals && hasBeat) {
         toast.loading('Mixing vocals + beat into master (auto-tune + tempo sync ~30s)...', { id: 'final-mix' });
 
-        const headers = await getHeaders();
+        const headers = await getPaidStepHeaders('final-mix');
         const response = await fetch(`${BACKEND_URL}/api/create-final-mix`, {
           method: 'POST',
           headers,
@@ -5697,6 +5716,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
         if (response.ok) {
           const data = await response.json();
+          if (!data.mixedAudioUrl) throw new Error('The mixer completed without returning playable master audio.');
           finalAudioUrl = data.mixedAudioUrl;
           mixedViaApi = true;
           setMediaUrls(prev => ({ ...prev, mixedAudio: finalAudioUrl }));
@@ -5704,15 +5724,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           devLog('[FinalMix] Mixed audio created via /api/create-final-mix', data.preset);
         } else {
           const err = await response.json().catch(() => ({}));
-          devWarn('[FinalMix] Mixing failed, using individual tracks', err);
+          devWarn('[FinalMix] Mixing failed; no master will be saved', err);
           setMixFailed(true);
-          toast.error(`Mix failed: ${err.error || 'Server error'} — video will use beat-only audio`, { id: 'final-mix', duration: 8000 });
+          throw new Error(err.details || err.error || 'The mixer could not create a master.');
         }
       }
 
-      // If only one track available, use it as the "mix"
       if (!finalAudioUrl) {
-        finalAudioUrl = currentMediaUrls.vocals || currentMediaUrls.lyricsVocal || currentMediaUrls.audio;
+        throw new Error('The mixer did not return playable master audio.');
       }
 
       // Compile all outputs into the creative package
@@ -5785,12 +5804,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       }
 
       toast.success(
-        mixedViaApi ? 'Master mix ready!' : 'Project compiled (generate both vocals & beat for full mix)',
+        mixedViaApi ? 'Master mix ready!' : 'The production package is ready.',
         { id: 'final-mix' }
       );
     } catch (err) {
       console.error('Final mix error:', err);
-      toast.error('Failed to create final mix', { id: 'final-mix' });
+      setMixFailed(true);
+      toast.error(err.message || 'Failed to create final mix', { id: 'final-mix' });
     } finally {
       setCreatingFinalMix(false);
     }
