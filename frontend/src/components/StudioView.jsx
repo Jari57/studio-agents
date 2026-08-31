@@ -1963,7 +1963,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       const saved = await persistProducerProject(updated);
       if (!saved) throw new Error('The master was rendered but its project record did not save.');
       badgeTracker.trackMix();
-      setPreviewItem(masterAsset);
+      setSessionPlaying(false);
+      setPreviewItem({ ...masterAsset, isExistingAsset: true });
       toast.success('Producer preview master rendered and saved.', { id: renderToast });
     } catch (error) {
       devWarn('[ProducerCanvas] Render failed', error);
@@ -4598,7 +4599,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     setGenerationFailure(null);
 
     const toastId = toast.loading(
-      (isVideoAgent || isSpeechAgent || isAudioAgent) 
+      isSpeechAgent ? 'Creating a musical performance and isolating the vocal. This can take several minutes.' : (isVideoAgent || isAudioAgent)
         ? `${targetAgentSnapshot?.name || 'AI'} is performing... (Typically 1-2 mins)` 
         : `${targetAgentSnapshot?.name || 'AI'} is working...`
     );
@@ -4896,17 +4897,9 @@ ABSOLUTE RULES (violating any = failure):
       } else if (isSpeechAgent) {
         // VOCALS FIX: Use lyrics (from project or brain-generated), NOT the style description
         // Priority: 1) Context lyrics from project, 2) Brain-generated lyrics, 3) User prompt
-        let vocalLyrics = contextLyrics || expandedPrompt || prompt;
-        // Strip ALL AI preamble — keep only singable text
-        const rawVocalLyrics = vocalLyrics;
-        vocalLyrics = vocalLyrics
-          // Strip everything before the first song structure tag (most reliable path)
-          .replace(/^[\s\S]*?(?=\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\b)/i, '')
-          // Strip common AI preamble lines (fallback when no structure tags)
-          .replace(/^(Sure[,!]?|Okay[,!]?|Here('s| is| are)[^\n]*|I'?ve (written|created)[^\n]*|Let me [^\n]*|Below [^\n]*|These (lyrics|are)[^\n]*|This song[^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|About:[^\n]*)\n+/gim, '')
-          .trim();
-        // Guard: if stripping ate everything, fall back to original
-        if (vocalLyrics.length < 30) vocalLyrics = rawVocalLyrics.trim();
+        // Backend owns the tested preamble cleanup. The old second cleaner
+        // deleted legitimate opening stanzas whenever a later section tag existed.
+        const vocalLyrics = (contextLyrics || expandedPrompt || prompt).trim();
         
         finalEndpoint = '/api/generate-speech';
         finalBody = { 
@@ -4919,6 +4912,7 @@ ABSOLUTE RULES (violating any = failure):
           rapStyle: voiceSettings.rapStyle || 'aggressive',
           language: voiceSettings.language || 'English',
           duration: voiceSettings.duration || 30,
+          bpm: voiceSettings.bpm || 90,
           backingTrackUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
           audioId: referencedAudioId,
           referenceSongUrl: referenceSongUrl || null,
@@ -4950,7 +4944,7 @@ ABSOLUTE RULES (violating any = failure):
 
       // If it's a media agent, run execution phase
       if (finalEndpoint !== '/api/generate') {
-        setGenerationStage(isVideoAgent ? 'Waiting for the video provider' : 'Waiting for the media provider');
+        setGenerationStage(isVideoAgent ? 'Waiting for the video provider' : isSpeechAgent ? 'Creating the performance and isolating the vocal; provider startup can take several minutes' : 'Waiting for the media provider');
         devLog(`[Studio] Starting Phase 2 (Execution) calling ${finalEndpoint}`, finalBody);
         try {
           // Add timeout for video requests to avoid indefinite hanging
@@ -12958,7 +12952,7 @@ ABSOLUTE RULES (violating any = failure):
         {/* DEFENSIVE: Ensure previewItem is a valid object before rendering */}
         {previewItem && typeof previewItem === 'object' && (
           <SectionErrorBoundary name="Preview Modal">
-          <div className="modal-overlay" onClick={() => {
+          <div className="modal-overlay" style={{ zIndex: 11000 }} onClick={() => {
             devLog('[Preview] Overlay clicked, closing preview');
             // Clear any media errors and reset transition guard
             setMediaLoadError(null);
@@ -12974,6 +12968,7 @@ ABSOLUTE RULES (violating any = failure):
               <div className="modal-header" style={{ flexShrink: 0, paddingBottom: '0.5rem', position: 'relative' }}>
                 <button 
                   className="modal-close" 
+                  aria-label="Close creation preview"
                   onClick={(e) => {
                     e.stopPropagation();
                     setMediaLoadError(null);
@@ -13242,7 +13237,7 @@ ABSOLUTE RULES (violating any = failure):
                   </span>
                   
                   {/* Model Used */}
-                  {(previewItem.model || selectedModel) && (
+                  {(previewItem.provider || previewItem.metadata?.provider || previewItem.model) && (
                     <span style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
@@ -13254,7 +13249,7 @@ ABSOLUTE RULES (violating any = failure):
                       color: 'var(--color-cyan)'
                     }}>
                       <Cpu size={12} />
-                      {previewItem.model || selectedModel}
+                      {previewItem.provider || previewItem.metadata?.provider || previewItem.model}
                     </span>
                   )}
                   
@@ -13601,11 +13596,12 @@ ABSOLUTE RULES (violating any = failure):
                             <Mic size={32} color={isPreviewPlaying ? 'white' : 'var(--text-secondary)'} />
                           </div>
                           <div style={{ fontSize: '0.85rem', color: isPreviewPlaying ? 'var(--color-pink)' : 'var(--text-secondary)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {isPreviewPlaying ? 'Playing AI Vocal...' : 'AI Vocal Ready'}
+                            {isPreviewPlaying ? 'Playing audio…' : previewItem.type === 'Master' ? 'Rendered mix ready' : 'Audio ready'}
                           </div>
                           <audio 
                             controls 
                             src={previewItem.audioUrl} 
+                            aria-label={`Preview ${previewItem.title || 'audio'}`}
                             style={{ width: '100%', height: '40px' }}
                             onPlay={() => setIsPreviewPlaying(true)}
                             onPause={() => setIsPreviewPlaying(false)}

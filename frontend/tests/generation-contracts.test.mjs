@@ -23,3 +23,20 @@ test('saved canvas playback requests metadata without unnecessary CORS mode', ()
   assert.doesNotMatch(player, /crossOrigin/);
   assert.match(player, /aria-label/);
 });
+
+test('saved producer mixes are previewed as existing assets with accurate attribution', () => {
+  const source = readFileSync(new URL('../src/components/StudioView.jsx', import.meta.url), 'utf8');
+  assert.match(source, /setPreviewItem\(\{ \.\.\.masterAsset, isExistingAsset: true \}\)/);
+  assert.match(source, /previewItem\.provider \|\| previewItem\.metadata\?\.provider \|\| previewItem\.model/);
+  assert.doesNotMatch(source, /previewItem\.model \|\| selectedModel/);
+  assert.match(source, /className="modal-overlay" style=\{\{ zIndex: 11000 \}\}/);
+  assert.match(source, /aria-label="Close creation preview"/);
+});
+
+test('frontend preserves vocal opening stanzas for the backend lyric policy', () => {
+  const source = readFileSync(new URL('../src/components/StudioView.jsx', import.meta.url), 'utf8');
+  const start = source.indexOf('// VOCALS FIX:');
+  const lyricsSection = source.slice(start, source.indexOf("finalEndpoint = '/api/generate-speech'", start));
+  assert.doesNotMatch(lyricsSection, /\.replace\(/);
+  assert.match(lyricsSection, /const vocalLyrics = \(contextLyrics \|\| expandedPrompt \|\| prompt\)\.trim\(\)/);
+});

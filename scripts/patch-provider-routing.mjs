@@ -104,10 +104,13 @@ const boundedReplicateHelper = `async function runReplicateWithRateLimitRetry(_r
   if (!token) throw new Error('Replicate provider is not configured');
 
   const configuredTimeoutMs = Number(process.env.REPLICATE_GENERATION_TIMEOUT_MS);
-  const defaultTimeoutMs = /MiniMax (beat|vocal) generation/i.test(operationName) ? 150000 : 90000;
+  const isStemSeparation = /vocal stem separation/i.test(operationName);
+  // Separation is a separate queued GPU job. Production evidence showed a
+  // 50-second cold start consuming most of its old 90-second total budget.
+  const defaultTimeoutMs = isStemSeparation ? 180000 : /MiniMax (beat|vocal) generation/i.test(operationName) ? 150000 : 90000;
   const timeoutMs = Math.max(
     30000,
-    Math.min(configuredTimeoutMs || defaultTimeoutMs, 150000)
+    Math.min(configuredTimeoutMs || defaultTimeoutMs, isStemSeparation ? 180000 : 150000)
   );
   const maxCreateAttempts = 2;
   let lastError = null;
@@ -163,7 +166,7 @@ const boundedReplicateHelper = `async function runReplicateWithRateLimitRetry(_r
       if (!predictionId) throw new Error(\`Replicate did not return a prediction ID for \${operationName}\`);
       predictionStarted = true;
 
-      while (!['succeeded', 'failed', 'canceled'].includes(String(prediction?.status || ''))) {
+      while (!['succeeded', 'failed', 'canceled', 'aborted'].includes(String(prediction?.status || ''))) {
         if (Date.now() - startedAt >= timeoutMs) {
           await fetchWithTimeout(
             'https://api.replicate.com/v1/predictions/' + encodeURIComponent(predictionId) + '/cancel',

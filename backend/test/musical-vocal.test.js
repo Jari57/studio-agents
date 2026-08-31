@@ -37,7 +37,7 @@ test('a separator failure is terminal, without another paid song generation', as
   await assert.rejects(generateMusicalVocal(brief, async () => {
     if (++calls === 1) return 'https://example.test/song.mp3';
     throw new Error('separator unavailable');
-  }), /separator unavailable/);
+  }), { message: 'separator unavailable', stage: 'separation' });
   assert.equal(calls, 2);
 });
 test('legacy musical output is also explicitly separated, not relabeled', async () => {

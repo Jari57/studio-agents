@@ -15,11 +15,16 @@ function outputUrl(value) {
 
 async function separateVocal(audio, run, emit = () => {}) {
   emit('separating-vocal');
-  const stems = await run(STEM_MODEL, {
-    audio, stem: 'vocals', model_name: 'htdemucs', output_format: 'mp3', mp3_bitrate: 320, clip_mode: 'rescale',
-  }, 'Musical vocal stem separation');
-  // The accompaniment/full song must never be substituted when extraction fails.
-  return outputUrl(stems?.vocals);
+  try {
+    const stems = await run(STEM_MODEL, {
+      audio, stem: 'vocals', model_name: 'htdemucs', output_format: 'mp3', mp3_bitrate: 320, clip_mode: 'rescale',
+    }, 'Musical vocal stem separation');
+    // The accompaniment/full song must never be substituted when extraction fails.
+    return outputUrl(stems?.vocals);
+  } catch (error) {
+    error.stage = 'separation';
+    throw error;
+  }
 }
 
 async function generateMusicalVocal({ lyrics, style, genre, language, rapStyle, duration, bpm }, run, emit = () => {}) {
@@ -34,10 +39,16 @@ async function generateMusicalVocal({ lyrics, style, genre, language, rapStyle, 
     `Aim for a concise ${duration || 30}-second performance. Original vocalist, clear lead vocal, restrained accompaniment. Perform the supplied lyrics; no spoken introduction.`
   ].filter(Boolean).join('. ').slice(0, 2000);
   emit('generating-musical-performance');
-  const song = outputUrl(await run(SONG_MODEL, {
-    prompt: direction, lyrics: lyrics.trim(), is_instrumental: false, lyrics_optimizer: false,
-    audio_format: 'mp3', sample_rate: 44100, bitrate: 256000,
-  }, 'MiniMax vocal generation'));
+  let song;
+  try {
+    song = outputUrl(await run(SONG_MODEL, {
+      prompt: direction, lyrics: lyrics.trim(), is_instrumental: false, lyrics_optimizer: false,
+      audio_format: 'mp3', sample_rate: 44100, bitrate: 256000,
+    }, 'MiniMax vocal generation'));
+  } catch (error) {
+    error.stage = 'performance';
+    throw error;
+  }
   const audioUrl = await separateVocal(song, run, emit);
   return { audioUrl, provider: 'minimax-music-2.6-demucs', performanceType: 'isolated-musical-vocal' };
 }

@@ -5184,11 +5184,14 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
         provider = generated.provider;
         isolatedMusicalVocal = true;
       } catch (vocalError) {
-        logger.warn('Musical vocal generation failed', { code: vocalError.code || null, status: vocalError.status || null });
+        const failureStage = ['performance', 'separation'].includes(vocalError.stage) ? vocalError.stage : 'download';
+        logger.warn('Musical vocal generation failed', { stage: failureStage, code: vocalError.code || null, status: vocalError.status || null });
         await refundCredits(req, 'musical performance or stem extraction failed');
         return res.status(vocalError.status === 422 ? 422 : 503).json({
           error: 'Musical vocal generation unavailable',
-          details: vocalError.status === 422 ? vocalError.message : [401, 402, 403].includes(vocalError.status) ? 'The musical provider needs account, billing, or model-access attention. No substitute was saved. Your StudioAgents credits were refunded.' : 'The musical performance or vocal-stem extraction did not finish. No speech or full-song substitute was saved. Your StudioAgents credits were refunded; retry this take.',
+          details: vocalError.status === 422 ? vocalError.message : [401, 402, 403].includes(vocalError.status) ? 'The musical provider needs account, billing, or model-access attention. No substitute was saved. Your StudioAgents credits were refunded.' : failureStage === 'separation' ? 'The musical performance was generated, but isolating its vocal did not finish. No full-song substitute was saved. Your StudioAgents credits were refunded.' : failureStage === 'download' ? 'The vocal was generated, but its audio could not be retrieved. No substitute was saved. Your StudioAgents credits were refunded.' : 'The musical performance did not finish. No speech substitute was saved. Your StudioAgents credits were refunded.',
+          failureStage,
+          code: vocalError.code === 'PROVIDER_TIMEOUT' ? 'VOCAL_PROVIDER_TIMEOUT' : 'VOCAL_PROVIDER_FAILED',
           isSystemCreditIssue: [401, 402, 403].includes(vocalError.status),
         });
       }

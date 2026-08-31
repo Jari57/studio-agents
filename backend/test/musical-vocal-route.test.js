@@ -50,6 +50,8 @@ test('production vocal handler refunds a missing stem and never returns a full s
   assert.equal(response.status, 503, JSON.stringify(response.result));
   assert.equal(response.refunds, 1);
   assert.equal(response.result.audioUrl, undefined);
+  assert.equal(response.result.failureStage, 'separation');
+  assert.match(response.result.details, /performance was generated/);
 });
 test('false personal flag cannot bypass private voice ownership inside the handler', async () => {
   const response = await request({ isPersonalVoice: false, speakerUrl: 'https://example.test/unowned.wav', elevenLabsVoiceId: 'unowned' });

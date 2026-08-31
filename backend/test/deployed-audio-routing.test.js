@@ -70,3 +70,40 @@ test('unsupported premium reference conditioning is explicit, refunded and never
   assert.equal(outcome.models.length, 0);
   assert.match(outcome.result.details, /does not accept reference audio/);
 });
+
+function providerHarness(status = 'succeeded', configuredTimeout) {
+  const calls = [];
+  const context = {
+    process: { env: { REPLICATE_API_TOKEN: 'fixture-only', REPLICATE_GENERATION_TIMEOUT_MS: configuredTimeout } },
+    logger: { info() {}, warn() {} },
+    setTimeout: callback => callback(), Date,
+    fetchWithTimeout: async (url, options) => {
+      calls.push({ url, options });
+      return { ok: true, status: 200, text: async () => JSON.stringify({ id: 'fixture', status, output: status === 'succeeded' ? 'fixture-output' : null }) };
+    },
+  };
+  const helperStart = deployed.indexOf('async function runReplicateWithRateLimitRetry(');
+  vm.runInNewContext(deployed.slice(helperStart, deployed.indexOf('const app = express()', helperStart)), context);
+  return { calls, run: context.runReplicateWithRateLimitRetry };
+}
+
+for (const [operation, seconds] of [['MiniMax vocal generation', '150s'], ['MiniMax beat generation', '150s'], ['Musical vocal stem separation', '180s']]) {
+  test(`deployed ${operation} has an explicit ${seconds} total budget`, async () => {
+    const { calls, run } = providerHarness();
+    await run(null, 'owner/model', { input: {} }, operation);
+    assert.equal(calls[0].options.headers['Cancel-After'], seconds);
+    assert.equal(calls.length, 1);
+  });
+}
+
+test('an explicitly configured smaller provider budget remains respected', async () => {
+  const { calls, run } = providerHarness('succeeded', '60000');
+  await run(null, 'owner/model', { input: {} }, 'Musical vocal stem separation');
+  assert.equal(calls[0].options.headers['Cancel-After'], '60s');
+});
+
+test('aborted provider prediction is terminal without polling or duplicate creation', async () => {
+  const { calls, run } = providerHarness('aborted');
+  await assert.rejects(run(null, 'owner/model', { input: {} }, 'Musical vocal stem separation'), { code: 'PROVIDER_FAILED' });
+  assert.equal(calls.length, 1);
+});
