@@ -344,19 +344,14 @@ Studio Agents commits to ethical AI development through:
 • Automated licensing systems
 
 **How Studio Agents Prepares You:**
-• Automatic compliance updates
 • Legal resource library
-• Community forum discussions
-• Webinars with music attorneys
-• Template agreements and documentation
+• Educational agreement guides and documentation
 
 **Staying Current:**
-• Subscribe to our Legal Updates newsletter
-• Participate in monthly Legal Office Hours
-• Access our partnership with music law firms
-• Join our Creator Rights Advocacy group
+• Check current official guidance for your jurisdiction
+• Ask a qualified professional to review rights and agreements
 
-The goal: Let you focus on creating while we handle the complexity of staying compliant.`
+These resources are educational, not legal advice, attorney services, or a guarantee of compliance.`
         }
       ]
     }

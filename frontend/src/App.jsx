@@ -1,7 +1,8 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import './App.css';
 import { AGENTS } from './constants';
+import { resourceNavigationContext, safeResourceReturnHash } from './utils/resourceNavigation.mjs';
 
 // Retry wrapper for lazy imports — handles chunk load failures (stale cache, deploy mid-session)
 const lazyWithRetry = (importFn) => React.lazy(() =>
@@ -78,6 +79,8 @@ function App() {
   
   // Hash-based routing state
   const [currentHash, setCurrentHash] = useState(window.location.hash || '#/');
+  const previousHashRef = useRef(window.location.hash || '#/');
+  const resourceReturnRef = useRef(resourceNavigationContext('#/', window.location.hash || '#/', '#/', window.history.state).returnHash);
   const [startWizard, setStartWizard] = useState(false);
   const [startOrchestrator, setStartOrchestrator] = useState(false);
   const [startTour, setStartTour] = useState(false);
@@ -86,7 +89,12 @@ function App() {
   // Listen for hash changes (Browser Back/Forward)
   useEffect(() => {
     const handleHashChange = () => {
-      setCurrentHash(window.location.hash || '#/');
+      const nextHash = window.location.hash || '#/';
+      const context = resourceNavigationContext(previousHashRef.current, nextHash, resourceReturnRef.current, window.history.state);
+      previousHashRef.current = nextHash;
+      resourceReturnRef.current = context.returnHash;
+      window.history.replaceState(context.historyState, '', window.location.href);
+      setCurrentHash(nextHash);
     };
     
     // Set initial hash if empty
@@ -179,6 +187,15 @@ function App() {
     window.location.hash = '#/';
   };
 
+  const handleBackFromResource = () => {
+    setStartWizard(false);
+    setStartOrchestrator(false);
+    setStartTour(false);
+    setInitialPlan(null);
+    setInitialTab(null);
+    window.location.hash = safeResourceReturnHash(resourceReturnRef.current);
+  };
+
   // Determine view based on hash
   const isStudio = currentHash.startsWith('#/studio');
   const isWhitepapers = currentHash === '#/whitepapers';
@@ -218,37 +235,37 @@ function App() {
       ) : isWhitepapers ? (
         <Suspense fallback={<StudioLoadingFallback />}>
           <main>
-          <WhitepapersPage onBack={handleBackToLanding} agents={AGENTS} />
+          <WhitepapersPage onBack={handleBackFromResource} agents={AGENTS} />
           </main>
         </Suspense>
       ) : isLegal ? (
         <Suspense fallback={<StudioLoadingFallback />}>
           <main>
-          <LegalResourcesPage onBack={handleBackToLanding} />
+          <LegalResourcesPage onBack={handleBackFromResource} />
           </main>
         </Suspense>
       ) : isDna ? (
         <Suspense fallback={<StudioLoadingFallback />}>
           <main>
-          <DnaResourcePage onBack={handleBackToLanding} />
+          <DnaResourcePage onBack={handleBackFromResource} />
           </main>
         </Suspense>
       ) : isVocals ? (
         <Suspense fallback={<StudioLoadingFallback />}>
           <main>
-          <VocalsResourcePage onBack={handleBackToLanding} />
+          <VocalsResourcePage onBack={handleBackFromResource} />
           </main>
         </Suspense>
       ) : isBillboard ? (
         <Suspense fallback={<StudioLoadingFallback />}>
           <main>
-          <BillboardBlueprintPage onBack={handleBackToLanding} />
+          <BillboardBlueprintPage onBack={handleBackFromResource} />
           </main>
         </Suspense>
       ) : isCampaign ? (
         <Suspense fallback={<StudioLoadingFallback />}>
           <main>
-          <ContentMultiplicationPage onBack={handleBackToLanding} />
+          <ContentMultiplicationPage onBack={handleBackFromResource} />
           </main>
         </Suspense>
       ) : isStudio ? (

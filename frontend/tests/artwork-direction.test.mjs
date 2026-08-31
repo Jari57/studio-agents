@@ -59,3 +59,18 @@ test('references and same-project context stay subordinate to explicit visual co
   assert.match(request.prompt, /use only where compatible with the original brief/);
   assert.match(request.systemInstruction, /Do not expand the requested deliverable/);
 });
+
+test('existing art-direction call produces positive composition without echoing exclusions', () => {
+  const brief = 'A violet folded-paper sculpture on cream. No crowded room or labels.';
+  const request = artworkDirectionRequest(brief);
+  assert.ok(request.prompt.includes(brief), 'original exclusions remain authoritative');
+  assert.match(request.systemInstruction, /positive-only visual specification for FLUX/);
+  assert.match(request.systemInstruction, /Convert exclusions into concrete positive visual alternatives/);
+  assert.match(request.systemInstruction, /Never repeat an excluded object or forbidden noun/);
+  assert.ok(request.systemInstruction.length < 2000, 'backend must retain the full direction contract');
+  const source = readFileSync(new URL('../src/components/StudioOrchestratorV2.jsx', import.meta.url), 'utf8');
+  const image = source.slice(source.indexOf('const handleGenerateImage ='), source.indexOf('const tryVideoFrameFallback ='));
+  assert.match(image, /prompt: artworkRequestPrompt\(runContext\?\.brief \?\? songIdea, visualPrompt, contextHint\)/);
+  assert.match(image, /positivePrompt: visualPrompt/);
+  assert.equal((image.match(/await fetch\(/g) || []).length, 1, 'no extra paid prompt-rewriting call');
+});

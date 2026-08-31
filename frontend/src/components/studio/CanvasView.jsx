@@ -510,8 +510,9 @@ export default function CanvasView({
     <div className="project-canvas-view animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
       {/* ═══════════ SECTION A: COMPACT PROJECT HEADER ═══════════ */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '16px', padding: isMobile ? '16px' : '20px 24px',
+      <div className="project-canvas-header" style={{
+        display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? 'auto minmax(0, 1fr)' : undefined,
+        alignItems: 'center', gap: '16px', padding: isMobile ? '16px' : '20px 24px',
         borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)',
         flexWrap: 'wrap'
       }}>
@@ -541,7 +542,7 @@ export default function CanvasView({
               style={{
                 background: 'rgba(255,255,255,0.1)', border: '1px solid var(--color-purple)',
                 borderRadius: '8px', padding: '6px 12px', color: 'white', fontSize: '1.3rem',
-                fontWeight: '700', width: '100%', outline: 'none'
+                fontWeight: '700', width: '100%', minWidth: 0, boxSizing: 'border-box', outline: 'none'
               }}
             />
           ) : (
@@ -549,12 +550,13 @@ export default function CanvasView({
               onClick={() => { setProjectNameDraft(selectedProject.name || ''); setEditingProjectName(true); }}
               style={{
                 margin: 0, fontSize: isMobile ? '1.1rem' : '1.3rem', fontWeight: '700', cursor: 'pointer',
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                whiteSpace: isMobile ? 'normal' : 'nowrap', overflow: isMobile ? 'visible' : 'hidden',
+                overflowWrap: 'anywhere', textOverflow: isMobile ? undefined : 'ellipsis', lineHeight: 1.35,
                 display: 'flex', alignItems: 'center', gap: '8px'
               }}
               title="Click to rename"
             >
-              {selectedProject.name || 'Untitled Project'}
+              <span style={{ minWidth: 0 }}>{selectedProject.name || 'Untitled Project'}</span>
               <Edit3 size={14} style={{ opacity: 0.4, flexShrink: 0 }} />
             </h1>
           )}
@@ -575,7 +577,10 @@ export default function CanvasView({
         </div>
 
         {/* Right actions */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
+        <div className="project-canvas-header-actions" style={{
+          display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap',
+          gridColumn: isMobile ? '1 / -1' : undefined, minWidth: 0, width: isMobile ? '100%' : undefined
+        }}>
           <button
             onClick={() => setShowCanvasSidebar(true)}
             className="btn-icon-circle glass"
@@ -587,7 +592,7 @@ export default function CanvasView({
           <button
             className="btn-pill primary"
             onClick={() => setShowStudioSession(true)}
-            style={{ fontSize: '0.8rem' }}
+            style={{ fontSize: '0.8rem', flex: isMobile ? '1 1 auto' : undefined }}
             title="Open multi-track session mixer"
           >
             <LayoutGrid size={14} /> {isMobile ? 'Mix' : 'Session Mixer'}
@@ -595,7 +600,7 @@ export default function CanvasView({
           <button
             className="btn-pill primary"
             onClick={() => setShowOrchestrator(true)}
-            style={{ fontSize: '0.8rem' }}
+            style={{ fontSize: '0.8rem', flex: isMobile ? '1 1 auto' : undefined }}
           >
             <Sparkles size={14} /> {isMobile ? 'Create' : 'Open Orchestrator'}
           </button>

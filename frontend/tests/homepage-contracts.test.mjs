@@ -23,13 +23,18 @@ test('archive showcase studio entry closes the archive and uses the existing aut
 test('all agents and existing destinations remain reachable after consolidation', () => {
   assert.match(component, /agents\.slice\(0, 4\)\.map/);
   assert.match(component, /agents\.slice\(4\)\.map/);
-  for (const destination of ['project_canvas', 'orchestrator', 'agents', 'resources', 'news']) {
+  for (const destination of ['project_canvas', 'hub', 'orchestrator', 'agents', 'resources', 'news']) {
     assert.ok(component.includes(`'${destination}'`), `${destination} must remain reachable`);
   }
   for (const retained of ['onSubscribe', 'setShowShowcase(true)', 'setShowInvestorPitch(true)', 'setShowPrivacy(true)', 'setShowTerms(true)', '/support.html', '/account-deletion.html']) {
     assert.ok(landing.includes(retained), `${retained} must remain available`);
   }
   assert.match(landing, /id="studio-home-pricing"/);
+});
+
+test('Your projects opens the project list while the canvas action keeps its editing destination', () => {
+  assert.match(component, /onClick=\{\(\) => onNavigate\('hub'\)\}><FolderOpen[^>]*\/> Your projects/);
+  assert.match(component, /tab: 'project_canvas'[^\n]*action: 'Open project canvas'/);
 });
 
 test('illustrative demos require an explicit open and only one demo mounts', () => {

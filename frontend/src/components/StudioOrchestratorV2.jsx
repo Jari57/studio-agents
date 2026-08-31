@@ -19,9 +19,12 @@ import {
   fetchActiveProductionJob
 } from '../services/productionJobs';
 import StudioOnboarding from './StudioOnboarding';
+import StudioOutputActions from './StudioOutputActions';
 import { productionJobMatchesProject } from '../utils/productionRecovery.mjs';
-import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, artworkDirectionRequest, confirmProjectSave, currentRunLyrics } from '../utils/productionIntegrity.mjs';
+import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, artworkDirectionRequest, confirmProjectSave as confirmCloudProjectSave, currentRunLyrics } from '../utils/productionIntegrity.mjs';
+import { restoreProductionConfig, withProductionConfig, mergeProductionAssets } from '../utils/productionProjectConfig.mjs';
 import { generationFailureMessage } from '../utils/generationErrors.mjs';
+import { personalVoiceReadiness, personalVoiceCloneLabel } from '../utils/personalVoiceReadiness.mjs';
 
 // Dev-only logging — tree-shaken in production
 const devLog = import.meta.env.DEV ? (...args) => console.log(...args) : () => {};
@@ -2241,12 +2244,8 @@ export default function StudioOrchestratorV2({
   const [stemType, setStemType] = useState('Full Mix'); // Stem/Instrument isolation
   const [projectBpm, setProjectBpm] = useState(existingProject?.bpm || existingProject?.settings?.bpm || 120); // Tempo for production
   
-  const [selectedAgents, setSelectedAgents] = useState({
-    lyrics: 'ghost',
-    audio: 'beat',
-    visual: 'album',
-    video: 'video-creator'
-  });
+  const [selectedAgents, setSelectedAgents] = useState(() => restoreProductionConfig(existingProject).selectedAgents);
+  const productionAssetIdentityRef = useRef(new Map());
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingSlots, setGeneratingSlots] = useState({
@@ -2325,9 +2324,18 @@ export default function StudioOrchestratorV2({
   const [isSavingProject, setIsSavingProject] = useState(false);
   const savingProjectRef = useRef(false);
   const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
-  const [quickMode, setQuickMode] = useState(true); // Quick Create vs Advanced Mode
-  const [quickGenre, setQuickGenre] = useState('Modern Hip-Hop'); // Genre for Quick Create
-  const [quickOutcome, setQuickOutcome] = useState('full-package'); // Restore the original one-click four-generator journey
+  const [quickMode, setQuickMode] = useState(() => restoreProductionConfig(existingProject).quickMode);
+  const [quickGenre, setQuickGenre] = useState(() => restoreProductionConfig(existingProject).quickGenre);
+  const [quickOutcome, setQuickOutcome] = useState(() => restoreProductionConfig(existingProject).quickOutcome);
+  // Every save path stamps the same project configuration and reuses the same
+  // take's asset identity. Saving is not a request to produce another version.
+  function confirmProjectSave(save, project) {
+    const configured = withProductionConfig(project, { selectedAgents, quickMode, quickOutcome, quickGenre });
+    return confirmCloudProjectSave(save, {
+      ...configured,
+      assets: mergeProductionAssets(existingProject?.assets || [], configured.assets || [], productionAssetIdentityRef.current)
+    });
+  }
   const [selectedOutputPreset, setSelectedOutputPreset] = useState('Full Song Release'); // Output format preset
   // Collapsible section state — all sections start collapsed for a clean first impression
   const [expandedSections, setExpandedSections] = useState({
@@ -2349,6 +2357,8 @@ export default function StudioOrchestratorV2({
   const [loadingVoices, setLoadingVoices] = useState(false);
   const [elVoices, setElVoices] = useState([]); // ElevenLabs professional voices
   const [loadingElVoices, setLoadingElVoices] = useState(false);
+  const [voiceCatalogCheck, setVoiceCatalogCheck] = useState({ status: 'idle', ownerUid: null });
+  const [voiceCatalogRefresh, setVoiceCatalogRefresh] = useState(0);
   const [referenceSongUrl, setReferenceSongUrl] = useState(null); // Reference song for tone/style matching
   const [isUploadingReferenceSong, setIsUploadingReferenceSong] = useState(false);
 
@@ -2357,6 +2367,10 @@ export default function StudioOrchestratorV2({
   const [isCloningVoice, setIsCloningVoice] = useState(false);
   const [clonedVoiceId, setClonedVoiceId] = useState(null); // ElevenLabs voice_id from IVC
   const [voiceOwnershipConfirmed, setVoiceOwnershipConfirmed] = useState(false);
+  const personalVoiceStatus = personalVoiceReadiness({
+    voiceId: clonedVoiceId, voices: elVoices, ...voiceCatalogCheck,
+    currentUid: auth.currentUser?.uid,
+  });
   const [showAssets, setShowAssets] = useState(true); // Your Assets section visibility
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false); // Project picker overlay
 
@@ -2647,6 +2661,15 @@ export default function StudioOrchestratorV2({
     setProjectName(existingProject?.name || '');
 
     // Restore project settings (useState initializers only run on first mount)
+    const productionConfig = restoreProductionConfig(existingProject);
+    setSelectedAgents(productionConfig.selectedAgents);
+    setQuickMode(productionConfig.quickMode);
+    setQuickOutcome(productionConfig.quickOutcome);
+    setQuickGenre(productionConfig.quickGenre);
+    productionAssetIdentityRef.current.clear();
+    if (!Object.values(productionConfig.selectedAgents).some(Boolean)) {
+      setExpandedSections(prev => ({ ...prev, agentSelection: true }));
+    }
     setSongIdea(existingProject?.songIdea || existingProject?.name || '');
     setLanguage(existingProject?.language || 'English');
     setStyle(existingProject?.style || 'Modern Hip-Hop');
@@ -2751,28 +2774,39 @@ export default function StudioOrchestratorV2({
 
   // Fetch ElevenLabs voices
   useEffect(() => {
+    let cancelled = false;
     const fetchElVoices = async () => {
+      const ownerUid = auth.currentUser?.uid;
+      const isCurrent = () => !cancelled && auth.currentUser?.uid === ownerUid;
       setLoadingElVoices(true);
+      setVoiceCatalogCheck({ status: 'checking', ownerUid });
       try {
         const headers = await getHeaders();
         const response = await fetch(`${BACKEND_URL}/api/v2/voices`, { headers });
         if (response.ok) {
           const voices = await response.json();
-          setElVoices(voices);
+          if (!Array.isArray(voices)) throw new Error('Invalid voice catalog');
+          if (isCurrent()) {
+            setElVoices(voices);
+            setVoiceCatalogCheck({ status: 'loaded', ownerUid });
+          }
         } else {
-          devWarn('[Orchestrator] ElevenLabs voices unavailable (status:', response.status, ')— using manual voice ID input');
+          if (isCurrent()) setVoiceCatalogCheck({ status: 'error', ownerUid });
+          devWarn('[Orchestrator] ElevenLabs voices unavailable (status:', response.status, ')— personal voice readiness not verified');
         }
       } catch (err) {
+        if (isCurrent()) setVoiceCatalogCheck({ status: 'error', ownerUid });
         console.error('[Orchestrator] Error fetching ElevenLabs voices:', err);
       } finally {
-        setLoadingElVoices(false);
+        if (!cancelled) setLoadingElVoices(false);
       }
     };
 
     if (isOpen) {
       fetchElVoices();
     }
-  }, [isOpen]);
+    return () => { cancelled = true; };
+  }, [isOpen, voiceCatalogRefresh]);
 
   // Delete a voice from ElevenLabs
   const handleDeleteVoice = async (voiceId) => {
@@ -2788,6 +2822,11 @@ export default function StudioOrchestratorV2({
 
       if (response.ok) {
         setElVoices(prev => prev.filter(v => v.voice_id !== voiceId));
+        if (clonedVoiceId === voiceId) {
+          setClonedVoiceId(null);
+          setVoiceSource('studio');
+          setVoiceStyle('rapper');
+        }
         if (elevenLabsVoiceId === voiceId) {
           setElevenLabsVoiceId('');
           localStorage.removeItem('studio_elevenlabs_voice_id');
@@ -3315,9 +3354,24 @@ export default function StudioOrchestratorV2({
     // A fresh run clears previous media. Reject unmet prerequisites before
     // clearing that work or purchasing a description/another media output.
     const requestedAgents = agentSelectionOverride || selectedAgents;
+    if (!Object.values(requestedAgents).some(Boolean)) {
+      toast.error('Choose at least one generator before starting.', { id: 'orch-no-generators' });
+      return;
+    }
     const prerequisiteError = productionPrerequisiteError(requestedAgents, resumeJob ? mediaUrlsRef.current : {});
     if (prerequisiteError) {
       toast.error(prerequisiteError, { id: 'orch-prerequisite', duration: 8000 });
+      return;
+    }
+    // Check a requested personal vocal before purchasing the upstream beat or
+    // lyrics. Artwork-only and text-only drafts do not require a voice.
+    const requestedVoiceStatus = personalVoiceReadiness({
+      voiceId: clonedVoiceId, voices: elVoices, ...voiceCatalogCheck, currentUid: auth.currentUser?.uid,
+    });
+    if ((voiceSource === 'personal' || voiceStyle === 'cloned') && productionScope(requestedAgents, includeVocals).vocals
+      && !(resumeJob && mediaUrlsRef.current.vocals) && !requestedVoiceStatus.available) {
+      setShowAssets(true);
+      toast.error(requestedVoiceStatus.detail, { id: 'orch-voice-required' });
       return;
     }
 
@@ -3363,18 +3417,6 @@ export default function StudioOrchestratorV2({
       return;
     }
 
-    // ── AUTOMATION: SMART DEFAULTS ──
-    // If no agents are selected (common for new users), auto-select the standard suite based on mode
-    const activeSelectedCount = Object.values(selectedAgents).filter(Boolean).length;
-    if (activeSelectedCount === 0) {
-      if (creatorMode === 'creator') {
-        setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' });
-      } else {
-        setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-gen' });
-      }
-      devLog('[handleGenerate] Auto-selected default agents for empty selection');
-    }
-
     // ── Auto-detect genre from prompt and apply if different ──
     const detectedGenre = detectGenreFromPrompt(songIdea);
     if (detectedGenre && detectedGenre !== style) {
@@ -3387,10 +3429,7 @@ export default function StudioOrchestratorV2({
       });
     }
     
-    // Recalculate active slots after auto-selection
-    const currentSelectedAgents = agentSelectionOverride || (activeSelectedCount === 0
-      ? (creatorMode === 'creator' ? { lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' } : { lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-gen' })
-      : selectedAgents);
+    const currentSelectedAgents = requestedAgents;
     const requestedScope = productionScope(currentSelectedAgents, includeVocals);
     
     const activeSlots = Object.entries(currentSelectedAgents).filter(([, v]) => v);
@@ -4342,9 +4381,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     // Do not silently fall back to an anonymous voice. Personal voice is the
     // default path; require the artist to finish the short consented setup or
     // explicitly opt into a curated studio voice.
-    if (voiceSource === 'personal' && !clonedVoiceId) {
+    const verifiedPersonalVoice = personalVoiceReadiness({
+      voiceId: clonedVoiceId, voices: elVoices, ...voiceCatalogCheck, currentUid: auth.currentUser?.uid,
+    });
+    if ((voiceSource === 'personal' || voiceStyle === 'cloned') && !verifiedPersonalVoice.available) {
       setShowAssets(true);
-      toast.error('Create your personal voice first: upload 2–3 samples and confirm permission.', { id: 'orch-voice-required' });
+      toast.error(verifiedPersonalVoice.detail, { id: 'orch-voice-required' });
       return;
     }
     setGeneratingMedia(prev => ({ ...prev, vocals: true }));
@@ -4787,6 +4829,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       toast.error('Upload at least 2 voice samples for best results');
       return;
     }
+    if (!voiceOwnershipConfirmed) {
+      toast.error('Confirm that you own this voice or have explicit permission before creating a personal voice.');
+      return;
+    }
 
     setIsCloningVoice(true);
     toast.loading('Cloning your voice...', { id: 'voice-clone' });
@@ -4815,7 +4861,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         setElevenLabsVoiceId(result.voiceId);
         setVoiceSource('personal');
         setVoiceStyle('cloned');
-        toast.success('Voice cloned! Your voice is now active.', { id: 'voice-clone' });
+        setVoiceCatalogCheck({ status: 'checking', ownerUid: auth.currentUser?.uid });
+        setVoiceCatalogRefresh(value => value + 1);
+        toast.success('Voice created. Checking your saved voice before use.', { id: 'voice-clone' });
 
         // Add to saved voices
         const voiceEntry = {
@@ -5194,6 +5242,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         headers,
         body: JSON.stringify({
           prompt: artworkRequestPrompt(runContext?.brief ?? songIdea, visualPrompt, contextHint),
+          // Keep the original brief above for fallback/audit. FLUX receives the
+          // existing art director's positive specification, not repeated negatives.
+          positivePrompt: visualPrompt,
           referenceImage: visualDnaUrl
         }),
         signal: createTimeoutSignal(60000)
@@ -6577,10 +6628,6 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     // Use existing project ID if updating, otherwise create new
     const projectId = existingProject?.id || crypto.randomUUID();
     
-    // Deduplicate: remove existing assets whose type matches a freshly generated asset
-    const newAssetTypes = new Set(assets.map(a => a.type));
-    const filteredExisting = (existingProject?.assets || []).filter(a => !newAssetTypes.has(a.type));
-    
     const project = {
       id: projectId,
       name: projectName || existingProject?.name || songIdea || 'Untitled Project',
@@ -6605,7 +6652,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         const agent = AGENTS.find(a => a.id === id);
         return agent?.name || id;
       }),
-      assets: [...filteredExisting, ...assets],
+      assets,
       mediaUrls: mergeCurrentMedia(existingProject?.mediaUrls, mediaUrls),
       coverImage: formatImageSrc(mediaUrls.image) || existingProject?.coverImage || null
     };
@@ -8063,8 +8110,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 }}
               >
                 <optgroup label="🎙️ Your Voice">
-                  <option value="cloned" disabled={!clonedVoiceId}>
-                    {clonedVoiceId ? '✨ My Activated Personal Voice' : '✨ My Voice (Create it below)'}
+                  <option value="cloned" disabled={!personalVoiceStatus.available}>
+                    {clonedVoiceId ? `✨ My Voice — ${personalVoiceStatus.label}` : '✨ My Voice (Create it below)'}
                   </option>
                   {savedVoices.filter(voice => voice.voiceId || voice.provider === 'elevenlabs-ivc').map(voice => (
                     <option key={voice.id} value={`saved-${voice.id}`}>🎙️ {voice.name || 'Saved Voice'}</option>
@@ -8159,9 +8206,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
                 {/* Premium ElevenLabs Input / Voice Selector */}
                 {voiceStyle === 'cloned' && clonedVoiceId ? (
-                  <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(34, 197, 94, 0.1)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)', color: '#22c55e', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Using: Your Cloned Voice</span>
+                  <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.1)',
+                    border: '1px solid rgba(139, 92, 246, 0.3)', color: personalVoiceStatus.available ? '#22c55e' : '#fbbf24', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{personalVoiceStatus.label}</span>
                     <button 
                       onClick={() => handleDeleteVoice(clonedVoiceId)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(239, 68, 68, 0.7)', padding: '2px', display: 'flex', transition: 'color 0.2s' }}
@@ -8774,9 +8821,20 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <Mic size={16} color="#a855f7" />
-                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Voice Samples</span>
-                  <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginLeft: 'auto' }}>{voiceSamples.length}/3</span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>New Voice Samples</span>
+                  <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginLeft: 'auto' }}>{voiceSamples.length}/3 queued</span>
                 </div>
+
+                {clonedVoiceId && (
+                  <div role="status" style={{ padding: '10px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                    <strong style={{ display: 'block', fontSize: '0.75rem', color: personalVoiceStatus.available ? '#4ade80' : '#fbbf24' }}>{personalVoiceStatus.label}</strong>
+                    <p style={{ margin: '6px 0', fontSize: '0.7rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}>{personalVoiceStatus.detail}</p>
+                    <button type="button" disabled={loadingElVoices} onClick={() => setVoiceCatalogRefresh(value => value + 1)}
+                      style={{ border: '1px solid rgba(139,92,246,0.4)', borderRadius: '6px', background: 'transparent', color: '#c4b5fd', padding: '6px 9px', cursor: 'pointer' }}>
+                      {loadingElVoices ? 'Checking voice…' : 'Recheck saved voice'}
+                    </button>
+                  </div>
+                )}
 
                 {/* Uploaded sample list */}
                 {voiceSamples.map((sample, idx) => (
@@ -8836,9 +8894,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   style={{
                     padding: '10px',
                     borderRadius: '10px',
-                    border: clonedVoiceId ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(139, 92, 246, 0.4)',
-                    background: clonedVoiceId ? 'rgba(34, 197, 94, 0.1)' : 'rgba(139, 92, 246, 0.15)',
-                    color: clonedVoiceId ? '#22c55e' : (voiceSamples.length < 2 || !voiceOwnershipConfirmed ? 'rgba(255,255,255,0.3)' : '#a855f7'),
+                    border: '1px solid rgba(139, 92, 246, 0.4)',
+                    background: 'rgba(139, 92, 246, 0.15)',
+                    color: voiceSamples.length < 2 || !voiceOwnershipConfirmed ? 'rgba(255,255,255,0.3)' : '#a855f7',
                     fontSize: '0.8rem',
                     fontWeight: '700',
                     cursor: voiceSamples.length < 2 || !voiceOwnershipConfirmed || isCloningVoice ? 'not-allowed' : 'pointer',
@@ -8850,8 +8908,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     opacity: voiceSamples.length < 2 || !voiceOwnershipConfirmed ? 0.5 : 1
                   }}
                 >
-                  {isCloningVoice ? <Loader2 size={14} className="spin" /> : clonedVoiceId ? <CheckCircle2 size={14} /> : <Sparkles size={14} />}
-                  {isCloningVoice ? 'Creating your voice...' : clonedVoiceId ? 'Personal Voice Ready' : 'Create My Voice'}
+                  {isCloningVoice ? <Loader2 size={14} className="spin" /> : <Sparkles size={14} />}
+                  {personalVoiceCloneLabel({ isCloning: isCloningVoice, voiceId: clonedVoiceId })}
                 </button>
 
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.68rem', lineHeight: 1.4, color: 'rgba(255,255,255,0.55)', cursor: 'pointer' }}>
@@ -8865,7 +8923,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 </label>
 
                 <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', margin: 0, lineHeight: 1.4 }}>
-                  Upload vocal recordings so the AI learns your voice. Minimum 2 samples for best quality.
+                  Upload 2–3 recordings to create a new personal voice. This queue is separate from your saved voice; leave it empty to reuse an available saved voice.
                 </p>
               </div>
 
@@ -9540,86 +9598,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       {/* Footer Actions */}
       {Object.values(outputs).some(Boolean) && (
-        <div style={{
-          padding: '16px 24px',
-          background: 'rgba(0,0,0,0.8)',
-          borderTop: '1px solid rgba(255,255,255,0.1)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          position: 'sticky',
-          bottom: 0,
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            {Object.values(outputs).filter(Boolean).length}/4 generators complete • 
-            {Object.values(mediaUrls).filter(Boolean).length} media assets
-          </div>
-          
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              onClick={handleExportAll}
-              style={{
-                padding: '12px 20px',
-                borderRadius: '12px',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: 'white',
-                fontWeight: '600',
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <Download size={16} />
-              Export All (.zip)
-            </button>
-
-            <button
-              onClick={handleDownloadStemsPack}
-              style={{
-                padding: '12px 20px',
-                borderRadius: '12px',
-                background: 'rgba(139,92,246,0.12)',
-                border: '1px solid rgba(139,92,246,0.35)',
-                color: '#c4b5fd',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontSize: '0.9rem'
-              }}
-              title="Convert all audio to 24-bit WAV and download as a ZIP for Pro Tools, Logic, Ableton"
-            >
-              <Download size={16} />
-              Stems Pack (WAV)
-            </button>
-            
-            <button
-              onClick={() => { setMaximizedSlot(null); setShowPreviewModal(false); setShowCreateProject(true); }}
-              style={{
-                padding: '12px 28px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
-                border: 'none',
-                color: 'white',
-                fontWeight: '700',
-                fontSize: '1rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)'
-              }}
-            >
-              <FolderPlus size={18} />
-              Save to Project
-            </button>
-          </div>
-        </div>
+        <StudioOutputActions
+          outputs={outputs}
+          mediaUrls={mediaUrls}
+          selectedAgents={selectedAgents}
+          isMobile={isMobile}
+          onExport={handleExportAll}
+          onStems={handleDownloadStemsPack}
+          onSave={() => { setMaximizedSlot(null); setShowPreviewModal(false); setShowCreateProject(true); }}
+        />
       )}
 
       {/* Create Project Modal */}

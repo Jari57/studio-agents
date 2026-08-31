@@ -98,7 +98,7 @@ export default function StudioHomeIntro({ isLoggedMember, agents, onNavigate, on
           ))}
         </div>
         <nav className="studio-home-quicklinks" aria-label="More studio destinations">
-          <button type="button" onClick={() => onNavigate('project_canvas')}><FolderOpen size={17} aria-hidden="true" /> Your projects</button>
+          <button type="button" onClick={() => onNavigate('hub')}><FolderOpen size={17} aria-hidden="true" /> Your projects</button>
           <button type="button" onClick={() => onNavigate('resources')}><FileText size={17} aria-hidden="true" /> Resources</button>
           <button type="button" onClick={() => onNavigate('news')}><Radio size={17} aria-hidden="true" /> News &amp; Entertainment</button>
           <button type="button" onClick={() => document.getElementById('studio-home-pricing')?.scrollIntoView({ block: 'start' })}>Pricing <ArrowRight size={16} aria-hidden="true" /></button>

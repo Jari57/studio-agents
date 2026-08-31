@@ -1970,7 +1970,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
         {/* Resources Grid */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 350px), 1fr))',
           gap: '32px'
         }}>
           {legalResources.map((resource) => {
@@ -1979,7 +1979,16 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
               <div
                 key={resource.id}
                 className="resource-card haptic-press"
+                role="button"
+                tabIndex={0}
+                aria-label={`Read ${resource.title}`}
                 onClick={() => setSelectedResource(resource)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSelectedResource(resource);
+                  }
+                }}
                 style={{
                   padding: '32px',
                   background: 'var(--color-bg-elevated)',
@@ -2136,7 +2145,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
             maxWidth: '600px',
             margin: '0 auto 24px'
           }}>
-            Join our monthly Legal Office Hours with music attorneys, or explore our template library for contracts, agreements, and more.
+            Explore the agreement and split-sheet guides. These educational resources are not legal advice or an attorney service; have a qualified professional review agreements for your situation.
           </p>
           <div style={{
             display: 'flex',
@@ -2145,6 +2154,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
             flexWrap: 'wrap'
           }}>
             <button
+              onClick={() => setSelectedResource(legalResources.find(resource => resource.id === 'split-sheets'))}
               className="cta-button-secondary haptic-press"
               style={{
                 padding: '14px 28px',
@@ -2152,9 +2162,10 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
                 fontWeight: '600'
               }}
             >
-              📅 Office Hours Schedule
+              Read Split-Sheet Guide
             </button>
             <button
+              onClick={() => setSelectedResource(legalResources.find(resource => resource.id === 'legal-agreements'))}
               className="cta-button-premium haptic-press"
               style={{
                 padding: '14px 28px',
@@ -2162,7 +2173,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
                 fontWeight: '600'
               }}
             >
-              📥 Download Templates
+              Read Agreement Guides
             </button>
           </div>
         </div>

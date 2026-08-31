@@ -80,7 +80,9 @@ const userPreferencesService = require('./services/userPreferencesService');
 const { createProductionJobService } = require('./services/productionJobService');
 const { createCorsPolicy } = require('./services/corsPolicy');
 const { requestsPersonalVoice } = require('./services/voiceRequestPolicy');
+const { personalVoiceCatalog } = require('./services/personalVoiceCatalog');
 const { requireImageGenerationResult } = require('./services/imageGenerationResult');
+const { buildFluxArtworkInput } = require('./services/fluxArtworkInput');
 const { projectRevision, canonicalProjectSnapshot, nextProjectTimestampMs } = require('./services/projectRevision');
 const { generateMusicalVocal, separateVocal } = require('./services/musicalVocalService');
 const { analyzeMusicBeats } = require('./services/beatDetectionService');
@@ -1780,22 +1782,20 @@ app.get('/api/v2/voices', verifyFirebaseToken, requireAuth, async (req, res) => 
 
     if (response.ok) {
       const data = await response.json();
-      const ownedVoiceIds = new Set();
+      const ownedVoices = [];
       const db = getFirestoreDb();
       if (db) {
         const owned = await db.collection('users').doc(req.user.uid)
           .collection('voices').get();
         owned.forEach((voice) => {
-          if (voice.data()?.voiceId) ownedVoiceIds.add(voice.data().voiceId);
+          if (voice.data()?.voiceId) ownedVoices.push(voice.data());
         });
       }
 
       // ElevenLabs accounts can contain clones created by other Studio users.
       // Never expose those as selectable voices: curated voices are public to
       // the studio, while cloned voices are visible only to their owner.
-      const visibleVoices = (data.voices || []).filter((voice) =>
-        voice.category !== 'cloned' || ownedVoiceIds.has(voice.voice_id)
-      );
+      const visibleVoices = personalVoiceCatalog(data.voices || [], ownedVoices);
       res.json(visibleVoices);
     } else {
       const errorData = await response.json().catch(() => ({}));
@@ -4731,41 +4731,21 @@ app.post('/api/extract-video-frame', verifyFirebaseToken, requireAuth, generatio
 // Image generation charges 3 credits
 app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('image'), generationLimiter, async (req, res) => {
   try {
-    const { prompt, aspectRatio = '1:1', model = 'flux', referenceImage } = req.body;
+    const { prompt, positivePrompt, aspectRatio = '1:1', model = 'flux', referenceImage } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
     // 1. Try Replicate (Flux 1.1 Pro) as Primary
     const replicateKey = process.env.REPLICATE_API_TOKEN || process.env.REPLICATE_API_KEY;
     if (replicateKey && (model === 'flux' || model === 'default')) {
+      // Validate before the provider/fallback try: a malformed art direction
+      // must refund and ask for review, not trigger another paid generation.
+      const input = buildFluxArtworkInput({ prompt, positivePrompt, aspectRatio, referenceImage });
       try {
         logger.info('Generating image with Flux 1.1 Pro (via Replicate)', { 
           prompt: prompt.substring(0, 50),
           hasReference: !!referenceImage 
         });
         
-        // Map aspect ratio to Flux format
-        let fluxAspectRatio = "1:1";
-        if (aspectRatio === "16:9") fluxAspectRatio = "16:9";
-        if (aspectRatio === "9:16") fluxAspectRatio = "9:16";
-        if (aspectRatio === "4:3") fluxAspectRatio = "4:3";
-        if (aspectRatio === "3:4") fluxAspectRatio = "3:4";
-
-        const input = {
-          prompt: prompt,
-          aspect_ratio: fluxAspectRatio,
-          output_format: "jpg",
-          output_quality: 100,
-          safety_tolerance: 3
-        };
-
-        // If reference is provided, use image-to-image mode with MAXIMUM fidelity
-        // DNA = exact clone — artist wants to look identical, no creative deviation
-        if (referenceImage) {
-          input.image = referenceImage;
-          input.image_prompt_strength = 0.95; // Near-max fidelity — exact visual clone of reference
-          input.prompt = `EXACT VISUAL CLONE: Replicate this reference image with pixel-perfect fidelity — same face, same style, same colors, same composition, same lighting, same mood, same artistic identity, same textures, same clothing, same pose. Do not deviate, reinterpret, or add creative spin. The output must be indistinguishable from the reference. ${input.prompt}`;
-        }
-
         const response = await fetchWithRetry('https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions', {
           method: 'POST',
           headers: {
@@ -4965,9 +4945,9 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
   } catch (error) {
     logger.error('Image generation error', { error: error.message });
     await refundCredits(req, 'image generation failed');
-    res.status(error.code === 'IMAGE_GENERATION_EMPTY_RESULT' ? 502 : 500).json({
+    res.status(error.code === 'ARTWORK_DIRECTION_NOT_POSITIVE' ? 422 : error.code === 'IMAGE_GENERATION_EMPTY_RESULT' ? 502 : 500).json({
       error: 'Image generation failed',
-      ...(error.code === 'IMAGE_GENERATION_EMPTY_RESULT' ? { code: error.code } : {}),
+      ...(['IMAGE_GENERATION_EMPTY_RESULT', 'ARTWORK_DIRECTION_NOT_POSITIVE'].includes(error.code) ? { code: error.code } : {}),
       details: safeErrorDetail(error)
     });
   }
