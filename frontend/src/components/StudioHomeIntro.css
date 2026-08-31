@@ -25,6 +25,46 @@
 .studio-home .studio-home-intro *,
 .studio-home .native-header,
 .studio-home .native-header * { box-sizing: border-box; }
+
+/* Homepage dialogs must clear the fixed navigation and remain usable within
+   the visual viewport. The generic modal layer is intentionally lower than
+   some studio surfaces, so homepage dialogs opt into their own top layer. */
+.modal-overlay.landing-modal-overlay {
+  z-index: 12000 !important;
+  align-items: flex-start !important;
+  justify-content: center;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left)) !important;
+  -webkit-overflow-scrolling: touch;
+}
+.landing-modal-overlay > .landing-modal-panel {
+  width: min(100%, 1000px);
+  max-height: calc(100dvh - 32px) !important;
+  margin: auto !important;
+  overflow: hidden !important;
+  flex: 0 1 auto;
+}
+.landing-modal-panel > .modal-header {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+}
+.landing-modal-panel > .modal-body {
+  min-height: 0;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.landing-modal-panel > .modal-footer { flex: 0 0 auto; }
+@supports not (height: 100dvh) {
+  .landing-modal-overlay > .landing-modal-panel { max-height: calc(100vh - 32px) !important; }
+}
 .studio-home .native-header,
 .studio-home .native-header.scrolled {
   height: 76px;
@@ -187,6 +227,20 @@
   .studio-home .studio-home-path { padding: 19px; }
 }
 @media (max-width: 720px) {
+  .modal-overlay.landing-modal-overlay {
+    padding:
+      max(10px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(10px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left)) !important;
+  }
+  .landing-modal-overlay > .landing-modal-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100dvh - 20px) !important;
+    margin: auto !important;
+    border-radius: 14px !important;
+  }
   .studio-home .native-header, .studio-home .native-header.scrolled { height: 66px; padding: 0 18px; }
   .studio-home .studio-home-nav { display: none; }
   .studio-home .header-title { font-size: 1rem; }

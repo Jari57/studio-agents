@@ -822,9 +822,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
       {/* Auth Modal - Sign In with Google or Email */}
       {showAuthModal && (
-        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10001 }} onClick={() => { setShowAuthModal(false); setAuthMode('login'); setAuthError(''); setAuthEmail(''); setAuthPassword(''); }}>
+        <div className="modal-overlay landing-modal-overlay animate-fadeIn" onClick={() => { setShowAuthModal(false); setAuthMode('login'); setAuthError(''); setAuthEmail(''); setAuthPassword(''); }}>
           <div 
-            className="auth-modal animate-scaleIn" 
+            className="auth-modal landing-modal-panel animate-scaleIn" 
             onClick={(e) => e.stopPropagation()}
             style={{
               background: "linear-gradient(180deg, var(--studio-surface) 0%, var(--studio-surface) 100%)",
@@ -1187,8 +1187,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
       {/* Privacy Modal */}
       {showPrivacy && (
-        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000 }}>
-          <div className="legal-modal animate-scaleIn">
+        <div className="modal-overlay landing-modal-overlay animate-fadeIn">
+          <div className="legal-modal landing-modal-panel animate-scaleIn">
             <div className="modal-header">
               <h2>Privacy Policy</h2>
               <button className="modal-close" onClick={() => setShowPrivacy(false)}><X size={20} /></button>
@@ -1218,8 +1218,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
       {/* Terms Modal */}
       {showTerms && (
-        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000 }}>
-          <div className="legal-modal animate-scaleIn">
+        <div className="modal-overlay landing-modal-overlay animate-fadeIn">
+          <div className="legal-modal landing-modal-panel animate-scaleIn">
             <div className="modal-header">
               <h2>Terms of Service</h2>
               <button className="modal-close" onClick={() => setShowTerms(false)}><X size={20} /></button>
@@ -1250,12 +1250,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
       {/* Showcase Modal - The Whip Montez Story */}
       {showShowcase && (
         <div 
-          className="modal-overlay animate-fadeIn" 
+          className="modal-overlay landing-modal-overlay animate-fadeIn" 
           style={{ zIndex: 10000, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}
           onClick={() => setShowShowcase(false)}
         >
           <div 
-            className="legal-modal animate-scaleIn" 
+            className="legal-modal landing-modal-panel animate-scaleIn" 
             style={{ 
               maxWidth: 'min(92vw, 700px)',
               width: '100%',
@@ -1459,12 +1459,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
       {/* Investor Pitch Deck Modal - VC-Ready Full Presentation */}
       {showInvestorPitch && (
         <div 
-          className="modal-overlay animate-fadeIn" 
+          className="modal-overlay landing-modal-overlay animate-fadeIn" 
           style={{ zIndex: 10001, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}
           onClick={() => setShowInvestorPitch(false)}
         >
           <div 
-            className="legal-modal animate-scaleIn" 
+            className="legal-modal landing-modal-panel animate-scaleIn" 
             style={{ 
               maxWidth: 'min(95vw, 950px)',
               width: '100%',
@@ -2049,12 +2049,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         
         return (
           <div 
-            className="modal-overlay animate-fadeIn" 
+            className="modal-overlay landing-modal-overlay animate-fadeIn" 
             style={{ zIndex: 10002, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}
             onClick={() => { setShowAgentWhitepaper(false); setSelectedWhitepaperAgent(null); }}
           >
             <div 
-              className="legal-modal animate-scaleIn" 
+              className="legal-modal landing-modal-panel animate-scaleIn" 
               style={{ 
                 maxWidth: 'min(95vw, 1000px)',
                 width: '100%',
