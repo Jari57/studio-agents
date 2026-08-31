@@ -38,7 +38,9 @@ __pycache__/
 
 # Browser test artifacts
 frontend/tests/*
-!frontend/tests/generation-contracts.test.mjs
+# These dependency-free release contracts run in the production build.
+# Keep browser-only specs/artifacts excluded, not the actual regression gate.
+!frontend/tests/*.test.mjs
 frontend/test-results/
 frontend/playwright-report/
 *.spec.js
