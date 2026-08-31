@@ -104,7 +104,7 @@ const boundedReplicateHelper = `async function runReplicateWithRateLimitRetry(_r
   if (!token) throw new Error('Replicate provider is not configured');
 
   const configuredTimeoutMs = Number(process.env.REPLICATE_GENERATION_TIMEOUT_MS);
-  const defaultTimeoutMs = /MiniMax beat generation/i.test(operationName) ? 150000 : 90000;
+  const defaultTimeoutMs = /MiniMax (beat|vocal) generation/i.test(operationName) ? 150000 : 90000;
   const timeoutMs = Math.max(
     30000,
     Math.min(configuredTimeoutMs || defaultTimeoutMs, 150000)

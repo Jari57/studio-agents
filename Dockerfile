@@ -19,7 +19,7 @@ COPY backend .
 # requested-duration handling, or explicit failure semantics regress.
 COPY scripts/verify-video-reliability.mjs /app/scripts/verify-video-reliability.mjs
 COPY scripts/patch-provider-routing.mjs /app/scripts/patch-provider-routing.mjs
-RUN node --test test/deployed-audio-routing.test.js \
+RUN node --test test/deployed-audio-routing.test.js test/voice-request-policy.test.js test/musical-vocal.test.js test/musical-vocal-route.test.js \
   && node scripts/apply-credit-reservation-hardening.js \
   && node scripts/apply-account-deletion-hardening.js \
   && node /app/scripts/patch-provider-routing.mjs \

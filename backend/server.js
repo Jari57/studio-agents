@@ -79,6 +79,8 @@ const emailService = require('./services/emailService');
 const userPreferencesService = require('./services/userPreferencesService');
 const { createProductionJobService } = require('./services/productionJobService');
 const { createCorsPolicy } = require('./services/corsPolicy');
+const { requestsPersonalVoice } = require('./services/voiceRequestPolicy');
+const { generateMusicalVocal, separateVocal } = require('./services/musicalVocalService');
 const { analyzeMusicBeats } = require('./services/beatDetectionService');
 const {
   getVideoMetadata,
@@ -612,15 +614,7 @@ const requireAuth = (req, res, next) => {
 };
 
 const requireAuthForPersonalVoice = (req, res, next) => {
-  // New clients explicitly declare the source. Honour that declaration so a
-  // stale `style: cloned` preference cannot turn a curated studio voice into
-  // a personal-voice request. Legacy clients without the flag retain the
-  // secure cloned-style default.
-  const explicitlyDeclared = typeof req.body?.isPersonalVoice === 'boolean';
-  const requestsPersonalVoice = explicitlyDeclared
-    ? req.body.isPersonalVoice
-    : req.body?.style === 'cloned';
-  if (requestsPersonalVoice) {
+  if (requestsPersonalVoice(req.body)) {
     return requireAuth(req, res, next);
   }
   next();
@@ -5005,10 +4999,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     // A cloned/personal voice is private biometric material. Curated ElevenLabs
     // voices remain available through the normal studio path, but callers must
     // prove ownership before sending a personal voice ID or reference sample.
-    const explicitlyDeclaredVoiceSource = typeof req.body.isPersonalVoice === 'boolean';
-    const isPersonalVoice = explicitlyDeclaredVoiceSource
-      ? req.body.isPersonalVoice
-      : style === 'cloned';
+    const isPersonalVoice = requestsPersonalVoice(req.body);
     if (isPersonalVoice) {
       if (!req.user) {
         await refundCredits(req, 'personal vocal authentication required');
@@ -5018,7 +5009,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
       const ownedVoice = requestedVoiceId && await getOwnedVoiceRecord(req.user.uid, requestedVoiceId);
       if (!ownedVoice || ownedVoice.consent?.confirmed !== true) {
         await refundCredits(req, 'personal voice unavailable or consent not confirmed');
-        return res.status(403).json({ error: 'Personal voice not found in your library' });
+        return res.status(403).json({ error: 'Personal voice not found in your library', code: 'PERSONAL_VOICE_UNAVAILABLE', details: 'Your selected personal voice is not activated with confirmed consent in this account. Choose an AI voice in Voice Settings, or activate your own voice in your private library. Your StudioAgents credits were refunded.' });
       }
       if (!await userOwnsVoiceSample(req.user.uid, speakerUrl)) {
         await refundCredits(req, 'personal voice sample ownership check failed');
@@ -5031,7 +5022,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
 
     // ── CENTRALIZED LYRICS CLEANING — runs BEFORE all providers ──
     // Strips AI meta-commentary, title lines, and preamble. Leaves only singable text.
-    function cleanLyricsForVocal(rawText) {
+    function cleanLyricsForVocal(rawText, preserveSections = false) {
       if (!rawText || typeof rawText !== 'string') return '';
       
       let cleaned = String(rawText).trim();
@@ -5051,7 +5042,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
       // to kill AI "chatty" preamble (e.g. "Certainly! Here is your song: [Verse 1]")
       // Matches both [Tag] and [Section: Tag] formats.
       const tagMatch = cleaned.match(/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro|Section|Body|Lyrics)\b/i);
-      if (tagMatch) {
+      if (tagMatch && /^(?:Certainly[!,]?\s*)?(?:Here(?:'s| is| are) (?:your|the|a)|I(?:'ve| have) (?:written|created|generated)|Below (?:is|are))\b/i.test(cleaned)) {
          logger.info('🛡️ Nuclear Pre-Tag Strip active; discarding everything before line:', { tag: tagMatch[0] });
          cleaned = cleaned.substring(tagMatch.index);
       } else {
@@ -5061,7 +5052,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
          let startIdx = 0;
          for (let i = 0; i < Math.min(lines.length, 5); i++) {
            const line = lines[i].trim();
-           if (/^(Certainly|Here|Sure|I'?ve|I'?m|This|Okay|Alright|Below|Absolutely|Of course)/i.test(line) && line.length < 150) {
+           if (/^(?:(?:Certainly|Sure|Okay|Alright|Absolutely|Of course)[!,]?$|Here(?:'s| is| are) (?:your|the|a) (?:song|lyrics|verse)\b|I(?:'ve| have) (?:written|created|generated) (?:a|the|your)\b|Below (?:is|are) (?:the|your)\b)/i.test(line) && line.length < 150) {
              startIdx = i + 1;
            } else {
              break;
@@ -5075,7 +5066,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
 
       // 1. Heavy strip: Specific AI "chatty" patterns and metadata headers
       cleaned = cleaned
-        .replace(/^(Sure[,!]?|Okay[,!]?|Alright[,!]?|Certainly[,!]?|Absolutely[,!]?|Of course[,!]?|Here('s| is| are)[^\n]*|I'?ve (written|created|generated|prepared)[^\n]*|Let me [^\n]*|Below [^\n]*|These (lyrics|are)[^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|About:[^\n]*|Description:[^\n]*|Voice Direction:[^\n]*|Musical Notes:[^\n]*|I hope you enjoy[^\n]*|Hope this helps[^\n]*|This song is[^\n]*|This track is[^\n]*)(?:\n+|$)/gim, '')
+        .replace(/^(Sure[,!]?|Okay[,!]?|Alright[,!]?|Certainly[,!]?|Absolutely[,!]?|Of course[,!]?|Here('s| is| are) (?:your|the|a) (?:song|lyrics|verse)[^\n]*|I'?ve (written|created|generated|prepared) (?:your|the|a) [^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|Description:[^\n]*|Voice Direction:[^\n]*|Musical Notes:[^\n]*)(?:\n+|$)/gim, '')
         // 2. Strip standard Markdown code blocks if any
         .replace(/```[a-z]*\n([\s\S]*?)```/g, '$1')
         // 3. Normalise section tags to clean bare forms Suno/Bark/ElevenLabs expect
@@ -5091,24 +5082,9 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
         .replace(/^\s*\n/gm, '')
         .trim();
         
-      // 4. Final safety check: if we didn't find any tags and it still looks like a preamble, 
-      // try to split by double newlines and take the longest chunk (heuristically the actual lyrics)
-      if (!/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\]/i.test(cleaned)) {
-        const chunks = cleaned.split(/\n\s*\n/).filter(c => c.trim().length > 20);
-        if (chunks.length > 1) {
-          // If the first chunk starts with "Sure", "I", "Here", "This", skip it.
-          if (/^(I |Sure|Here|This |Okay|Certainly|Alright)/i.test(chunks[0]) && !/^(I |This |Sure|Here|Okay)/i.test(chunks[1])) {
-             cleaned = chunks.slice(1).join('\n\n').trim();
-          }
-        }
-      }
-
-      // Final fallback: if it STILL starts with "I " or "This " or "Here ", it's meta and should likely be trashed
-      if (/^(I'?m |I'?ve |This song |Here are |Sure!)/i.test(cleaned) && cleaned.length < 200) {
-        logger.warn('⚠️ Lyrics still contain preamble after cleaning', { sample: cleaned.substring(0, 50) });
-        // If it's very short and looks like a single narrative sentence, it's likely just a description
-        if (cleaned.split('\n').length < 2) return ''; 
-      }
+      // Valid lyrics often start with I, I'm, Here or This. Do not guess that a
+      // stanza is disposable prose. Music models accept arrangement tags.
+      if (preserveSections) return cleaned;
 
       // ═══════════════════════════════════════════════════════════════
       // NUCLEAR FINAL STEP: Strip ALL structural labels from the text.
@@ -5128,7 +5104,9 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
 
       return cleaned;
     }
-    const cleanedPrompt = cleanLyricsForVocal(prompt);
+    const cleanedPrompt = cleanLyricsForVocal(prompt,
+      ['premium', 'ultra'].includes(req.body.quality) &&
+      (style.includes('singer') || style.includes('rapper') || style === 'cloned' || outputFormat === 'music' || Boolean(backingTrackUrl)));
     
     // [BLOCKER FIX] prevent calling generation with empty or refused content
     if (!cleanedPrompt || cleanedPrompt.length < 10) {
@@ -5186,6 +5164,35 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     const requiresMusicalPerformance = isSingingStyle || isRapStyle || outputFormat === 'music' || !!backingTrackUrl;
     const strictMusicalQuality = requiresMusicalPerformance
       && (req.body.quality === 'premium' || req.body.quality === 'ultra');
+    let isolatedMusicalVocal = false;
+
+    // A musical performance plus stem extraction, never speech disguised as
+    // singing or a full instrumental song labeled as a dry vocal. Do not use
+    // this route for personal identities: their consent/identity path is separate.
+    if (strictMusicalQuality && !isPersonalVoice && replicateKey && !preferredProvider) {
+      try {
+        const client = new Replicate({ auth: replicateKey });
+        const generated = await generateMusicalVocal({
+          lyrics: cleanedPrompt, style, genre, language, rapStyle, duration, bpm: req.body.bpm,
+        }, (model, input, operation) => runReplicateWithRateLimitRetry(client, model, { input }, operation),
+        stage => emit('vocals', stage));
+        const download = await fetchWithRetry(generated.audioUrl, {}, { timeoutMs: 45000, maxRetries: 0 });
+        if (!download.ok) throw new Error('The generated vocal stem could not be downloaded.');
+        const bytes = Buffer.from(await download.arrayBuffer());
+        if (bytes.length < 1000) throw new Error('The generated vocal stem was empty.');
+        audioUrl = `data:audio/mpeg;base64,${bytes.toString('base64')}`;
+        provider = generated.provider;
+        isolatedMusicalVocal = true;
+      } catch (vocalError) {
+        logger.warn('Musical vocal generation failed', { code: vocalError.code || null, status: vocalError.status || null });
+        await refundCredits(req, 'musical performance or stem extraction failed');
+        return res.status(vocalError.status === 422 ? 422 : 503).json({
+          error: 'Musical vocal generation unavailable',
+          details: vocalError.status === 422 ? vocalError.message : [401, 402, 403].includes(vocalError.status) ? 'The musical provider needs account, billing, or model-access attention. No substitute was saved. Your StudioAgents credits were refunded.' : 'The musical performance or vocal-stem extraction did not finish. No speech or full-song substitute was saved. Your StudioAgents credits were refunded; retry this take.',
+          isSystemCreditIssue: [401, 402, 403].includes(vocalError.status),
+        });
+      }
+    }
 
     // Provider preference — skip non-preferred providers for vocal consistency
     // Musical personal-voice work must use the sung-voice provider. Forcing an
@@ -5294,7 +5301,7 @@ Return ONLY valid JSON, no markdown.`;
     // When ElevenLabs is configured, use curated realistic voices — skip
     // Suno/Bark/Gemini/Uberduck TTS entirely (they produce garbage).
     // ═══════════════════════════════════════════════════════════════
-    const hasClonedVoice = style === 'cloned' || speakerUrl || req.body.elevenLabsVoiceId;
+    const hasClonedVoice = isPersonalVoice;
     const elevenLabsAvailable = !!elevenLabsKey;
     
     // If artist has a clone OR ElevenLabs is available, skip Suno and Bark entirely
@@ -6588,6 +6595,28 @@ Do NOT include any other text.`
       } catch (err) { logger.error('Uberduck final fallback failed', { error: err.message }); }
     }
 
+    // Legacy musical providers return full songs too. Extract the vocal before
+    // exposing it to any mixer; a failed separator must not double the backing.
+    if (audioUrl && ['suno', 'minimax-music-clone'].includes(provider)) {
+      try {
+        if (!replicateKey) throw new Error('Vocal stem extraction is not configured');
+        const client = new Replicate({ auth: replicateKey });
+        const stemUrl = await separateVocal(audioUrl,
+          (model, input, operation) => runReplicateWithRateLimitRetry(client, model, { input }, operation),
+          stage => emit('vocals', stage));
+        const download = await fetchWithRetry(stemUrl, {}, { timeoutMs: 45000, maxRetries: 0 });
+        if (!download.ok) throw new Error('Could not download the separated vocal');
+        const bytes = Buffer.from(await download.arrayBuffer());
+        if (bytes.length < 1000) throw new Error('Empty vocal stem');
+        audioUrl = `data:audio/mpeg;base64,${bytes.toString('base64')}`;
+        isolatedMusicalVocal = true;
+      } catch (stemError) {
+        logger.warn('Vocal stem extraction failed', { code: stemError.code || null });
+        await refundCredits(req, 'musical vocal stem extraction failed');
+        return res.status(503).json({ error: 'Vocal stem extraction unavailable', details: 'The provider returned a full song, but its vocal stem could not be extracted. Nothing was saved or mixed. Your StudioAgents credits were refunded.' });
+      }
+    }
+
     // Track whether the backend actually mixed vocals+beat during generation
     let wasMixed = false;
 
@@ -6601,7 +6630,7 @@ Do NOT include any other text.`
       // Only mix with real vocal providers — TTS providers return dry vocals
       // and the separate /api/create-final-mix step handles mixing later.
       const isTtsProvider = ['bark', 'gemini-tts', 'uberduck-tts'].includes(provider);
-      if (backingTrackUrl && !isTtsProvider) {
+      if (backingTrackUrl && !isTtsProvider && !isolatedMusicalVocal) {
         try {
           logger.info('🎚️ Mixing vocal with backing track (with auto-tune + tempo sync)');
           const tempDir = path.join(__dirname, 'temp');
@@ -6811,10 +6840,9 @@ Do NOT include any other text.`
         }
       }
       
-      const releaseGradeVocalProviders = new Set(['suno', 'minimax-music-clone']);
-      const isReleaseCandidate = releaseGradeVocalProviders.has(provider);
-      const performanceType = isReleaseCandidate
-        ? 'musical-vocal'
+      const isReleaseCandidate = isolatedMusicalVocal;
+      const performanceType = isolatedMusicalVocal
+        ? 'isolated-musical-vocal'
         : (provider === 'bark-singing' ? 'musical-preview' : 'spoken-vocal');
 
       res.json({
@@ -6829,6 +6857,10 @@ Do NOT include any other text.`
         isRealGeneration: true,
         isReleaseCandidate,
         performanceType,
+        requiresHumanReview: true,
+        actualDuration: null,
+        requestedDuration: duration,
+        durationNote: isolatedMusicalVocal ? 'Extracted musical vocal stem. Length and phrasing may differ from the brief; review separation artifacts and align it in the mixer. No automatic pitch or tempo correction was applied.' : null,
         qualityTier: isReleaseCandidate ? 'release-candidate' : 'studio-draft',
         isDurable: !req.user || !!permanentUrl,
         referenceAnalysis: refSongAnalysis || null,

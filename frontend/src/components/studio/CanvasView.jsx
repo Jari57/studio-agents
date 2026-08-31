@@ -1156,25 +1156,15 @@ export default function CanvasView({
                                 ref={canvasAudioRef}
                                 key={currentAsset.id || currentAsset.audioUrl}
                                 src={formatAudioSrc(currentAsset.audioUrl)}
-                                controls crossOrigin="anonymous"
+                                controls preload="metadata"
+                                aria-label={`Play ${currentAsset.title || 'saved track'}`}
                                 style={{ width: '100%', height: '40px' }}
                                 onPlay={(e) => {
                                   document.querySelectorAll('audio, video').forEach(el => {
                                     if (el !== e.target) el.pause();
                                   });
                                 }}
-                                onError={(e) => {
-                                  const rawUrl = currentAsset.audioUrl;
-                                  if (rawUrl && !e.target.dataset.retried) {
-                                    e.target.dataset.retried = 'true';
-                                    if (rawUrl.startsWith('http')) {
-                                      e.target.removeAttribute('crossorigin');
-                                      e.target.src = rawUrl;
-                                      return;
-                                    }
-                                  }
-                                  toast.error('Could not load audio file');
-                                }}
+                                onError={() => toast.error('Could not load this saved track. Try Fullscreen or Download; your project has not changed.')}
                               />
                             </div>
                           )}

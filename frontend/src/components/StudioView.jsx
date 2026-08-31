@@ -33,6 +33,7 @@ import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_
 import { Analytics, trackPageView } from '../utils/analytics';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '../utils/errorMonitoring';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
+import { generationFailureMessage, selectedVoiceInputs } from '../utils/generationErrors.mjs';
 import { shouldUseNativeIAP } from '../utils/nativePlatform';
 import { purchaseProduct, restorePurchases } from '../utils/storeKit';
 
@@ -4071,6 +4072,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           genre: voiceSettings.genre || 'hip-hop',
           language: voiceSettings.language || 'English',
           duration: voiceSettings.duration || 30,
+          bpm: voiceSettings.bpm || 90,
           speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl,
           backingTrackUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
           audioId: referencedAudioId || undefined,
@@ -4910,19 +4912,16 @@ ABSOLUTE RULES (violating any = failure):
         finalBody = { 
           prompt: vocalLyrics, 
           voice: voiceSettings.voiceName || 'rapper-male-1', 
-          elevenLabsVoiceId: elevenLabsVoiceId, // Use premium voice if selected
+          ...selectedVoiceInputs({ personalVoiceSelected, elevenLabsVoiceId, voiceSampleUrl, speakerUrl: voiceSettings.speakerUrl }),
           quality: 'premium', // FORCE PREMIUM for Vocal Lab
           style: voiceSettings.style || 'rapper',
           genre: voiceSettings.genre || 'hip-hop',
           rapStyle: voiceSettings.rapStyle || 'aggressive',
           language: voiceSettings.language || 'English',
           duration: voiceSettings.duration || 30,
-          speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl,
           backingTrackUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
           audioId: referencedAudioId,
           referenceSongUrl: referenceSongUrl || null,
-          isPersonalVoice: personalVoiceSelected,
-          preferredProvider: personalVoiceSelected ? 'elevenlabs-clone' : null
         };
       } else if (isMasterAgent) {
         // Mastering Lab -requires an existing audio asset to master
@@ -5088,7 +5087,7 @@ ABSOLUTE RULES (violating any = failure):
 
       if (!response.ok) {
         devWarn('[Studio] Execution Phase Error:', data.error || data.details || response.status);
-        let failureMessage = data.details || data.error || `${targetAgentSnapshot.name} could not finish this generation.`;
+        let failureMessage = generationFailureMessage(response.status, data, targetAgentSnapshot.name);
         
         // Map common errors to user-friendly messages
         if (response.status === 403) {
@@ -5096,8 +5095,6 @@ ABSOLUTE RULES (violating any = failure):
             failureMessage = `Insufficient credits. ${targetAgentSnapshot.name} needs ${data.required || 'more'} credits.`;
             setDashboardTab('subscription');
             setActiveTab('mystudio');
-          } else {
-            failureMessage = 'Insufficient credits for media generation.';
           }
         } else if (response.status === 401) {
           if (data.requiresAuth) {
@@ -5655,6 +5652,7 @@ ABSOLUTE RULES (violating any = failure):
       }
 
       setPreviewItem(null);
+      if (destination !== 'agents') setSelectedAgent(null);
       setActiveTab(destination);
 
       // Background WAV conversion for audio assets (fire-and-forget)
@@ -8462,13 +8460,13 @@ ABSOLUTE RULES (violating any = failure):
                                 }}>
                                   <label style={{ fontSize: '0.75rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     <Cloud size={14} className="text-cyan" />
-                                    {elevenLabsVoiceId ? 'Personal voice active' : voiceSettings.speakerUrl ? 'Sample saved — activation required' : 'Create your personal voice'}
+                                    {elevenLabsVoiceId ? 'Personal voice saved — verified when used' : voiceSettings.speakerUrl ? 'Sample saved — activation required' : 'Create your personal voice'}
                                   </label>
 
                                   {elevenLabsVoiceId ? (
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                       <div style={{ fontSize: '0.7rem', color: 'var(--color-green)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <Check size={12} /> Locked to your activated voice
+                                        <Check size={12} /> {voiceSettings.style === 'cloned' ? 'Personal identity selected' : 'Saved; not used for this AI voice'}
                                       </div>
                                       <button
                                         type="button"
