@@ -19,6 +19,7 @@ import {
   fetchActiveProductionJob
 } from '../services/productionJobs';
 import StudioOnboarding from './StudioOnboarding';
+import { productionJobMatchesProject } from '../utils/productionRecovery.mjs';
 
 // Dev-only logging — tree-shaken in production
 const devLog = import.meta.env.DEV ? (...args) => console.log(...args) : () => {};
@@ -2607,6 +2608,15 @@ export default function StudioOrchestratorV2({
   // Reset and restore state when switching between projects
   useEffect(() => {
     // Reset all generation state on project switch
+    productionRecoveryCheckedRef.current = false;
+    productionJobIdRef.current = null;
+    productionRunKeyRef.current = null;
+    productionJobRevisionRef.current = 0;
+    pipelineStepsRef.current = [];
+    outputsRef.current = { lyrics: null, audio: null, visual: null, video: null };
+    mediaUrlsRef.current = { audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null };
+    setRecoveredProductionJob(null);
+    setIsRecoveringProduction(false);
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
     setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
     setGenerationProviders({});
@@ -3121,7 +3131,7 @@ export default function StudioOrchestratorV2({
           return;
         }
         const { job } = await fetchActiveProductionJob(headers);
-        if (!job || cancelled) return;
+        if (cancelled || !productionJobMatchesProject(job, existingProject?.id)) return;
 
         const recoverableSteps = (job.steps || []).map((step) => (
           step.status === 'active'
@@ -3171,11 +3181,11 @@ export default function StudioOrchestratorV2({
 
     void recover();
     return () => { cancelled = true; };
-  }, [getHeaders, isOpen]);
+  }, [getHeaders, isOpen, existingProject?.id]);
 
   const resumeRecoveredProduction = useCallback(() => {
     const job = recoveredProductionJob;
-    if (!job || isGenerating) return;
+    if (!productionJobMatchesProject(job, existingProject?.id) || isGenerating) return;
     productionJobIdRef.current = job.id;
     productionRunKeyRef.current = job.idempotencyKey;
     productionJobRevisionRef.current = Math.max(
@@ -3189,7 +3199,7 @@ export default function StudioOrchestratorV2({
       completionMessage: 'Recovered production complete!',
       resumeJob: job
     }), 0);
-  }, [isGenerating, recoveredProductionJob]);
+  }, [isGenerating, recoveredProductionJob, existingProject?.id]);
 
   // Optional A&R review. It is intentionally separate from the critical
   // generation path so a review can never delay or fail asset creation.

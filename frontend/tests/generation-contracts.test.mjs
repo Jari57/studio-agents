@@ -5,6 +5,8 @@ import { selectedVoiceInputs, generationFailureMessage } from '../src/utils/gene
 import { isStaleChunkError, recoverSection } from '../src/utils/errorRecovery.mjs';
 import { saveProjectChoices } from '../src/utils/saveProjectChoices.mjs';
 import { producerRenderSignature, producerAudioLibrary, inferProducerRole, boundedProducerValue, producerSessionIssues } from '../src/utils/producerSession.mjs';
+import { projectWizardHint } from '../src/utils/projectWizard.mjs';
+import { productionJobMatchesProject } from '../src/utils/productionRecovery.mjs';
 
 test('AI vocal selection never transmits a stored personal sample or clone ID', () => {
   const settings = { elevenLabsVoiceId: 'private-id', voiceSampleUrl: 'https://example.test/private.wav' };
@@ -125,4 +127,45 @@ test('invalid audible trims block render but not save; inactive lanes do not blo
   const source = readFileSync(new URL('../src/components/studio/ProducerCanvas.jsx', import.meta.url), 'utf8');
   assert.match(source, /!audibleTracks\.length \|\| sessionIssues\.length > 0/);
   assert.match(source, /onClick=\{onSave\} disabled=\{uploading \|\| rendering\}/);
+});
+
+test('wizard identifies required choices, rejects blank names, and needs a custom team', () => {
+  assert.match(projectWizardHint({ name: '   ', category: 'video' }), /name/);
+  assert.match(projectWizardHint({ name: 'Visual QA' }), /category/);
+  const project = { name: 'Visual QA', category: 'video' };
+  assert.equal(projectWizardHint(project), '');
+  assert.match(projectWizardHint(project, 2), /workflow/);
+  assert.match(projectWizardHint({ ...project, workflow: 'custom', selectedAgents: [] }, 2), /agent/);
+  assert.equal(projectWizardHint({ ...project, workflow: 'custom', selectedAgents: ['album'] }, 3), '');
+  assert.equal(projectWizardHint({ ...project, workflow: 'full_song' }, 3), '');
+});
+
+test('project category, workflow and agent choices expose real keyboard buttons', () => {
+  const source = readFileSync(new URL('../src/components/StudioView.jsx', import.meta.url), 'utf8');
+  assert.match(source, /aria-labelledby="project-wizard-title"/);
+  assert.match(source, /aria-label="Close project setup"/);
+  assert.match(source, /htmlFor="project-wizard-name"/);
+  assert.match(source, /id="project-wizard-hint" role="status"/);
+  for (const className of ['category-card', 'workflow-card', 'agent-select-card']) {
+    assert.ok(new RegExp(`<button type="button"[^>]*className=\\{\x60${className}`).test(source), className);
+  }
+});
+
+test('full masters never become vocal stems just because their title mentions vocals', () => {
+  assert.equal(inferProducerRole({ type: 'Master', title: 'Vocal Pipeline Mix 3', metadata: { role: 'vocal' } }), 'instrument');
+  assert.equal(inferProducerRole({ type: 'Mix', title: 'Beat and voice' }), 'instrument');
+  assert.equal(inferProducerRole({ type: 'Audio', title: 'Vocal sampled keys', metadata: { role: 'instrument' } }), 'instrument');
+});
+
+test('production recovery cannot import another project or an unassigned old job', () => {
+  assert.equal(productionJobMatchesProject({ projectId: 'first' }, 'second'), false);
+  assert.equal(productionJobMatchesProject({ projectId: null }, 'new-project'), false);
+  assert.equal(productionJobMatchesProject({}, 'new-project'), false);
+  assert.equal(productionJobMatchesProject(null, 'new-project'), false);
+  assert.equal(productionJobMatchesProject({ projectId: 'same' }, 'same'), true);
+  assert.equal(productionJobMatchesProject({ projectId: null }, null), true);
+  const source = readFileSync(new URL('../src/components/StudioOrchestratorV2.jsx', import.meta.url), 'utf8');
+  const recovery = source.slice(source.indexOf('const recover = async'), source.indexOf('const resumeRecoveredProduction'));
+  assert.ok(recovery.indexOf('!productionJobMatchesProject(job, existingProject?.id)') < recovery.indexOf('outputsRef.current ='), 'project match is checked before restoring any content');
+  assert.match(source, /if \(!productionJobMatchesProject\(job, existingProject\?\.id\) \|\| isGenerating\) return/);
 });

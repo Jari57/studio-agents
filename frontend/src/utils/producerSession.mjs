@@ -26,6 +26,10 @@ export function producerAudioLibrary(project, projects = [], search = '') {
 }
 
 export function inferProducerRole(asset) {
+  // A completed mix may mention vocals in its project/title but is not a dry
+  // vocal stem. Keep it out of the vocal sidechain unless explicitly reassigned.
+  if (/^(master|mix)$/i.test(asset?.type || '')) return 'instrument';
+  if (['beat', 'instrument', 'vocal', 'harmony', 'adlib', 'fx'].includes(asset?.metadata?.role)) return asset.metadata.role;
   const text = `${asset?.metadata?.role || ''} ${asset?.type || ''} ${asset?.agent || ''} ${asset?.title || ''}`.toLowerCase();
   if (/harmon(?:y|ies)/.test(text)) return 'harmony';
   if (/ad-?lib/.test(text)) return 'adlib';

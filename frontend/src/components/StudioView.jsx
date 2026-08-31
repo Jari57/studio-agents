@@ -37,6 +37,7 @@ import { generationFailureMessage, selectedVoiceInputs } from '../utils/generati
 import SectionErrorBoundary from './studio/SectionErrorBoundary';
 import { saveProjectChoices } from '../utils/saveProjectChoices.mjs';
 import { producerRenderSignature } from '../utils/producerSession.mjs';
+import { projectWizardHint } from '../utils/projectWizard.mjs';
 import { shouldUseNativeIAP } from '../utils/nativePlatform';
 import { purchaseProduct, restorePurchases } from '../utils/storeKit';
 
@@ -2315,9 +2316,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     devLog('[CreateProject] Current credits:', userCredits, 'Required:', PROJECT_CREDIT_COST);
     devLog('[CreateProject] User:', user?.email, 'DB initialized:', !!db);
     
-    if (!newProjectData.name || !newProjectData.category) {
+    if (projectWizardHint(newProjectData, 3)) {
       devWarn('[CreateProject] Missing required fields:', { name: newProjectData.name, category: newProjectData.category });
-      toast.error('Please fill in project name and category');
+      toast.error(projectWizardHint(newProjectData, 3));
       return;
     }
 
@@ -2334,7 +2335,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     
     const newProject = {
       id: generateId(),
-      name: newProjectData.name,
+      name: newProjectData.name.trim(),
       category: newProjectData.category,
       description: newProjectData.description || '',
       language: newProjectData.language || 'English',
@@ -14068,6 +14069,7 @@ ABSOLUTE RULES (violating any = failure):
         {/* Studio Orchestrator (New Clean Interface) */}
         <Suspense fallback={<LazyFallback />}>
           <StudioOrchestrator
+            key={`${user?.uid || 'guest'}:${selectedProject?.id || 'unassigned'}`}
             isOpen={showOrchestrator}
             onClose={() => {
               setShowOrchestrator(false);
@@ -15051,7 +15053,7 @@ ABSOLUTE RULES (violating any = failure):
       {/* Project Wizard Modal */}
       {showProjectWizard && (
         <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectWizard(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content project-wizard-modal" onClick={e => e.stopPropagation()} style={{ 
+          <div className="modal-content project-wizard-modal" role="dialog" aria-modal="true" aria-labelledby="project-wizard-title" onClick={e => e.stopPropagation()} style={{
             maxWidth: '600px', 
             width: 'min(95vw, 600px)', 
             maxHeight: 'min(90vh, 1000px)',
@@ -15066,7 +15068,7 @@ ABSOLUTE RULES (violating any = failure):
                 <div className="agent-mini-icon bg-purple" style={{ flexShrink: 0 }}>
                   <Rocket size={20} />
                 </div>
-                <h2 style={{ margin: 0, fontSize: '1.25rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Create New Project</h2>
+                <h2 id="project-wizard-title" style={{ margin: 0, fontSize: '1.25rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Create New Project</h2>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', zIndex: 101 }}>
                 {!isMobile && (
@@ -15085,7 +15087,7 @@ ABSOLUTE RULES (violating any = failure):
                     Skip
                   </button>
                 )}
-                <button className="modal-close" onClick={() => setShowProjectWizard(false)}>
+                <button className="modal-close" aria-label="Close project setup" onClick={() => setShowProjectWizard(false)}>
                   <X size={20} />
                 </button>
               </div>
@@ -15115,8 +15117,10 @@ ABSOLUTE RULES (violating any = failure):
                 <div className="wizard-step animate-slideIn">
                   <h3 style={{ marginBottom: '16px' }}>Define Your Vision</h3>
                   <div className="form-group" style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Project Name</label>
+                    <label htmlFor="project-wizard-name" style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Project Name (required)</label>
                     <input 
+                      id="project-wizard-name"
+                      required
                       type="text" 
                       className="search-input" 
                       placeholder="e.g. Summer Vibes 2025"
@@ -15191,11 +15195,12 @@ ABSOLUTE RULES (violating any = failure):
                   </div>
                   
                   <div className="form-group" style={{ marginBottom: '24px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Project Category</label>
-                    <div className="category-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                    <p id="project-category-label" style={{ marginTop: 0, display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Project Category (required)</p>
+                    <div className="category-grid" role="group" aria-labelledby="project-category-label" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                       {PROJECT_CATEGORIES.map(cat => (
-                        <div 
+                        <button type="button"
                           key={cat.id}
+                          aria-pressed={newProjectData.category === cat.id}
                           className={`category-card haptic-press ${newProjectData.category === cat.id ? 'selected' : ''}`}
                           onClick={() => setNewProjectData({...newProjectData, category: cat.id})}
                           style={{
@@ -15213,7 +15218,7 @@ ABSOLUTE RULES (violating any = failure):
                           <div>
                             <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{cat.label}</div>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -15287,8 +15292,9 @@ ABSOLUTE RULES (violating any = failure):
 
                   {/* Workflow Presets */}
                   <div className="workflow-presets" style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
-                    <div 
+                    <button type="button"
                       className={`workflow-card haptic-press ${newProjectData.workflow === 'full_song' ? 'selected' : ''}`}
+                      aria-pressed={newProjectData.workflow === 'full_song'}
                       onClick={() => setNewProjectData({
                         ...newProjectData, 
                         workflow: 'full_song',
@@ -15313,10 +15319,11 @@ ABSOLUTE RULES (violating any = failure):
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Lyrics ? Beat ? Cover Art</div>
                       </div>
                       {newProjectData.workflow === 'full_song' && <CheckCircle size={20} className="text-purple" />}
-                    </div>
+                    </button>
 
-                    <div 
+                    <button type="button"
                       className={`workflow-card haptic-press ${newProjectData.workflow === 'social_promo' ? 'selected' : ''}`}
+                      aria-pressed={newProjectData.workflow === 'social_promo'}
                       onClick={() => setNewProjectData({
                         ...newProjectData, 
                         workflow: 'social_promo',
@@ -15341,10 +15348,11 @@ ABSOLUTE RULES (violating any = failure):
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Video ? Trends ? Social Pilot</div>
                       </div>
                       {newProjectData.workflow === 'social_promo' && <CheckCircle size={20} className="text-cyan" />}
-                    </div>
+                    </button>
                     
-                    <div 
+                    <button type="button"
                       className={`workflow-card haptic-press ${newProjectData.workflow === 'custom' ? 'selected' : ''}`}
+                      aria-pressed={newProjectData.workflow === 'custom'}
                       onClick={() => setNewProjectData({
                         ...newProjectData, 
                         workflow: 'custom',
@@ -15369,7 +15377,7 @@ ABSOLUTE RULES (violating any = failure):
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Manually select your agents</div>
                       </div>
                       {newProjectData.workflow === 'custom' && <CheckCircle size={20} className="text-white" />}
-                    </div>
+                    </button>
                   </div>
 
                   {/* Custom Agent Selection (Only if Custom is selected) */}
@@ -15378,8 +15386,9 @@ ABSOLUTE RULES (violating any = failure):
                     {(typeof AGENTS !== 'undefined' ? AGENTS : []).map(agent => {
                       const isSelected = newProjectData.selectedAgents?.includes(agent.id);
                       return (
-                        <div 
+                        <button type="button"
                           key={agent.id}
+                          aria-pressed={isSelected}
                           className={`agent-select-card haptic-press ${isSelected ? 'selected' : ''}`}
                           onClick={() => {
                             const current = newProjectData.selectedAgents || [];
@@ -15417,7 +15426,7 @@ ABSOLUTE RULES (violating any = failure):
                           </div>
                           <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>{agent.name}</span>
                           {isSelected && <CheckCircle size={14} className="text-purple" style={{ position: 'absolute', top: '8px', right: '8px' }} />}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -15475,6 +15484,7 @@ ABSOLUTE RULES (violating any = failure):
               )}
             </div>
 
+            <p className="project-wizard-hint" id="project-wizard-hint" role="status">{projectWizardHint(newProjectData, projectWizardStep)}</p>
             <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
               {projectWizardStep > 1 ? (
                 <button className="btn-ghost" onClick={() => setProjectWizardStep(prev => prev - 1)}>
@@ -15487,16 +15497,14 @@ ABSOLUTE RULES (violating any = failure):
               {projectWizardStep < 3 ? (
                 <button 
                   className="cta-button-premium" 
-                  disabled={
-                    (projectWizardStep === 1 && (!newProjectData.name || !newProjectData.category)) ||
-                    (projectWizardStep === 2 && !newProjectData.workflow)
-                  }
+                  disabled={Boolean(projectWizardHint(newProjectData, projectWizardStep))}
+                  aria-describedby="project-wizard-hint"
                   onClick={() => setProjectWizardStep(prev => prev + 1)}
                 >
                   Next Step
                 </button>
               ) : (
-                <button className="cta-button-premium" onClick={handleCreateProject}>
+                <button className="cta-button-premium" disabled={Boolean(projectWizardHint(newProjectData, 3))} aria-describedby="project-wizard-hint" onClick={handleCreateProject}>
                   Create Project
                 </button>
               )}
