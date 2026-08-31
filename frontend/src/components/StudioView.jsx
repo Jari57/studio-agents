@@ -562,10 +562,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [showDnaVault, setShowDnaVault] = useState(false);
 
   // --- PLATFORM & ADMIN ---
-  const [adminStats, setAdminStats] = useState(null);
-  const [adminApiStatus, setAdminApiStatus] = useState(null);
-  const [isAdminLoading, setIsAdminLoading] = useState(false);
-  const [adminError, setAdminError] = useState(null);
   const [systemStatus, setSystemStatus] = useState({ status: 'checking', message: 'Checking service readiness' });
 
   // --- UI TOGGLES & INTERACTION ---
@@ -2448,6 +2444,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     
     // Switch to project hub to show the new project
     safeVoiceAnnounce(`Project ${newProject.name} created. Loading your production checklist.`);
+    setSelectedAgent(null);
     setActiveTab('hub');
   };
 
@@ -3451,50 +3448,6 @@ const fetchUserCredits = useCallback(async (uid) => {
     const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
     localStorage.setItem(`studio_dash_${uid}`, dashboardTab);
   }, [dashboardTab, user?.uid]);
-
-  // Fetch Admin Analytics
-  useEffect(() => {
-    if (dashboardTab === 'admin' && isAdmin) {
-      fetchAdminData();
-    }
-  }, [dashboardTab, isAdmin]);
-
-  async function fetchAdminData() {
-    setIsAdminLoading(true);
-    setAdminError(null);
-    try {
-      // Get Firebase Auth token
-      // Import auth from firebase config if needed, but it seems to be available in scope
-      let token;
-      if (auth?.currentUser) {
-        token = await auth.currentUser.getIdToken(true);
-      } else {
-        throw new Error('You must be logged in to access admin stats');
-      }
-      
-      // Fetch stats and API status in parallel
-      const [statsRes, apiRes] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/admin/stats`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${BACKEND_URL}/api/status/apis`)
-      ]);
-
-      if (!statsRes.ok) throw new Error('Failed to fetch platform stats');
-      if (!apiRes.ok) throw new Error('Failed to fetch API health status');
-      
-      const statsData = await statsRes.json();
-      const apiData = await apiRes.json();
-      
-      setAdminStats(statsData);
-      setAdminApiStatus(apiData);
-    } catch (err) {
-      devWarn('Admin fetch error:', err);
-      setAdminError(err.message);
-    } finally {
-      setIsAdminLoading(false);
-    }
-  };
 
   // Persist Dashboard State
   useEffect(() => {
@@ -5276,13 +5229,15 @@ ABSOLUTE RULES (violating any = failure):
           newItem.mimeType = data.mimeType || 'audio/wav';
           newItem.storagePath = data.storagePath || data.audioStoragePath || null;
           newItem.provider = data.provider || data.source || null;
+          newItem.durationNote = data.durationNote || null;
+          newItem.requiresHumanReview = data.requiresHumanReview !== false;
           
           // CRITICAL: Ensure type is set to audio or vocal for proper UI rendering
           newItem.type = isSpeechAgent ? 'vocal' : 'audio';
           
           if (data.isRealGeneration) {
             newItem.snippet = isSpeechAgent ? `🎤 AI Generated Vocals: "${prompt}"` : isMasterAgent ? `Mastered audio: "${prompt}"` : `🎵 AI Generated Beat: "${prompt}"`;
-            toast.success(isSpeechAgent ? 'Vocals generated with ElevenLabs V3.5!' : isMasterAgent ? 'Mastered audio is ready.' : 'Beat generated with MusicGen AI!');
+            toast.success(`${isSpeechAgent ? 'Vocal audio' : isMasterAgent ? 'Processed audio' : 'Instrumental'} generated${newItem.provider ? ` with ${newItem.provider}` : ''}. Listen and review before release.`);
           } else if (data.isSample) {
             throw new Error('The provider returned a sample instead of your requested audio. No creation was saved and your credits should not be charged.');
           } else {
@@ -6511,10 +6466,6 @@ ABSOLUTE RULES (violating any = failure):
             setStorageConnections={setStorageConnections}
             socialConnections={socialConnections}
             performanceStats={performanceStats}
-            adminStats={adminStats}
-            adminApiStatus={adminApiStatus}
-            isAdminLoading={isAdminLoading}
-            adminError={adminError}
             systemStatus={systemStatus}
             user={user}
             isLoggedIn={isLoggedIn}
@@ -6544,7 +6495,6 @@ ABSOLUTE RULES (violating any = failure):
             toggleAgentVisibility={toggleAgentVisibility}
             handleConnectSocial={handleConnectSocial}
             buyCreditPack={buyCreditPack}
-            fetchAdminData={fetchAdminData}
             handleSubscribe={handleSubscribe}
             handleTextToVoice={handleTextToVoice}
           />
@@ -13889,7 +13839,7 @@ ABSOLUTE RULES (violating any = failure):
                         borderRadius: '8px',
                         background: arGrade.overallScore >= 5 ? 'rgba(255, 215, 0, 0.1)' : 'rgba(255,255,255,0.03)'
                       }}>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '600' }}>BILLBOARD GOAL</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '600' }}>AI CREATIVE FEEDBACK · NOT RELEASE CERTIFICATION</span>
                         <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                           <div style={{
                             width: `${(arGrade.overallScore / 5) * 100}%`,
@@ -13906,7 +13856,7 @@ ABSOLUTE RULES (violating any = failure):
                           fontWeight: '800',
                           color: arGrade.overallScore >= 4.5 ? '#fbbf24' : 'var(--text-secondary)'
                         }}>
-                          {arGrade.overallScore >= 5 ? '★ BILLBOARD HIT ★' : `${Math.round((arGrade.overallScore / 5) * 100)}%`}
+                          {`${arGrade.overallScore}/5`}
                         </span>
                       </div>
                     </>
@@ -13914,6 +13864,12 @@ ABSOLUTE RULES (violating any = failure):
                 </div>
               )}
 
+              {previewItem.audioUrl && (
+                <p role="note" style={{ margin: 0, padding: '12px 24px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  {previewItem.provider ? `Provider: ${previewItem.provider}. ` : ''}
+                  {previewItem.durationNote || 'Listen to the full export and review quality and rights before release.'}
+                </p>
+              )}
               {/* Action Buttons */}
               <div style={{ 
                 display: 'flex', 

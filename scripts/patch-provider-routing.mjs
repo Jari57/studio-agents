@@ -1,10 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const serverPath = path.resolve('/app/backend/server.js');
-const videoOrchestratorPath = path.resolve('/app/backend/services/videoGenerationOrchestrator.js');
-let source = fs.readFileSync(serverPath, 'utf8');
-let videoSource = fs.readFileSync(videoOrchestratorPath, 'utf8');
+// Accept an isolated fixture root so tests exercise exactly what Docker deploys.
+const appRoot = path.resolve(process.argv[2] || '/app');
+const serverPath = path.join(appRoot, 'backend/server.js');
+const videoOrchestratorPath = path.join(appRoot, 'backend/services/videoGenerationOrchestrator.js');
+let source = fs.readFileSync(serverPath, 'utf8').replace(/\r\n/g, '\n');
+let videoSource = fs.readFileSync(videoOrchestratorPath, 'utf8').replace(/\r\n/g, '\n');
 
 const previousEngineSelection = `    // Engine Selection Logic - Always prefer Stability AI for highest quality
     let finalEngine = engine;
@@ -256,15 +258,16 @@ audioRoute = audioRoute.replace(
 // selection—not repeated waiting—is the fallback strategy.
 audioRoute = audioRoute.replaceAll('{ timeoutMs: 60000 }', '{ timeoutMs: 45000, maxRetries: 0 }');
 
-// MiniMax Music 2.6 intentionally creates full-length songs and can take several
-// minutes. Keep it for explicit long-form requests only. Interactive 30–65 second
-// beat requests use MusicGen, which honors a bounded requested duration.
+// MiniMax creates variable-length instrumentals. Do not disable it for short
+// premium briefs: MusicGen is deliberately excluded by the quality guard, so
+// doing both leaves zero providers when Stability has no credits. The response
+// must distinguish requested duration from measured duration instead.
 const miniMaxDefaultPath = `    if (replicateKey && !audioUrl && !referenceAudio) {
       try {
         logger.info('Using Replicate MiniMax Music 2.6 (instrumental)');`;
-const miniMaxLongFormPath = `    if (replicateKey && !audioUrl && !referenceAudio && durationSeconds > 65) {
+const miniMaxLongFormPath = `    if (replicateKey && !audioUrl && !referenceAudio) {
       try {
-        logger.info('Using Replicate MiniMax Music 2.6 for explicit long-form instrumental generation');`;
+        logger.info('Using Replicate MiniMax Music 2.6 for premium instrumental generation');`;
 if (!audioRoute.includes(miniMaxDefaultPath)) {
   console.error('Could not find the MiniMax full-length beat path.');
   process.exit(1);
@@ -355,7 +358,7 @@ for (const required of [
   '__studioStabilityAudioAvailability',
   '__studioReplicateBoundedPrediction',
   'req.body?.duration ?? 60',
-  'explicit long-form instrumental generation',
+  'premium instrumental generation',
   'interactive beat generation',
   'maxRetries: 0'
 ]) {
