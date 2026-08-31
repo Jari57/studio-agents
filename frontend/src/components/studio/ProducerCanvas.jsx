@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 
 import './ProducerCanvas.css';
+import { producerRenderSignature, producerAudioLibrary, inferProducerRole } from '../../utils/producerSession.mjs';
 
 const ROLE_META = {
   beat: { label: 'Beat', color: '#31c6f4', icon: Disc3 },
@@ -15,22 +16,14 @@ const ROLE_META = {
   adlib: { label: 'Ad-lib', color: '#ffbd70', icon: Mic2 },
   fx: { label: 'FX', color: '#8da7ff', icon: Sparkles },
 };
+const EMPTY_TRACKS = [];
 
 const numberValue = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-function inferRole(asset) {
-  const haystack = `${asset?.type || ''} ${asset?.agent || ''} ${asset?.title || ''}`.toLowerCase();
-  if (haystack.includes('vocal') || haystack.includes('singer') || haystack.includes('rapper')) return 'vocal';
-  if (haystack.includes('harmony')) return 'harmony';
-  if (haystack.includes('adlib') || haystack.includes('ad-lib')) return 'adlib';
-  if (haystack.includes('beat') || haystack.includes('drum')) return 'beat';
-  return 'instrument';
-}
-
-function ProducerTrack({ track, index, onChange, onRemove }) {
+function ProducerTrack({ track, index, onChange, onRemove, disabled }) {
   const [expanded, setExpanded] = useState(false);
   const meta = ROLE_META[track.role] || ROLE_META.instrument;
   const Icon = meta.icon;
@@ -38,6 +31,7 @@ function ProducerTrack({ track, index, onChange, onRemove }) {
 
   return (
     <article className={`producer-track${track.muted ? ' is-muted' : ''}${track.solo ? ' is-solo' : ''}`} style={{ '--track-color': meta.color }}>
+      <fieldset disabled={disabled} className="producer-track-fields">
       <div className="producer-track-main">
         <div className="producer-track-index">{String(index + 1).padStart(2, '0')}</div>
         <div className="producer-track-role"><Icon size={17} /></div>
@@ -87,12 +81,14 @@ function ProducerTrack({ track, index, onChange, onRemove }) {
           <button className="producer-remove-track" onClick={() => onRemove(track.id)}><Trash2 size={14} /> Remove lane</button>
         </div>
       )}
+      </fieldset>
     </article>
   );
 }
 
 export default function ProducerCanvas({
   project,
+  projects = [],
   session,
   playing,
   rendering,
@@ -106,48 +102,46 @@ export default function ProducerCanvas({
   onRender,
   onClose,
 }) {
-  const audioRefs = useRef(new Map());
-  const timers = useRef([]);
+  const reviewAudio = useRef(null);
   const [assetRole, setAssetRole] = useState('beat');
   const [showLibrary, setShowLibrary] = useState(true);
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [selectedMixId, setSelectedMixId] = useState(null);
+  const [playbackError, setPlaybackError] = useState('');
 
-  const tracks = useMemo(() => Array.isArray(session?.tracks) ? session.tracks : [], [session?.tracks]);
+  const tracks = Array.isArray(session?.tracks) ? session.tracks : EMPTY_TRACKS;
   const audibleTracks = useMemo(() => {
     const solos = tracks.filter((track) => track.solo && !track.muted);
     return solos.length ? solos : tracks.filter((track) => !track.muted);
   }, [tracks]);
-  const audioAssets = useMemo(() => (project?.assets || []).filter((asset) => asset?.audioUrl), [project?.assets]);
+  const audioAssets = useMemo(() => producerAudioLibrary(project, projects, librarySearch), [project, projects, librarySearch]);
   const unusedAssets = useMemo(() => {
     const urls = new Set(tracks.map((track) => track.url));
     return audioAssets.filter((asset) => !urls.has(asset.audioUrl));
   }, [audioAssets, tracks]);
-  const latestMaster = useMemo(() => (project?.assets || []).find((asset) => asset?.type === 'Master' && asset?.audioUrl), [project?.assets]);
+  const savedMixes = useMemo(() => (project?.assets || []).filter(asset => asset?.type === 'Master' && asset?.audioUrl), [project?.assets]);
+  const selectedMix = savedMixes.find(asset => asset.id === selectedMixId) || savedMixes[0];
+  const signature = producerRenderSignature(session);
+  const matchesCurrent = selectedMix?.metadata?.renderSignature === signature;
 
   useEffect(() => {
-    timers.current.forEach(clearTimeout);
-    timers.current = [];
-    if (!playing) {
-      audioRefs.current.forEach((element) => element?.pause());
-      return undefined;
-    }
+    const audio = reviewAudio.current;
+    audio?.pause();
+    onPlayingChange(false);
+    return () => audio?.pause();
+  }, [signature, selectedMix?.audioUrl, onPlayingChange]);
 
-    const audibleIds = new Set(audibleTracks.map((track) => track.id));
-    tracks.forEach((track) => {
-      const element = audioRefs.current.get(track.id);
-      if (!element) return;
-      element.pause();
-      element.volume = Math.max(0, Math.min(1, track.volume ?? 0.8));
-      if (!audibleIds.has(track.id)) return;
-      try { element.currentTime = Math.max(0, track.trimStart || 0); } catch { /* metadata may still be loading */ }
-      const timer = setTimeout(() => element.play().catch(() => onPlayingChange(false)), Math.max(0, (track.offset || 0) * 1000));
-      timers.current.push(timer);
+  useEffect(() => {
+    const audio = reviewAudio.current;
+    if (!playing) { audio?.pause(); return; }
+    let active = true;
+    audio?.play().catch(() => {
+      if (!active) return;
+      onPlayingChange(false);
+      setPlaybackError('Playback could not start. Try the audio play control or download this saved mix.');
     });
-    return () => {
-      timers.current.forEach(clearTimeout);
-      timers.current = [];
-      audioRefs.current.forEach((element) => element?.pause());
-    };
-  }, [playing, audibleTracks, tracks, onPlayingChange]);
+    return () => { active = false; };
+  }, [playing, selectedMix?.audioUrl, onPlayingChange]);
 
   const setTracks = (nextTracks) => onSessionChange({ ...session, tracks: nextTracks });
   const updateTrack = (id, changes) => setTracks(tracks.map((track) => track.id === id ? { ...track, ...changes } : track));
@@ -158,13 +152,13 @@ export default function ProducerCanvas({
     <div className="producer-canvas" role="dialog" aria-modal="true" aria-label="Producer canvas">
       <header className="producer-topbar">
         <div className="producer-brand">
-          <button className="producer-icon-button" onClick={onClose} title="Back to project"><ArrowLeft size={19} /></button>
+          <button className="producer-icon-button" onClick={onClose} disabled={rendering || uploading} title="Back to project"><ArrowLeft size={19} /></button>
           <div className="producer-brand-mark"><SlidersHorizontal size={19} /></div>
           <div><span>Producer Canvas</span><strong>{project?.name || project?.title || 'Untitled session'}</strong></div>
         </div>
 
         <div className="producer-transport">
-          <button className="producer-play" onClick={() => onPlayingChange(!playing)} disabled={!tracks.length} aria-label={playing ? 'Pause session' : 'Play session'}>
+          <button className="producer-play" onClick={() => onPlayingChange(!playing)} disabled={!selectedMix || rendering} aria-label={playing ? 'Pause saved mix' : 'Play saved mix'}>
             {playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
           </button>
           <div><strong>{session?.bpm || 120}</strong><span>BPM</span></div>
@@ -174,7 +168,7 @@ export default function ProducerCanvas({
 
         <div className="producer-actions">
           <button onClick={onSave} disabled={uploading || rendering}><Save size={16} /> Save</button>
-          <button className="producer-render" onClick={onRender} disabled={rendering || uploading || !audibleTracks.length}>
+          <button className="producer-render" onClick={() => { setSelectedMixId(null); onPlayingChange(false); onRender(); }} disabled={rendering || uploading || !audibleTracks.length}>
             {rendering ? <Loader2 size={16} className="spin" /> : <WandSparkles size={16} />}
             {rendering ? 'Rendering…' : 'Render mix'}
           </button>
@@ -185,19 +179,33 @@ export default function ProducerCanvas({
         <section className="producer-arrangement">
           <div className="producer-section-heading">
             <div><span>ARRANGEMENT</span><h2>Build the record, lane by lane</h2></div>
-            <div className="producer-format-controls">
+            <fieldset disabled={rendering || uploading} className="producer-format-controls">
               <label>BPM<input type="number" min="40" max="240" value={session?.bpm || 120} onChange={(event) => patchSession({ bpm: Math.max(40, Math.min(240, numberValue(event.target.value, 120))) })} /></label>
               <label>Key<input value={session?.key || 'C Major'} onChange={(event) => patchSession({ key: event.target.value.slice(0, 32) })} /></label>
               <label className="producer-toggle"><input type="checkbox" checked={session?.autoDuck !== false} onChange={(event) => patchSession({ autoDuck: event.target.checked })} /><span /> Vocal pocket</label>
-            </div>
+            </fieldset>
           </div>
+
+          <section className="producer-review" aria-label="Mix review">
+            <div className="producer-review-heading"><strong>Listen to your saved mix</strong><span role="status">{matchesCurrent ? 'Current settings rendered' : selectedMix ? 'Settings changed or older mix — render to hear current settings' : 'Render your first mix to listen'}</span></div>
+            <p>Playback and download use the same rendered file, including pan, fades, vocal ducking and master processing. Render again after changing controls. BPM and key are session notes, not automatic time-stretch or pitch correction.</p>
+            <p>New renders use 10 Studio credits; administrator exemptions apply. Replaying or downloading an existing mix uses no generation credits.</p>
+            {selectedMix && <>
+              <label>Compare saved mixes<select aria-label="Compare saved mixes" value={selectedMix.id} onChange={event => { onPlayingChange(false); setSelectedMixId(event.target.value); }}>
+                {savedMixes.map(mix => <option key={mix.id} value={mix.id}>{mix.title}</option>)}
+              </select></label>
+              <audio key={selectedMix.audioUrl} ref={reviewAudio} src={selectedMix.audioUrl} preload="metadata" controls aria-label="Rendered mix playback"
+                onLoadedData={() => setPlaybackError('')}
+                onPlay={() => onPlayingChange(true)} onPause={() => onPlayingChange(false)} onEnded={() => onPlayingChange(false)}
+                onError={() => { onPlayingChange(false); setPlaybackError('This saved mix could not load. Your source tracks are unchanged; retry or render another version.'); }} />
+              <a href={selectedMix.audioUrl} target="_blank" rel="noreferrer"><Download size={14} /> Download this mix</a>
+            </>}
+            {playbackError && <p role="alert">{playbackError}</p>}
+          </section>
 
           <div className="producer-track-stack">
             {tracks.length ? tracks.map((track, index) => (
-              <React.Fragment key={track.id}>
-                <audio ref={(element) => element ? audioRefs.current.set(track.id, element) : audioRefs.current.delete(track.id)} src={track.url} preload="metadata" />
-                <ProducerTrack track={track} index={index} onChange={updateTrack} onRemove={removeTrack} />
-              </React.Fragment>
+              <ProducerTrack key={track.id} track={track} index={index} onChange={updateTrack} onRemove={removeTrack} disabled={rendering || uploading} />
             )) : (
               <div className="producer-empty">
                 <Headphones size={34} />
@@ -211,10 +219,10 @@ export default function ProducerCanvas({
             <label className="producer-upload-button">
               {uploading ? <Loader2 size={17} className="spin" /> : <Upload size={17} />}
               {uploading ? 'Uploading…' : 'Upload audio or stems'}
-              <input type="file" accept="audio/*,.wav,.mp3,.m4a,.aac,.flac,.ogg" multiple disabled={uploading} onChange={(event) => {
+              <input type="file" accept="audio/*,.wav,.mp3,.m4a,.aac,.flac,.ogg" multiple disabled={uploading || rendering} onChange={async (event) => {
                 const files = Array.from(event.target.files || []);
-                files.forEach((file) => onUploadAudio(file, assetRole));
                 event.target.value = '';
+                for (const file of files) await onUploadAudio(file, assetRole);
               }} />
             </label>
             <select value={assetRole} onChange={(event) => setAssetRole(event.target.value)} aria-label="Role for uploaded tracks">
@@ -230,21 +238,23 @@ export default function ProducerCanvas({
               <span><Music2 size={16} /> Studio asset library</span>{showLibrary ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
             {showLibrary && <div className="producer-asset-list">
-              {unusedAssets.length ? unusedAssets.slice(0, 12).map((asset) => (
-                <button key={asset.id || asset.audioUrl} onClick={() => onAddAsset(asset, inferRole(asset))}>
+              <input type="search" aria-label="Search your audio library" placeholder="Find audio across your projects…" value={librarySearch} onChange={event => setLibrarySearch(event.target.value)} />
+              {unusedAssets.length ? unusedAssets.map((asset) => (
+                <button disabled={rendering || uploading || tracks.length >= 12} key={asset.audioUrl} onClick={() => onAddAsset(asset, inferProducerRole(asset))}>
                   <span><Play size={13} fill="currentColor" /></span>
-                  <div><strong>{asset.title || asset.agent || 'Audio asset'}</strong><small>{ROLE_META[inferRole(asset)].label} · add to session</small></div>
+                  <div><strong>{asset.title || asset.agent || 'Audio asset'}</strong><small>{ROLE_META[inferProducerRole(asset)].label} · {asset.projectName}</small></div>
                   <Plus size={15} />
                 </button>
-              )) : <p className="producer-panel-empty">Every available audio asset is already in this session. Generate another or upload a stem.</p>}
+              )) : <p className="producer-panel-empty">No matching unused audio. Search another project or upload a stem.</p>}
+              <p className="producer-panel-empty">Up to 12 lanes. Adding audio keeps the original project and asset intact.</p>
             </div>}
           </section>
 
           <section className="producer-panel producer-lyrics-panel">
             <div className="producer-panel-title static"><span><FileText size={16} /> Lyrics & arrangement notes</span></div>
-            <textarea value={session?.lyricsDraft || ''} onChange={(event) => patchSession({ lyricsDraft: event.target.value })} placeholder={'[Intro]\n\n[Verse 1]\nWrite or paste lyrics here…'} />
+            <textarea disabled={rendering || uploading} value={session?.lyricsDraft || ''} onChange={(event) => patchSession({ lyricsDraft: event.target.value })} placeholder={'[Intro]\n\n[Verse 1]\nWrite or paste lyrics here…'} />
             <label className="producer-lyrics-upload"><Upload size={14} /> Import TXT, MD or LRC
-              <input type="file" accept=".txt,.md,.lrc,text/plain" onChange={(event) => {
+              <input type="file" disabled={rendering || uploading} accept=".txt,.md,.lrc,text/plain" onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) onUploadLyrics(file);
                 event.target.value = '';
@@ -255,10 +265,9 @@ export default function ProducerCanvas({
           <section className="producer-panel producer-master-panel">
             <div className="producer-panel-title static"><span><SlidersHorizontal size={16} /> Master bus</span></div>
             <label>Target loudness <strong>{session?.lufsTarget ?? -14} LUFS</strong>
-              <input type="range" min="-24" max="-10" step="1" value={session?.lufsTarget ?? -14} onChange={(event) => patchSession({ lufsTarget: numberValue(event.target.value, -14) })} />
+              <input type="range" disabled={rendering || uploading} min="-24" max="-10" step="1" value={session?.lufsTarget ?? -14} onChange={(event) => patchSession({ lufsTarget: numberValue(event.target.value, -14) })} />
             </label>
             <div className="producer-master-summary"><span>{audibleTracks.length} audible lanes</span><span>{tracks.filter((track) => ['vocal', 'harmony', 'adlib'].includes(track.role)).length} vocal layers</span></div>
-            {latestMaster && <a href={latestMaster.audioUrl} target="_blank" rel="noreferrer"><Download size={14} /> Latest master</a>}
             <p>This render is a polished preview master. Final release decisions still belong to the artist and mix engineer.</p>
           </section>
         </aside>

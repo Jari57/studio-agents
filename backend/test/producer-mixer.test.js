@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const { execFileSync } = require('node:child_process');
+const ffmpegPath = require('ffmpeg-static');
 const { WaveFile } = require('wavefile');
 
 const {
@@ -55,6 +57,36 @@ test('rejects a session with no audible media', () => {
     () => buildMultiStemFilterGraph([{ url: 'https://example.com/a.mp3', muted: true }]),
     /At least one audible track/,
   );
+});
+
+test('never silently drops tracks beyond the supported lane count', () => {
+  assert.throws(() => buildMultiStemFilterGraph(Array.from({ length: 13 }, () => ({ url: 'https://example.test/a.mp3' }))), /at most 12/);
+});
+
+test('fade-out follows actual source duration, including a trim beyond its end', () => {
+  for (const trimEnd of [null, 30]) {
+    const result = buildMultiStemFilterGraph([{ url: 'a', trimStart: 2, trimEnd, fadeOut: 1 }], { sourceDurations: [10] });
+    assert.match(result.filterComplex, /afade=t=out:st=7:d=1/);
+  }
+  assert.throws(() => buildMultiStemFilterGraph([{ url: 'a', fadeOut: 1 }]), /duration is required/);
+});
+
+test('full-track fade and hard-left balance are audible in the actual FFmpeg export', async () => {
+  const rate = 44100;
+  const wav = new WaveFile();
+  wav.fromScratch(1, rate, '16', Array.from({ length: rate * 2 }, (_, i) => Math.round(Math.sin(2 * Math.PI * 220 * i / rate) * 8000)));
+  const result = await mixMultipleStems([{ url: `data:audio/wav;base64,${Buffer.from(wav.toBuffer()).toString('base64')}`, pan: -1, fadeOut: 0.8 }], { autoDuck: false });
+  try {
+    const pcm = execFileSync(ffmpegPath, ['-v', 'error', '-i', result.outputPath, '-ar', String(rate), '-ac', '2', '-f', 'f32le', '-'], { maxBuffer: 4 * 1024 * 1024, windowsHide: true });
+    const rms = (start, end, channel) => {
+      let sum = 0, count = 0;
+      for (let i = Math.floor(start * rate); i < Math.min(Math.floor(end * rate), pcm.length / 8); i++) { sum += pcm.readFloatLE(i * 8 + channel * 4) ** 2; count++; }
+      return Math.sqrt(sum / count);
+    };
+    assert.ok(rms(0.5, 1, 0) > 0.01, 'left channel has actual audio');
+    assert.ok(rms(0.5, 1, 1) < rms(0.5, 1, 0) * 0.01, 'hard-left balance silences right channel');
+    assert.ok(rms(1.9, 1.98, 0) < rms(0.5, 1, 0) * 0.3, 'requested fade attenuates the end without explicit trim-out');
+  } finally { fs.unlinkSync(result.outputPath); }
 });
 
 test('renders a real two-lane preview master through bundled FFmpeg', async () => {

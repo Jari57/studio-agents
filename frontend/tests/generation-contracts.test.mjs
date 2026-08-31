@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { selectedVoiceInputs, generationFailureMessage } from '../src/utils/generationErrors.mjs';
 import { isStaleChunkError, recoverSection } from '../src/utils/errorRecovery.mjs';
 import { saveProjectChoices } from '../src/utils/saveProjectChoices.mjs';
+import { producerRenderSignature, producerAudioLibrary, inferProducerRole } from '../src/utils/producerSession.mjs';
 
 test('AI vocal selection never transmits a stored personal sample or clone ID', () => {
   const settings = { elevenLabsVoiceId: 'private-id', voiceSampleUrl: 'https://example.test/private.wav' };
@@ -67,4 +68,37 @@ test('save picker includes recent projects beyond the old first-ten cutoff', () 
   assert.equal(saveProjectChoices(projects, 'PROJECT 19')[0].id, '19');
   assert.deepEqual(projects.map(p => p.id), originalOrder);
   assert.deepEqual(saveProjectChoices(projects, 'missing'), []);
+});
+
+test('every audio control invalidates a saved mix but notes do not', () => {
+  const session = { tracks: [{ id: 'a', url: 'https://example.test/a.wav', role: 'vocal', volume: 0.8 }], bpm: 92 };
+  const signature = producerRenderSignature(session);
+  for (const [key, value] of Object.entries({ url: 'other', role: 'beat', volume: 1.2, pan: -1, offset: 2, trimStart: 1, trimEnd: 10, fadeIn: 1, fadeOut: 2, muted: true, solo: true })) {
+    assert.notEqual(producerRenderSignature({ ...session, tracks: [{ ...session.tracks[0], [key]: value }] }), signature, key);
+  }
+  assert.notEqual(producerRenderSignature({ ...session, autoDuck: false }), signature);
+  assert.notEqual(producerRenderSignature({ ...session, lufsTarget: -18 }), signature);
+  assert.equal(producerRenderSignature({ ...session, bpm: 120, key: 'D minor', lyricsDraft: 'Notes' }), signature);
+});
+
+test('library searches all supplied private projects without mutating original assets', () => {
+  const original = { id: 'vocal', title: 'Harmony vocal', audioUrl: 'https://example.test/a.mp3' };
+  const project = { id: 'p', name: 'First', assets: [original] };
+  const projects = [project, { id: 'q', name: 'Second', assets: [{ id: 'beat', audioUrl: 'https://example.test/b.mp3' }, original] }];
+  assert.equal(producerAudioLibrary(project, projects).length, 2);
+  assert.equal(producerAudioLibrary(project, projects, 'SECOND')[0].id, 'beat');
+  assert.equal(original.projectName, undefined);
+  assert.equal(inferProducerRole(original), 'harmony');
+  assert.equal(inferProducerRole({ title: 'Ad-lib vocal' }), 'adlib');
+});
+
+test('producer audition uses the downloadable render, not a second approximate mixer', () => {
+  const source = readFileSync(new URL('../src/components/studio/ProducerCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(source, /src=\{selectedMix\.audioUrl\}/);
+  assert.match(source, /href=\{selectedMix\.audioUrl\}/);
+  assert.match(source, /aria-label="Compare saved mixes"/);
+  assert.doesNotMatch(source, /src=\{track\.url\}|element\.volume|timers\.current|slice\(0, 12\)/);
+  const server = readFileSync(new URL('../../backend/server.js', import.meta.url), 'utf8');
+  assert.match(server, /'mixing': 10/);
+  assert.match(source, /New renders use 10 Studio credits/);
 });

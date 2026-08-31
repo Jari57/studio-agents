@@ -426,11 +426,19 @@ function normalizeProducerTracks(tracks) {
  * Builds a deterministic, escaped-by-construction FFmpeg graph. Exported for
  * tests because this is the heart of the producer mix and must stay auditable.
  */
-function buildMultiStemFilterGraph(rawTracks, options = {}) {
+function selectProducerTracks(rawTracks) {
+  if (Array.isArray(rawTracks) && rawTracks.filter(track => track?.url && !track.muted).length > 12) {
+    throw new Error('A producer mix supports at most 12 audible tracks');
+  }
   let tracks = normalizeProducerTracks(rawTracks);
   const soloTracks = tracks.filter((track) => track.solo);
   if (soloTracks.length > 0) tracks = soloTracks;
   if (tracks.length === 0) throw new Error('At least one audible track is required');
+  return tracks;
+}
+
+function buildMultiStemFilterGraph(rawTracks, options = {}) {
+  const tracks = selectProducerTracks(rawTracks);
 
   const filters = [];
   const vocalLabels = [];
@@ -447,9 +455,15 @@ function buildMultiStemFilterGraph(rawTracks, options = {}) {
     ];
     if (track.pan !== 0) chain.push(`stereotools=balance_out=${track.pan}`);
     if (track.fadeIn > 0) chain.push(`afade=t=in:st=0:d=${track.fadeIn}`);
-    if (track.fadeOut > 0 && track.trimEnd) {
-      const visibleDuration = Math.max(0.05, track.trimEnd - track.trimStart);
-      chain.push(`afade=t=out:st=${Math.max(0, visibleDuration - track.fadeOut)}:d=${Math.min(track.fadeOut, visibleDuration)}`);
+    if (track.fadeOut > 0) {
+      const sourceDuration = options.sourceDurations?.[index];
+      const end = Math.min(track.trimEnd || Infinity, sourceDuration || Infinity);
+      if (!Number.isFinite(end) || (!sourceDuration && !track.trimEnd)) {
+        throw new Error('Audio duration is required to render a full-track fade-out');
+      }
+      const length = Math.max(0.05, end - track.trimStart);
+      const fade = Math.min(track.fadeOut, length);
+      chain.push(`afade=t=out:st=${length - fade}:d=${fade}`);
     }
     if (track.offset > 0) chain.push(`adelay=${Math.round(track.offset * 1000)}:all=1`);
     filters.push(`[${index}:a]${chain.join(',')}[${label}]`);
@@ -486,7 +500,7 @@ function buildMultiStemFilterGraph(rawTracks, options = {}) {
 }
 
 async function mixMultipleStems(rawTracks, options = {}, logger) {
-  const { tracks, filterComplex, outputLabel } = buildMultiStemFilterGraph(rawTracks, options);
+  const tracks = selectProducerTracks(rawTracks);
   const tempDir = path.join(__dirname, '../../backend', 'temp');
   if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
   const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -495,8 +509,11 @@ async function mixMultipleStems(rawTracks, options = {}, logger) {
 
   try {
     await Promise.all(tracks.map((track, index) => downloadAudio(track.url, inputPaths[index])));
+    const sourceDurations = await Promise.all(tracks.map((track, index) => track.fadeOut > 0 ? readProducerDuration(inputPaths[index]) : null));
+    const { filterComplex, outputLabel } = buildMultiStemFilterGraph(tracks, { ...options, sourceDurations });
     await new Promise((resolve, reject) => {
       let command = ffmpeg();
+      const timeout = setTimeout(() => { command.kill('SIGKILL'); reject(new Error('Producer render exceeded its three-minute processing budget')); }, 180000);
       inputPaths.forEach((inputPath) => { command = command.input(inputPath); });
       command
         .complexFilter(filterComplex, outputLabel)
@@ -506,8 +523,9 @@ async function mixMultipleStems(rawTracks, options = {}, logger) {
         .audioFrequency(44100)
         .output(outputPath)
         .on('start', () => logger?.info('Producer canvas render started', { trackCount: tracks.length }))
-        .on('end', resolve)
+        .on('end', () => { clearTimeout(timeout); resolve(); })
         .on('error', (error, _stdout, stderr) => {
+          clearTimeout(timeout);
           logger?.error('Producer canvas FFmpeg render failed', {
             error: error.message,
             stderr: String(stderr || '').slice(-4000),
@@ -535,6 +553,22 @@ async function mixMultipleStems(rawTracks, options = {}, logger) {
       try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch { /* best-effort temp cleanup */ }
     });
   }
+}
+
+// Read container metadata without reversing/buffering an entire audio file.
+// Only fade-out tracks need this; unknown duration fails rather than silently
+// dropping an artist's requested fade.
+function readProducerDuration(inputPath) {
+  const { execFile } = require('child_process');
+  return new Promise((resolve, reject) => {
+    execFile(ffmpegStatic, ['-hide_banner', '-i', inputPath, '-t', '0', '-f', 'null', '-'],
+      { timeout: 15000, maxBuffer: 1024 * 1024, windowsHide: true }, (error, _stdout, stderr) => {
+        const match = String(stderr || '').match(/Duration:\s*(\d+):(\d+):([\d.]+)/);
+        const duration = match ? Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]) : 0;
+        if (error || !Number.isFinite(duration) || duration <= 0) reject(new Error('Could not determine audio duration for fade-out'));
+        else resolve(duration);
+      });
+  });
 }
 
 /**

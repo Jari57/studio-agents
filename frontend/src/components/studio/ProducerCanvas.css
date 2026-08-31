@@ -22,6 +22,18 @@
 .producer-canvas select,
 .producer-canvas textarea { font: inherit; }
 .producer-canvas button { color: inherit; }
+.producer-track-fields, .producer-format-controls { border: 0; margin: 0; padding: 0; min-width: 0; }
+.producer-review { padding: 16px; margin-bottom: 18px; border: 1px solid rgba(146, 121, 255, 0.35); border-radius: 12px; background: linear-gradient(120deg, rgba(117, 89, 244, 0.12), rgba(49, 198, 244, 0.04)); }
+.producer-review-heading { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.producer-review-heading strong { font-size: 0.95rem; }
+.producer-review-heading span { color: #c9bbff; font-size: 0.75rem; }
+.producer-review p { color: #adb6c9; font-size: 0.78rem; line-height: 1.55; }
+.producer-review label { display: grid; gap: 7px; font-size: 0.78rem; color: #c3c9d8; }
+.producer-review select, .producer-asset-list input[type='search'] { width: 100%; min-width: 0; box-sizing: border-box; padding: 9px; color: #eef1fb; border: 1px solid var(--producer-border); border-radius: 8px; background: #10131a; }
+.producer-review audio { display: block; width: 100%; margin: 12px 0; }
+.producer-review a { display: inline-flex; align-items: center; gap: 7px; color: #c9bbff; font-size: 0.8rem; }
+.producer-canvas :focus-visible { outline: 2px solid #c9bbff; outline-offset: 3px; }
+.producer-asset-list button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .producer-topbar {
   min-height: 72px;
@@ -208,9 +220,9 @@
   .producer-topbar { min-height: auto; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 9px 10px; }
   .producer-brand-mark { display: none; }
   .producer-brand strong { font-size: 0.78rem; }
-  .producer-actions button:first-child { display: none; }
+  .producer-topbar .producer-actions { grid-column: 1 / -1; justify-content: flex-end; }
   .producer-actions button { min-height: 35px; padding: 0 10px; font-size: 0.68rem; }
-  .producer-transport { padding: 3px 0 0; }
+  .producer-transport { padding: 3px 0 0; grid-row: auto; }
   .producer-transport > div { min-width: 46px; }
   .producer-body { display: block; overflow: auto; }
   .producer-arrangement,

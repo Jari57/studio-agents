@@ -36,6 +36,7 @@ import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUt
 import { generationFailureMessage, selectedVoiceInputs } from '../utils/generationErrors.mjs';
 import SectionErrorBoundary from './studio/SectionErrorBoundary';
 import { saveProjectChoices } from '../utils/saveProjectChoices.mjs';
+import { producerRenderSignature } from '../utils/producerSession.mjs';
 import { shouldUseNativeIAP } from '../utils/nativePlatform';
 import { purchaseProduct, restorePurchases } from '../utils/storeKit';
 
@@ -1727,6 +1728,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     }
     setSessionTracks(prev => {
       const currentTracks = Array.isArray(prev.tracks) ? prev.tracks : [];
+      if (currentTracks.length >= 12) {
+        toast.error('A producer session supports 12 lanes. Remove a lane before adding another.');
+        return prev;
+      }
       if (currentTracks.some(track => track.url === asset.audioUrl)) {
         toast('That audio is already in the session.');
         return prev;
@@ -1885,6 +1890,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         content: sessionTracks.lyricsDraft || '',
         stems: tracks.map(track => ({ id: track.id, name: track.name, role: track.role, audioUrl: track.url })),
         metadata: {
+          renderSignature: producerRenderSignature(sessionTracks),
           renderedAt,
           renderPass: renderNumber,
           bpm: sessionTracks.bpm || 120,
@@ -11943,6 +11949,7 @@ ABSOLUTE RULES (violating any = failure):
           <Suspense fallback={<div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: '#0b0d12', display: 'grid', placeItems: 'center' }}><StudioInlineState label="Opening Producer Canvas" detail="Restoring your session and studio assets" /></div>}>
             <ProducerCanvas
               project={selectedProject}
+              projects={projects}
               session={sessionTracks}
               playing={sessionPlaying}
               rendering={isGenerating}
