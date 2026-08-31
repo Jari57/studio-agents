@@ -63,6 +63,15 @@ test('never silently drops tracks beyond the supported lane count', () => {
   assert.throws(() => buildMultiStemFilterGraph(Array.from({ length: 13 }, () => ({ url: 'https://example.test/a.mp3' }))), /at most 12/);
 });
 
+test('rejects reversed and empty audible trims instead of rendering an arbitrary sliver', async () => {
+  for (const [trimStart, trimEnd] of [[2, 1], [2, 2], [0, 0]]) {
+    await assert.rejects(mixMultipleStems([{ url: 'not-downloaded', name: 'Lead', trimStart, trimEnd }]), /Trim out must be later than trim in for Lead/);
+  }
+  assert.doesNotThrow(() => buildMultiStemFilterGraph([
+    { url: 'a', trimStart: 2, trimEnd: 1 }, { url: 'b', solo: true },
+  ]));
+});
+
 test('fade-out follows actual source duration, including a trim beyond its end', () => {
   for (const trimEnd of [null, 30]) {
     const result = buildMultiStemFilterGraph([{ url: 'a', trimStart: 2, trimEnd, fadeOut: 1 }], { sourceDurations: [10] });
@@ -116,3 +125,49 @@ test('renders a real two-lane preview master through bundled FFmpeg', async () =
     try { fs.unlinkSync(result.outputPath); } catch { /* best-effort temp cleanup */ }
   }
 });
+
+test('vocal ducking preserves a longer instrumental tail after the vocal ends', async () => {
+  const rate = 44100;
+  const tone = (frequency, seconds) => {
+    const wav = new WaveFile();
+    wav.fromScratch(1, rate, '16', Array.from({ length: rate * seconds }, (_, i) => Math.round(Math.sin(2 * Math.PI * frequency * i / rate) * 8000)));
+    return `data:audio/wav;base64,${Buffer.from(wav.toBuffer()).toString('base64')}`;
+  };
+  const result = await mixMultipleStems([
+    { url: tone(220, 3), role: 'beat', volume: 0.65 },
+    { url: tone(440, 1), role: 'vocal', volume: 0.8 },
+  ], { autoDuck: true });
+  try {
+    const pcm = execFileSync(ffmpegPath, ['-v', 'error', '-i', result.outputPath, '-ar', String(rate), '-ac', '1', '-f', 'f32le', '-'], { maxBuffer: 4 * 1024 * 1024, windowsHide: true });
+    assert.ok(pcm.length / 4 / rate >= 2.95, 'the master retains the full three-second beat');
+    let sum = 0, count = 0;
+    for (let i = Math.floor(rate * 2.5); i < Math.min(Math.floor(rate * 2.9), pcm.length / 4); i++) { sum += pcm.readFloatLE(i * 4) ** 2; count++; }
+    assert.ok(count > 0 && Math.sqrt(sum / count) > 0.01, 'instrumental tail remains audible after the vocal ends');
+  } finally { fs.unlinkSync(result.outputPath); }
+});
+
+for (const [description, beatSeconds, vocalSeconds, delay] of [
+  ['longer vocal', 1, 3, 0],
+  ['delayed vocal after the beat ends', 1, 1, 2],
+]) {
+  test(`vocal ducking terminates correctly and retains a ${description}`, async () => {
+    const rate = 44100;
+    const tone = (frequency, seconds) => {
+      const wav = new WaveFile();
+      wav.fromScratch(1, rate, '16', Array.from({ length: rate * seconds }, (_, i) => Math.round(Math.sin(2 * Math.PI * frequency * i / rate) * 8000)));
+      return `data:audio/wav;base64,${Buffer.from(wav.toBuffer()).toString('base64')}`;
+    };
+    const result = await mixMultipleStems([
+      { url: tone(220, beatSeconds), role: 'beat' },
+      { url: tone(440, vocalSeconds), role: 'vocal', offset: delay },
+    ], { autoDuck: true });
+    try {
+      const pcm = execFileSync(ffmpegPath, ['-v', 'error', '-i', result.outputPath, '-ar', String(rate), '-ac', '1', '-f', 'f32le', '-'], { maxBuffer: 4 * 1024 * 1024, windowsHide: true });
+      const duration = pcm.length / 4 / rate;
+      assert.ok(duration >= 2.95 && duration < 3.1, `expected three seconds, got ${duration}`);
+      let sum = 0, count = 0;
+      for (let i = Math.floor(rate * 2.5); i < Math.min(Math.floor(rate * 2.9), pcm.length / 4); i++) { sum += pcm.readFloatLE(i * 4) ** 2; count++; }
+      assert.ok(count > 0 && Math.sqrt(sum / count) > 0.01, 'vocal remains audible at the end');
+    } finally { fs.unlinkSync(result.outputPath); }
+  });
+}

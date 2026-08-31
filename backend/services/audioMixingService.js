@@ -415,7 +415,7 @@ function normalizeProducerTracks(tracks) {
       trimStart: clampNumber(track.trimStart, 0, 3600, 0),
       trimEnd: track.trimEnd == null || track.trimEnd === ''
         ? null
-        : clampNumber(track.trimEnd, 0.05, 3600, null),
+        : clampNumber(track.trimEnd, 0, 3600, null),
       fadeIn: clampNumber(track.fadeIn, 0, 30, 0),
       fadeOut: clampNumber(track.fadeOut, 0, 30, 0),
       solo: Boolean(track.solo),
@@ -434,6 +434,11 @@ function selectProducerTracks(rawTracks) {
   const soloTracks = tracks.filter((track) => track.solo);
   if (soloTracks.length > 0) tracks = soloTracks;
   if (tracks.length === 0) throw new Error('At least one audible track is required');
+  for (const track of tracks) {
+    if (track.trimEnd !== null && track.trimEnd <= track.trimStart) {
+      throw new Error(`Trim out must be later than trim in for ${track.name}`);
+    }
+  }
   return tracks;
 }
 
@@ -447,7 +452,7 @@ function buildMultiStemFilterGraph(rawTracks, options = {}) {
   tracks.forEach((track, index) => {
     const label = `track_${index}`;
     const chain = [
-      `atrim=start=${track.trimStart}${track.trimEnd ? `:end=${Math.max(track.trimEnd, track.trimStart + 0.05)}` : ''}`,
+      `atrim=start=${track.trimStart}${track.trimEnd ? `:end=${track.trimEnd}` : ''}`,
       'asetpts=PTS-STARTPTS',
       'aresample=44100',
       'aformat=sample_fmts=fltp:channel_layouts=stereo',
@@ -484,7 +489,11 @@ function buildMultiStemFilterGraph(rawTracks, options = {}) {
   if (musicLabels.length && vocalLabels.length) {
     if (options.autoDuck !== false) {
       filters.push('[vocal_bus]asplit=2[vocal_sidechain][vocal_mix]');
-      filters.push('[music_bus][vocal_sidechain]sidechaincompress=threshold=0.08:ratio=2.5:attack=10:release=220[ducked_music]');
+      // Silence-pad only the detector, not the audible vocal bus. Otherwise
+      // sidechaincompress stops the instrumental when a shorter vocal ends.
+      // The finite music bus bounds this padded detector's lifetime.
+      filters.push('[vocal_sidechain]apad[vocal_detector]');
+      filters.push('[music_bus][vocal_detector]sidechaincompress=threshold=0.08:ratio=2.5:attack=10:release=220[ducked_music]');
       filters.push('[ducked_music][vocal_mix]amix=inputs=2:duration=longest:dropout_transition=2:normalize=0[session_mix]');
     } else {
       filters.push('[music_bus][vocal_bus]amix=inputs=2:duration=longest:dropout_transition=2:normalize=0[session_mix]');

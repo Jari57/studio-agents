@@ -6,7 +6,8 @@ import {
 } from 'lucide-react';
 
 import './ProducerCanvas.css';
-import { producerRenderSignature, producerAudioLibrary, inferProducerRole } from '../../utils/producerSession.mjs';
+import ProducerControl from './ProducerControl';
+import { producerRenderSignature, producerAudioLibrary, inferProducerRole, producerSessionIssues } from '../../utils/producerSession.mjs';
 
 const ROLE_META = {
   beat: { label: 'Beat', color: '#31c6f4', icon: Disc3 },
@@ -44,8 +45,8 @@ function ProducerTrack({ track, index, onChange, onRemove, disabled }) {
           <input aria-label={`${track.name} volume`} type="range" min="0" max="1.5" step="0.01" value={track.volume ?? 0.8} onChange={(event) => patch({ volume: numberValue(event.target.value, 0.8) })} />
           <output>{Math.round((track.volume ?? 0.8) * 100)}%</output>
         </div>
-        <button className={`producer-mini-button${track.solo ? ' active' : ''}`} onClick={() => patch({ solo: !track.solo })} title="Solo this track">S</button>
-        <button className={`producer-mini-button${track.muted ? ' danger' : ''}`} onClick={() => patch({ muted: !track.muted })} title={track.muted ? 'Unmute track' : 'Mute track'}>
+        <button className={`producer-mini-button${track.solo ? ' active' : ''}`} onClick={() => patch({ solo: !track.solo })} aria-pressed={Boolean(track.solo)} aria-label={`Solo ${track.name}`} title="Solo this track">S</button>
+        <button className={`producer-mini-button${track.muted ? ' danger' : ''}`} onClick={() => patch({ muted: !track.muted })} aria-pressed={Boolean(track.muted)} aria-label={`Mute ${track.name}`} title={track.muted ? 'Unmute track' : 'Mute track'}>
           {track.muted ? <VolumeX size={14} /> : 'M'}
         </button>
         <button className="producer-mini-button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} title="Detailed controls">
@@ -60,24 +61,17 @@ function ProducerTrack({ track, index, onChange, onRemove, disabled }) {
               {Object.entries(ROLE_META).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}
             </select>
           </label>
-          <label>Pan <span>{numberValue(track.pan).toFixed(2)}</span>
-            <input type="range" min="-1" max="1" step="0.05" value={track.pan ?? 0} onChange={(event) => patch({ pan: numberValue(event.target.value) })} />
-          </label>
-          <label>Start delay <span>{numberValue(track.offset).toFixed(2)}s</span>
-            <input type="range" min="0" max="30" step="0.1" value={track.offset ?? 0} onChange={(event) => patch({ offset: numberValue(event.target.value) })} />
-          </label>
+          <ProducerControl label="Level" name={`${track.name} level`} value={Math.round((track.volume ?? 0.8) * 100)} min={0} max={150} step={1} unit="%" onChange={value => patch({ volume: value / 100 })} />
+          <ProducerControl label="Pan" name={`${track.name} pan`} value={track.pan ?? 0} min={-1} max={1} step={0.05} unit="−1 left · 0 center · 1 right" onChange={value => patch({ pan: value })} />
+          <ProducerControl label="Start delay" name={`${track.name} start delay`} value={track.offset ?? 0} min={0} max={120} step={0.1} unit="seconds" onChange={value => patch({ offset: value })} />
           <label>Trim in <span>{numberValue(track.trimStart).toFixed(2)}s</span>
-            <input type="number" min="0" step="0.1" value={track.trimStart ?? 0} onChange={(event) => patch({ trimStart: Math.max(0, numberValue(event.target.value)) })} />
+            <input type="number" min="0" max="3600" step="0.1" value={track.trimStart ?? 0} onChange={(event) => patch({ trimStart: Math.min(3600, Math.max(0, numberValue(event.target.value))) })} />
           </label>
           <label>Trim out <span>optional</span>
-            <input type="number" min="0" step="0.1" value={track.trimEnd ?? ''} placeholder="Full track" onChange={(event) => patch({ trimEnd: event.target.value === '' ? null : Math.max(0, numberValue(event.target.value)) })} />
+            <input type="number" min="0" max="3600" step="0.1" value={track.trimEnd ?? ''} placeholder="Full track" onChange={(event) => patch({ trimEnd: event.target.value === '' ? null : Math.min(3600, Math.max(0, numberValue(event.target.value))) })} />
           </label>
-          <label>Fade in <span>{numberValue(track.fadeIn).toFixed(1)}s</span>
-            <input type="range" min="0" max="10" step="0.1" value={track.fadeIn ?? 0} onChange={(event) => patch({ fadeIn: numberValue(event.target.value) })} />
-          </label>
-          <label>Fade out <span>{numberValue(track.fadeOut).toFixed(1)}s</span>
-            <input type="range" min="0" max="10" step="0.1" value={track.fadeOut ?? 0} onChange={(event) => patch({ fadeOut: numberValue(event.target.value) })} />
-          </label>
+          <ProducerControl label="Fade in" name={`${track.name} fade in`} value={track.fadeIn ?? 0} min={0} max={30} step={0.1} unit="seconds" onChange={value => patch({ fadeIn: value })} />
+          <ProducerControl label="Fade out" name={`${track.name} fade out`} value={track.fadeOut ?? 0} min={0} max={30} step={0.1} unit="seconds" onChange={value => patch({ fadeOut: value })} />
           <button className="producer-remove-track" onClick={() => onRemove(track.id)}><Trash2 size={14} /> Remove lane</button>
         </div>
       )}
@@ -123,6 +117,7 @@ export default function ProducerCanvas({
   const selectedMix = savedMixes.find(asset => asset.id === selectedMixId) || savedMixes[0];
   const signature = producerRenderSignature(session);
   const matchesCurrent = selectedMix?.metadata?.renderSignature === signature;
+  const sessionIssues = producerSessionIssues(session);
 
   useEffect(() => {
     const audio = reviewAudio.current;
@@ -168,7 +163,7 @@ export default function ProducerCanvas({
 
         <div className="producer-actions">
           <button onClick={onSave} disabled={uploading || rendering}><Save size={16} /> Save</button>
-          <button className="producer-render" onClick={() => { setSelectedMixId(null); onPlayingChange(false); onRender(); }} disabled={rendering || uploading || !audibleTracks.length}>
+          <button className="producer-render" onClick={() => { setSelectedMixId(null); onPlayingChange(false); onRender(); }} disabled={rendering || uploading || !audibleTracks.length || sessionIssues.length > 0}>
             {rendering ? <Loader2 size={16} className="spin" /> : <WandSparkles size={16} />}
             {rendering ? 'Rendering…' : 'Render mix'}
           </button>
@@ -204,6 +199,7 @@ export default function ProducerCanvas({
           </section>
 
           <div className="producer-track-stack">
+            {sessionIssues.length > 0 && <div className="producer-session-errors" role="alert"><strong>Adjust your trim points before rendering</strong>{sessionIssues.map((issue, index) => <p key={index}>{issue}</p>)}</div>}
             {tracks.length ? tracks.map((track, index) => (
               <ProducerTrack key={track.id} track={track} index={index} onChange={updateTrack} onRemove={removeTrack} disabled={rendering || uploading} />
             )) : (
@@ -264,9 +260,7 @@ export default function ProducerCanvas({
 
           <section className="producer-panel producer-master-panel">
             <div className="producer-panel-title static"><span><SlidersHorizontal size={16} /> Master bus</span></div>
-            <label>Target loudness <strong>{session?.lufsTarget ?? -14} LUFS</strong>
-              <input type="range" disabled={rendering || uploading} min="-24" max="-10" step="1" value={session?.lufsTarget ?? -14} onChange={(event) => patchSession({ lufsTarget: numberValue(event.target.value, -14) })} />
-            </label>
+            <ProducerControl label="Target loudness" value={session?.lufsTarget ?? -14} min={-24} max={-10} step={1} unit="LUFS" disabled={rendering || uploading} onChange={value => patchSession({ lufsTarget: value })} />
             <div className="producer-master-summary"><span>{audibleTracks.length} audible lanes</span><span>{tracks.filter((track) => ['vocal', 'harmony', 'adlib'].includes(track.role)).length} vocal layers</span></div>
             <p>This render is a polished preview master. Final release decisions still belong to the artist and mix engineer.</p>
           </section>

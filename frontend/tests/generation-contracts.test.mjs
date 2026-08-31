@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { selectedVoiceInputs, generationFailureMessage } from '../src/utils/generationErrors.mjs';
 import { isStaleChunkError, recoverSection } from '../src/utils/errorRecovery.mjs';
 import { saveProjectChoices } from '../src/utils/saveProjectChoices.mjs';
-import { producerRenderSignature, producerAudioLibrary, inferProducerRole } from '../src/utils/producerSession.mjs';
+import { producerRenderSignature, producerAudioLibrary, inferProducerRole, boundedProducerValue, producerSessionIssues } from '../src/utils/producerSession.mjs';
 
 test('AI vocal selection never transmits a stored personal sample or clone ID', () => {
   const settings = { elevenLabsVoiceId: 'private-id', voiceSampleUrl: 'https://example.test/private.wav' };
@@ -99,4 +99,30 @@ test('producer audition uses the downloadable render, not a second approximate m
   assert.match(source, /aria-label="Compare saved mixes"/);
   assert.doesNotMatch(source, /src=\{track\.url\}|element\.volume|timers\.current|slice\(0, 12\)/);
   assert.match(source, /New renders use 10 Studio credits/);
+});
+
+test('precise controls bound numeric input while retaining incomplete input safely', () => {
+  assert.equal(boundedProducerValue('', -1, 1, 0.25), 0.25);
+  assert.equal(boundedProducerValue('bad', -1, 1, 0.25), 0.25);
+  assert.equal(boundedProducerValue('Infinity', -1, 1, 0.25), 0.25);
+  assert.equal(boundedProducerValue('-0.45', -1, 1, 0), -0.45);
+  assert.equal(boundedProducerValue('20', -1, 1, 0), 1);
+  assert.equal(boundedProducerValue('-20', -1, 1, 0), -1);
+  const control = readFileSync(new URL('../src/components/studio/ProducerControl.jsx', import.meta.url), 'utf8');
+  assert.match(control, /type="number"/);
+  assert.match(control, /type="range"/);
+  assert.match(control, /onBlur=\{event => commit/);
+});
+
+test('invalid audible trims block render but not save; inactive lanes do not block render', () => {
+  const invalid = { name: 'Lead', trimStart: 5, trimEnd: 3 };
+  assert.equal(producerSessionIssues({ tracks: [invalid] }).length, 1);
+  assert.equal(producerSessionIssues({ tracks: [{ trimEnd: 0 }] }).length, 1);
+  assert.deepEqual(producerSessionIssues({ tracks: [{ ...invalid, muted: true }] }), []);
+  assert.deepEqual(producerSessionIssues({ tracks: [invalid, { name: 'Solo beat', solo: true }] }), []);
+  assert.deepEqual(producerSessionIssues({ tracks: [{ trimStart: 5, trimEnd: null }] }), []);
+  assert.deepEqual(producerSessionIssues({ tracks: [{ trimStart: 5, trimEnd: '' }] }), []);
+  const source = readFileSync(new URL('../src/components/studio/ProducerCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(source, /!audibleTracks\.length \|\| sessionIssues\.length > 0/);
+  assert.match(source, /onClick=\{onSave\} disabled=\{uploading \|\| rendering\}/);
 });
