@@ -67,7 +67,11 @@ try {
       const card = page.locator('.studio-resource-card').filter({ hasText: label });
       await card.waitFor();
       await card.click();
-      await page.waitForURL(expectedHash);
+      try {
+        await page.waitForURL(expectedHash);
+      } catch (error) {
+        throw new Error(`${profileName}: ${label} did not reach ${expectedHash}; current URL is ${page.url()}`, { cause: error });
+      }
       checked.push(label);
     }
 
