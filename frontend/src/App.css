@@ -5919,6 +5919,10 @@ select optgroup {
   color: #9ca3af;
 }
 
+/* A creation preview may open above the fullscreen producer canvas (10000).
+   More specific than the legacy generic modal !important rule below. */
+.modal-overlay.studio-creation-preview { z-index: 11000 !important; }
+
 /* --- Modal --- */
 .modal-overlay {
   position: fixed;

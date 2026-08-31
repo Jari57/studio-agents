@@ -12,63 +12,12 @@ import toast from 'react-hot-toast';
 import { AGENTS, BACKEND_URL } from '../../constants';
 import { auth } from '../../firebase';
 import { shouldUseNativeIAP } from '../../utils/nativePlatform';
+import SectionErrorBoundary from './SectionErrorBoundary';
 
 const WEB_CHECKOUT_ENABLED = import.meta.env.VITE_STRIPE_CHECKOUT_ENABLED === 'true';
 
 // Lazy load AdminAnalytics
 const AdminAnalytics = React.lazy(() => import('../AdminAnalytics'));
-
-// Section-level Error Boundary for isolating crashes
-class SectionErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error(`[SectionErrorBoundary] ${this.props.name || 'Section'} crashed:`, error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{
-          padding: '24px',
-          background: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          borderRadius: '12px',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '2rem', marginBottom: '12px' }}>Warning</div>
-          <h3 style={{ margin: '0 0 8px', color: 'var(--text-primary)' }}>
-            {this.props.name || 'Section'} temporarily unavailable
-          </h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            This section encountered an issue. Click below to reload it.
-          </p>
-          <button
-            onClick={() => this.setState({ hasError: false, error: null })}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer'
-            }}
-          >
-            Try Again
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 const DashboardView = ({
   // State

@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { selectedVoiceInputs, generationFailureMessage } from '../src/utils/generationErrors.mjs';
+import { isStaleChunkError, recoverSection } from '../src/utils/errorRecovery.mjs';
+import { saveProjectChoices } from '../src/utils/saveProjectChoices.mjs';
 
 test('AI vocal selection never transmits a stored personal sample or clone ID', () => {
   const settings = { elevenLabsVoiceId: 'private-id', voiceSampleUrl: 'https://example.test/private.wav' };
@@ -29,7 +31,9 @@ test('saved producer mixes are previewed as existing assets with accurate attrib
   assert.match(source, /setPreviewItem\(\{ \.\.\.masterAsset, isExistingAsset: true \}\)/);
   assert.match(source, /previewItem\.provider \|\| previewItem\.metadata\?\.provider \|\| previewItem\.model/);
   assert.doesNotMatch(source, /previewItem\.model \|\| selectedModel/);
-  assert.match(source, /className="modal-overlay" style=\{\{ zIndex: 11000 \}\}/);
+  assert.match(source, /className="modal-overlay studio-creation-preview" role="dialog"/);
+  const css = readFileSync(new URL('../src/App.css', import.meta.url), 'utf8');
+  assert.match(css, /\.modal-overlay\.studio-creation-preview\s*\{\s*z-index:\s*11000 !important/);
   assert.match(source, /aria-label="Close creation preview"/);
 });
 
@@ -39,4 +43,28 @@ test('frontend preserves vocal opening stanzas for the backend lyric policy', ()
   const lyricsSection = source.slice(start, source.indexOf("finalEndpoint = '/api/generate-speech'", start));
   assert.doesNotMatch(lyricsSection, /\.replace\(/);
   assert.match(lyricsSection, /const vocalLyrics = \(contextLyrics \|\| expandedPrompt \|\| prompt\)\.trim\(\)/);
+});
+
+test('stale deployment recovery reloads on request rather than repeating a cached failed import', () => {
+  let reloaded = 0, reset = 0;
+  const actions = { reload: () => reloaded++, reset: () => reset++ };
+  const error = new Error('Failed to fetch dynamically imported module: https://example.test/old-chunk.js');
+  assert.equal(isStaleChunkError(error), true);
+  assert.equal(reloaded, 0, 'inspection never automatically refreshes unsaved work');
+  recoverSection(error, actions);
+  assert.equal(reloaded, 1);
+  assert.equal(reset, 0);
+  recoverSection(new Error('Ordinary component error'), actions);
+  assert.equal(reloaded, 1);
+  assert.equal(reset, 1);
+});
+
+test('save picker includes recent projects beyond the old first-ten cutoff', () => {
+  const projects = Array.from({ length: 20 }, (_, i) => ({ id: String(i), name: `Project ${i}`, updatedAt: i + 1 }));
+  const originalOrder = projects.map(p => p.id);
+  assert.equal(saveProjectChoices(projects).length, 20);
+  assert.equal(saveProjectChoices(projects)[0].id, '19');
+  assert.equal(saveProjectChoices(projects, 'PROJECT 19')[0].id, '19');
+  assert.deepEqual(projects.map(p => p.id), originalOrder);
+  assert.deepEqual(saveProjectChoices(projects, 'missing'), []);
 });

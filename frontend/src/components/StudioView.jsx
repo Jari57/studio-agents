@@ -34,6 +34,8 @@ import { Analytics, trackPageView } from '../utils/analytics';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '../utils/errorMonitoring';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 import { generationFailureMessage, selectedVoiceInputs } from '../utils/generationErrors.mjs';
+import SectionErrorBoundary from './studio/SectionErrorBoundary';
+import { saveProjectChoices } from '../utils/saveProjectChoices.mjs';
 import { shouldUseNativeIAP } from '../utils/nativePlatform';
 import { purchaseProduct, restorePurchases } from '../utils/storeKit';
 
@@ -146,58 +148,6 @@ const StudioInlineState = ({ label, detail }) => (
     {detail && <span>{detail}</span>}
   </div>
 );
-
-// Section-level Error Boundary for isolating crashes
-class SectionErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    devWarn(`[SectionErrorBoundary] ${this.props.name || 'Section'} crashed:`, error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{
-          padding: '24px',
-          background: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          borderRadius: '12px',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '2rem', marginBottom: '12px' }}>⚠️</div>
-          <h3 style={{ margin: '0 0 8px', color: 'var(--text-primary)' }}>
-            {this.props.name || 'Section'} temporarily unavailable
-          </h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            This section encountered an issue. Click below to reload it.
-          </p>
-          <button
-            onClick={() => this.setState({ hasError: false, error: null })}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer'
-            }}
-          >
-            Try Again
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 // Simple inline fallback for lazy components
 const LazyFallback = () => (
@@ -652,6 +602,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
   const [previewSaveMode, setPreviewSaveMode] = useState(false);
   const [newProjectNameInPreview, setNewProjectNameInPreview] = useState('');
+  const [saveProjectSearch, setSaveProjectSearch] = useState('');
   const [isPreviewMediaLoading, setIsPreviewMediaLoading] = useState(false);
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
   const [showExportModal, setShowExportModal] = useState(null);
@@ -5219,6 +5170,7 @@ ABSOLUTE RULES (violating any = failure):
           
           newItem.mimeType = data.mimeType || 'audio/wav';
           newItem.storagePath = data.storagePath || data.audioStoragePath || null;
+          newItem.isDurable = data.isDurable === true && Boolean(newItem.storagePath);
           newItem.provider = data.provider || data.source || null;
           newItem.durationNote = data.durationNote || null;
           newItem.requiresHumanReview = data.requiresHumanReview !== false;
@@ -12952,7 +12904,7 @@ ABSOLUTE RULES (violating any = failure):
         {/* DEFENSIVE: Ensure previewItem is a valid object before rendering */}
         {previewItem && typeof previewItem === 'object' && (
           <SectionErrorBoundary name="Preview Modal">
-          <div className="modal-overlay" style={{ zIndex: 11000 }} onClick={() => {
+          <div className="modal-overlay studio-creation-preview" role="dialog" aria-modal="true" aria-label="Creation preview" onClick={() => {
             devLog('[Preview] Overlay clicked, closing preview');
             // Clear any media errors and reset transition guard
             setMediaLoadError(null);
@@ -13132,7 +13084,7 @@ ABSOLUTE RULES (violating any = failure):
                     </div>
 
                     {/* Existing Projects */}
-                    {Array.isArray(projects) && projects.filter(p => p && p.name && p.id).length > 0 && (
+                    {saveProjectChoices(projects).length > 0 && (
                       <div>
                         <div style={{ 
                           fontSize: '0.85rem', 
@@ -13142,6 +13094,10 @@ ABSOLUTE RULES (violating any = failure):
                         }}>
                           Or add to existing project:
                         </div>
+                        <input type="search" aria-label="Search saved projects" placeholder="Search all saved projects…"
+                          value={saveProjectSearch} onChange={event => setSaveProjectSearch(event.target.value)}
+                          style={{ width: '100%', padding: '10px 12px', marginBottom: 12, boxSizing: 'border-box', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+                        {saveProjectChoices(projects, saveProjectSearch).length === 0 && <p role="status">No matching projects.</p>}
                         <div style={{ 
                           display: 'flex', 
                           flexDirection: 'column', 
@@ -13149,7 +13105,7 @@ ABSOLUTE RULES (violating any = failure):
                           maxHeight: '200px',
                           overflowY: 'auto'
                         }}>
-                          {projects.filter(p => p && p.name && p.id).slice(0, 10).map(project => (
+                          {saveProjectChoices(projects, saveProjectSearch).map(project => (
                             <button
                               key={project.id}
                               onClick={() => handleSavePreview('hub', project)}
@@ -13179,7 +13135,7 @@ ABSOLUTE RULES (violating any = failure):
                                   textOverflow: 'ellipsis',
                                   maxWidth: '180px',
                                   display: 'inline-block'
-                                }}>{project.name}</span>
+                                }}>{project.name || project.title}</span>
                               </div>
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                                 {project.assets?.length || 0} assets
@@ -13481,7 +13437,7 @@ ABSOLUTE RULES (violating any = failure):
                           />
                           {previewItem.audioUrl?.startsWith('http') && (
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-                              (link) External audio URL (may expire)
+                              {previewItem.isDurable ? 'Audio saved in your private Studio storage.' : 'External audio URL — save a copy before leaving.'}
                             </p>
                           )}
                         </div>
