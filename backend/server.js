@@ -78,6 +78,7 @@ const Replicate = require('replicate');
 const emailService = require('./services/emailService');
 const userPreferencesService = require('./services/userPreferencesService');
 const { createProductionJobService } = require('./services/productionJobService');
+const { createCorsPolicy } = require('./services/corsPolicy');
 const { analyzeMusicBeats } = require('./services/beatDetectionService');
 const {
   getVideoMetadata,
@@ -966,28 +967,7 @@ const allowedOrigins = isDevelopment
   'ionic://localhost',        // Ionic fallback
     ].filter(Boolean);
 
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (same-origin requests, mobile apps, server-to-server)
-    // In production the frontend is served from the same Express server,
-    // so browser fetch() won't include an Origin header — this MUST be allowed.
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    logger.warn('CORS blocked origin:', origin);
-    callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  // StudioOrchestratorV2 attaches X-Pipeline-Session so the SSE progress
-  // stream can correlate generation work. Keep every client-owned custom
-  // header here; otherwise the browser rejects the preflight before the
-  // generation request reaches this server.
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Pipeline-Session'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400
-}));
+app.use(cors(createCorsPolicy(allowedOrigins, logger)));
 
 app.use(express.json({ limit: '50mb' }));
 

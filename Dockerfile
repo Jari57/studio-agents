@@ -25,6 +25,7 @@ RUN node scripts/apply-credit-reservation-hardening.js \
   && node --check services/creditReservation.js \
   && node --check services/accountDeletion.js \
   && node --check services/videoGenerationOrchestrator.js \
+  && node --test test/generation-cors.test.js \
   && node /app/scripts/verify-video-reliability.mjs \
   && grep -Fq "createCreditReservationService" server.js \
   && grep -Fq "registerAccountDeletionRoute(app" server.js \
