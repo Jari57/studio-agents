@@ -798,9 +798,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       // Check if it's an agent ID (Safe access for TDZ)
       const agent = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.id === tabOrId) : null;
       if (agent) {
+        setShowOrchestrator(false);
         if (activeTab !== 'agents') _setActiveTab('agents');
         if (selectedAgent?.id !== agent.id) setSelectedAgent(agent);
       } else if (VALID_TABS.includes(tabOrId)) {
+        setShowOrchestrator(false);
         if (tabOrId !== 'agents' && tabOrId !== 'project_canvas' && selectedAgent) {
           setSelectedAgent(null);
         }
@@ -808,6 +810,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           _setActiveTab(tabOrId);
         }
       } else {
+        setShowOrchestrator(false);
         if (selectedAgent) setSelectedAgent(null);
         _setActiveTab('mystudio');
       }
@@ -818,6 +821,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
   // Custom setter that updates URL
   const setActiveTab = (tab) => {
+    // A tab change always dismisses the full-screen production pipeline. The
+    // two explicit pipeline launchers set it back to true immediately after
+    // selecting My Studio, so ordinary navigation can never leave it mounted.
+    setShowOrchestrator(false);
     // Agent context is meaningful inside the agent workspace and while an
     // agent-backed project canvas is open. Every other destination is a real
     // page transition and must not be hidden behind stale agent state.

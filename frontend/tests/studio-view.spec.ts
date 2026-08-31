@@ -195,6 +195,44 @@ test.describe('Studio View — Project Hub', () => {
 
 test.describe('Studio View — Resources', () => {
 
+  test('every resource card reaches its intended destination', async ({ page }) => {
+    const destinations = [
+      ['About Us', /#\/studio\/marketing$/],
+      ['AI Agents', /#\/studio\/agents$/],
+      ['My Studio', /#\/studio\/mystudio$/],
+      ['Social Media Hub', /#\/studio\/activity$/],
+      ['Industry Pulse', /#\/studio\/news$/],
+      ['Whitepapers', /#\/whitepapers$/],
+      ['AI Production Pipeline', /#\/studio\/mystudio$/],
+      ['Studio Workflow', /#\/studio\/mystudio$/],
+      ['Legal Center', /#\/legal$/],
+      ['Help & Support', /#\/studio\/support$/],
+      ['Project Hub', /#\/studio\/hub$/],
+      ['My Profile', /#\/studio\/profile$/],
+      ['Media Library', /#\/studio\/media_library$/],
+      ['DNA System', /#\/dna$/],
+      ['Vocal Lab', /#\/vocals$/],
+      ['Billboard Blueprint', /#\/billboard$/],
+      ['Content Engine', /#\/campaign$/],
+    ] as const;
+
+    await page.goto(URL);
+    await page.evaluate(() => {
+      localStorage.setItem('studio_guest_mode', 'true');
+      localStorage.setItem('studio_user_id', 'resource-sweep');
+      localStorage.setItem('studio_onboarding_v4', 'true');
+      localStorage.setItem('studio_tour_shown', '1');
+    });
+
+    for (const [label, expectedHash] of destinations) {
+      await page.goto(`${URL}/#/studio/resources`);
+      const card = page.locator('.studio-resource-card').filter({ hasText: label });
+      await expect(card).toBeVisible({ timeout: 10000 });
+      await card.click();
+      await expect(page).toHaveURL(expectedHash);
+    }
+  });
+
   test('explicit resources route ignores a stale saved agent workspace', async ({ page }) => {
     await page.goto(URL);
     await page.evaluate(() => {

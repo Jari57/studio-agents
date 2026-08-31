@@ -22,6 +22,17 @@ test('shared tab navigation clears agent context outside agent-backed screens', 
   );
 });
 
+test('tab and hash navigation dismiss a stale production-pipeline overlay', () => {
+  assert.match(
+    source,
+    /const setActiveTab = \(tab\) => \{[\s\S]*?setShowOrchestrator\(false\);[\s\S]*?if \(tab !== 'agents'/
+  );
+  assert.match(
+    source,
+    /VALID_TABS\.includes\(tabOrId\)[\s\S]*?setShowOrchestrator\(false\);/
+  );
+});
+
 test('resource and More cards share mouse and keyboard-safe navigation', () => {
   assert.match(source, /const openResourceItem = \(item\) => \{[\s\S]*?setSelectedAgent\(null\);/);
   assert.match(source, /onClick=\{\(\) => openResourceItem\(item\)\}/);
