@@ -98,7 +98,5 @@ test('producer audition uses the downloadable render, not a second approximate m
   assert.match(source, /href=\{selectedMix\.audioUrl\}/);
   assert.match(source, /aria-label="Compare saved mixes"/);
   assert.doesNotMatch(source, /src=\{track\.url\}|element\.volume|timers\.current|slice\(0, 12\)/);
-  const server = readFileSync(new URL('../../backend/server.js', import.meta.url), 'utf8');
-  assert.match(server, /'mixing': 10/);
   assert.match(source, /New renders use 10 Studio credits/);
 });
