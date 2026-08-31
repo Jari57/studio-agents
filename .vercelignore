@@ -3,7 +3,10 @@
 # intact so its hardening scripts, tests, and service contracts are available.
 
 # Infrastructure and local artifacts
-/scripts/
+/scripts/*
+# The backend release gate executes this exact Docker transformation in an
+# isolated fixture. Keep the test dependency in Vercel's uploaded build context.
+!/scripts/patch-provider-routing.mjs
 test-results/
 railway.json
 Procfile
