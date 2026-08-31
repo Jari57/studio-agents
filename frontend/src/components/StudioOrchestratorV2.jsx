@@ -20,7 +20,7 @@ import {
 } from '../services/productionJobs';
 import StudioOnboarding from './StudioOnboarding';
 import { productionJobMatchesProject } from '../utils/productionRecovery.mjs';
-import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, confirmProjectSave, currentRunLyrics } from '../utils/productionIntegrity.mjs';
+import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, artworkDirectionRequest, confirmProjectSave, currentRunLyrics } from '../utils/productionIntegrity.mjs';
 import { generationFailureMessage } from '../utils/generationErrors.mjs';
 
 // Dev-only logging — tree-shaken in production
@@ -1319,6 +1319,7 @@ function GeneratorCard({
 function ProductionControlHub({
   outputs,
   mediaUrls,
+  selectedAgents = {},
   songIdea,
   finalMixPreview,
   creatingFinalMix,
@@ -1352,16 +1353,29 @@ function ProductionControlHub({
   visualDnaUrl = null,
   videoDnaUrl = null
 }) {
-  // Check completion status
-  // Only the four generator cards belong in this counter. Older/restored
-  // projects can carry extra output keys such as `mix`, which previously
-  // produced impossible states like "5/4" and "-1 remaining".
+  // Count only requested deliverables. A description is not an audio/image/video
+  // file, and restored extras such as `mix` must not inflate selected progress.
   const generatorOutputKeys = ['lyrics', 'audio', 'visual', 'video'];
-  const completedCount = generatorOutputKeys.filter(key => Boolean(outputs?.[key])).length;
-  const totalSlots = 4;
-  const allComplete = completedCount === totalSlots;
-  const hasAnyOutput = completedCount > 0;
-  const progressPercent = (completedCount / totalSlots) * 100;
+  const selectedOutputKeys = generatorOutputKeys.filter(key => Boolean(selectedAgents[key]));
+  const readyOutputs = {
+    lyrics: Boolean(outputs?.lyrics),
+    audio: Boolean(mediaUrls.audio),
+    visual: Boolean(mediaUrls.image),
+    video: Boolean(mediaUrls.video)
+  };
+  const outputLabels = {
+    lyrics: creatorMode === 'creator' ? 'Script' : 'Lyrics',
+    audio: creatorMode === 'creator' ? 'Audio' : 'Beat',
+    visual: creatorMode === 'creator' ? 'Graphics' : 'Artwork',
+    video: 'Video'
+  };
+  const completedCount = selectedOutputKeys.filter(key => readyOutputs[key]).length;
+  const totalSlots = selectedOutputKeys.length;
+  const allComplete = totalSlots > 0 && completedCount === totalSlots;
+  const hasAnyOutput = Object.values(outputs || {}).some(Boolean) || Object.values(mediaUrls).some(Boolean);
+  const progressPercent = totalSlots ? (completedCount / totalSlots) * 100 : 0;
+  const remainingLabels = selectedOutputKeys.filter(key => !readyOutputs[key]).map(key => outputLabels[key]);
+  const audioSelected = Boolean(selectedAgents.audio || selectedAgents.lyrics);
 
   // Media presence
   const hasBeat = !!mediaUrls.audio;
@@ -1435,13 +1449,13 @@ function ProductionControlHub({
               alignItems: 'center',
               gap: '8px'
             }}>
-              {allComplete ? 'Production Complete' : 'Production Control Hub'}
+              {allComplete ? 'Selected outputs ready' : 'Production Control Hub'}
               {allComplete && <CheckCircle2 size={18} color="#22c55e" />}
             </h3>
             <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' }}>
-              {allComplete 
-                ? 'All assets are master-ready — download or publish below' 
-                : `${completedCount}/${totalSlots} assets created • ${totalSlots - completedCount} remaining`}
+              {totalSlots
+                ? `${completedCount}/${totalSlots} selected outputs ready • ${totalSlots - completedCount} remaining`
+                : 'No outputs selected — choose generators above'}
             </p>
           </div>
         </div>
@@ -1480,7 +1494,8 @@ function ProductionControlHub({
           { type: 'visual', label: 'Artwork', mediaKey: 'image', icon: '🎨' },
           { type: 'video', label: 'Video', mediaKey: 'video', icon: '🎬' }
         ].map(({ type, label, mediaKey, icon }) => {
-          const ready = !!outputs[type];
+          const ready = readyOutputs[type];
+          const selected = Boolean(selectedAgents[type]);
           const mediaReady = !!mediaUrls[mediaKey];
           return (
             <div key={type} style={{
@@ -1495,7 +1510,8 @@ function ProductionControlHub({
               alignItems: 'center',
               gap: '6px'
             }}>
-              <span>{icon}</span> {label}
+              <span>{icon}</span> {outputLabels[type] || label}
+              {!selected && <span style={{ fontSize: '0.7rem' }}>{ready ? '(saved, not selected)' : '(not selected)'}</span>}
               {ready && <CheckCircle2 size={12} />}
               {mediaReady && <span title="Media file ready" style={{ fontSize: '0.7rem' }}>💎</span>}
             </div>
@@ -1576,7 +1592,7 @@ function ProductionControlHub({
       </div>
 
       {/* ── WHAT'S NEXT GUIDE ── contextual guidance based on current state */}
-      {!allComplete && (
+      {(
         <div style={{
           background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.05))',
           borderRadius: '14px',
@@ -1593,23 +1609,14 @@ function ProductionControlHub({
               What to do next
             </div>
             <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.6' }}>
-              {!outputs.lyrics && !outputs.audio && !outputs.visual && !outputs.video ? (
-                <>{creatorMode === 'creator' 
-                  ? <>Enter your content idea above and click <strong>"Create Full Project"</strong> to generate scripts, audio, graphics, and video all at once. Or switch to Advanced Mode to pick which parts to create.</>
-                  : <>Enter your song idea above and click <strong>"Create Full Song"</strong> to generate lyrics, beat, artwork, and video all at once. Or switch to Advanced Mode to pick which parts to create.</>
-                }</>
-              ) : !hasBeat && !hasVocalMedia ? (
-                <>Your text content is ready! Click the <strong>"Next: Create Beat Audio"</strong> and <strong>"Next: Create Vocals"</strong> buttons on each card below to generate media files.</>
-              ) : hasBeat && !hasVocalMedia ? (
-                <>Beat is ready! Now click <strong>"Next: Create Vocals"</strong> on the Lyrics card to generate vocal audio. Once you have both, you can mix them together.</>
-              ) : !hasBeat && hasVocalMedia ? (
-                <>Vocals are ready! Now click <strong>"Next: Create Beat Audio"</strong> on the Beat card to generate an instrumental. Once you have both, you can mix them together.</>
-              ) : hasBeat && hasVocalMedia && !mediaUrls.mixedAudio ? (
-                <>You have both beat and vocals! Choose a <strong>Mix Preset</strong> below, adjust volumes, then click <strong>"Create Mix"</strong> to combine them into a finished master.</>
-              ) : hasBeat && hasVocalMedia && mediaUrls.mixedAudio && !hasVideo ? (
-                <>Mix is ready! Click <strong>"Next: Create Video"</strong> on the Video card, or click <strong>"Image to Video Sync"</strong> below to create a music video with your audio.</>
+              {!totalSlots ? (
+                <>Choose the generators you want above. Existing outputs stay available to save and review.</>
+              ) : allComplete ? (
+                <>Review your selected outputs, then save them with <strong>Publish to Hub</strong>. Mixing, video sync, and distribution are optional tools, not requirements for this selection.</>
+              ) : !songIdea?.trim() ? (
+                <>Review your brief above before creating <strong>{remainingLabels.join(', ')}</strong>. Only your selected outputs count toward this progress.</>
               ) : (
-                <>Almost there! Generate any remaining assets using the cards above, then <strong>Publish to Hub</strong> when you're happy with everything.</>
+                <>Still to create: <strong>{remainingLabels.join(', ')}</strong>. Use the selected generator cards above to finish these outputs. A text description alone does not count as a finished audio, artwork, or video file. You can save progress at any time.</>
               )}
             </div>
           </div>
@@ -1633,7 +1640,9 @@ function ProductionControlHub({
               🎛️ Mixing Console
             </h4>
             <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.5', maxWidth: '500px' }}>
-              {!hasBeat && !hasVocalMedia
+              {!audioSelected && !hasBeat && !hasVocalMedia
+                ? 'Optional audio tool — mixing is not required for your selected outputs. Add audio only if you want to make a mix.'
+                : !hasBeat && !hasVocalMedia
                 ? 'Generate a beat and vocals above to unlock the mixing console. Your tracks will be combined and mastered here.'
                 : hasBeat && hasVocalMedia 
                   ? 'Choose a preset → adjust the sliders → hit "Create Mix" to combine your beat and vocals into a mastered track.'
@@ -1877,7 +1886,9 @@ function ProductionControlHub({
           }}>
             <div style={{ fontSize: '2rem', opacity: 0.4 }}>🎚️</div>
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', maxWidth: '400px', lineHeight: '1.5' }}>
-              Generate a beat and vocals from the cards above, then come back here to mix, master, and export your professional track.
+              {audioSelected
+                ? 'Once audio is ready, you can choose whether to combine tracks and export a mix here.'
+                : 'Your selected outputs do not require audio. This console remains available if you choose to add it later.'}
             </p>
           </div>
         )}
@@ -2160,7 +2171,7 @@ function ProductionControlHub({
           {/* No mix guidance */}
           {!(finalMixPreview || mediaUrls.mixedAudio) && (
             <div style={{ textAlign: 'center', padding: '8px', color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>
-              Create a final mix above to unlock distribution
+              Optional: create a final audio mix to unlock these distribution tools.
             </div>
           )}
         </div>
@@ -3561,7 +3572,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           const response = await fetch(`${BACKEND_URL}/api/generate`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({
+            body: JSON.stringify(slot === 'visual' ? artworkDirectionRequest(songIdea, {
+              language, model: modelId, referenceUrl: visualDnaUrl, context: contextLyrics
+            }) : {
               prompt: `Create ${slotConfig.title.toLowerCase()} content for: "${songIdea}"`,
               systemInstruction: systemPrompt,
               model: modelId,
@@ -3872,7 +3885,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           lastError: failedSteps.map((step) => `${step.label}: ${step.errorMessage || 'failed'}`).join('; ')
         });
         toast(
-          `${failedSteps.length} asset${failedSteps.length === 1 ? '' : 's'} still need attention. Your completed work is safe; retry the failed step below.`,
+          `${failedSteps.length} asset${failedSteps.length === 1 ? '' : 's'} still need attention. Keep this session open until cloud save is confirmed; use the recovery action below.`,
           { id: 'orch-partial-complete', icon: '⚠️', duration: 8000 }
         );
       } else {
@@ -3990,7 +4003,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       const response = await fetch(`${BACKEND_URL}/api/generate`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
+        body: JSON.stringify(slot === 'visual' ? artworkDirectionRequest(songIdea, {
+          language, model: modelId, referenceUrl: visualDnaUrl, context: outputsRef.current.lyrics
+        }) : {
           prompt: `Create fresh ${slotConfig.title.toLowerCase()} content for: "${songIdea}"`,
           systemInstruction: creatorMode === 'creator'
             ? `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} project about: "${songIdea}". Be creative and fresh. This is for content creators — optimize for social media, YouTube, podcasts, and marketing.
@@ -6618,6 +6633,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         if (!mountedRef.current) return true;
         // Mark as saved so exit check won't prompt
         setIsSaved(true);
+        if (mediaUrlsRef.current.image && pipelineStepsRef.current.some(step => step.id === 'image' && step.status === 'error')) {
+          updatePipelineStep('image', 'done');
+        }
         // Show save confirmation with option to preview
         setShowCreateProject(false);
         setShowSaveConfirm(true);
@@ -7022,6 +7040,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             marginBottom: isMobile ? '12px' : '16px'
           }}>
             <textarea
+              id="studio-song-brief"
               value={songIdea}
               onChange={(e) => setSongIdea(e.target.value)}
               onKeyDown={(e) => {
@@ -7381,7 +7400,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         } else if (step.id === 'vocals') {
                           await handleGenerateVocals(outputs.lyrics);
                         } else if (step.id === 'image') {
-                          await handleGenerateImage(outputs.visual);
+                          // The provider may have succeeded while cloud save failed.
+                          // Recover that take without buying another image.
+                          retrySucceeded = mediaUrlsRef.current.image
+                            ? await handleSaveProject()
+                            : await handleGenerateImage(outputs.visual);
                         } else if (step.id === 'video') {
                           await handleGenerateVideo(outputs.video);
                         } else if (step.id === 'mux') {
@@ -9272,7 +9295,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 <span style={{ fontSize: '0.88rem', fontWeight: '700', color: expandedSections.productionHub ? '#a5b4fc' : 'rgba(255,255,255,0.65)' }}>Production Control Hub</span>
                 {Object.values(outputs).some(Boolean) && (
                   <span style={{ fontSize: '0.62rem', fontWeight: '700', color: '#4ade80', background: 'rgba(34,197,94,0.1)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.2)' }}>
-                    {['lyrics', 'audio', 'visual', 'video'].filter(key => Boolean(outputs?.[key])).length}/4 ready
+                    {['lyrics', 'audio', 'visual', 'video'].filter(key => selectedAgents[key] && Boolean(key === 'lyrics' ? outputs?.lyrics : mediaUrls[key === 'visual' ? 'image' : key])).length}/{['lyrics', 'audio', 'visual', 'video'].filter(key => selectedAgents[key]).length} selected ready
                   </span>
                 )}
               </div>
@@ -9286,6 +9309,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             <ProductionControlHub
               outputs={outputs}
               mediaUrls={mediaUrls}
+              selectedAgents={selectedAgents}
               songIdea={songIdea}
               finalMixPreview={finalMixPreview}
               creatingFinalMix={creatingFinalMix}

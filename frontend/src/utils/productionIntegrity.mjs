@@ -32,6 +32,29 @@ export function artworkRequestPrompt(brief, direction, context = '') {
   ].filter(Boolean).join('\n\n');
 }
 
+// The visual slot produces a single image, even when another selected slot
+// produces video. Do not send music duration/style defaults to the text agent:
+// the backend appends duration to the prompt and can turn art into a storyboard.
+export function artworkDirectionRequest(brief, { language = 'English', model, referenceUrl = null, context = '' } = {}) {
+  return {
+    prompt: [
+      'Develop art direction for one static artwork image from this original brief.',
+      `ORIGINAL BRIEF:\n${String(brief || '').trim()}`,
+      context ? `OPTIONAL SAME-PROJECT CONTEXT (use only where compatible with the original brief):\n${String(context).trim().slice(0, 800)}` : '',
+    ].filter(Boolean).join('\n\n'),
+    systemInstruction: [
+      'You are the art director for the selected static-artwork output. Return only a concise, concrete image-generation direction (one paragraph, up to 160 words).',
+      'Treat the original brief as authoritative: preserve every explicit palette, medium, composition, subject, aspect-ratio, lettering choice, and exclusion. Do not replace or embellish these constraints with generic branding advice.',
+      'Describe one still composition. Do not produce a storyboard, video concept, shot list, sequence, timestamps, animation instructions, duration, BPM, lyrics, or a soundtrack.',
+      'Do not infer a music genre or impose hip-hop, photography, people, faces, logos, bold typography, or extra scenery unless the original brief asks for them.',
+      'Other same-project context or references may help only where compatible with the original brief. Do not expand the requested deliverable. No preamble, marketing claims, or explanation.',
+    ].join(' '),
+    ...(model ? { model } : {}),
+    language,
+    referenceUrl,
+  };
+}
+
 export async function confirmProjectSave(save, project) {
   if (typeof save !== 'function') throw new Error('No project save connection is available. Keep this page open and download your work.');
   const result = await save(project);

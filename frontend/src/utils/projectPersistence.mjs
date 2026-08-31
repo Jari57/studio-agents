@@ -41,12 +41,12 @@ export function mergeGeneratedProject(current, incoming, baseline = {}) {
   }
   // Assets are append/merge here, never a destructive snapshot replacement.
   // Text sharing a prefix or alternate versions of the same media remain intact.
-  return { ...merged, id: current.id, assets, syncedAt: current.syncedAt };
+  return { ...merged, id: current.id, assets, syncedAt: current.syncedAt, serverRevision: current.serverRevision };
 }
 
 // Only replace fields still equal to what was submitted. An upload or response
 // that arrives after another local edit cannot roll that newer edit back.
-export function applySavedProjectRevision(current, submitted, persisted, acknowledgedAt) {
+export function applySavedProjectRevision(current, submitted, persisted, acknowledgedAt, revision) {
   if (!current || current.id !== submitted.id) return current;
   const result = mergeFields(current, persisted, submitted);
   const submittedAssets = new Map((submitted.assets || []).filter(a => a?.id).map(a => [a.id, a]));
@@ -55,7 +55,55 @@ export function applySavedProjectRevision(current, submitted, persisted, acknowl
     ? mergeFields(asset, persistedAssets.get(asset.id), submittedAssets.get(asset.id))
     : asset);
   if (acknowledgedAt && (!current.syncedAt || acknowledgedAt > current.syncedAt)) result.syncedAt = acknowledgedAt;
+  if (revision && (!current.syncedAt || acknowledgedAt >= current.syncedAt)) result.serverRevision = revision;
   return result;
+}
+
+// `syncedAt` written inside a document is a client timestamp from before its
+// server commit. Only the timestamp/revision returned by the read is a valid
+// baseline. Preferring the old embedded syncedAt caused conflicts on reopen.
+export function cloudProjectSnapshot(project, revision = project?.serverRevision || project?.revision) {
+  if (!project || typeof project !== 'object') return project;
+  return {
+    ...project,
+    syncedAt: project.updatedAt || project.savedAt || null,
+    serverRevision: revision || null
+  };
+}
+
+const revisionFields = new Set(['id', 'updatedAt', 'savedAt', 'syncedAt', 'serverRevision', 'revision']);
+
+export function prepareProjectConflictRebase(remote, local, baseline) {
+  if (!baseline?.id || remote?.id !== local?.id || remote.id !== baseline.id) {
+    return { project: null, conflicts: ['missing original project version'] };
+  }
+  const conflicts = [];
+  const merge = (server = {}, client = {}, original = {}, prefix = '') => {
+    const result = { ...server };
+    for (const [key, value] of Object.entries(client)) {
+      if (!prefix && (revisionFields.has(key) || key === 'assets')) continue;
+      const path = prefix ? `${prefix}.${key}` : key;
+      if (equal(value, original[key]) || equal(value, server[key])) continue;
+      if (equal(server[key], original[key])) result[key] = value;
+      else if (isRecord(server[key]) && isRecord(value) && (isRecord(original[key]) || original[key] === undefined)) {
+        result[key] = merge(server[key], value, original[key] || {}, path);
+      } else conflicts.push(path);
+    }
+    return result;
+  };
+  const project = merge(remote, local, baseline);
+  project.assets = [...(remote.assets || [])];
+  const originals = new Map((baseline.assets || []).filter(a => a?.id).map(a => [a.id, a]));
+  for (const asset of local.assets || []) {
+    if (!asset || typeof asset !== 'object') continue;
+    const index = asset.id ? project.assets.findIndex(a => a?.id === asset.id) : project.assets.findIndex(a => equal(a, asset));
+    const original = asset.id ? originals.get(asset.id) : (baseline.assets || []).find(a => equal(a, asset));
+    if (index >= 0) project.assets[index] = merge(project.assets[index], asset, original || {}, `assets.${asset.id || index}`);
+    else if (!original) project.assets.push(asset);
+    else if (!equal(original, asset)) conflicts.push(`assets.${asset.id || 'unidentified'} was removed in another session`);
+    // An unchanged old asset removed remotely stays removed.
+  }
+  return { project: conflicts.length ? null : project, conflicts };
 }
 
 export function replaceUploadedMedia(value, replacements) {
@@ -83,7 +131,7 @@ export function requireDurableSaveResult(result) {
 // loops while edits made during an outstanding save still schedule a new save.
 export function projectSyncSignature(uid, projects) {
   try {
-    return JSON.stringify({ uid, projects }, (key, value) => key === 'syncedAt' ? undefined : value);
+    return JSON.stringify({ uid, projects }, (key, value) => key === 'syncedAt' || key === 'serverRevision' || key === 'revision' ? undefined : value);
   } catch {
     return null;
   }

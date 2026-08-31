@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   createProjectSaveQueue, mergeGeneratedProject, applySavedProjectRevision,
-  replaceUploadedMedia, hasUnpersistedMedia, requireDurableSaveResult, projectSyncSignature
+  replaceUploadedMedia, hasUnpersistedMedia, requireDurableSaveResult, projectSyncSignature,
+  cloudProjectSnapshot, prepareProjectConflictRebase
 } from '../src/utils/projectPersistence.mjs';
 
 test('parallel media completions serialize and persist the combined asset history', async () => {
@@ -130,7 +131,9 @@ function actualSaverHarness({ project, fetchImpl, uploadImpl, getIdToken = async
   const projectStateRef = { current: { uid: 'alice', projects: state.projects } };
   const deps = {
     auth, projectStateRef, replaceUploadedMedia, hasUnpersistedMedia, requireDurableSaveResult, applySavedProjectRevision,
+    cloudProjectSnapshot, prepareProjectConflictRebase,
     projectCloudSaveQueueRef: { current: createProjectSaveQueue() },
+    projectConflictPendingRef: { current: new Map() },
     uploadBase64: uploadImpl || (async () => ({ url: 'https://example.test/saved.png', path: 'alice/art' })),
     uploadFile: uploadImpl || (async () => ({ url: 'https://example.test/saved.png', path: 'alice/art' })),
     BACKEND_URL: 'https://backend.test',
@@ -143,7 +146,10 @@ function actualSaverHarness({ project, fetchImpl, uploadImpl, getIdToken = async
   // Execute only the existing saver against isolated transport/state doubles;
   // no browser, Firebase, provider, or production data is used by these tests.
   const save = new Function(...Object.keys(deps), `return (${saver});`)(...Object.values(deps));
-  return { state, auth, projectStateRef, save };
+  const adapterSource = source.slice(source.indexOf('async function saveOrchestratorProject'), source.indexOf('// Sync all projects to cloud via backend API')).trim();
+  const adapterDeps = { ...deps, mergeGeneratedProject, saveProjectToCloud: save, orchestratorSaveQueueRef: { current: createProjectSaveQueue() } };
+  const adapter = new Function(...Object.keys(adapterDeps), `return (${adapterSource});`)(...Object.values(adapterDeps));
+  return { state, auth, projectStateRef, save, adapter, pendingConflicts: deps.projectConflictPendingRef.current };
 }
 
 test('real saver issues one guarded request on conflict and retains the complete local project', async () => {
@@ -239,4 +245,120 @@ test('a successful old-account response cannot replace new-account visible state
   assert.equal(await h.save('alice', project), true);
   assert.equal(h.state.projects[0], bob);
   assert.equal(h.state.selected, bob);
+});
+
+test('real cloud loader replaces embedded client syncedAt with the fetched server version before saving', async () => {
+  const source = readFileSync(new URL('../src/components/StudioView.jsx', import.meta.url), 'utf8');
+  const loader = source.slice(source.indexOf('async function loadProjectsFromCloud'), source.indexOf('// Merge local and cloud projects')).trim().replace(/;$/, '');
+  const serverTime = '2026-08-31T12:00:00.041Z';
+  const stored = { id: 'p', assets: [], syncedAt: '2026-08-31T12:00:00.000Z', updatedAt: serverTime, serverRevision: serverTime };
+  const deps = {
+    auth: {}, BACKEND_URL: 'https://backend.test', cloudProjectSnapshot,
+    generateId: () => assert.fail('Existing project identity must be kept'), devLog: () => {}, devWarn: () => {},
+    toast: { error: message => assert.fail(message) },
+    fetch: async () => ({ ok: true, json: async () => ({ projects: [stored] }) })
+  };
+  const load = new Function(...Object.keys(deps), `return (${loader});`)(...Object.values(deps));
+  const [loaded] = await load('alice', null, 'alice-token');
+  assert.equal(loaded.syncedAt, serverTime);
+  assert.equal(loaded.serverRevision, serverTime);
+  const h = actualSaverHarness({ project: loaded, fetchImpl: async (_url, init) => {
+    const body = JSON.parse(init.body);
+    assert.equal(body.lastUpdatedAt, serverTime);
+    assert.equal(body.expectedRevision, serverTime);
+    return { ok: true, status: 200, json: async () => ({ success: true, updatedAt: '2026-08-31T12:00:01.000Z', revision: '2026-08-31T12:00:01.000Z' }) };
+  } });
+  assert.equal(await h.save('alice', loaded), true);
+  assert.equal(h.state.calls.length, 1);
+  assert.equal(h.state.projects[0].serverRevision, '2026-08-31T12:00:01.000Z');
+});
+
+test('conflict rebase preserves remote edits/deletions and new local assets, rejects overlapping edits', () => {
+  const baseline = { id: 'p', name: 'Original', assets: [{ id: 'old' }], mediaUrls: { audio: 'a0', image: 'i0' } };
+  const remote = { ...baseline, name: 'Remote rename', assets: [{ id: 'remote' }], mediaUrls: { audio: 'a1', image: 'i0' } };
+  const local = { ...baseline, assets: [...baseline.assets, { id: 'local' }], mediaUrls: { audio: 'a0', image: 'i1' } };
+  const result = prepareProjectConflictRebase(remote, local, baseline);
+  assert.deepEqual(result.conflicts, []);
+  assert.equal(result.project.name, 'Remote rename');
+  assert.deepEqual(result.project.assets.map(a => a.id), ['remote', 'local']);
+  assert.deepEqual(result.project.mediaUrls, { audio: 'a1', image: 'i1' });
+  assert.equal(prepareProjectConflictRebase(remote, { ...local, name: 'Local rename' }, baseline).project, null);
+  assert.equal(prepareProjectConflictRebase(remote, { ...local, assets: [{ id: 'old', title: 'Edited locally' }] }, baseline).project, null);
+});
+
+test('real conflict path only stages a safe rebase; explicit adapter retry uses fetched token and preserves remote edits', async () => {
+  const baseline = { id: 'p', name: 'Original', assets: [{ id: 'old' }], syncedAt: '2026-08-31T11:00:00Z', serverRevision: '2026-08-31T11:00:00Z' };
+  const local = { ...baseline, assets: [...baseline.assets, { id: 'new-art', imageUrl: 'https://example.test/new.png' }] };
+  const remoteTime = '2026-08-31T12:00:00.000Z';
+  const remote = { ...baseline, name: 'Remote rename', assets: [{ id: 'remote-audio' }], updatedAt: remoteTime, serverRevision: remoteTime };
+  let puts = 0;
+  const h = actualSaverHarness({ project: local, fetchImpl: async (_url, init) => {
+    if (init.method === 'GET') return { ok: true, status: 200, json: async () => ({ project: remote, revision: remoteTime }) };
+    puts++;
+    if (puts === 1) return { ok: false, status: 409, json: async () => ({ error: 'Conflict' }) };
+    const body = JSON.parse(init.body);
+    assert.equal(body.expectedRevision, remoteTime);
+    assert.equal(body.lastUpdatedAt, remoteTime);
+    assert.equal(body.project.name, 'Remote rename');
+    assert.deepEqual(body.project.assets.map(a => a.id), ['remote-audio', 'new-art']);
+    return { ok: true, status: 200, json: async () => ({ success: true, updatedAt: '2026-08-31T12:01:00Z', revision: '2026-08-31T12:01:00Z' }) };
+  } });
+  assert.equal(await h.save('alice', local, { baseline }), false);
+  assert.equal(puts, 1);
+  assert.deepEqual(h.state.calls.map(([, init]) => init.method), ['PUT', 'GET']);
+  assert.match(h.state.errors[0], /Click Save Project again/);
+  assert.equal(await h.save('alice', h.state.projects[0], { latest: true, silent: true }), false);
+  assert.equal(puts, 1, 'Autosync must not confirm a staged conflict merge');
+  // The form still has the original title. The adapter must not treat it as a
+  // new rename that overwrites the remote title during the explicit retry.
+  assert.equal(await h.adapter(local, { uid: 'alice', baseline, selectedId: 'p' }), true);
+  assert.equal(puts, 2);
+  assert.equal(h.pendingConflicts.has('alice:p'), false);
+});
+
+test('actual adapter gives a specific context error without relaxing account guards', async () => {
+  const project = { id: 'p', assets: [] };
+  const h = actualSaverHarness({ project, fetchImpl: async () => assert.fail('No request expected') });
+  await assert.rejects(h.adapter(project, { uid: undefined, baseline: project, selectedId: 'p' }), /sign-in session is not ready/);
+  await assert.rejects(h.adapter(project, { uid: 'bob', baseline: project, selectedId: 'p' }), /signed-in account changed/);
+  h.projectStateRef.current.uid = 'bob';
+  await assert.rejects(h.adapter(project, { uid: 'alice', baseline: project, selectedId: 'p' }), /project session changed/);
+  assert.equal(h.state.calls.length, 0);
+});
+
+test('actual adapter retains the original cloud baseline across failed autosave and manual retry from optimistic selection', async () => {
+  const baseline = { id: 'p', name: 'Original', assets: [{ id: 'old' }], syncedAt: '2026-08-31T11:00:00Z', serverRevision: '2026-08-31T11:00:00Z' };
+  const generated = { ...baseline, assets: [...baseline.assets, { id: 'new-image', imageUrl: 'https://example.test/new.png' }] };
+  const remoteTime = '2026-08-31T12:00:00.000Z';
+  const remote = { ...baseline, name: 'Renamed remotely', assets: [{ id: 'old' }, { id: 'remote-audio' }], updatedAt: remoteTime, serverRevision: remoteTime };
+  let gets = 0; let puts = 0;
+  const h = actualSaverHarness({ project: baseline, fetchImpl: async (_url, init) => {
+    if (init.method === 'GET') {
+      gets++;
+      if (gets === 1) return { ok: false, status: 503, json: async () => ({ error: 'temporary read outage' }) };
+      return { ok: true, status: 200, json: async () => ({ project: remote, revision: remoteTime }) };
+    }
+    puts++;
+    if (puts < 3) return { ok: false, status: 409, json: async () => ({ error: 'Conflict' }) };
+    const body = JSON.parse(init.body);
+    assert.equal(body.expectedRevision, remoteTime);
+    assert.equal(body.project.name, 'Renamed remotely');
+    assert.deepEqual(body.project.assets.map(asset => asset.id), ['old', 'remote-audio', 'new-image']);
+    return { ok: true, status: 200, json: async () => ({ success: true, updatedAt: '2026-08-31T12:01:00Z', revision: '2026-08-31T12:01:00Z' }) };
+  } });
+
+  assert.equal(await h.adapter(generated, { uid: 'alice', baseline, selectedId: 'p' }), false);
+  assert.equal(h.state.selected.assets.some(asset => asset.id === 'new-image'), true);
+  assert.equal(h.pendingConflicts.get('alice:p').baseline.assets.some(asset => asset.id === 'new-image'), false);
+
+  // This is the real retry shape: the parent callback now captures the
+  // optimistically selected project, including its not-yet-saved image.
+  const optimisticSelection = h.state.selected;
+  assert.equal(await h.adapter(optimisticSelection, { uid: 'alice', baseline: optimisticSelection, selectedId: 'p' }), false);
+  assert.equal(h.state.selected.assets.some(asset => asset.id === 'new-image'), true);
+  assert.match(h.state.errors.at(-1), /Click Save Project again/);
+  const reviewedSelection = h.state.selected;
+  assert.equal(await h.adapter(reviewedSelection, { uid: 'alice', baseline: reviewedSelection, selectedId: 'p' }), true);
+  assert.equal(h.state.projects[0].assets.some(asset => asset.id === 'new-image'), true);
+  assert.equal(h.pendingConflicts.has('alice:p'), false);
 });

@@ -39,7 +39,7 @@ import { saveProjectChoices } from '../utils/saveProjectChoices.mjs';
 import { producerRenderSignature } from '../utils/producerSession.mjs';
 import { projectWizardHint } from '../utils/projectWizard.mjs';
 import { studioCreationCounts } from '../utils/studioCreationCounts.mjs';
-import { createProjectSaveQueue, mergeGeneratedProject, applySavedProjectRevision, replaceUploadedMedia, hasUnpersistedMedia, requireDurableSaveResult, projectSyncSignature } from '../utils/projectPersistence.mjs';
+import { createProjectSaveQueue, mergeGeneratedProject, applySavedProjectRevision, replaceUploadedMedia, hasUnpersistedMedia, requireDurableSaveResult, projectSyncSignature, cloudProjectSnapshot, prepareProjectConflictRebase } from '../utils/projectPersistence.mjs';
 import { shouldUseNativeIAP } from '../utils/nativePlatform';
 import { purchaseProduct, restorePurchases } from '../utils/storeKit';
 
@@ -504,6 +504,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   if (!orchestratorSaveQueueRef.current) orchestratorSaveQueueRef.current = createProjectSaveQueue();
   const projectCloudSaveQueueRef = useRef(null);
   if (!projectCloudSaveQueueRef.current) projectCloudSaveQueueRef.current = createProjectSaveQueue();
+  const projectConflictPendingRef = useRef(new Map());
 
   const [isCreatingVocal, setIsCreatingVocal] = useState(false);
   const [visualDnaUrl, setVisualDnaUrl] = useState(null);
@@ -952,9 +953,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   async function saveProjectToCloud(uid, project, options = {}) {
     if (!uid || !project?.id) return false;
     return projectCloudSaveQueueRef.current(`${uid}:${project.id}`, async () => {
+    const saveKey = `${uid}:${project.id}`;
     // Automatic sync must read the latest acknowledged snapshot when its turn
     // actually executes, not the stale list captured by a debounce timer.
     if (options.latest) {
+      if (projectConflictPendingRef.current.has(saveKey)) return false;
       if (projectStateRef.current.uid !== uid) return false;
       project = projectStateRef.current.projects.find(item => item.id === project.id);
       if (!project) return false;
@@ -1105,6 +1108,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
             updatedAt: new Date().toISOString(),
             syncedAt: new Date().toISOString()
           },
+          expectedRevision: project.serverRevision || undefined,
           lastUpdatedAt: project.syncedAt || project.updatedAt || null
         });
       const putProject = (token, body = projectBody) => fetch(projectUrl, {
@@ -1131,6 +1135,43 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         if (response.status === 409) {
+          if (!projectConflictPendingRef.current.has(saveKey)) {
+            projectConflictPendingRef.current.set(saveKey, { baseline: options.baseline || null });
+          }
+          if (options.baseline && !options.silent && stillSameUser()) {
+            const latestResponse = await fetch(projectUrl, {
+              method: 'GET', headers: { Authorization: `Bearer ${authToken}` }, cache: 'no-store'
+            });
+            if (latestResponse.ok) {
+              const latestData = await latestResponse.json();
+              const remote = cloudProjectSnapshot(latestData.project, latestData.revision);
+              if (stillSameUser() && remote?.id === project.id && remote.syncedAt) {
+                const latestLocal = projectStateRef.current.projects.find(item => item.id === project.id) || project;
+                const normalizedLocal = applySavedProjectRevision(latestLocal, project, activeProject);
+                const rebased = prepareProjectConflictRebase(remote, normalizedLocal, options.baseline);
+                if (rebased.project) {
+                  projectConflictPendingRef.current.set(saveKey, {
+                    ...projectConflictPendingRef.current.get(saveKey), local: normalizedLocal, remote
+                  });
+                  // Stage a safe merge, but do not issue a second PUT. The user
+                  // reviews it and explicitly saves again with the fetched lock.
+                  projectStateRef.current = {
+                    ...projectStateRef.current,
+                    projects: projectStateRef.current.projects.map(item => item.id === project.id ? rebased.project : item)
+                  };
+                  const stageLatest = item => {
+                    if (auth?.currentUser?.uid !== uid || item?.id !== project.id) return item;
+                    const local = applySavedProjectRevision(item, project, activeProject);
+                    return prepareProjectConflictRebase(remote, local, options.baseline).project || item;
+                  };
+                  setProjects(prev => prev.map(stageLatest));
+                  setSelectedProject(stageLatest);
+                  throw new Error('Another session changed this project. Its changes and your new assets are now combined for review. Click Save Project again to confirm; nothing was overwritten.');
+                }
+                throw new Error('Both sessions changed the same project details. Your work is still open and nothing was overwritten. Download your new outputs, then reopen the latest project to resolve the differences.');
+              }
+            }
+          }
           throw new Error('Another session changed this project. Nothing was overwritten. Keep this session open, download unsaved work, then reopen the latest project before retrying.');
         }
         throw new Error(errorData.error || `HTTP ${response.status}`);
@@ -1138,10 +1179,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
       const result = await response.json();
       const acknowledgedAt = requireDurableSaveResult(result);
+      projectConflictPendingRef.current.delete(saveKey);
       devLog(`[TRACE:${traceId}] Project saved via API:`, project.id, result);
 
       if (stillSameUser()) {
-        const applyAcknowledgement = current => applySavedProjectRevision(current, project, activeProject, acknowledgedAt);
+        const applyAcknowledgement = current => applySavedProjectRevision(current, project, activeProject, acknowledgedAt, result.revision);
         projectStateRef.current = {
           ...projectStateRef.current,
           projects: projectStateRef.current.projects.map(current => current.id === project.id ? applyAcknowledgement(current) : current)
@@ -1168,11 +1210,30 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   // Shared generated-project adapter: await the durable result and serialize
   // media completions. No cloud writes or toasts belong in React updaters.
   async function saveOrchestratorProject(project, { uid, baseline, selectedId }) {
-    if (!project?.id || !uid || auth?.currentUser?.uid !== uid) return false;
+    if (!project?.id) throw new Error('No project was selected for this save. Keep this page open and choose a project.');
+    if (!uid || !auth?.currentUser) throw new Error('Your sign-in session is not ready to save. Keep this page open and sign in again before saving.');
+    if (auth.currentUser.uid !== uid) throw new Error('The signed-in account changed while creating this output. Nothing was saved to the new account.');
     return orchestratorSaveQueueRef.current(`${uid}:${project.id}`, async () => {
-      if (auth?.currentUser?.uid !== uid || projectStateRef.current.uid !== uid) return false;
+      if (auth?.currentUser?.uid !== uid || projectStateRef.current.uid !== uid) {
+        throw new Error('The project session changed before the save could start. Keep this page open, return to the original account, and retry saving.');
+      }
       const current = projectStateRef.current.projects.find(item => item.id === project.id);
-      const merged = mergeGeneratedProject(current, project, baseline);
+      const saveKey = `${uid}:${project.id}`;
+      let recovery = projectConflictPendingRef.current.get(saveKey);
+      // Preserve the pre-save cloud baseline before optimistically adding new
+      // media. A retry's selectedProject already includes unsaved assets and
+      // must not redefine them as old assets deleted remotely.
+      if (!recovery) {
+        recovery = { baseline: baseline || current || null };
+        projectConflictPendingRef.current.set(saveKey, recovery);
+      }
+      const originalBaseline = recovery.baseline;
+      const mergeBaseline = recovery.local || originalBaseline;
+      const reviewedMerge = recovery?.local ? prepareProjectConflictRebase(current, project, recovery.local) : null;
+      if (reviewedMerge && !reviewedMerge.project) {
+        throw new Error('The reviewed project changed again. Keep your new outputs open and resolve the conflicting details before saving.');
+      }
+      const merged = reviewedMerge?.project || mergeGeneratedProject(current, project, mergeBaseline);
       const localProject = {
         ...merged,
         createdAt: merged.createdAt || new Date().toISOString(),
@@ -1190,12 +1251,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       // project. Initial creation selects only its still-unassigned context.
       setSelectedProject(currentSelection => {
         if (auth?.currentUser?.uid !== uid) return currentSelection;
-        if (currentSelection?.id === project.id) return mergeGeneratedProject(currentSelection, localProject, baseline);
+        if (currentSelection?.id === project.id) return mergeGeneratedProject(currentSelection, localProject, mergeBaseline);
         if (!currentSelection && !selectedId) return localProject;
         return currentSelection;
       });
       const toSave = projectStateRef.current.projects.find(item => item.id === project.id);
-      return await saveProjectToCloud(uid, toSave);
+      return await saveProjectToCloud(uid, toSave, { baseline: recovery.remote || originalBaseline });
     });
   }
 
@@ -1216,6 +1277,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       let successCount = 0;
       for (const project of projectsToSync) {
         if (!project || !project.id) continue;
+        if (projectConflictPendingRef.current.has(`${uid}:${project.id}`)) continue;
         
         try {
           const success = await saveProjectToCloud(uid, project, { silent: true, latest: true });
@@ -1228,7 +1290,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       if (successCount > 0) {
         setLastSyncTime(new Date());
         devLog(`Synced ${successCount}/${projectsToSync.length} projects to cloud via API`);
-      } else if (projectsToSync.length > 0 && auth?.currentUser) {
+      } else if (projectsToSync.some(project => project?.id && !projectConflictPendingRef.current.has(`${uid}:${project.id}`)) && auth?.currentUser) {
         toast.error(`Sync failed for ${projectsToSync.length} project(s) - check your connection`, { id: 'sync-error' });
       }
     } catch (err) {
@@ -1351,7 +1413,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       const cloudProjects = (data.projects || [])
         .filter(p => p && typeof p === 'object') // Stability: Ignore null/malformed projects
         .map(p => ({
-          ...p,
+          ...cloudProjectSnapshot(p),
           id: p.id || generateId(),
           // Normalize timestamps
           createdAt: p.createdAt || new Date().toISOString(),

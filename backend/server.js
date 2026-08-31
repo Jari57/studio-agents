@@ -81,6 +81,7 @@ const { createProductionJobService } = require('./services/productionJobService'
 const { createCorsPolicy } = require('./services/corsPolicy');
 const { requestsPersonalVoice } = require('./services/voiceRequestPolicy');
 const { requireImageGenerationResult } = require('./services/imageGenerationResult');
+const { projectRevision, canonicalProjectSnapshot, nextProjectTimestampMs } = require('./services/projectRevision');
 const { generateMusicalVocal, separateVocal } = require('./services/musicalVocalService');
 const { analyzeMusicBeats } = require('./services/beatDetectionService');
 const {
@@ -11996,15 +11997,15 @@ app.post('/api/projects', verifyFirebaseToken, requireAuth, async (req, res) => 
 // PUT /api/projects/:id - Update a project with conflict detection
 app.put('/api/projects/:id', verifyFirebaseToken, requireAuth, async (req, res) => {
   const projectId = req.params.id;
-  const { project, lastUpdatedAt } = req.body;
+  const { project, lastUpdatedAt, expectedRevision } = req.body;
 
-  const targetUserId = req.user.uid;
+  const targetUserId = req.user?.uid;
 
   if (!targetUserId) {
     return res.status(401).json({ error: 'User ID required' });
   }
 
-  if (!project) {
+  if (!project || typeof project !== 'object' || Array.isArray(project)) {
     return res.status(400).json({ error: 'Project data required' });
   }
 
@@ -12013,56 +12014,44 @@ app.put('/api/projects/:id', verifyFirebaseToken, requireAuth, async (req, res) 
     if (db) {
       const projectRef = db.collection('users').doc(targetUserId).collection('projects').doc(String(projectId));
       
-      // Conflict detection: Check if project was modified since client last fetched
-      if (lastUpdatedAt) {
-        const existingDoc = await projectRef.get();
-        if (existingDoc.exists) {
-          const existingData = existingDoc.data();
-          const serverUpdatedAt = existingData.updatedAt?.toDate?.()?.toISOString() || existingData.savedAt?.toDate?.()?.toISOString();
-          
-          if (serverUpdatedAt && serverUpdatedAt > lastUpdatedAt) {
-            logger.warn('⚠️ Conflict detected', { userId: targetUserId, projectId, serverUpdatedAt, clientUpdatedAt: lastUpdatedAt });
-            return res.status(409).json({ 
-              error: 'Conflict: Project was modified by another session',
-              serverUpdatedAt,
-              clientUpdatedAt: lastUpdatedAt
-            });
-          }
+      const suppliedRevision = expectedRevision || lastUpdatedAt || null;
+      const result = await db.runTransaction(async (transaction) => {
+        const existingDoc = await transaction.get(projectRef);
+        const existingData = existingDoc.exists ? existingDoc.data() : {};
+        const serverRevision = existingDoc.exists ? projectRevision(existingData) : null;
+        // Read and compare inside the same transaction as the write. A missing
+        // token is not an escape hatch for overwriting an existing project.
+        if (existingDoc.exists && suppliedRevision !== serverRevision) {
+          return { conflict: true, serverRevision, clientRevision: suppliedRevision };
         }
-      }
-      
-      // Perform update with server timestamp
-      const updateData = {
-        ...project,
-        id: projectId,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        savedAt: admin.firestore.FieldValue.serverTimestamp()
-      };
+        if (!existingDoc.exists && expectedRevision) return { missing: true };
 
-      // Firestore rejects documents larger than 1 MiB. Return a useful,
-      // recoverable response instead of the generic 500 that caused the
-      // client to retry the same oversized project and then fill localStorage.
-      const payloadBytes = Buffer.byteLength(JSON.stringify(updateData), 'utf8');
-      if (payloadBytes > 900000) {
-        logger.warn('⚠️ Project payload exceeds safe Firestore size', {
-          userId: targetUserId,
-          projectId,
-          payloadBytes
-        });
-        return res.status(413).json({
-          error: 'Project is too large to sync as one document',
-          code: 'PROJECT_DOCUMENT_TOO_LARGE',
-          maxBytes: 900000
-        });
-      }
-      
-      await projectRef.set(updateData, { merge: true });
+        // Store and return the exact same timestamp, rather than returning a
+        // later wall-clock time unrelated to the saved revision. Monotonicity
+        // prevents two writes within one millisecond sharing the same token.
+        const storedTime = admin.firestore.Timestamp.fromMillis(nextProjectTimestampMs(existingData));
+        const updateData = { ...project, id: projectId, updatedAt: storedTime, savedAt: storedTime };
+        delete updateData.serverRevision; // Read-only transport metadata.
+        const payloadBytes = Buffer.byteLength(JSON.stringify({ ...existingData, ...updateData }), 'utf8');
+        if (payloadBytes > 900000) return { tooLarge: true };
+        transaction.set(projectRef, updateData, { merge: true });
+        return { success: true, updatedAt: storedTime.toDate().toISOString(), revision: storedTime.toDate().toISOString() };
+      });
+
+      if (result.conflict) return res.status(409).json({
+        error: 'Conflict: Project was modified by another session or its saved revision is missing',
+        code: 'PROJECT_REVISION_CONFLICT',
+        serverUpdatedAt: result.serverRevision,
+        revision: result.serverRevision,
+        clientUpdatedAt: result.clientRevision
+      });
+      if (result.missing) return res.status(404).json({ error: 'Project no longer exists', code: 'PROJECT_NOT_FOUND' });
+      if (result.tooLarge) return res.status(413).json({ error: 'Project is too large to sync as one document', code: 'PROJECT_DOCUMENT_TOO_LARGE', maxBytes: 900000 });
       
       logger.info('📝 Project updated', { userId: targetUserId, projectId });
-      res.json({ success: true, updatedAt: new Date().toISOString() });
+      res.json(result);
     } else {
-      logger.warn('📝 Firebase not init, skipping update');
-      res.json({ success: true, warning: 'Cloud storage not available' });
+      res.status(503).json({ error: 'Cloud storage not available', code: 'PROJECT_STORAGE_UNAVAILABLE' });
     }
   } catch (err) {
     const message = String(err?.message || '');
@@ -12081,9 +12070,28 @@ app.put('/api/projects/:id', verifyFirebaseToken, requireAuth, async (req, res) 
   }
 });
 
+// Authenticated, account-scoped snapshot for an explicit conflict review.
+app.get('/api/projects/:id', verifyFirebaseToken, requireAuth, async (req, res) => {
+  const targetUserId = req.user?.uid;
+  if (!targetUserId) return res.status(401).json({ error: 'Authentication required' });
+  if (req.query.userId && req.query.userId !== targetUserId) return res.status(403).json({ error: 'Cannot access another user\'s projects' });
+  try {
+    const db = getFirestoreDb();
+    if (!db) return res.status(503).json({ error: 'Cloud storage not available', code: 'PROJECT_STORAGE_UNAVAILABLE' });
+    const snapshot = await db.collection('users').doc(targetUserId).collection('projects').doc(String(req.params.id)).get();
+    if (!snapshot.exists) return res.status(404).json({ error: 'Project not found', code: 'PROJECT_NOT_FOUND' });
+    const project = canonicalProjectSnapshot(snapshot.id, snapshot.data());
+    return res.json({ project, revision: project.serverRevision });
+  } catch (error) {
+    logger.error('Project snapshot failed', { userId: targetUserId, projectId: req.params.id, error: error.message });
+    return res.status(500).json({ error: 'Failed to fetch project', code: 'PROJECT_READ_FAILED' });
+  }
+});
+
 // GET /api/projects - Get user projects
 app.get('/api/projects', verifyFirebaseToken, requireAuth, async (req, res) => {
-  const targetUserId = req.user.uid;
+  const targetUserId = req.user?.uid;
+  if (!targetUserId) return res.status(401).json({ error: 'Authentication required' });
   if (req.query.userId && req.query.userId !== targetUserId) {
     return res.status(403).json({ error: 'Cannot access another user\'s projects' });
   }
@@ -12101,25 +12109,12 @@ app.get('/api/projects', verifyFirebaseToken, requireAuth, async (req, res) => {
       const projects = [];
       snapshot.forEach(doc => {
         const data = doc.data();
-        projects.push({ 
-          id: doc.id, 
-          ...data,
-          // Convert Firestore Timestamp to ISO string for frontend compatibility
-          savedAt: data.savedAt && typeof data.savedAt.toDate === 'function' 
-            ? data.savedAt.toDate().toISOString() 
-            : data.savedAt,
-          updatedAt: data.updatedAt && typeof data.updatedAt.toDate === 'function'
-            ? data.updatedAt.toDate().toISOString()
-            : data.updatedAt,
-          createdAt: data.createdAt && typeof data.createdAt.toDate === 'function'
-            ? data.createdAt.toDate().toISOString()
-            : data.createdAt
-        });
+        projects.push(canonicalProjectSnapshot(doc.id, data));
       });
       
       res.json({ projects });
     } else {
-      res.json({ projects: [] });
+      res.status(503).json({ error: 'Cloud storage not available', code: 'PROJECT_STORAGE_UNAVAILABLE' });
     }
   } catch (err) {
     logger.error('❌ Fetch projects error', { error: err.message });
