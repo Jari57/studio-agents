@@ -195,6 +195,43 @@ test.describe('Studio View — Project Hub', () => {
 
 test.describe('Studio View — Resources', () => {
 
+  test('explicit resources route ignores a stale saved agent workspace', async ({ page }) => {
+    await page.goto(URL);
+    await page.evaluate(() => {
+      localStorage.setItem('studio_guest_mode', 'true');
+      localStorage.setItem('studio_user_id', 'navigation-regression');
+      localStorage.setItem('studio_onboarding_v4', 'true');
+      localStorage.setItem('studio_tour_shown', '1');
+      localStorage.setItem('studio_agent_navigation-regression', 'beat');
+    });
+
+    await page.goto(`${URL}/#/studio/resources`);
+    await expect(page.getByRole('heading', { name: 'Creator Resources' })).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.agent-active-view')).not.toBeVisible();
+  });
+
+  test('leaving an open agent for Resources clears the agent workspace', async ({ page }) => {
+    await page.goto(URL);
+    await page.evaluate(() => {
+      localStorage.setItem('studio_guest_mode', 'true');
+      localStorage.setItem('studio_user_id', 'navigation-regression-click');
+      localStorage.setItem('studio_onboarding_v4', 'true');
+      localStorage.setItem('studio_tour_shown', '1');
+    });
+
+    await page.goto(`${URL}/#/studio/beat`);
+    await expect(page.locator('.agent-active-view').getByRole('heading', { name: 'Music GPT', exact: true })).toBeVisible({ timeout: 10000 });
+    if ((page.viewportSize()?.width || 1024) <= 768) {
+      await page.locator('.bottom-nav [data-tour="nav-more"]').click();
+      await page.locator('.more-menu-view [role="button"]').filter({ hasText: /^Resources/ }).click();
+    } else {
+      await page.getByRole('button', { name: 'Resources', exact: true }).click();
+    }
+    await expect(page).toHaveURL(/#\/studio\/resources$/);
+    await expect(page.getByRole('heading', { name: 'Creator Resources' })).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.agent-active-view')).not.toBeVisible();
+  });
+
   test('resources tab loads', async ({ page }) => {
     await page.goto(URL);
     await page.evaluate(() => {

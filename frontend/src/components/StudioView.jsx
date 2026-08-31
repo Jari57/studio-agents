@@ -467,10 +467,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       const tabOrId = hash.split('/')[2];
       const agent = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.id === tabOrId) : null;
       if (agent) return agent;
+      // An explicit top-level Studio route must win over the last agent that
+      // happened to be open. Otherwise the saved agent workspace masks the
+      // requested page and makes navigation appear unresponsive.
+      if (tabOrId !== 'project_canvas') return null;
     }
     const uid = localStorage.getItem('studio_user_id') || 'guest';
     const savedId = localStorage.getItem(`studio_agent_${uid}`);
-    if (savedId && typeof AGENTS !== 'undefined' && AGENTS) return AGENTS.find(a => a.id === savedId) || null;
+    if ((activeTab === 'agents' || activeTab === 'project_canvas') && savedId && typeof AGENTS !== 'undefined' && AGENTS) {
+      return AGENTS.find(a => a.id === savedId) || null;
+    }
     return null;
   });
 
@@ -795,10 +801,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         if (activeTab !== 'agents') _setActiveTab('agents');
         if (selectedAgent?.id !== agent.id) setSelectedAgent(agent);
       } else if (VALID_TABS.includes(tabOrId)) {
+        if (tabOrId !== 'agents' && tabOrId !== 'project_canvas' && selectedAgent) {
+          setSelectedAgent(null);
+        }
         if (tabOrId !== activeTab) {
           _setActiveTab(tabOrId);
         }
       } else {
+        if (selectedAgent) setSelectedAgent(null);
         _setActiveTab('mystudio');
       }
     };
@@ -808,6 +818,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
   // Custom setter that updates URL
   const setActiveTab = (tab) => {
+    // Agent context is meaningful inside the agent workspace and while an
+    // agent-backed project canvas is open. Every other destination is a real
+    // page transition and must not be hidden behind stale agent state.
+    if (tab !== 'agents' && tab !== 'project_canvas') {
+      setSelectedAgent(null);
+    }
     if (tab !== activeTab) {
       _setActiveTab(tab);
       const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
@@ -9511,6 +9527,25 @@ ABSOLUTE RULES (violating any = failure):
           { id: 'campaign', icon: Share2, label: 'Content Engine', desc: '1 track → 7-day campaign', color: 'var(--color-cyan)', external: true },
         ];
 
+        const openResourceItem = (item) => {
+          setSelectedAgent(null);
+          if (item.external) {
+            window.location.hash = `#/${item.id}`;
+          } else if (item.id === 'legal' || item.id === 'whitepapers') {
+            window.location.hash = `#/${item.id}`;
+          } else if (item.id === 'orchestrator') {
+            setActiveTab('mystudio');
+            setShowOrchestrator(true);
+          } else if (item.id === 'workflow') {
+            setActiveTab('mystudio');
+            setDashboardTab('overview');
+          } else {
+            if (item.id === 'activity') setActivitySection('connections');
+            if (item.id === 'mystudio') setDashboardTab('overview');
+            setActiveTab(item.id);
+          }
+        };
+
         return (
           <div className="resources-view animate-fadeInUp">
             <div className="resources-header">
@@ -9530,21 +9565,11 @@ ABSOLUTE RULES (violating any = failure):
                 return (
                   <div
                     key={item.id}
-                    onClick={() => {
-                      if (item.external) {
-                        window.location.hash = `#/${item.id}`;
-                      } else if (item.id === 'legal' || item.id === 'whitepapers') {
-                        window.location.hash = `#/${item.id}`;
-                      } else if (item.id === 'orchestrator') {
-                        setActiveTab('mystudio');
-                        setShowOrchestrator(true);
-                      } else if (item.id === 'workflow') {
-                        setActiveTab('mystudio');
-                        setDashboardTab('overview');
-                      } else {
-                        if (item.id === 'activity') setActivitySection('connections');
-                        if (item.id === 'mystudio') setDashboardTab('overview');
-                        setActiveTab(item.id);
+                    onClick={() => openResourceItem(item)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openResourceItem(item);
                       }
                     }}
                     role="button"
@@ -10978,6 +11003,22 @@ ABSOLUTE RULES (violating any = failure):
         );
       }
       case 'more': {
+        const openMoreItem = (item) => {
+          setSelectedAgent(null);
+          if (item.external || item.id === 'legal' || item.id === 'whitepapers' || item.id === 'dna' || item.id === 'vocals' || item.id === 'billboard') {
+            window.location.hash = `#/${item.id}`;
+          } else if (item.id === 'orchestrator') {
+            setActiveTab('mystudio');
+            setShowOrchestrator(true);
+          } else if (item.id === 'workflow') {
+            setActiveTab('mystudio');
+            setDashboardTab('overview');
+          } else {
+            if (item.id === 'activity') setActivitySection('connections');
+            setActiveTab(item.id);
+          }
+        };
+
         return (
           <div className="more-menu-view animate-fadeInUp" style={{ padding: isMobile ? '10px 8px' : '20px' }}>
             <h2 style={{ marginBottom: '16px', fontSize: '1.3rem', paddingLeft: isMobile ? '4px' : '0' }}>More Options</h2>
@@ -10993,20 +11034,7 @@ ABSOLUTE RULES (violating any = failure):
                 return (
                   <div
                     key={item.id}
-                    onClick={() => {
-                      if (item.external || item.id === 'legal' || item.id === 'whitepapers' || item.id === 'dna' || item.id === 'vocals' || item.id === 'billboard') {
-                        window.location.hash = `#/${item.id}`;
-                      } else if (item.id === 'orchestrator') {
-                        setActiveTab('mystudio');
-                        setShowOrchestrator(true);
-                      } else if (item.id === 'workflow') {
-                        setActiveTab('mystudio');
-                        setDashboardTab('overview');
-                      } else {
-                        if (item.id === 'activity') setActivitySection('connections');
-                        setActiveTab(item.id);
-                      }
-                    }}
+                    onClick={() => openMoreItem(item)}
                     role="button"
                     tabIndex={0}
                     className="haptic-press"
@@ -11022,7 +11050,12 @@ ABSOLUTE RULES (violating any = failure):
                       alignItems: isMobile ? 'center' : 'flex-start',
                       gap: isMobile ? '10px' :'12px'
                     }}
-                    onKeyDown={(e) => e.key === 'Enter' && setActiveTab(item.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openMoreItem(item);
+                      }
+                    }}
                   >
                     <div style={{
                       width: isMobile ? '36px' : '48px',
