@@ -12,12 +12,12 @@ import {
 // Premium styling with marketing pizzazz for IP showcase
 // ============================================================
 
-const ACCENT = '#a855f7';
-const ACCENT_LIGHT = 'rgba(168, 85, 247, 0.15)';
-const CYAN = '#06b6d4';
-const PINK = '#ec4899';
-const ORANGE = '#f97316';
-const EMERALD = '#10b981';
+const ACCENT = 'var(--studio-accent)';
+const ACCENT_LIGHT = 'var(--studio-accent-soft)';
+const CYAN = 'var(--studio-sage)';
+const PINK = 'var(--studio-accent)';
+const ORANGE = 'var(--studio-accent)';
+const EMERALD = 'var(--studio-sage)';
 
 const DNA_TYPES = [
   {
@@ -222,8 +222,8 @@ export default function DnaResourcePage({ onBack }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(180deg, #0a0a0f 0%, #0d0d1a 30%, #0a0a0f 100%)',
-      color: 'white',
+      background: 'linear-gradient(180deg, var(--studio-bg) 0%, var(--studio-surface-alt) 30%, var(--studio-bg) 100%)',
+      color: 'var(--studio-ink)',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
       {/* ==================== HEADER ==================== */}
@@ -231,9 +231,9 @@ export default function DnaResourcePage({ onBack }) {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        background: 'rgba(10, 10, 15, 0.9)',
+        background: 'var(--studio-surface)',
         backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(168, 85, 247, 0.15)',
+        borderBottom: '1px solid color-mix(in srgb, var(--studio-accent) 15%, transparent)',
         padding: '12px 24px',
         display: 'flex',
         alignItems: 'center',
@@ -243,12 +243,12 @@ export default function DnaResourcePage({ onBack }) {
           onClick={onBack}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px',
-            background: 'none', border: 'none', color: '#9ca3af',
+            background: 'none', border: 'none', color: 'var(--studio-muted)',
             cursor: 'pointer', fontSize: '0.95rem', padding: '8px 12px',
             borderRadius: '8px', transition: 'all 0.2s'
           }}
-          onMouseEnter={e => e.target.style.color = 'white'}
-          onMouseLeave={e => e.target.style.color = '#9ca3af'}
+          onMouseEnter={e => e.target.style.color = 'var(--studio-ink)'}
+          onMouseLeave={e => e.target.style.color = 'var(--studio-muted)'}
         >
           <ArrowLeft size={18} /> Back
         </button>
@@ -272,13 +272,13 @@ export default function DnaResourcePage({ onBack }) {
         <div style={{
           position: 'absolute', top: '-100px', left: '50%', transform: 'translateX(-50%)',
           width: '600px', height: '600px',
-          background: 'radial-gradient(circle, rgba(168,85,247,0.12) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, color-mix(in srgb, var(--studio-accent) 12%, transparent) 0%, transparent 70%)',
           pointerEvents: 'none'
         }} />
 
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '8px',
-          background: ACCENT_LIGHT, border: `1px solid rgba(168,85,247,0.3)`,
+          background: ACCENT_LIGHT, border: `1px solid color-mix(in srgb, var(--studio-accent) 30%, transparent)`,
           borderRadius: '100px', padding: '6px 18px', marginBottom: '24px',
           fontSize: '0.85rem', color: ACCENT, fontWeight: '600', letterSpacing: '0.08em'
         }}>
@@ -291,7 +291,7 @@ export default function DnaResourcePage({ onBack }) {
           fontFamily: 'Georgia, serif',
           lineHeight: '1.1',
           marginBottom: '20px',
-          background: 'linear-gradient(135deg, #ffffff 0%, #a855f7 50%, #ec4899 100%)',
+          background: 'linear-gradient(135deg, var(--studio-ink) 0%, var(--studio-accent) 50%, var(--studio-accent) 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent'
         }}>
@@ -300,12 +300,12 @@ export default function DnaResourcePage({ onBack }) {
 
         <p style={{
           fontSize: 'clamp(1.1rem, 2vw, 1.35rem)',
-          color: '#9ca3af',
+          color: 'var(--studio-muted)',
           maxWidth: '720px',
           margin: '0 auto 32px',
           lineHeight: '1.7'
         }}>
-          The world's first <strong style={{ color: 'white' }}>persistent AI creative identity</strong> system.
+          The world's first <strong style={{ color: 'var(--studio-ink)' }}>persistent AI creative identity</strong> system.
           Upload your references once — every AI agent inherits your artistic fingerprint across
           lyrics, beats, visuals, and video. <em>Your DNA. Your sound. Every time.</em>
         </p>
@@ -324,9 +324,9 @@ export default function DnaResourcePage({ onBack }) {
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px',
                   padding: '10px 20px', borderRadius: '100px',
-                  background: activeDnaType === i ? `${dna.color}20` : 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${activeDnaType === i ? dna.color : 'rgba(255,255,255,0.1)'}`,
-                  color: activeDnaType === i ? dna.color : '#9ca3af',
+                  background: activeDnaType === i ? `color-mix(in srgb, ${dna.color} 13%, transparent)` : 'var(--studio-surface)',
+                  border: `1px solid ${activeDnaType === i ? dna.color : 'var(--studio-border)'}`,
+                  color: activeDnaType === i ? dna.color : 'var(--studio-muted)',
                   cursor: 'pointer', fontSize: '0.95rem', fontWeight: '600',
                   transition: 'all 0.3s'
                 }}
@@ -349,7 +349,7 @@ export default function DnaResourcePage({ onBack }) {
           ].map(stat => (
             <div key={stat.label} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '1.8rem', fontWeight: '800', color: ACCENT }}>{stat.value}</div>
-              <div style={{ fontSize: '0.8rem', color: '#6b7280', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{stat.label}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--studio-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{stat.label}</div>
             </div>
           ))}
         </div>
@@ -362,21 +362,21 @@ export default function DnaResourcePage({ onBack }) {
           const Icon = dna.icon;
           return (
             <div style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: `1px solid ${dna.color}30`,
+              background: 'var(--studio-surface)',
+              border: `1px solid color-mix(in srgb, ${dna.color} 19%, transparent)`,
               borderRadius: '24px',
               overflow: 'hidden'
             }}>
               {/* DNA Type Header */}
               <div style={{
                 padding: '40px',
-                background: `linear-gradient(135deg, ${dna.color}10, transparent)`,
-                borderBottom: `1px solid ${dna.color}20`
+                background: `linear-gradient(135deg, color-mix(in srgb, ${dna.color} 6%, transparent), transparent)`,
+                borderBottom: `1px solid color-mix(in srgb, ${dna.color} 13%, transparent)`
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
                   <div style={{
                     width: '56px', height: '56px', borderRadius: '16px',
-                    background: `${dna.color}20`, display: 'flex',
+                    background: `color-mix(in srgb, ${dna.color} 13%, transparent)`, display: 'flex',
                     alignItems: 'center', justifyContent: 'center'
                   }}>
                     <Icon size={28} style={{ color: dna.color }} />
@@ -388,18 +388,18 @@ export default function DnaResourcePage({ onBack }) {
                     <p style={{ color: dna.color, fontSize: '0.95rem', fontWeight: '600', margin: 0 }}>{dna.tagline}</p>
                   </div>
                 </div>
-                <p style={{ fontSize: '1.1rem', color: '#9ca3af', lineHeight: '1.7', maxWidth: '700px' }}>
+                <p style={{ fontSize: '1.1rem', color: 'var(--studio-muted)', lineHeight: '1.7', maxWidth: '700px' }}>
                   {dna.description}
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '0' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '0' }}>
                 {/* How It Works */}
-                <div style={{ padding: '32px 40px', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ padding: '32px 40px', borderRight: '1px solid var(--studio-border)' }}>
                   <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Brain size={18} style={{ color: dna.color }} /> How It Works
                   </h3>
-                  <p style={{ fontSize: '0.95rem', color: '#9ca3af', lineHeight: '1.7' }}>{dna.howItWorks}</p>
+                  <p style={{ fontSize: '0.95rem', color: 'var(--studio-muted)', lineHeight: '1.7' }}>{dna.howItWorks}</p>
                 </div>
 
                 {/* What to Upload */}
@@ -409,7 +409,7 @@ export default function DnaResourcePage({ onBack }) {
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {dna.examples.map((ex, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#9ca3af', fontSize: '0.95rem' }}>
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--studio-muted)', fontSize: '0.95rem' }}>
                         <CheckCircle size={14} style={{ color: EMERALD, flexShrink: 0 }} />
                         {ex}
                       </div>
@@ -417,8 +417,8 @@ export default function DnaResourcePage({ onBack }) {
                   </div>
                   <div style={{
                     marginTop: '16px', padding: '8px 14px', borderRadius: '8px',
-                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
-                    fontSize: '0.85rem', color: '#6b7280'
+                    background: 'var(--studio-surface-alt)', border: '1px solid var(--studio-border)',
+                    fontSize: '0.85rem', color: 'var(--studio-muted)'
                   }}>
                     Accepts: <code style={{ color: dna.color }}>{dna.accepts}</code>
                   </div>
@@ -428,21 +428,21 @@ export default function DnaResourcePage({ onBack }) {
               {/* Pro Tips */}
               <div style={{
                 padding: '32px 40px',
-                borderTop: '1px solid rgba(255,255,255,0.05)',
-                background: 'rgba(255,255,255,0.02)'
+                borderTop: '1px solid var(--studio-border)',
+                background: 'var(--studio-surface)'
               }}>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Star size={18} style={{ color: '#f59e0b' }} /> Pro Tips
+                  <Star size={18} style={{ color: 'var(--studio-accent)' }} /> Pro Tips
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '12px' }}>
                   {dna.proTips.map((tip, i) => (
                     <div key={i} style={{
                       padding: '14px 16px', borderRadius: '10px',
-                      background: 'rgba(245, 158, 11, 0.05)',
-                      border: '1px solid rgba(245, 158, 11, 0.1)',
-                      fontSize: '0.9rem', color: '#d1d5db', lineHeight: '1.5'
+                      background: 'color-mix(in srgb, var(--studio-accent) 5%, transparent)',
+                      border: '1px solid color-mix(in srgb, var(--studio-accent) 10%, transparent)',
+                      fontSize: '0.9rem', color: 'var(--studio-ink)', lineHeight: '1.5'
                     }}>
-                      <Lightbulb size={14} style={{ color: '#f59e0b', marginRight: '8px', verticalAlign: 'middle' }} />
+                      <Lightbulb size={14} style={{ color: 'var(--studio-accent)', marginRight: '8px', verticalAlign: 'middle' }} />
                       {tip}
                     </div>
                   ))}
@@ -456,15 +456,15 @@ export default function DnaResourcePage({ onBack }) {
       {/* ==================== INTELLECTUAL PROPERTY SHOWCASE ==================== */}
       <section style={{
         padding: '80px 24px',
-        background: 'linear-gradient(180deg, rgba(168,85,247,0.04) 0%, transparent 100%)',
-        borderTop: '1px solid rgba(168,85,247,0.1)',
-        borderBottom: '1px solid rgba(168,85,247,0.1)'
+        background: 'linear-gradient(180deg, color-mix(in srgb, var(--studio-accent) 4%, transparent) 0%, transparent 100%)',
+        borderTop: '1px solid color-mix(in srgb, var(--studio-accent) 10%, transparent)',
+        borderBottom: '1px solid color-mix(in srgb, var(--studio-accent) 10%, transparent)'
       }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
-              background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.2)',
+              background: 'color-mix(in srgb, var(--studio-accent) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--studio-accent) 20%, transparent)',
               borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
               fontSize: '0.8rem', color: ACCENT, fontWeight: '700', letterSpacing: '0.1em'
             }}>
@@ -476,14 +476,14 @@ export default function DnaResourcePage({ onBack }) {
             }}>
               What Makes DNA Different
             </h2>
-            <p style={{ color: '#9ca3af', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
+            <p style={{ color: 'var(--studio-muted)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
               Six proprietary innovations that power the Studio Agents DNA system.
             </p>
           </div>
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
             gap: '20px'
           }}>
             {IP_HIGHLIGHTS.map((ip, i) => {
@@ -491,18 +491,18 @@ export default function DnaResourcePage({ onBack }) {
               return (
                 <div key={i} style={{
                   padding: '28px',
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'var(--studio-surface)',
+                  border: '1px solid var(--studio-border)',
                   borderRadius: '16px',
                   transition: 'all 0.3s',
                   cursor: 'default'
                 }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'rgba(168,85,247,0.3)';
+                    e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--studio-accent) 30%, transparent)';
                     e.currentTarget.style.transform = 'translateY(-2px)';
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                    e.currentTarget.style.borderColor = 'var(--studio-border)';
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
@@ -514,7 +514,7 @@ export default function DnaResourcePage({ onBack }) {
                     <Icon size={22} style={{ color: ACCENT }} />
                   </div>
                   <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px' }}>{ip.title}</h3>
-                  <p style={{ fontSize: '0.95rem', color: '#9ca3af', lineHeight: '1.6', margin: 0 }}>{ip.description}</p>
+                  <p style={{ fontSize: '0.95rem', color: 'var(--studio-muted)', lineHeight: '1.6', margin: 0 }}>{ip.description}</p>
                 </div>
               );
             })}
@@ -527,7 +527,7 @@ export default function DnaResourcePage({ onBack }) {
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
-            background: `${EMERALD}15`, border: `1px solid ${EMERALD}30`,
+            background: `color-mix(in srgb, ${EMERALD} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${EMERALD} 19%, transparent)`,
             borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
             fontSize: '0.8rem', color: EMERALD, fontWeight: '700', letterSpacing: '0.1em'
           }}>
@@ -539,7 +539,7 @@ export default function DnaResourcePage({ onBack }) {
           }}>
             Get Started in 5 Steps
           </h2>
-          <p style={{ color: '#9ca3af', fontSize: '1.05rem' }}>
+          <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem' }}>
             From zero to DNA-powered creation in under 60 seconds.
           </p>
         </div>
@@ -554,16 +554,17 @@ export default function DnaResourcePage({ onBack }) {
                   <div style={{
                     width: '48px', height: '48px', borderRadius: '50%',
                     background: `linear-gradient(135deg, ${ACCENT}, ${PINK})`,
+                    color: 'var(--studio-on-accent)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '1.1rem', fontWeight: '800', flexShrink: 0,
-                    boxShadow: `0 0 20px rgba(168,85,247,0.3)`
+                    boxShadow: `0 0 20px color-mix(in srgb, var(--studio-accent) 30%, transparent)`
                   }}>
                     {step.step}
                   </div>
                   {i < QUICK_START_STEPS.length - 1 && (
                     <div style={{
                       width: '2px', flex: 1, minHeight: '40px',
-                      background: 'linear-gradient(to bottom, rgba(168,85,247,0.3), rgba(168,85,247,0.05))'
+                      background: 'linear-gradient(to bottom, color-mix(in srgb, var(--studio-accent) 30%, transparent), color-mix(in srgb, var(--studio-accent) 5%, transparent))'
                     }} />
                   )}
                 </div>
@@ -572,7 +573,7 @@ export default function DnaResourcePage({ onBack }) {
                   <h3 style={{ fontSize: '1.15rem', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Icon size={16} style={{ color: ACCENT }} /> {step.title}
                   </h3>
-                  <p style={{ fontSize: '0.95rem', color: '#9ca3af', lineHeight: '1.6', margin: 0 }}>
+                  <p style={{ fontSize: '0.95rem', color: 'var(--studio-muted)', lineHeight: '1.6', margin: 0 }}>
                     {step.description}
                   </p>
                 </div>
@@ -585,15 +586,15 @@ export default function DnaResourcePage({ onBack }) {
       {/* ==================== DNA PIPELINE ARCHITECTURE ==================== */}
       <section style={{
         padding: '80px 24px',
-        background: 'rgba(255,255,255,0.02)',
-        borderTop: '1px solid rgba(255,255,255,0.05)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)'
+        background: 'var(--studio-surface)',
+        borderTop: '1px solid var(--studio-border)',
+        borderBottom: '1px solid var(--studio-border)'
       }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
-              background: `${CYAN}15`, border: `1px solid ${CYAN}30`,
+              background: `color-mix(in srgb, ${CYAN} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${CYAN} 19%, transparent)`,
               borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
               fontSize: '0.8rem', color: CYAN, fontWeight: '700', letterSpacing: '0.1em'
             }}>
@@ -605,7 +606,7 @@ export default function DnaResourcePage({ onBack }) {
             }}>
               The DNA Pipeline
             </h2>
-            <p style={{ color: '#9ca3af', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
+            <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
               How your creative identity flows through every AI agent.
             </p>
           </div>
@@ -613,12 +614,12 @@ export default function DnaResourcePage({ onBack }) {
           {/* Pipeline Visualization */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
             gap: '16px',
             marginBottom: '40px'
           }}>
             {[
-              { label: 'Upload', sublabel: 'Reference files', icon: Upload, color: '#6366f1' },
+              { label: 'Upload', sublabel: 'Reference files', icon: Upload, color: 'var(--studio-sage)' },
               { label: 'Extract', sublabel: 'Features & metadata', icon: Brain, color: ACCENT },
               { label: 'Inject', sublabel: 'Into AI prompts', icon: Zap, color: PINK },
               { label: 'Generate', sublabel: 'DNA-aware output', icon: Sparkles, color: ORANGE },
@@ -627,25 +628,25 @@ export default function DnaResourcePage({ onBack }) {
               const Icon = step.icon;
               return (
                 <div key={i} style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'var(--studio-surface)',
+                  border: '1px solid var(--studio-border)',
                   borderRadius: '16px', padding: '24px', textAlign: 'center',
                   position: 'relative'
                 }}>
                   <div style={{
                     width: '40px', height: '40px', borderRadius: '12px',
-                    background: `${step.color}15`, display: 'flex',
+                    background: `color-mix(in srgb, ${step.color} 8%, transparent)`, display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
                     margin: '0 auto 12px'
                   }}>
                     <Icon size={20} style={{ color: step.color }} />
                   </div>
                   <div style={{ fontWeight: '700', fontSize: '1rem', marginBottom: '4px' }}>{step.label}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{step.sublabel}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--studio-muted)' }}>{step.sublabel}</div>
                   {i < 4 && (
                     <div style={{
                       position: 'absolute', right: '-12px', top: '50%', transform: 'translateY(-50%)',
-                      color: 'rgba(255,255,255,0.15)', fontSize: '1.2rem', zIndex: 1,
+                      color: 'var(--studio-muted)', fontSize: '1.2rem', zIndex: 1,
                       display: 'none' // Hidden on mobile, shown conceptually
                     }}>→</div>
                   )}
@@ -656,10 +657,10 @@ export default function DnaResourcePage({ onBack }) {
 
           {/* Technical Details */}
           <div style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'var(--studio-surface)',
+            border: '1px solid var(--studio-border)',
             borderRadius: '16px', padding: '32px',
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px'
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '32px'
           }}>
             <div>
               <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '12px', color: CYAN }}>
@@ -673,7 +674,7 @@ export default function DnaResourcePage({ onBack }) {
                   'Automatic restoration on session reconnect',
                   'Cross-device sync via cloud persistence'
                 ].map((item, i) => (
-                  <li key={i} style={{ display: 'flex', gap: '8px', fontSize: '0.9rem', color: '#9ca3af' }}>
+                  <li key={i} style={{ display: 'flex', gap: '8px', fontSize: '0.9rem', color: 'var(--studio-muted)' }}>
                     <CheckCircle size={14} style={{ color: CYAN, flexShrink: 0, marginTop: '3px' }} />
                     {item}
                   </li>
@@ -692,7 +693,7 @@ export default function DnaResourcePage({ onBack }) {
                   'Seed DNA → init_image for video frame anchoring',
                   'All DNA types injected simultaneously per generation'
                 ].map((item, i) => (
-                  <li key={i} style={{ display: 'flex', gap: '8px', fontSize: '0.9rem', color: '#9ca3af' }}>
+                  <li key={i} style={{ display: 'flex', gap: '8px', fontSize: '0.9rem', color: 'var(--studio-muted)' }}>
                     <CheckCircle size={14} style={{ color: ACCENT, flexShrink: 0, marginTop: '3px' }} />
                     {item}
                   </li>
@@ -708,7 +709,7 @@ export default function DnaResourcePage({ onBack }) {
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
-            background: `${PINK}15`, border: `1px solid ${PINK}30`,
+            background: `color-mix(in srgb, ${PINK} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${PINK} 19%, transparent)`,
             borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
             fontSize: '0.8rem', color: PINK, fontWeight: '700', letterSpacing: '0.1em'
           }}>
@@ -720,12 +721,12 @@ export default function DnaResourcePage({ onBack }) {
           }}>
             DNA in Action
           </h2>
-          <p style={{ color: '#9ca3af', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
+          <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
             Real-world examples of how DNA transforms AI output.
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '20px' }}>
           {[
             {
               title: 'Dark Trap Album Package',
@@ -750,19 +751,19 @@ export default function DnaResourcePage({ onBack }) {
             }
           ].map((example, i) => (
             <div key={i} style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: `1px solid ${example.color}20`,
+              background: 'var(--studio-surface)',
+              border: `1px solid color-mix(in srgb, ${example.color} 13%, transparent)`,
               borderRadius: '16px', overflow: 'hidden'
             }}>
               <div style={{
                 padding: '24px 24px 16px',
-                background: `linear-gradient(135deg, ${example.color}08, transparent)`
+                background: `linear-gradient(135deg, color-mix(in srgb, ${example.color} 3%, transparent), transparent)`
               }}>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
                   {example.dnaUsed.map(dna => (
                     <span key={dna} style={{
                       fontSize: '0.7rem', fontWeight: '700', padding: '3px 10px',
-                      borderRadius: '100px', background: `${example.color}15`,
+                      borderRadius: '100px', background: `color-mix(in srgb, ${example.color} 8%, transparent)`,
                       color: example.color, letterSpacing: '0.05em'
                     }}>
                       {dna.toUpperCase()}
@@ -770,17 +771,17 @@ export default function DnaResourcePage({ onBack }) {
                   ))}
                 </div>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px' }}>{example.title}</h3>
-                <p style={{ fontSize: '0.9rem', color: '#9ca3af', lineHeight: '1.6', margin: 0 }}>{example.description}</p>
+                <p style={{ fontSize: '0.9rem', color: 'var(--studio-muted)', lineHeight: '1.6', margin: 0 }}>{example.description}</p>
               </div>
               <div style={{
                 padding: '16px 24px',
-                borderTop: `1px solid ${example.color}15`,
-                background: 'rgba(255,255,255,0.02)'
+                borderTop: `1px solid color-mix(in srgb, ${example.color} 8%, transparent)`,
+                background: 'var(--studio-surface)'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
                   <TrendingUp size={14} style={{ color: EMERALD }} />
                   <span style={{ color: EMERALD, fontWeight: '600' }}>Result:</span>
-                  <span style={{ color: '#d1d5db' }}>{example.result}</span>
+                  <span style={{ color: 'var(--studio-ink)' }}>{example.result}</span>
                 </div>
               </div>
             </div>
@@ -791,16 +792,16 @@ export default function DnaResourcePage({ onBack }) {
       {/* ==================== FAQ / HELP ==================== */}
       <section style={{
         padding: '80px 24px',
-        background: 'rgba(255,255,255,0.02)',
-        borderTop: '1px solid rgba(255,255,255,0.05)'
+        background: 'var(--studio-surface)',
+        borderTop: '1px solid var(--studio-border)'
       }}>
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
-              background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.2)',
+              background: 'color-mix(in srgb, var(--studio-sage) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--studio-sage) 20%, transparent)',
               borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
-              fontSize: '0.8rem', color: '#6366f1', fontWeight: '700', letterSpacing: '0.1em'
+              fontSize: '0.8rem', color: 'var(--studio-sage)', fontWeight: '700', letterSpacing: '0.1em'
             }}>
               <HelpCircle size={14} /> FAQ & HELP
             </div>
@@ -815,8 +816,8 @@ export default function DnaResourcePage({ onBack }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {FAQ_ITEMS.map((faq, i) => (
               <div key={i} style={{
-                background: expandedFaq === i ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${expandedFaq === i ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.06)'}`,
+                background: expandedFaq === i ? 'var(--studio-surface)' : 'var(--studio-surface)',
+                border: `1px solid ${expandedFaq === i ? 'color-mix(in srgb, var(--studio-accent) 20%, transparent)' : 'var(--studio-border)'}`,
                 borderRadius: '12px', overflow: 'hidden',
                 transition: 'all 0.3s'
               }}>
@@ -824,7 +825,7 @@ export default function DnaResourcePage({ onBack }) {
                   onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
                   style={{
                     width: '100%', padding: '18px 24px', background: 'none', border: 'none',
-                    color: 'white', fontSize: '1rem', fontWeight: '600', textAlign: 'left',
+                    color: 'var(--studio-ink)', fontSize: '1rem', fontWeight: '600', textAlign: 'left',
                     cursor: 'pointer', display: 'flex', alignItems: 'center',
                     justifyContent: 'space-between'
                   }}
@@ -832,13 +833,13 @@ export default function DnaResourcePage({ onBack }) {
                   {faq.q}
                   <ChevronRight size={18} style={{
                     transform: expandedFaq === i ? 'rotate(90deg)' : 'rotate(0)',
-                    transition: 'transform 0.2s', color: '#6b7280', flexShrink: 0
+                    transition: 'transform 0.2s', color: 'var(--studio-muted)', flexShrink: 0
                   }} />
                 </button>
                 {expandedFaq === i && (
                   <div style={{
                     padding: '0 24px 20px',
-                    fontSize: '0.95rem', color: '#9ca3af', lineHeight: '1.7'
+                    fontSize: '0.95rem', color: 'var(--studio-muted)', lineHeight: '1.7'
                   }}>
                     {faq.a}
                   </div>
@@ -859,7 +860,7 @@ export default function DnaResourcePage({ onBack }) {
         <div style={{
           position: 'absolute', bottom: '-200px', left: '50%', transform: 'translateX(-50%)',
           width: '800px', height: '400px',
-          background: 'radial-gradient(circle, rgba(168,85,247,0.08) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, color-mix(in srgb, var(--studio-accent) 8%, transparent) 0%, transparent 70%)',
           pointerEvents: 'none'
         }} />
 
@@ -873,7 +874,7 @@ export default function DnaResourcePage({ onBack }) {
           }}>
             Your DNA. Your Sound. Every Time.
           </h2>
-          <p style={{ color: '#9ca3af', fontSize: '1.05rem', marginBottom: '32px', lineHeight: '1.7' }}>
+          <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem', marginBottom: '32px', lineHeight: '1.7' }}>
             Stop creating from scratch. Upload your creative identity once and let 16 AI agents
             produce content that's unmistakably <em>you</em>.
           </p>
@@ -881,10 +882,10 @@ export default function DnaResourcePage({ onBack }) {
             onClick={() => { window.location.hash = '#/studio/agents'; }}
             style={{
               padding: '14px 36px', borderRadius: '100px', border: 'none',
-              background: 'linear-gradient(135deg, #a855f7, #ec4899)',
-              color: 'white', fontSize: '1.05rem', fontWeight: '700',
+              background: 'var(--studio-accent)',
+              color: 'var(--studio-on-accent)', fontSize: '1.05rem', fontWeight: '700',
               cursor: 'pointer', letterSpacing: '0.03em',
-              boxShadow: '0 0 30px rgba(168,85,247,0.3)',
+              boxShadow: '0 6px 16px color-mix(in srgb, var(--studio-ink) 12%, transparent)',
               transition: 'all 0.3s'
             }}
             onMouseEnter={e => e.target.style.transform = 'scale(1.05)'}
@@ -896,8 +897,8 @@ export default function DnaResourcePage({ onBack }) {
 
         <div style={{
           marginTop: '48px', paddingTop: '32px',
-          borderTop: '1px solid rgba(255,255,255,0.05)',
-          fontSize: '0.8rem', color: '#4b5563'
+          borderTop: '1px solid var(--studio-border)',
+          fontSize: '0.8rem', color: 'var(--studio-muted)'
         }}>
           © 2026 studioagentsai.com — DNA System is proprietary technology of Studio Agents DAI.
         </div>

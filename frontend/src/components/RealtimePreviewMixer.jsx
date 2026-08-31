@@ -199,7 +199,7 @@ export default function RealtimePreviewMixer({
   if (!hasAnySrc) return null;
 
   if (initError) return (
-    <div style={{ padding: '12px 16px', borderRadius: '10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', marginTop: '8px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }} role="status">
+    <div style={{ padding: '12px 16px', borderRadius: '10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', marginTop: '8px', fontSize: '0.78rem', color: "var(--studio-muted)" }} role="status">
       ⚠️ Preview mixer unavailable — {initError}. Your final mix will still be created server-side.
     </div>
   );
@@ -212,10 +212,10 @@ export default function RealtimePreviewMixer({
     return (
       <div style={{
         flex: 1,
-        background: 'rgba(0,0,0,0.25)',
+        background: "var(--studio-surface-alt)",
         borderRadius: '10px',
         padding: isMobile ? '10px' : '12px',
-        border: `1px solid ${isAudible && loaded ? color + '33' : 'rgba(255,255,255,0.06)'}`,
+        border: `1px solid ${isAudible && loaded ? color + '33' : "rgba(var(--studio-ink-rgb), 0.06)"}`,
         opacity: loaded ? 1 : 0.5,
         minWidth: 0
       }}>
@@ -223,16 +223,16 @@ export default function RealtimePreviewMixer({
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
           <div style={{
             width: '24px', height: '24px', borderRadius: '6px',
-            background: isAudible ? color + '22' : 'rgba(255,255,255,0.04)',
+            background: isAudible ? color + '22' : "rgba(var(--studio-ink-rgb), 0.04)",
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: `1px solid ${isAudible ? color + '44' : 'rgba(255,255,255,0.08)'}`
+            border: `1px solid ${isAudible ? color + '44' : "rgba(var(--studio-ink-rgb), 0.08)"}`
           }}>
-            <Icon size={12} color={isAudible ? color : 'rgba(255,255,255,0.2)'} />
+            <Icon size={12} color={isAudible ? color : "var(--studio-muted)"} />
           </div>
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: isAudible ? color : 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: isAudible ? color : "var(--studio-muted)", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             {label}
           </span>
-          {!loaded && !error && <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)' }}>loading...</span>}
+          {!loaded && !error && <span style={{ fontSize: '0.6rem', color: "var(--studio-muted)" }}>loading...</span>}
           {error && <span style={{ fontSize: '0.6rem', color: '#fca5a5' }}>{error}</span>}
         </div>
 
@@ -248,7 +248,7 @@ export default function RealtimePreviewMixer({
             />
             <span style={{
               fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace',
-              color: isAudible ? color : 'rgba(255,255,255,0.2)',
+              color: isAudible ? color : "var(--studio-muted)",
               minWidth: '32px', textAlign: 'right'
             }}>
               {Math.round(volume * 100)}
@@ -262,8 +262,8 @@ export default function RealtimePreviewMixer({
             onClick={onSolo}
             style={{
               flex: 1, height: isMobile ? '36px' : '30px', borderRadius: '6px', border: 'none', cursor: 'pointer',
-              background: solo ? '#eab308' : 'rgba(255,255,255,0.06)',
-              color: solo ? '#000' : 'rgba(255,255,255,0.4)',
+              background: solo ? "var(--studio-warning)" : "rgba(var(--studio-ink-rgb), 0.06)",
+              color: solo ? "var(--studio-ink)" : "var(--studio-muted)",
               fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.05em',
               transition: 'all 0.15s'
             }}
@@ -273,8 +273,8 @@ export default function RealtimePreviewMixer({
             onClick={onMute}
             style={{
               flex: 1, height: isMobile ? '36px' : '30px', borderRadius: '6px', border: 'none', cursor: 'pointer',
-              background: muted ? '#ef4444' : 'rgba(255,255,255,0.06)',
-              color: muted ? '#fff' : 'rgba(255,255,255,0.4)',
+              background: muted ? "var(--studio-danger)" : "rgba(var(--studio-ink-rgb), 0.06)",
+              color: muted ? "var(--studio-ink)" : "var(--studio-muted)",
               fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.05em',
               transition: 'all 0.15s'
             }}
@@ -287,9 +287,9 @@ export default function RealtimePreviewMixer({
 
   return (
     <div style={{
-      background: 'linear-gradient(180deg, rgba(15,15,20,0.95), rgba(10,10,15,0.95))',
+      background: "linear-gradient(180deg, var(--studio-surface), var(--studio-surface))",
       borderRadius: '14px',
-      border: '1px solid rgba(255,255,255,0.08)',
+      border: "1px solid rgba(var(--studio-ink-rgb), 0.08)",
       marginTop: '8px',
       overflow: 'hidden'
     }}>
@@ -297,12 +297,12 @@ export default function RealtimePreviewMixer({
       <div style={{
         display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '10px',
         padding: isMobile ? '10px 12px' : '10px 14px',
-        background: 'rgba(0,0,0,0.3)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)'
+        background: "var(--studio-surface-alt)",
+        borderBottom: "1px solid rgba(var(--studio-ink-rgb), 0.06)"
       }}>
         {/* Controls */}
         <button onClick={restart} disabled={!isReady}
-          style={{ width: '30px', height: '30px', borderRadius: '6px', background: 'transparent', border: 'none', color: isReady ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.12)', cursor: isReady ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          style={{ width: '30px', height: '30px', borderRadius: '6px', background: 'transparent', border: 'none', color: isReady ? "var(--studio-muted)" : "var(--studio-muted)", cursor: isReady ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
           title="Restart">
           <SkipBack size={14} />
         </button>
@@ -311,9 +311,9 @@ export default function RealtimePreviewMixer({
           style={{
             width: isMobile ? '40px' : '38px', height: isMobile ? '40px' : '38px',
             borderRadius: '50%', flexShrink: 0,
-            background: isReady ? (isPlaying ? 'rgba(239,68,68,0.25)' : 'linear-gradient(135deg, #22d3ee, #8b5cf6)') : 'rgba(255,255,255,0.04)',
-            border: isReady ? (isPlaying ? '2px solid rgba(239,68,68,0.5)' : '2px solid rgba(34,211,238,0.4)') : '1px solid rgba(255,255,255,0.08)',
-            color: isReady ? '#fff' : 'rgba(255,255,255,0.15)',
+            background: isReady ? (isPlaying ? 'rgba(239,68,68,0.25)' : "linear-gradient(135deg, var(--studio-blue), var(--studio-accent))") : "rgba(var(--studio-ink-rgb), 0.04)",
+            border: isReady ? (isPlaying ? '2px solid rgba(239,68,68,0.5)' : '2px solid rgba(34,211,238,0.4)') : "1px solid rgba(var(--studio-ink-rgb), 0.08)",
+            color: isReady ? "var(--studio-ink)" : "var(--studio-muted)",
             cursor: isReady ? 'pointer' : 'default',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             transition: 'all 0.2s'
@@ -323,7 +323,7 @@ export default function RealtimePreviewMixer({
         </button>
 
         <button onClick={stop} disabled={!isReady || !isPlaying}
-          style={{ width: '30px', height: '30px', borderRadius: '6px', background: 'transparent', border: 'none', color: isReady && isPlaying ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.12)', cursor: isReady && isPlaying ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          style={{ width: '30px', height: '30px', borderRadius: '6px', background: 'transparent', border: 'none', color: isReady && isPlaying ? "var(--studio-muted)" : "var(--studio-muted)", cursor: isReady && isPlaying ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
           title="Stop">
           <Square size={11} />
         </button>
@@ -331,22 +331,22 @@ export default function RealtimePreviewMixer({
         {/* Progress / Scrubber */}
         <div style={{ flex: 1, minWidth: 0, cursor: isReady ? 'pointer' : 'default' }} onClick={isReady ? seekTo : undefined}>
           <div style={{
-            height: '28px', background: 'rgba(0,0,0,0.4)', borderRadius: '6px',
-            position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.04)'
+            height: '28px', background: "var(--studio-surface-alt)", borderRadius: '6px',
+            position: 'relative', overflow: 'hidden', border: "1px solid rgba(var(--studio-ink-rgb), 0.04)"
           }}>
             <div style={{
               position: 'absolute', left: 0, top: 0, bottom: 0, width: `${progress}%`,
-              background: 'linear-gradient(90deg, rgba(34,211,238,0.25), rgba(139,92,246,0.25))',
+              background: "linear-gradient(90deg, rgba(34,211,238,0.25), rgba(163,66,41, 0.25))",
               transition: isPlaying ? 'none' : 'width 0.1s'
             }} />
             {/* Playhead */}
-            {progress > 0 && <div style={{ position: 'absolute', left: `${progress}%`, top: 0, bottom: 0, width: '2px', background: '#22d3ee', boxShadow: '0 0 6px rgba(34,211,238,0.5)' }} />}
+            {progress > 0 && <div style={{ position: 'absolute', left: `${progress}%`, top: 0, bottom: 0, width: '2px', background: "var(--studio-blue)", boxShadow: '0 0 6px rgba(34,211,238,0.5)' }} />}
             {/* Mini waveform */}
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', gap: '1px', padding: '0 4px', opacity: 0.25 }}>
               {[...Array(isMobile ? 30 : 50)].map((_, i) => {
                 const total = isMobile ? 30 : 50;
                 const h = 20 + Math.sin(i * 0.5) * 40 + ((i * 7 + 13) % 30);
-                return <div key={i} style={{ width: '2px', height: `${h}%`, background: (i / total * 100) < progress ? '#22d3ee' : 'rgba(255,255,255,0.2)', borderRadius: '1px' }} />;
+                return <div key={i} style={{ width: '2px', height: `${h}%`, background: (i / total * 100) < progress ? "var(--studio-blue)" : "rgba(var(--studio-ink-rgb), 0.16)", borderRadius: '1px' }} />;
               })}
             </div>
           </div>
@@ -354,10 +354,10 @@ export default function RealtimePreviewMixer({
 
         {/* Time */}
         <div style={{ flexShrink: 0, textAlign: 'right', minWidth: isMobile ? '55px' : '65px' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace', color: isPlaying ? '#22d3ee' : 'rgba(255,255,255,0.4)' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace', color: isPlaying ? "var(--studio-blue)" : "var(--studio-muted)" }}>
             {fmt(currentTime)}
           </span>
-          <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace' }}>
+          <span style={{ fontSize: '0.65rem', color: "var(--studio-muted)", fontFamily: 'monospace' }}>
             {' / '}{fmt(duration)}
           </span>
         </div>
@@ -365,14 +365,14 @@ export default function RealtimePreviewMixer({
         {/* Live indicator */}
         {isPlaying && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', animation: 'mixerPulse 1s infinite' }} />
-            <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#22c55e', letterSpacing: '0.08em' }}>LIVE</span>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: "var(--studio-sage)", animation: 'mixerPulse 1s infinite' }} />
+            <span style={{ fontSize: '0.6rem', fontWeight: 800, color: "var(--studio-sage)", letterSpacing: '0.08em' }}>LIVE</span>
           </div>
         )}
       </div>
 
       {initError && (
-        <div style={{ fontSize: '0.75rem', color: '#ef4444', padding: '8px 14px', background: 'rgba(239,68,68,0.08)' }}>
+        <div style={{ fontSize: '0.75rem', color: "var(--studio-danger)", padding: '8px 14px', background: 'rgba(239,68,68,0.08)' }}>
           {initError}
         </div>
       )}
@@ -384,7 +384,7 @@ export default function RealtimePreviewMixer({
         flexDirection: isMobile && !vocalSrc ? 'column' : 'row'
       }}>
         <ChannelStrip
-          label="Beat" icon={Music} color="#22d3ee"
+          label="Beat" icon={Music} color="var(--studio-blue)"
           loaded={beatLoaded} hasSrc={!!beatSrc}
           error={beatError}
           volume={beatVolume} onVolumeChange={onBeatVolumeChange}
@@ -392,7 +392,7 @@ export default function RealtimePreviewMixer({
           solo={beatSolo} onSolo={() => setBeatSolo(!beatSolo)}
         />
         <ChannelStrip
-          label="Vocal" icon={Mic} color="#a78bfa"
+          label="Vocal" icon={Mic} color="var(--studio-accent)"
           loaded={vocalLoaded} hasSrc={!!vocalSrc}
           error={vocalError}
           volume={vocalVolume} onVolumeChange={onVocalVolumeChange}

@@ -7,8 +7,8 @@ const pageStyle = {
   display: 'grid',
   placeItems: 'center',
   padding: '24px',
-  background: 'radial-gradient(circle at top, #30205b 0%, #12101d 48%, #08070d 100%)',
-  color: '#fff',
+  background: "radial-gradient(circle at top, #30205b 0%, var(--studio-surface) 48%, var(--studio-surface) 100%)",
+  color: "var(--studio-inverse)",
   fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
 };
 
@@ -46,13 +46,13 @@ export default function PublicSharePage({ shareId, embed = false }) {
 
   const { track } = state;
   const content = (
-    <section style={{ width: 'min(100%, 580px)', display: 'grid', gap: 18, padding: embed ? 20 : 32, border: '1px solid rgba(255,255,255,.14)', borderRadius: 24, background: 'rgba(17, 14, 30, .78)', boxShadow: '0 24px 80px rgba(0,0,0,.38)' }}>
+    <section style={{ width: 'min(100%, 580px)', display: 'grid', gap: 18, padding: embed ? 20 : 32, border: "1px solid rgba(var(--studio-ink-rgb), 0.14)", borderRadius: 24, background: "var(--studio-surface)", boxShadow: '0 24px 80px rgba(0,0,0,.38)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        {track.coverArtUrl ? <img src={track.coverArtUrl} alt="" style={{ width: 64, height: 64, borderRadius: 14, objectFit: 'cover' }} /> : <div style={{ width: 64, height: 64, display: 'grid', placeItems: 'center', borderRadius: 14, background: 'linear-gradient(135deg,#a855f7,#4f46e5)' }}><Music2 /></div>}
+        {track.coverArtUrl ? <img src={track.coverArtUrl} alt="" style={{ width: 64, height: 64, borderRadius: 14, objectFit: 'cover' }} /> : <div style={{ width: 64, height: 64, display: 'grid', placeItems: 'center', borderRadius: 14, background: "linear-gradient(135deg,var(--studio-accent),#4f46e5)" }}><Music2 /></div>}
         <div style={{ minWidth: 0 }}>
           <p style={{ margin: 0, color: '#c4b5fd', fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Studio Agents AI</p>
           <h1 style={{ margin: '4px 0', fontSize: embed ? 20 : 28, overflowWrap: 'anywhere' }}>{track.title}</h1>
-          <p style={{ margin: 0, color: 'rgba(255,255,255,.68)' }}>{track.artist}</p>
+          <p style={{ margin: 0, color: "var(--studio-muted)" }}>{track.artist}</p>
         </div>
       </div>
       <audio controls preload="metadata" src={track.audioUrl} style={{ width: '100%' }}>Your browser does not support audio playback.</audio>

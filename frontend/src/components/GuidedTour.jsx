@@ -268,13 +268,13 @@ function GuidedTour({ active, onClose, onNavigate }) {
         }}
       >
         <div style={{
-          background: 'linear-gradient(135deg, rgba(30, 20, 50, 0.98), rgba(20, 15, 40, 0.98))',
-          border: '1px solid rgba(168, 85, 247, 0.4)',
+          background: "linear-gradient(135deg, var(--studio-surface), var(--studio-surface))",
+          border: "1px solid rgba(163,66,41, 0.4)",
           borderRadius: '16px',
           padding: '20px',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(168, 85, 247, 0.15)',
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(163,66,41, 0.15)",
           backdropFilter: 'blur(20px)',
-          color: 'white',
+          color: "var(--studio-ink)",
           position: 'relative',
         }}>
           {/* Arrow */}
@@ -282,8 +282,8 @@ function GuidedTour({ active, onClose, onNavigate }) {
             position: 'absolute',
             width: '16px',
             height: '16px',
-            background: 'linear-gradient(135deg, rgba(30, 20, 50, 0.98), rgba(20, 15, 40, 0.98))',
-            border: '1px solid rgba(168, 85, 247, 0.4)',
+            background: "linear-gradient(135deg, var(--studio-surface), var(--studio-surface))",
+            border: "1px solid rgba(163,66,41, 0.4)",
             ...arrowStyle,
             display: arrowStyle.display,
             clipPath: arrowStyle.top === '-8px'
@@ -300,8 +300,8 @@ function GuidedTour({ active, onClose, onNavigate }) {
               position: 'absolute',
               top: '10px',
               right: '10px',
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.15)',
+              background: "rgba(var(--studio-ink-rgb), 0.08)",
+              border: "1px solid rgba(var(--studio-ink-rgb), 0.15)",
               borderRadius: '50%',
               width: '28px',
               height: '28px',
@@ -309,7 +309,7 @@ function GuidedTour({ active, onClose, onNavigate }) {
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              color: 'rgba(255,255,255,0.6)',
+              color: "var(--studio-muted)",
               padding: 0,
             }}
           >
@@ -322,7 +322,7 @@ function GuidedTour({ active, onClose, onNavigate }) {
             fontWeight: 600,
             textTransform: 'uppercase',
             letterSpacing: '0.1em',
-            color: 'rgba(168, 85, 247, 0.9)',
+            color: "rgba(163,66,41, 0.9)",
             marginBottom: '8px',
           }}>
             Step {step + 1} of {total}
@@ -333,7 +333,7 @@ function GuidedTour({ active, onClose, onNavigate }) {
             margin: '0 0 8px',
             fontSize: '1.1rem',
             fontWeight: 700,
-            color: 'white',
+            color: "var(--studio-ink)",
             paddingRight: '24px',
           }}>
             {currentStep?.title}
@@ -344,7 +344,7 @@ function GuidedTour({ active, onClose, onNavigate }) {
             margin: '0 0 16px',
             fontSize: '0.9rem',
             lineHeight: 1.5,
-            color: 'rgba(255,255,255,0.75)',
+            color: "var(--studio-muted)",
           }}>
             {currentStep?.content}
           </p>
@@ -365,10 +365,10 @@ function GuidedTour({ active, onClose, onNavigate }) {
                     height: '7px',
                     borderRadius: '4px',
                     background: i === step
-                      ? 'var(--color-purple, #a855f7)'
+                      ? "var(--color-purple, var(--studio-accent))"
                       : i < step
-                        ? 'rgba(168,85,247,0.5)'
-                        : 'rgba(255,255,255,0.15)',
+                        ? "rgba(163,66,41, 0.5)"
+                        : "rgba(var(--studio-ink-rgb), 0.15)",
                     transition: 'all 0.3s ease',
                   }}
                 />
@@ -386,9 +386,9 @@ function GuidedTour({ active, onClose, onNavigate }) {
                     gap: '4px',
                     padding: '6px 12px',
                     borderRadius: '8px',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    background: 'rgba(255,255,255,0.05)',
-                    color: 'rgba(255,255,255,0.7)',
+                    border: "1px solid rgba(var(--studio-ink-rgb), 0.15)",
+                    background: "rgba(var(--studio-ink-rgb), 0.05)",
+                    color: "var(--studio-muted)",
                     cursor: 'pointer',
                     fontSize: '0.8rem',
                     fontWeight: 500,
@@ -406,12 +406,12 @@ function GuidedTour({ active, onClose, onNavigate }) {
                   padding: '6px 16px',
                   borderRadius: '8px',
                   border: 'none',
-                  background: 'var(--color-purple, #a855f7)',
-                  color: 'white',
+                  background: "var(--color-purple, var(--studio-accent))",
+                  color: "var(--studio-inverse)",
                   cursor: 'pointer',
                   fontSize: '0.8rem',
                   fontWeight: 600,
-                  boxShadow: '0 2px 8px rgba(168,85,247,0.4)',
+                  boxShadow: "0 2px 8px rgba(163,66,41, 0.4)",
                 }}
               >
                 {step === total - 1 ? (

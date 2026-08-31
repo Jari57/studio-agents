@@ -93,9 +93,9 @@ export function PreviewModal({
           maxHeight: '92vh',
           display: 'flex',
           flexDirection: 'column',
-          background: 'rgba(20, 20, 20, 0.95)',
+          background: "var(--studio-surface)",
           borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
           overflow: 'hidden',
           backdropFilter: 'blur(16px)',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
@@ -109,8 +109,8 @@ export function PreviewModal({
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: '10px 12px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-            background: 'rgba(0, 0, 0, 0.3)',
+            borderBottom: "1px solid rgba(var(--studio-ink-rgb), 0.05)",
+            background: "var(--studio-surface-alt)",
             flexShrink: 0,
             gap: '8px',
             flexWrap: 'wrap'
@@ -121,7 +121,7 @@ export function PreviewModal({
               margin: 0,
               fontSize: '0.85rem',
               fontWeight: '600',
-              color: 'rgba(255, 255, 255, 0.9)',
+              color: "var(--studio-ink)",
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               flex: '1 1 auto',
@@ -138,9 +138,9 @@ export function PreviewModal({
               <button
                 onClick={handleCopy}
                 style={{
-                  background: copied ? 'rgba(34, 197, 94, 0.2)' : 'rgba(139, 92, 246, 0.2)',
-                  border: `1px solid ${copied ? 'rgba(34, 197, 94, 0.4)' : 'rgba(139, 92, 246, 0.4)'}`,
-                  color: copied ? '#22c55e' : '#8b5cf6',
+                  background: copied ? "rgba(86,105,84, 0.2)" : "rgba(163,66,41, 0.2)",
+                  border: `1px solid ${copied ? "rgba(86,105,84, 0.4)" : "rgba(163,66,41, 0.4)"}`,
+                  color: copied ? "var(--studio-sage)" : "var(--studio-accent)",
                   padding: '6px 10px',
                   borderRadius: '6px',
                   cursor: 'pointer',
@@ -165,9 +165,9 @@ export function PreviewModal({
                 <button
                   onClick={() => onDownload(item, 'mp3')}
                   style={{
-                    background: 'rgba(59, 130, 246, 0.2)',
-                    border: '1px solid rgba(59, 130, 246, 0.4)',
-                    color: '#3b82f6',
+                    background: "rgba(61,100,114, 0.2)",
+                    border: "1px solid rgba(61,100,114, 0.4)",
+                    color: "var(--studio-blue)",
                     padding: '6px 10px',
                     borderRadius: '6px',
                     cursor: 'pointer',
@@ -188,9 +188,9 @@ export function PreviewModal({
                 <button
                   onClick={() => onDownload(item, 'wav')}
                   style={{
-                    background: 'rgba(139, 92, 246, 0.2)',
-                    border: '1px solid rgba(139, 92, 246, 0.4)',
-                    color: '#8b5cf6',
+                    background: "rgba(163,66,41, 0.2)",
+                    border: "1px solid rgba(163,66,41, 0.4)",
+                    color: "var(--studio-accent)",
                     padding: '6px 10px',
                     borderRadius: '6px',
                     cursor: 'pointer',
@@ -213,9 +213,9 @@ export function PreviewModal({
               <button
                 onClick={onDownload && item ? () => onDownload(item) : handleDownload}
                 style={{
-                  background: 'rgba(59, 130, 246, 0.2)',
-                  border: '1px solid rgba(59, 130, 246, 0.4)',
-                  color: '#3b82f6',
+                  background: "rgba(61,100,114, 0.2)",
+                  border: "1px solid rgba(61,100,114, 0.4)",
+                  color: "var(--studio-blue)",
                   padding: '6px 10px',
                   borderRadius: '6px',
                   cursor: 'pointer',
@@ -239,7 +239,7 @@ export function PreviewModal({
               style={{
                 background: 'rgba(239, 68, 68, 0.2)',
                 border: '1px solid rgba(239, 68, 68, 0.4)',
-                color: '#ef4444',
+                color: "var(--studio-danger)",
                 padding: '6px 10px',
                 borderRadius: '6px',
                 cursor: 'pointer',
@@ -329,7 +329,7 @@ export function PreviewModal({
                   justifyContent: 'center',
                   gap: '10px',
                   cursor: 'pointer',
-                  color: '#ef4444',
+                  color: "var(--studio-danger)",
                   fontWeight: '700',
                   fontSize: '1rem',
                   transition: 'all 0.2s',
@@ -355,9 +355,9 @@ export function PreviewModal({
                 width: '100%',
                 maxWidth: '700px',
                 padding: '60px 40px',
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1))',
+                background: "linear-gradient(135deg, rgba(61,100,114, 0.1), rgba(163,66,41, 0.1))",
                 borderRadius: '24px',
-                border: '1px solid rgba(139, 92, 246, 0.2)'
+                border: "1px solid rgba(163,66,41, 0.2)"
               }}
             >
               {/* Large Audio Visualizer Icon */}
@@ -365,14 +365,14 @@ export function PreviewModal({
                 width: '140px',
                 height: '140px',
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                background: "linear-gradient(135deg, var(--studio-blue), var(--studio-accent))",
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 12px 48px rgba(59, 130, 246, 0.4)',
+                boxShadow: "0 12px 48px rgba(61,100,114, 0.4)",
                 animation: 'pulse 2s infinite'
               }}>
-                <svg width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <svg width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="var(--studio-ink)" strokeWidth="2">
                   <path d="M9 18V5l12-2v13" />
                   <circle cx="6" cy="18" r="3" />
                   <circle cx="18" cy="16" r="3" />
@@ -380,7 +380,7 @@ export function PreviewModal({
               </div>
 
               <h3 style={{
-                color: 'white',
+                color: "var(--studio-ink)",
                 fontSize: '1.5rem',
                 fontWeight: '700',
                 margin: 0,
@@ -392,10 +392,10 @@ export function PreviewModal({
               {/* Large Audio Player */}
               <div style={{
                 width: '100%',
-                background: 'rgba(0,0,0,0.3)',
+                background: "var(--studio-surface-alt)",
                 borderRadius: '16px',
                 padding: '24px',
-                border: '1px solid rgba(255,255,255,0.1)'
+                border: "1px solid rgba(var(--studio-ink-rgb), 0.1)"
               }}>
                 <audio
                   src={formatAudioSrc(mediaUrl)}
@@ -420,7 +420,7 @@ export function PreviewModal({
               
               <p
                 style={{
-                  color: 'rgba(255, 255, 255, 0.6)',
+                  color: "var(--studio-muted)",
                   fontSize: '1rem',
                   textAlign: 'center'
                 }}
@@ -441,7 +441,7 @@ export function PreviewModal({
                   justifyContent: 'center',
                   gap: '12px',
                   cursor: 'pointer',
-                  color: '#ef4444',
+                  color: "var(--studio-danger)",
                   fontWeight: '700',
                   fontSize: '1.1rem',
                   transition: 'all 0.2s',
@@ -465,9 +465,9 @@ export function PreviewModal({
                 maxHeight: 'calc(90vh - 140px)',
                 overflow: 'auto',
                 padding: '20px',
-                background: 'rgba(0, 0, 0, 0.3)',
+                background: "var(--studio-surface-alt)",
                 borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                 animation: 'zoomIn 0.3s ease-out'
               }}
             >
@@ -477,7 +477,7 @@ export function PreviewModal({
                   fontFamily: 'inherit',
                   fontSize: '1rem',
                   lineHeight: '1.8',
-                  color: 'rgba(255, 255, 255, 0.9)',
+                  color: "var(--studio-ink)",
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word'
                 }}
@@ -492,10 +492,10 @@ export function PreviewModal({
         <div
           style={{
             padding: '6px 16px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-            background: 'rgba(0, 0, 0, 0.3)',
+            borderTop: "1px solid rgba(var(--studio-ink-rgb), 0.05)",
+            background: "var(--studio-surface-alt)",
             fontSize: '0.7rem',
-            color: 'rgba(255, 255, 255, 0.4)',
+            color: "var(--studio-muted)",
             textAlign: 'center',
             flexShrink: 0
           }}

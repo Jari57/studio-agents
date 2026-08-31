@@ -19,7 +19,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Wordsmith',
     description: 'Write your first lyrics',
     icon: FileText,
-    color: '#a855f7',
+    color: "var(--studio-accent)",
     category: 'First Steps',
     trigger: 'generation',
     agentId: 'ghost',
@@ -30,7 +30,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Beat Maker',
     description: 'Generate your first beat',
     icon: Music,
-    color: '#22d3ee',
+    color: "var(--studio-blue)",
     category: 'First Steps',
     trigger: 'generation',
     agentId: 'beat',
@@ -41,7 +41,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Voice Activated',
     description: 'Create your first vocal track',
     icon: Mic,
-    color: '#f472b6',
+    color: "var(--studio-accent)",
     category: 'First Steps',
     trigger: 'generation',
     agentId: 'vocal-arch',
@@ -63,7 +63,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Director\'s Cut',
     description: 'Create your first video',
     icon: Video,
-    color: '#ef4444',
+    color: "var(--studio-danger)",
     category: 'First Steps',
     trigger: 'generation',
     agentId: 'video-creator',
@@ -74,7 +74,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Mix Master',
     description: 'Create your first final mix',
     icon: Disc,
-    color: '#34d399',
+    color: "var(--studio-sage)",
     category: 'First Steps',
     trigger: 'mix',
     threshold: 1,
@@ -86,7 +86,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Getting Warmed Up',
     description: 'Complete 10 generations',
     icon: Flame,
-    color: '#f97316',
+    color: "var(--studio-warning)",
     category: 'Milestones',
     trigger: 'total_generations',
     threshold: 10,
@@ -96,7 +96,7 @@ export const BADGE_DEFINITIONS = {
     name: 'On a Roll',
     description: 'Complete 50 generations',
     icon: Zap,
-    color: '#eab308',
+    color: "var(--studio-warning)",
     category: 'Milestones',
     trigger: 'total_generations',
     threshold: 50,
@@ -106,7 +106,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Century Club',
     description: 'Complete 100 generations',
     icon: Trophy,
-    color: '#f59e0b',
+    color: "var(--studio-warning)",
     category: 'Milestones',
     trigger: 'total_generations',
     threshold: 100,
@@ -118,7 +118,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Multi-Talented',
     description: 'Use 4 different agents',
     icon: Star,
-    color: '#8b5cf6',
+    color: "var(--studio-accent)",
     category: 'Versatility',
     trigger: 'unique_agents',
     threshold: 4,
@@ -128,7 +128,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Agent Explorer',
     description: 'Use 8 different agents',
     icon: Target,
-    color: '#06b6d4',
+    color: "var(--studio-blue)",
     category: 'Versatility',
     trigger: 'unique_agents',
     threshold: 8,
@@ -138,7 +138,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Master of All',
     description: 'Use all 16 agents',
     icon: Crown,
-    color: '#f59e0b',
+    color: "var(--studio-warning)",
     category: 'Versatility',
     trigger: 'unique_agents',
     threshold: 16,
@@ -150,7 +150,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Full Song',
     description: 'Create lyrics + beat + vocals in one session',
     icon: Rocket,
-    color: '#10b981',
+    color: "var(--studio-sage)",
     category: 'Pipeline',
     trigger: 'pipeline',
     requires: ['ghost', 'beat', 'vocal-arch'],
@@ -160,7 +160,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Music Video',
     description: 'Create a complete music video with custom art',
     icon: Film,
-    color: '#ec4899',
+    color: "var(--studio-accent)",
     category: 'Pipeline',
     trigger: 'pipeline',
     requires: ['beat', 'album', 'video-creator'],
@@ -182,7 +182,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Project Started',
     description: 'Save your first project',
     icon: Heart,
-    color: '#ef4444',
+    color: "var(--studio-danger)",
     category: 'Special',
     trigger: 'project_save',
     threshold: 1,
@@ -192,7 +192,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Tour Graduate',
     description: 'Complete the guided tour',
     icon: Globe,
-    color: '#22c55e',
+    color: "var(--studio-sage)",
     category: 'Special',
     trigger: 'tour_complete',
     threshold: 1,
@@ -202,7 +202,7 @@ export const BADGE_DEFINITIONS = {
     name: 'Connected',
     description: 'Use a social/collab agent',
     icon: Users,
-    color: '#6366f1',
+    color: "var(--studio-blue)",
     category: 'Special',
     trigger: 'generation',
     agentId: 'collab',
@@ -271,7 +271,7 @@ export function useBadgeTracker(userId) {
         onClick={() => toast.dismiss(t.id)}
         style={{
           display: 'flex', alignItems: 'center', gap: '12px',
-          background: 'linear-gradient(135deg, rgba(15,15,25,0.98), rgba(30,20,50,0.98))',
+          background: "linear-gradient(135deg, var(--studio-surface), var(--studio-surface))",
           border: `1px solid ${badge.color}44`,
           borderRadius: '14px', padding: '14px 18px',
           boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 20px ${badge.color}22`,
@@ -290,10 +290,10 @@ export function useBadgeTracker(userId) {
           <div style={{ fontSize: '0.7rem', color: badge.color, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Badge Earned!
           </div>
-          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', marginTop: '2px' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: "var(--studio-ink)", marginTop: '2px' }}>
             {badge.name}
           </div>
-          <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginTop: '1px' }}>
+          <div style={{ fontSize: '0.78rem', color: "var(--studio-muted)", marginTop: '1px' }}>
             {badge.description}
           </div>
         </div>
@@ -432,37 +432,37 @@ export default function AchievementBadges({ earnedBadges = {}, onClose, isMobile
     }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{
         width: isMobile ? '95%' : '600px', maxHeight: '85vh',
-        background: 'linear-gradient(180deg, #12121f, #0a0a14)',
-        borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)',
+        background: "linear-gradient(180deg, var(--studio-surface), var(--studio-surface))",
+        borderRadius: '20px', border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
         overflow: 'hidden', display: 'flex', flexDirection: 'column',
       }}>
         {/* Header */}
         <div style={{
-          padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.08)',
-          background: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(168,85,247,0.08))',
+          padding: '24px', borderBottom: "1px solid rgba(var(--studio-ink-rgb), 0.08)",
+          background: "linear-gradient(135deg, rgba(245,158,11,0.08), rgba(163,66,41, 0.08))",
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Trophy size={24} color="#f59e0b" />
+              <Trophy size={24} color="var(--studio-warning)" />
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: '#fff' }}>Achievements</h2>
-                <p style={{ margin: 0, fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)' }}>
+                <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: "var(--studio-ink)" }}>Achievements</h2>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: "var(--studio-muted)" }}>
                   {earned} / {total} badges earned
                 </p>
               </div>
             </div>
             <button onClick={onClose} aria-label="Close achievements" style={{
-              background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%',
-              width: '36px', height: '36px', color: '#fff', cursor: 'pointer',
+              background: "rgba(var(--studio-ink-rgb), 0.08)", border: 'none', borderRadius: '50%',
+              width: '36px', height: '36px', color: "var(--studio-ink)", cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>✕</button>
           </div>
 
           {/* Progress bar */}
-          <div role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100} aria-label={`${earned} of ${total} badges earned`} style={{ marginTop: '16px', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+          <div role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100} aria-label={`${earned} of ${total} badges earned`} style={{ marginTop: '16px', height: '8px', borderRadius: '4px', background: "rgba(var(--studio-ink-rgb), 0.06)", overflow: 'hidden' }}>
             <div style={{
               height: '100%', width: `${progress}%`, borderRadius: '4px',
-              background: 'linear-gradient(90deg, #f59e0b, #a855f7)',
+              background: "linear-gradient(90deg, var(--studio-warning), var(--studio-accent))",
               transition: 'width 0.5s ease',
             }} />
           </div>
@@ -471,14 +471,14 @@ export default function AchievementBadges({ earnedBadges = {}, onClose, isMobile
         {/* Category Tabs */}
         <div style={{
           display: 'flex', gap: '6px', padding: '12px 16px', overflowX: 'auto',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: "1px solid rgba(var(--studio-ink-rgb), 0.06)",
         }}>
           {categoryNames.map(cat => (
             <button key={cat} onClick={() => setSelectedCategory(cat)} style={{
               padding: '6px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer',
               fontSize: '0.75rem', fontWeight: 700, textTransform: 'capitalize', whiteSpace: 'nowrap',
-              background: selectedCategory === cat ? 'rgba(168,85,247,0.25)' : 'rgba(255,255,255,0.05)',
-              color: selectedCategory === cat ? '#a855f7' : 'rgba(255,255,255,0.4)',
+              background: selectedCategory === cat ? "rgba(163,66,41, 0.25)" : "rgba(var(--studio-ink-rgb), 0.05)",
+              color: selectedCategory === cat ? "var(--studio-accent)" : "var(--studio-muted)",
               transition: 'all 0.2s',
             }}>
               {cat === 'all' ? `All (${earned}/${total})` : cat}
@@ -495,24 +495,24 @@ export default function AchievementBadges({ earnedBadges = {}, onClose, isMobile
               <div key={badge.id} style={{
                 background: isEarned 
                   ? `linear-gradient(135deg, ${badge.color}12, ${badge.color}08)` 
-                  : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${isEarned ? badge.color + '33' : 'rgba(255,255,255,0.06)'}`,
+                  : "rgba(var(--studio-ink-rgb), 0.02)",
+                border: `1px solid ${isEarned ? badge.color + '33' : "rgba(var(--studio-ink-rgb), 0.06)"}`,
                 borderRadius: '14px', padding: '16px', textAlign: 'center',
                 opacity: isEarned ? 1 : 0.5,
                 transition: 'all 0.2s',
               }}>
                 <div style={{
                   width: '48px', height: '48px', borderRadius: '14px', margin: '0 auto 10px',
-                  background: isEarned ? `${badge.color}22` : 'rgba(255,255,255,0.04)',
-                  border: `2px solid ${isEarned ? badge.color + '55' : 'rgba(255,255,255,0.08)'}`,
+                  background: isEarned ? `${badge.color}22` : "rgba(var(--studio-ink-rgb), 0.04)",
+                  border: `2px solid ${isEarned ? badge.color + '55' : "rgba(var(--studio-ink-rgb), 0.08)"}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  {isEarned ? <Icon size={22} color={badge.color} /> : <Lock size={18} color="rgba(255,255,255,0.2)" />}
+                  {isEarned ? <Icon size={22} color={badge.color} /> : <Lock size={18} color="var(--studio-muted)" />}
                 </div>
-                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: isEarned ? '#fff' : 'rgba(255,255,255,0.4)' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: isEarned ? "var(--studio-ink)" : "var(--studio-muted)" }}>
                   {badge.name}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', marginTop: '4px', lineHeight: '1.3' }}>
+                <div style={{ fontSize: '0.7rem', color: "var(--studio-muted)", marginTop: '4px', lineHeight: '1.3' }}>
                   {badge.description}
                 </div>
                 {isEarned && (

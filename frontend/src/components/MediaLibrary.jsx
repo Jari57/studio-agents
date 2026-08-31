@@ -35,10 +35,10 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
   const cloneInputRef = useRef(null);
 
   const categories = [
-    { id: 'voices', icon: Mic, label: 'Voices', color: '#f472b6' },
-    { id: 'audio', icon: Music, label: 'Audio', color: '#8b5cf6' },
-    { id: 'images', icon: ImageIcon, label: 'Images', color: '#06b6d4' },
-    { id: 'videos', icon: VideoIcon, label: 'Videos', color: '#f59e0b' },
+    { id: 'voices', icon: Mic, label: 'Voices', color: "var(--studio-accent)" },
+    { id: 'audio', icon: Music, label: 'Audio', color: "var(--studio-accent)" },
+    { id: 'images', icon: ImageIcon, label: 'Images', color: "var(--studio-blue)" },
+    { id: 'videos', icon: VideoIcon, label: 'Videos', color: "var(--studio-warning)" },
   ];
 
   // --- Fetch assets on category change ---
@@ -345,8 +345,8 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
   // ===================== RENDER =====================
 
   const cardStyle = {
-    background: 'var(--card-bg, rgba(30,30,40,0.9))',
-    border: '1px solid var(--border-color, rgba(255,255,255,0.08))',
+    background: "var(--card-bg, var(--studio-surface))",
+    border: "1px solid var(--border-color, rgba(var(--studio-ink-rgb), 0.08))",
     borderRadius: '14px',
     overflow: 'hidden',
     transition: 'all 0.2s ease',
@@ -375,13 +375,13 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
             width: '48px',
             height: '48px',
             borderRadius: '50%',
-            background: isCloned ? 'rgba(244, 114, 182, 0.15)' : 'rgba(139, 92, 246, 0.15)',
+            background: isCloned ? 'rgba(244, 114, 182, 0.15)' : "rgba(163,66,41, 0.15)",
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0
           }}>
-            <Mic size={22} color={isCloned ? '#f472b6' : '#8b5cf6'} />
+            <Mic size={22} color={isCloned ? "var(--studio-accent)" : "var(--studio-accent)"} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
@@ -402,8 +402,8 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               marginTop: '2px'
             }}>
               <span style={{
-                background: isCloned ? 'rgba(244, 114, 182, 0.15)' : 'rgba(139, 92, 246, 0.15)',
-                color: isCloned ? '#f472b6' : '#8b5cf6',
+                background: isCloned ? 'rgba(244, 114, 182, 0.15)' : "rgba(163,66,41, 0.15)",
+                color: isCloned ? "var(--studio-accent)" : "var(--studio-accent)",
                 padding: '1px 8px',
                 borderRadius: '6px',
                 fontSize: '0.7rem',
@@ -436,9 +436,9 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               padding: '10px',
               borderRadius: '10px',
               border: '1px solid',
-              borderColor: isPlaying ? 'rgba(34, 197, 94, 0.4)' : 'rgba(139, 92, 246, 0.3)',
-              background: isPlaying ? 'rgba(34, 197, 94, 0.1)' : 'rgba(139, 92, 246, 0.08)',
-              color: isPlaying ? '#22c55e' : '#a78bfa',
+              borderColor: isPlaying ? "rgba(86,105,84, 0.4)" : "rgba(163,66,41, 0.3)",
+              background: isPlaying ? "rgba(86,105,84, 0.1)" : "rgba(163,66,41, 0.08)",
+              color: isPlaying ? "var(--studio-sage)" : "var(--studio-accent)",
               cursor: isLoading ? 'wait' : 'pointer',
               fontSize: '0.8rem',
               fontWeight: '600',
@@ -464,7 +464,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
                 borderRadius: '10px',
                 border: '1px solid rgba(239, 68, 68, 0.3)',
                 background: 'rgba(239, 68, 68, 0.08)',
-                color: '#ef4444',
+                color: "var(--studio-danger)",
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center'
@@ -491,7 +491,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
           onClick={() => setPreviewItem(asset)}
           style={{
             height: isImage ? '160px' : isVideo ? '140px' : '80px',
-            background: 'rgba(0,0,0,0.3)',
+            background: "var(--studio-surface-alt)",
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -521,7 +521,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               alignItems: 'center',
               gap: '4px'
             }}>
-              <Music size={28} color="#8b5cf6" />
+              <Music size={28} color="var(--studio-accent)" />
               <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                 {formatFileSize(asset.size)}
               </span>
@@ -538,9 +538,9 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(0,0,0,0.3)'
+              background: "var(--studio-surface-alt)"
             }}>
-              <Play size={32} color="white" fill="white" />
+              <Play size={32} color="var(--studio-ink)" fill="var(--studio-ink)" />
             </div>
           )}
         </div>
@@ -586,9 +586,9 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
                 gap: '4px',
                 padding: '8px',
                 borderRadius: '8px',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
-                background: isPlaying ? 'rgba(34, 197, 94, 0.1)' : 'rgba(139, 92, 246, 0.08)',
-                color: isPlaying ? '#22c55e' : '#a78bfa',
+                border: "1px solid rgba(163,66,41, 0.3)",
+                background: isPlaying ? "rgba(86,105,84, 0.1)" : "rgba(163,66,41, 0.08)",
+                color: isPlaying ? "var(--studio-sage)" : "var(--studio-accent)",
                 cursor: 'pointer',
                 fontSize: '0.75rem',
                 fontWeight: '600'
@@ -608,9 +608,9 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               gap: '4px',
               padding: '8px',
               borderRadius: '8px',
-              border: '1px solid rgba(6, 182, 212, 0.3)',
-              background: 'rgba(6, 182, 212, 0.08)',
-              color: '#06b6d4',
+              border: "1px solid rgba(61,100,114, 0.3)",
+              background: "rgba(61,100,114, 0.08)",
+              color: "var(--studio-blue)",
               cursor: 'pointer',
               fontSize: '0.75rem',
               fontWeight: '600'
@@ -626,7 +626,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               borderRadius: '8px',
               border: '1px solid rgba(239, 68, 68, 0.3)',
               background: 'rgba(239, 68, 68, 0.08)',
-              color: '#ef4444',
+              color: "var(--studio-danger)",
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center'
@@ -669,9 +669,9 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
             maxWidth: '900px',
             width: '100%',
             maxHeight: '90vh',
-            background: 'rgba(20,20,25,0.98)',
+            background: "var(--studio-surface)",
             borderRadius: '16px',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column'
@@ -683,7 +683,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: '14px 18px',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            borderBottom: "1px solid rgba(var(--studio-ink-rgb), 0.06)",
             gap: '12px'
           }}>
             {isEditing ? (
@@ -697,7 +697,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
                   onChange={(e) => setRenaming(prev => ({ ...prev, name: e.target.value }))}
                   style={{
                     flex: 1, padding: '6px 10px', borderRadius: '8px',
-                    border: '1px solid rgba(139,92,246,0.4)', background: 'rgba(0,0,0,0.3)',
+                    border: "1px solid rgba(163,66,41, 0.4)", background: "var(--studio-surface-alt)",
                     color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none'
                   }}
                   onKeyDown={(e) => { if (e.key === 'Escape') setRenaming(null); }}
@@ -707,8 +707,8 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
                   disabled={renameSaving}
                   style={{
                     padding: '6px 12px', borderRadius: '8px',
-                    border: '1px solid rgba(34,197,94,0.4)',
-                    background: 'rgba(34,197,94,0.1)', color: '#22c55e',
+                    border: "1px solid rgba(86,105,84, 0.4)",
+                    background: "rgba(86,105,84, 0.1)", color: "var(--studio-sage)",
                     cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
                     fontSize: '0.8rem', fontWeight: '600'
                   }}
@@ -721,8 +721,8 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
                   onClick={() => setRenaming(null)}
                   style={{
                     padding: '6px 10px', borderRadius: '8px',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)',
+                    border: "1px solid rgba(var(--studio-ink-rgb), 0.15)",
+                    background: "rgba(var(--studio-ink-rgb), 0.05)", color: 'var(--text-secondary)',
                     cursor: 'pointer', fontSize: '0.8rem'
                   }}
                 >
@@ -754,8 +754,8 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               onClick={() => { setPreviewItem(null); setRenaming(null); }}
               style={{
                 padding: '6px', borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.15)',
-                background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)',
+                border: "1px solid rgba(var(--studio-ink-rgb), 0.15)",
+                background: "rgba(var(--studio-ink-rgb), 0.05)", color: 'var(--text-primary)',
                 cursor: 'pointer', flexShrink: 0
               }}
             >
@@ -789,7 +789,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
             )}
             {isAudio && (
               <div style={{ width: '100%', textAlign: 'center' }}>
-                <Music size={48} color="#8b5cf6" style={{ marginBottom: '16px' }} />
+                <Music size={48} color="var(--studio-accent)" style={{ marginBottom: '16px' }} />
                 <audio src={item.url} controls style={{ width: '100%', maxWidth: '500px' }} />
                 <div style={{ marginTop: '12px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
                   {item.fileName} {item.size ? `• ${formatFileSize(item.size)}` : ''}
@@ -801,7 +801,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
           {/* Action bar */}
           <div style={{
             padding: '12px 18px',
-            borderTop: '1px solid rgba(255,255,255,0.06)',
+            borderTop: "1px solid rgba(var(--studio-ink-rgb), 0.06)",
             display: 'flex',
             gap: '8px',
             flexWrap: 'wrap',
@@ -813,8 +813,8 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
                 onClick={() => { onUseAsset(item); setPreviewItem(null); }}
                 style={{
                   padding: '10px 18px', borderRadius: '10px',
-                  border: '1px solid rgba(139,92,246,0.4)',
-                  background: 'rgba(139,92,246,0.12)', color: '#a78bfa',
+                  border: "1px solid rgba(163,66,41, 0.4)",
+                  background: "rgba(163,66,41, 0.12)", color: "var(--studio-accent)",
                   cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
                   display: 'flex', alignItems: 'center', gap: '6px'
                 }}
@@ -829,8 +829,8 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
                 download={item.fileName}
                 style={{
                   padding: '10px 18px', borderRadius: '10px',
-                  border: '1px solid rgba(59,130,246,0.4)',
-                  background: 'rgba(59,130,246,0.1)', color: '#3b82f6',
+                  border: "1px solid rgba(61,100,114, 0.4)",
+                  background: "rgba(61,100,114, 0.1)", color: "var(--studio-blue)",
                   cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
                   display: 'flex', alignItems: 'center', gap: '6px',
                   textDecoration: 'none'
@@ -845,7 +845,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               style={{
                 padding: '10px 18px', borderRadius: '10px',
                 border: '1px solid rgba(245,158,11,0.4)',
-                background: 'rgba(245,158,11,0.1)', color: '#f59e0b',
+                background: 'rgba(245,158,11,0.1)', color: "var(--studio-warning)",
                 cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
                 display: 'flex', alignItems: 'center', gap: '6px'
               }}
@@ -861,7 +861,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               style={{
                 padding: '10px 18px', borderRadius: '10px',
                 border: '1px solid rgba(239,68,68,0.4)',
-                background: 'rgba(239,68,68,0.1)', color: '#ef4444',
+                background: 'rgba(239,68,68,0.1)', color: "var(--studio-danger)",
                 cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
                 display: 'flex', alignItems: 'center', gap: '6px'
               }}
@@ -903,7 +903,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
             textAlign: 'center'
           }}
         >
-          <AlertCircle size={40} color="#ef4444" style={{ marginBottom: '12px' }} />
+          <AlertCircle size={40} color="var(--studio-danger)" style={{ marginBottom: '12px' }} />
           <h3 style={{ marginBottom: '8px' }}>Delete {deleteConfirm.type === 'voice' ? 'Voice' : 'Asset'}?</h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '20px' }}>
             "{deleteConfirm.name}" will be permanently deleted. This cannot be undone.
@@ -933,7 +933,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
                 borderRadius: '10px',
                 border: '1px solid rgba(239, 68, 68, 0.5)',
                 background: 'rgba(239, 68, 68, 0.15)',
-                color: '#ef4444',
+                color: "var(--studio-danger)",
                 cursor: 'pointer',
                 fontSize: '0.9rem',
                 fontWeight: '600'
@@ -966,7 +966,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               padding: '12px 24px', borderRadius: '12px',
               border: '1px solid rgba(244, 114, 182, 0.4)',
               background: 'rgba(244, 114, 182, 0.12)',
-              color: '#f472b6', cursor: 'pointer',
+              color: "var(--studio-accent)", cursor: 'pointer',
               fontSize: '0.9rem', fontWeight: '600'
             }}
           >
@@ -1023,7 +1023,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
                 padding: '10px 20px', borderRadius: '12px',
                 border: '1px solid rgba(244, 114, 182, 0.4)',
                 background: 'rgba(244, 114, 182, 0.12)',
-                color: '#f472b6', cursor: 'pointer',
+                color: "var(--studio-accent)", cursor: 'pointer',
                 fontSize: '0.85rem', fontWeight: '600'
               }}
             >
@@ -1037,9 +1037,9 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
                 padding: '10px 20px', borderRadius: '12px',
-                border: '1px solid rgba(139, 92, 246, 0.4)',
-                background: 'rgba(139, 92, 246, 0.12)',
-                color: '#a78bfa', cursor: 'pointer',
+                border: "1px solid rgba(163,66,41, 0.4)",
+                background: "rgba(163,66,41, 0.12)",
+                color: "var(--studio-accent)", cursor: 'pointer',
                 fontSize: '0.85rem', fontWeight: '600'
               }}
             >
@@ -1151,7 +1151,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               <>
                 <h3 style={{
                   fontSize: '0.85rem',
-                  color: '#f472b6',
+                  color: "var(--studio-accent)",
                   marginBottom: '12px',
                   display: 'flex',
                   alignItems: 'center',
@@ -1179,7 +1179,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               <>
                 <h3 style={{
                   fontSize: '0.85rem',
-                  color: '#8b5cf6',
+                  color: "var(--studio-accent)",
                   marginBottom: '12px',
                   display: 'flex',
                   alignItems: 'center',
@@ -1248,7 +1248,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
           padding: '20px'
         }} onClick={() => !cloning && setCloneModalOpen(false)}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: 'var(--card-bg, #1a1a2e)', border: '1px solid rgba(244,114,182,0.3)',
+            background: "var(--card-bg, var(--studio-surface))", border: '1px solid rgba(244,114,182,0.3)',
             borderRadius: '16px', padding: '28px', maxWidth: '440px', width: '100%'
           }}>
             <h3 style={{ margin: '0 0 4px', fontSize: '1.1rem' }}>Clone Your Voice</h3>
@@ -1265,7 +1265,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
               placeholder="My Voice"
               style={{
                 width: '100%', padding: '10px 12px', borderRadius: '10px',
-                border: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.3)',
+                border: '1px solid var(--border-color)', background: "var(--studio-surface-alt)",
                 color: 'var(--text-primary)', fontSize: '0.9rem', marginBottom: '16px',
                 boxSizing: 'border-box', outline: 'none'
               }}
@@ -1281,12 +1281,12 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
                 padding: '8px 12px', borderRadius: '8px', marginBottom: '6px',
                 background: 'rgba(244,114,182,0.08)', border: '1px solid rgba(244,114,182,0.2)'
               }}>
-                <Music size={14} color="#f472b6" />
+                <Music size={14} color="var(--studio-accent)" />
                 <span style={{ flex: 1, fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {file.name}
                 </span>
                 <button onClick={() => setCloneSamples(prev => prev.filter((_, j) => j !== i))}
-                  style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px' }}>
+                  style={{ background: 'none', border: 'none', color: "var(--studio-danger)", cursor: 'pointer', padding: '2px' }}>
                   <X size={14} />
                 </button>
               </div>
@@ -1298,7 +1298,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
                 style={{
                   width: '100%', padding: '12px', borderRadius: '10px',
                   border: '1px dashed rgba(244,114,182,0.3)', background: 'transparent',
-                  color: '#f472b6', cursor: 'pointer', fontSize: '0.85rem',
+                  color: "var(--studio-accent)", cursor: 'pointer', fontSize: '0.85rem',
                   marginBottom: '20px', display: 'flex', alignItems: 'center',
                   justifyContent: 'center', gap: '8px'
                 }}
@@ -1326,7 +1326,7 @@ export default function MediaLibrary({ user, authToken, isMobile, toast, onUseAs
                   flex: 1, padding: '12px', borderRadius: '10px',
                   border: '1px solid rgba(244,114,182,0.5)',
                   background: cloneSamples.length ? 'rgba(244,114,182,0.15)' : 'rgba(244,114,182,0.05)',
-                  color: cloneSamples.length ? '#f472b6' : 'rgba(244,114,182,0.4)',
+                  color: cloneSamples.length ? "var(--studio-accent)" : 'rgba(244,114,182,0.4)',
                   cursor: cloning || !cloneSamples.length ? 'not-allowed' : 'pointer',
                   fontSize: '0.9rem', fontWeight: '600',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'

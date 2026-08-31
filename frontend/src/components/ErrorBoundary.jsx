@@ -93,8 +93,8 @@ class ErrorBoundary extends React.Component {
           justifyContent: 'center',
           minHeight: '100vh',
           padding: '40px 20px',
-          background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-          color: '#fff',
+          background: "linear-gradient(135deg, var(--studio-surface) 0%, var(--studio-surface) 100%)",
+          color: "var(--studio-inverse)",
           textAlign: 'center',
           fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
         }}>
@@ -110,7 +110,7 @@ class ErrorBoundary extends React.Component {
             marginBottom: '24px',
             border: '2px solid rgba(239, 68, 68, 0.3)',
           }}>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--studio-danger)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>
           </div>
@@ -120,7 +120,7 @@ class ErrorBoundary extends React.Component {
             fontSize: '28px',
             fontWeight: '700',
             marginBottom: '12px',
-            background: 'linear-gradient(90deg, #ff4d4d, #f97316)',
+            background: "linear-gradient(90deg, #ff4d4d, var(--studio-warning))",
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}>
@@ -129,7 +129,7 @@ class ErrorBoundary extends React.Component {
           
           <p style={{
             fontSize: '16px',
-            color: 'rgba(255, 255, 255, 0.7)',
+            color: "var(--studio-muted)",
             maxWidth: '430px',
             lineHeight: '1.6',
             marginBottom: '32px',
@@ -146,8 +146,8 @@ class ErrorBoundary extends React.Component {
                 padding: '12px 24px',
                 fontSize: '14px',
                 fontWeight: '600',
-                color: '#fff',
-                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                color: "var(--studio-inverse)",
+                background: "linear-gradient(135deg, var(--studio-blue) 0%, var(--studio-accent) 100%)",
                 border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',
@@ -155,7 +155,7 @@ class ErrorBoundary extends React.Component {
               }}
               onMouseOver={(e) => {
                 e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.4)';
+                e.target.style.boxShadow = "0 4px 12px rgba(61,100,114, 0.4)";
               }}
               onMouseOut={(e) => {
                 e.target.style.transform = 'translateY(0)';
@@ -171,15 +171,15 @@ class ErrorBoundary extends React.Component {
                 padding: '12px 24px',
                 fontSize: '14px',
                 fontWeight: '600',
-                color: 'rgba(255, 255, 255, 0.8)',
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: "var(--studio-ink)",
+                background: "rgba(var(--studio-ink-rgb), 0.1)",
+                border: "1px solid rgba(var(--studio-ink-rgb), 0.16)",
                 borderRadius: '8px',
                 cursor: 'pointer',
                 transition: 'background 0.2s',
               }}
-              onMouseOver={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.15)'}
-              onMouseOut={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
+              onMouseOver={(e) => e.target.style.background = "rgba(var(--studio-ink-rgb), 0.15)"}
+              onMouseOut={(e) => e.target.style.background = "rgba(var(--studio-ink-rgb), 0.1)"}
             >
               Refresh Page
             </button>
@@ -191,11 +191,11 @@ class ErrorBoundary extends React.Component {
               <button
                 onClick={() => this.setState(prev => ({ showDetails: !prev.showDetails }))}
                 style={{
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: "var(--studio-surface-alt)",
+                  border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                   borderRadius: '8px',
                   padding: '10px 16px',
-                  color: 'rgba(255, 255, 255, 0.5)',
+                  color: "var(--studio-muted)",
                   fontSize: '12px',
                   cursor: 'pointer',
                   width: '100%',
@@ -212,13 +212,13 @@ class ErrorBoundary extends React.Component {
                 <div style={{
                   marginTop: '8px',
                   padding: '16px',
-                  background: 'rgba(0, 0, 0, 0.3)',
+                  background: "var(--studio-surface-alt)",
                   borderRadius: '8px',
                   textAlign: 'left',
                 }}>
                   <div style={{ 
                     fontSize: '12px', 
-                    color: '#f87171', 
+                    color: "var(--studio-danger)",
                     marginBottom: '12px',
                     padding: '8px 12px',
                     background: 'rgba(248, 113, 113, 0.1)',
@@ -227,7 +227,7 @@ class ErrorBoundary extends React.Component {
                   }}>
                     {this.state.error.toString()}
                   </div>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '11px', color: "var(--studio-muted)", marginBottom: '8px' }}>
                     Location: {this.extractCrashLocation(this.state.error?.stack)}
                   </div>
                   <button
@@ -239,8 +239,8 @@ class ErrorBoundary extends React.Component {
                     style={{
                       padding: '6px 12px',
                       fontSize: '11px',
-                      background: 'rgba(99, 102, 241, 0.2)',
-                      border: '1px solid rgba(99, 102, 241, 0.3)',
+                      background: "rgba(61,100,114, 0.2)",
+                      border: "1px solid rgba(61,100,114, 0.3)",
                       borderRadius: '6px',
                       color: '#a5b4fc',
                       cursor: 'pointer'

@@ -28,7 +28,7 @@ const DEFAULT_TEXT = {
   y: 85,
   fontSize: 48,
   fontFamily: 'Impact',
-  color: '#FFFFFF',
+  color: "var(--studio-ink)",
   strokeColor: '#000000',
   strokeWidth: 2,
   bold: false,
@@ -277,10 +277,10 @@ export default function CoverArtEditor({ imageUrl, onSave, onClose, songTitle, a
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: isMobile ? '8px 12px' : '12px 20px',
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
+        borderBottom: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
         flexShrink: 0,
       }}>
-        <h3 style={{ margin: 0, fontSize: isMobile ? '1rem' : '1.1rem', color: 'white', fontWeight: 700 }}>
+        <h3 style={{ margin: 0, fontSize: isMobile ? '1rem' : '1.1rem', color: "var(--studio-ink)", fontWeight: 700 }}>
           Cover Art Editor
         </h3>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -292,16 +292,16 @@ export default function CoverArtEditor({ imageUrl, onSave, onClose, songTitle, a
           </button>
           <button onClick={handleSave} style={{
             ...toolBtnStyle,
-            background: 'rgba(34,197,94,0.2)',
-            border: '1px solid rgba(34,197,94,0.5)',
-            color: '#22c55e',
+            background: "rgba(86,105,84, 0.2)",
+            border: "1px solid rgba(86,105,84, 0.5)",
+            color: "var(--studio-sage)",
             fontWeight: 700,
             padding: '8px 16px',
             gap: '6px',
           }}>
             <Check size={16} /> Save
           </button>
-          <button onClick={onClose} style={{ ...toolBtnStyle, color: '#ef4444' }}>
+          <button onClick={onClose} style={{ ...toolBtnStyle, color: "var(--studio-danger)" }}>
             <X size={18} />
           </button>
         </div>
@@ -346,8 +346,8 @@ export default function CoverArtEditor({ imageUrl, onSave, onClose, songTitle, a
         <div style={{
           width: isMobile ? '100%' : '340px',
           flexShrink: 0,
-          borderLeft: isMobile ? 'none' : '1px solid rgba(255,255,255,0.1)',
-          borderTop: isMobile ? '1px solid rgba(255,255,255,0.1)' : 'none',
+          borderLeft: isMobile ? 'none' : "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+          borderTop: isMobile ? "1px solid rgba(var(--studio-ink-rgb), 0.1)" : 'none',
           overflow: 'auto',
           padding: isMobile ? '10px' : '16px',
           display: 'flex',
@@ -366,10 +366,10 @@ export default function CoverArtEditor({ imageUrl, onSave, onClose, songTitle, a
                   padding: '5px 10px',
                   borderRadius: '6px',
                   border: activeFilter === ps.filter
-                    ? '1px solid rgba(139,92,246,0.6)'
-                    : '1px solid rgba(255,255,255,0.1)',
-                  background: activeFilter === ps.filter ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.05)',
-                  color: activeFilter === ps.filter ? '#a78bfa' : 'rgba(255,255,255,0.7)',
+                    ? "1px solid rgba(163,66,41, 0.6)"
+                    : "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+                  background: activeFilter === ps.filter ? "rgba(163,66,41, 0.15)" : "rgba(var(--studio-ink-rgb), 0.05)",
+                  color: activeFilter === ps.filter ? "var(--studio-accent)" : "var(--studio-muted)",
                   fontSize: '0.72rem',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -404,15 +404,15 @@ export default function CoverArtEditor({ imageUrl, onSave, onClose, songTitle, a
                 style={{
                   padding: '8px 10px',
                   borderRadius: '8px',
-                  background: idx === selectedLayerIdx ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.03)',
-                  border: idx === selectedLayerIdx ? '1px solid rgba(139,92,246,0.4)' : '1px solid rgba(255,255,255,0.06)',
+                  background: idx === selectedLayerIdx ? "rgba(163,66,41, 0.12)" : "rgba(var(--studio-ink-rgb), 0.03)",
+                  border: idx === selectedLayerIdx ? "1px solid rgba(163,66,41, 0.4)" : "1px solid rgba(var(--studio-ink-rgb), 0.06)",
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                 }}
               >
-                <span style={{ fontSize: '0.8rem', color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                <span style={{ fontSize: '0.8rem', color: "var(--studio-ink)", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                   <Type size={12} style={{ marginRight: 6, opacity: 0.5 }} />
                   {layer.text || '(empty)'}
                 </span>
@@ -509,7 +509,7 @@ export default function CoverArtEditor({ imageUrl, onSave, onClose, songTitle, a
                 ))}
               </div>
               <SliderControl label="Opacity" value={Math.round(selectedLayer.opacity * 100)} onChange={(v) => updateLayer(selectedLayerIdx, { opacity: v / 100 })} min={0} max={100} />
-              <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', margin: 0 }}>
+              <p style={{ fontSize: '0.65rem', color: "var(--studio-muted)", margin: 0 }}>
                 <Move size={10} style={{ marginRight: 4 }} />
                 Drag text on the canvas to reposition
               </p>
@@ -526,11 +526,11 @@ export default function CoverArtEditor({ imageUrl, onSave, onClose, songTitle, a
 function SectionHeader({ title, action, onAction }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: "var(--studio-ink)", textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         {title}
       </span>
       {action && (
-        <button onClick={onAction} style={{ background: 'none', border: 'none', color: '#a78bfa', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}>
+        <button onClick={onAction} style={{ background: 'none', border: 'none', color: "var(--studio-accent)", cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}>
           {action}
         </button>
       )}
@@ -541,7 +541,7 @@ function SectionHeader({ title, action, onAction }) {
 function SliderControl({ label, value, onChange, min = 0, max = 100 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', minWidth: '70px' }}>{label}</span>
+      <span style={{ fontSize: '0.72rem', color: "var(--studio-muted)", minWidth: '70px' }}>{label}</span>
       <input
         type="range"
         min={min}
@@ -550,7 +550,7 @@ function SliderControl({ label, value, onChange, min = 0, max = 100 }) {
         onChange={(e) => onChange(Number(e.target.value))}
         style={{ flex: 1, accentColor: '#8b5cf6' }}
       />
-      <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.5)', minWidth: '30px', textAlign: 'right' }}>
+      <span style={{ fontSize: '0.68rem', color: "var(--studio-muted)", minWidth: '30px', textAlign: 'right' }}>
         {value}
       </span>
     </div>
@@ -562,9 +562,9 @@ function SliderControl({ label, value, onChange, min = 0, max = 100 }) {
 const toolBtnStyle = {
   padding: '8px 12px',
   borderRadius: '8px',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.12)',
-  color: 'white',
+  background: "rgba(var(--studio-ink-rgb), 0.06)",
+  border: "1px solid rgba(var(--studio-ink-rgb), 0.12)",
+  color: "var(--studio-ink)",
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
@@ -576,9 +576,9 @@ const toolBtnStyle = {
 const inputStyle = {
   padding: '7px 10px',
   borderRadius: '6px',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.12)',
-  color: 'white',
+  background: "rgba(var(--studio-ink-rgb), 0.06)",
+  border: "1px solid rgba(var(--studio-ink-rgb), 0.12)",
+  color: "var(--studio-ink)",
   fontSize: '0.82rem',
   outline: 'none',
 };
@@ -588,7 +588,7 @@ const colorLabelStyle = {
   alignItems: 'center',
   gap: '4px',
   fontSize: '0.72rem',
-  color: 'rgba(255,255,255,0.6)',
+  color: "var(--studio-muted)",
   cursor: 'pointer',
 };
 
@@ -605,9 +605,9 @@ const colorInputStyle = {
 const toggleBtnStyle = {
   padding: '6px 8px',
   borderRadius: '6px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.1)',
-  color: 'rgba(255,255,255,0.6)',
+  background: "rgba(var(--studio-ink-rgb), 0.05)",
+  border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+  color: "var(--studio-muted)",
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
@@ -615,7 +615,7 @@ const toggleBtnStyle = {
 };
 
 const activeBtnStyle = {
-  background: 'rgba(139,92,246,0.15)',
-  border: '1px solid rgba(139,92,246,0.4)',
-  color: '#a78bfa',
+  background: "rgba(163,66,41, 0.15)",
+  border: "1px solid rgba(163,66,41, 0.4)",
+  color: "var(--studio-accent)",
 };

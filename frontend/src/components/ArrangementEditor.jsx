@@ -11,14 +11,14 @@ import {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const SECTION_TYPES = [
-  { type: 'intro', label: 'Intro', color: '#22d3ee', defaultBars: 4, icon: '🎬' },
-  { type: 'verse', label: 'Verse', color: '#a78bfa', defaultBars: 16, icon: '📝' },
-  { type: 'pre-chorus', label: 'Pre-Chorus', color: '#f59e0b', defaultBars: 4, icon: '⚡' },
-  { type: 'chorus', label: 'Chorus', color: '#ec4899', defaultBars: 8, icon: '🔥' },
+  { type: 'intro', label: 'Intro', color: "var(--studio-blue)", defaultBars: 4, icon: '🎬' },
+  { type: 'verse', label: 'Verse', color: "var(--studio-accent)", defaultBars: 16, icon: '📝' },
+  { type: 'pre-chorus', label: 'Pre-Chorus', color: "var(--studio-warning)", defaultBars: 4, icon: '⚡' },
+  { type: 'chorus', label: 'Chorus', color: "var(--studio-accent)", defaultBars: 8, icon: '🔥' },
   { type: 'bridge', label: 'Bridge', color: '#14b8a6', defaultBars: 8, icon: '🌉' },
-  { type: 'breakdown', label: 'Breakdown', color: '#6366f1', defaultBars: 8, icon: '💫' },
-  { type: 'drop', label: 'Drop', color: '#ef4444', defaultBars: 8, icon: '🎯' },
-  { type: 'outro', label: 'Outro', color: '#64748b', defaultBars: 4, icon: '🏁' },
+  { type: 'breakdown', label: 'Breakdown', color: "var(--studio-blue)", defaultBars: 8, icon: '💫' },
+  { type: 'drop', label: 'Drop', color: "var(--studio-danger)", defaultBars: 8, icon: '🎯' },
+  { type: 'outro', label: 'Outro', color: "var(--studio-muted)", defaultBars: 4, icon: '🏁' },
 ];
 
 const GENRE_ARRANGEMENTS = {
@@ -237,10 +237,10 @@ export default function ArrangementEditor({
 
   return (
     <div style={{
-      background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.8))',
+      background: "linear-gradient(135deg, var(--studio-surface), var(--studio-surface))",
       borderRadius: '16px',
       padding: isMobile ? '14px' : '20px',
-      border: '1px solid rgba(255,255,255,0.1)',
+      border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
       marginBottom: '24px'
     }}>
       {/* Header */}
@@ -257,19 +257,19 @@ export default function ArrangementEditor({
             width: '32px',
             height: '32px',
             borderRadius: '8px',
-            background: 'rgba(139, 92, 246, 0.2)',
+            background: "rgba(163,66,41, 0.2)",
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1px solid rgba(139, 92, 246, 0.3)'
+            border: "1px solid rgba(163,66,41, 0.3)"
           }}>
-            <Layers size={16} color="#a78bfa" />
+            <Layers size={16} color="var(--studio-accent)" />
           </div>
           <div>
-            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700', color: 'white' }}>
+            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700', color: "var(--studio-ink)" }}>
               Song Arrangement
             </h4>
-            <p style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
+            <p style={{ margin: 0, fontSize: '0.7rem', color: "var(--studio-muted)" }}>
               Build your song structure visually
             </p>
           </div>
@@ -283,11 +283,11 @@ export default function ArrangementEditor({
             gap: '4px',
             padding: '4px 10px',
             borderRadius: '8px',
-            background: 'rgba(139, 92, 246, 0.1)',
-            border: '1px solid rgba(139, 92, 246, 0.2)',
+            background: "rgba(163,66,41, 0.1)",
+            border: "1px solid rgba(163,66,41, 0.2)",
             fontSize: '0.75rem',
             fontWeight: '700',
-            color: '#a78bfa'
+            color: "var(--studio-accent)"
           }}>
             <Music size={12} />
             {totalBars} bars
@@ -302,7 +302,7 @@ export default function ArrangementEditor({
             border: '1px solid rgba(34, 211, 238, 0.2)',
             fontSize: '0.75rem',
             fontWeight: '700',
-            color: '#22d3ee'
+            color: "var(--studio-blue)"
           }}>
             <Clock size={12} />
             {formatTime(totalSeconds)}
@@ -317,8 +317,8 @@ export default function ArrangementEditor({
         borderRadius: '6px',
         overflow: 'hidden',
         marginBottom: '16px',
-        border: '1px solid rgba(255,255,255,0.1)',
-        background: 'rgba(0,0,0,0.3)'
+        border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+        background: "var(--studio-surface-alt)"
       }}>
         {sections.map(section => (
           <div
@@ -364,7 +364,7 @@ export default function ArrangementEditor({
               gap: '8px',
               padding: '8px 10px',
               borderRadius: '10px',
-              background: 'rgba(0,0,0,0.25)',
+              background: "var(--studio-surface-alt)",
               border: `1px solid ${section.color}30`,
               transition: 'all 0.15s ease'
             }}
@@ -373,7 +373,7 @@ export default function ArrangementEditor({
             <span style={{
               fontSize: '0.65rem',
               fontWeight: '600',
-              color: 'rgba(255,255,255,0.3)',
+              color: "var(--studio-muted)",
               width: '16px',
               textAlign: 'center',
               flexShrink: 0
@@ -407,7 +407,7 @@ export default function ArrangementEditor({
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
-              background: 'rgba(0,0,0,0.3)',
+              background: "var(--studio-surface-alt)",
               borderRadius: '6px',
               padding: '2px 4px',
               flexShrink: 0
@@ -418,7 +418,7 @@ export default function ArrangementEditor({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: section.bars <= 2 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.5)',
+                  color: section.bars <= 2 ? "var(--studio-muted)" : "var(--studio-muted)",
                   cursor: section.bars <= 2 ? 'default' : 'pointer',
                   padding: '2px',
                   display: 'flex',
@@ -430,7 +430,7 @@ export default function ArrangementEditor({
               <span style={{
                 fontSize: '0.75rem',
                 fontWeight: '700',
-                color: 'white',
+                color: "var(--studio-ink)",
                 minWidth: '28px',
                 textAlign: 'center'
               }}>
@@ -442,7 +442,7 @@ export default function ArrangementEditor({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: section.bars >= 64 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.5)',
+                  color: section.bars >= 64 ? "var(--studio-muted)" : "var(--studio-muted)",
                   cursor: section.bars >= 64 ? 'default' : 'pointer',
                   padding: '2px',
                   display: 'flex',
@@ -453,7 +453,7 @@ export default function ArrangementEditor({
               </button>
               <span style={{
                 fontSize: '0.6rem',
-                color: 'rgba(255,255,255,0.35)',
+                color: "var(--studio-muted)",
                 marginLeft: '2px'
               }}>bars</span>
             </div>
@@ -461,7 +461,7 @@ export default function ArrangementEditor({
             {/* Duration display */}
             <span style={{
               fontSize: '0.65rem',
-              color: 'rgba(255,255,255,0.3)',
+              color: "var(--studio-muted)",
               width: '35px',
               textAlign: 'right',
               flexShrink: 0
@@ -477,7 +477,7 @@ export default function ArrangementEditor({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: idx === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.3)',
+                  color: idx === 0 ? "var(--studio-muted)" : "var(--studio-muted)",
                   cursor: idx === 0 ? 'default' : 'pointer',
                   padding: '3px',
                   display: 'flex'
@@ -492,7 +492,7 @@ export default function ArrangementEditor({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: idx === sections.length - 1 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.3)',
+                  color: idx === sections.length - 1 ? "var(--studio-muted)" : "var(--studio-muted)",
                   cursor: idx === sections.length - 1 ? 'default' : 'pointer',
                   padding: '3px',
                   display: 'flex'
@@ -506,7 +506,7 @@ export default function ArrangementEditor({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: 'rgba(255,255,255,0.3)',
+                  color: "var(--studio-muted)",
                   cursor: 'pointer',
                   padding: '3px',
                   display: 'flex'
@@ -537,7 +537,7 @@ export default function ArrangementEditor({
           <div style={{
             textAlign: 'center',
             padding: '24px',
-            color: 'rgba(255,255,255,0.3)',
+            color: "var(--studio-muted)",
             fontSize: '0.85rem',
             fontStyle: 'italic'
           }}>
@@ -560,9 +560,9 @@ export default function ArrangementEditor({
             style={{
               padding: '8px 14px',
               borderRadius: '10px',
-              background: 'rgba(139, 92, 246, 0.15)',
-              border: '1px solid rgba(139, 92, 246, 0.3)',
-              color: '#a78bfa',
+              background: "rgba(163,66,41, 0.15)",
+              border: "1px solid rgba(163,66,41, 0.3)",
+              color: "var(--studio-accent)",
               fontWeight: '600',
               fontSize: '0.8rem',
               cursor: 'pointer',
@@ -580,9 +580,9 @@ export default function ArrangementEditor({
               position: 'absolute',
               bottom: '110%',
               left: 0,
-              background: 'rgba(15, 23, 42, 0.98)',
+              background: "var(--studio-surface)",
               borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.15)',
+              border: "1px solid rgba(var(--studio-ink-rgb), 0.15)",
               padding: '8px',
               zIndex: 100,
               display: 'grid',
@@ -626,9 +626,9 @@ export default function ArrangementEditor({
               style={{
                 padding: '5px 10px',
                 borderRadius: '8px',
-                background: genre.toLowerCase().includes(g.toLowerCase()) ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${genre.toLowerCase().includes(g.toLowerCase()) ? 'rgba(99, 102, 241, 0.4)' : 'rgba(255,255,255,0.08)'}`,
-                color: genre.toLowerCase().includes(g.toLowerCase()) ? '#818cf8' : 'rgba(255,255,255,0.4)',
+                background: genre.toLowerCase().includes(g.toLowerCase()) ? "rgba(61,100,114, 0.2)" : "rgba(var(--studio-ink-rgb), 0.04)",
+                border: `1px solid ${genre.toLowerCase().includes(g.toLowerCase()) ? "rgba(61,100,114, 0.4)" : "rgba(var(--studio-ink-rgb), 0.08)"}`,
+                color: genre.toLowerCase().includes(g.toLowerCase()) ? "var(--studio-blue)" : "var(--studio-muted)",
                 fontSize: '0.65rem',
                 fontWeight: '600',
                 cursor: 'pointer',
@@ -645,9 +645,9 @@ export default function ArrangementEditor({
         <button
           onClick={shuffleSections}
           style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            color: 'rgba(255,255,255,0.4)',
+            background: "rgba(var(--studio-ink-rgb), 0.04)",
+            border: "1px solid rgba(var(--studio-ink-rgb), 0.08)",
+            color: "var(--studio-muted)",
             borderRadius: '8px',
             padding: '6px',
             cursor: 'pointer',
@@ -660,9 +660,9 @@ export default function ArrangementEditor({
         <button
           onClick={() => loadGenrePreset(genre)}
           style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            color: 'rgba(255,255,255,0.4)',
+            background: "rgba(var(--studio-ink-rgb), 0.04)",
+            border: "1px solid rgba(var(--studio-ink-rgb), 0.08)",
+            color: "var(--studio-muted)",
             borderRadius: '8px',
             padding: '6px',
             cursor: 'pointer',

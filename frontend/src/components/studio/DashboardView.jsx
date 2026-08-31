@@ -68,7 +68,7 @@ const DashboardView = ({
 }) => {
   const creditDisplay = isAdmin ? 'Unlimited' : userCredits;
   return (
-    <div className="studio-dashboard animate-fadeInUp">
+    <div className="studio-dashboard animate-fadeInUp" style={{ color: 'var(--studio-ink)', background: 'var(--studio-bg)' }}>
       <div className="dashboard-sidebar-layout">
         {/* Dashboard Sidebar */}
         <div className="dashboard-sidebar">
@@ -86,12 +86,12 @@ const DashboardView = ({
                   height: '8px',
                   borderRadius: '50%',
                   backgroundColor: systemStatus.status === 'configured'
-                    ? 'var(--color-amber, #f59e0b)'
+                    ? 'var(--color-amber, #876238)'
                     : systemStatus.status === 'checking'
                       ? 'var(--color-slate, #64748b)'
                       : 'var(--color-red)',
                   boxShadow: systemStatus.status === 'configured'
-                    ? '0 0 8px var(--color-amber, #f59e0b)'
+                    ? '0 0 8px var(--color-amber, #876238)'
                     : systemStatus.status === 'checking'
                       ? 'none'
                       : '0 0 8px var(--color-red)'
@@ -129,7 +129,7 @@ const DashboardView = ({
               <button
                 className={`sidebar-link ${dashboardTab === 'admin' ? 'active' : ''}`}
                 onClick={() => setDashboardTab('admin')}
-                style={{ color: 'var(--color-emerald)' }}
+                style={{ color: 'var(--studio-sage)' }}
               >
                 <Activity size={18} /> Admin Analytics
               </button>
@@ -139,14 +139,14 @@ const DashboardView = ({
           {isLoggedIn && (
             <div style={{ marginTop: 'auto', padding: '16px', borderTop: '1px solid var(--glass-border)' }}>
               <div style={{
-                background: 'rgba(250, 204, 21, 0.05)',
-                border: '1px solid rgba(250, 204, 21, 0.1)',
+                background: 'rgba(135, 98, 56, 0.05)',
+                border: '1px solid rgba(135, 98, 56, 0.1)',
                 borderRadius: '12px',
                 padding: '12px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Credits</span>
-                  <span style={{ fontSize: '0.875rem', color: '#facc15', fontWeight: '800' }}>{creditDisplay}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--studio-muted)' }}>Credits</span>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--studio-warning)', fontWeight: '800' }}>{creditDisplay}</span>
                 </div>
                 <button
                   disabled={isAdmin || !WEB_CHECKOUT_ENABLED}
@@ -155,8 +155,8 @@ const DashboardView = ({
                     width: '100%',
                     padding: '8px',
                     borderRadius: '8px',
-                    background: '#eab308',
-                    color: '#000',
+                    background: 'var(--studio-warning)',
+                    color: 'var(--studio-on-accent)',
                     border: 'none',
                     fontSize: '0.75rem',
                     fontWeight: '700',
@@ -182,12 +182,12 @@ const DashboardView = ({
               {/* Artist Profile & Command Center */}
               <div className="artist-profile-header animate-fadeIn" style={{
                 order: 1,
-                background: 'linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%)',
+                background: 'linear-gradient(135deg, var(--studio-surface) 0%, var(--studio-surface-alt) 100%)',
                 borderRadius: '24px',
                 padding: '24px',
                 marginBottom: '24px',
-                border: '1px solid var(--border-color)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                border: '1px solid var(--studio-border)',
+                boxShadow: 'var(--studio-shadow)',
                 position: 'relative'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '32px' }}>
@@ -197,15 +197,15 @@ const DashboardView = ({
                         width: '96px',
                         height: '96px',
                         borderRadius: '50%',
-                        background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                        background: 'linear-gradient(135deg, var(--studio-accent), var(--studio-sage))',
                         padding: '3px',
-                        boxShadow: '0 8px 16px rgba(168, 85, 247, 0.4)'
+                        boxShadow: 'var(--studio-shadow)'
                       }}>
                         <div style={{
                           width: '100%',
                           height: '100%',
                           borderRadius: '50%',
-                          background: 'var(--color-bg-primary)',
+                          background: 'var(--studio-bg)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -214,7 +214,7 @@ const DashboardView = ({
                           {user?.photoURL ? (
                             <img src={user.photoURL} alt="Profile" loading="lazy" style={{width: '100%', height: '100%', objectFit: 'cover'}} />
                           ) : (
-                            <User size={48} color="var(--text-secondary)" />
+                            <User size={48} color="var(--studio-muted)" />
                           )}
                         </div>
                       </div>
@@ -223,12 +223,12 @@ const DashboardView = ({
                           position: 'absolute',
                           bottom: '0',
                           right: '0',
-                          background: 'var(--color-emerald)',
+                          background: 'var(--studio-sage)',
                           width: '24px',
                           height: '24px',
                           borderRadius: '50%',
-                          border: '4px solid var(--color-bg-secondary)',
-                          boxShadow: '0 0 10px var(--color-emerald)'
+                          border: '4px solid var(--studio-surface)',
+                          boxShadow: '0 0 10px var(--studio-sage)'
                         }} title="Online" />
                       )}
                     </div>
@@ -237,8 +237,8 @@ const DashboardView = ({
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                         <h1 style={{ fontSize: '2rem', margin: 0, fontWeight: '800', letterSpacing: '-0.5px' }}>{user?.displayName || 'Guest Creator'}</h1>
                         <span className="pro-badge" style={{
-                          background: 'linear-gradient(90deg, #facc15, #f59e0b)',
-                          color: '#000',
+                          background: 'var(--studio-warning)',
+                          color: 'var(--studio-on-accent)',
                           fontWeight: '800',
                           fontSize: '0.7rem',
                           padding: '4px 10px',
@@ -248,7 +248,7 @@ const DashboardView = ({
                           {userPlan || 'Artist'} Tier
                         </span>
                       </div>
-                      <p style={{ color: 'var(--text-secondary)', margin: '0 0 12px 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <p style={{ color: 'var(--studio-muted)', margin: '0 0 12px 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Mail size={16} /> {user?.email || 'studio.access@whip.ai'}
                       </p>
                       <div style={{ display: 'flex', gap: '8px' }}>
@@ -263,26 +263,26 @@ const DashboardView = ({
                   </div>
 
                   <div className="studio-vital-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', minWidth: '320px' }}>
-                    <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                      <Folder size={18} color="var(--color-cyan)" style={{ marginBottom: '8px' }} />
-                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)' }}>{creationStats.projectCount}</div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Projects</div>
-                      <div style={{ marginTop: '6px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{creationStats.assetCount} project assets</div>
+                    <div className="vital-card" style={{ background: 'rgba(var(--studio-ink-rgb),0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(var(--studio-ink-rgb),0.05)', textAlign: 'center' }}>
+                      <Folder size={18} color="var(--studio-sage)" style={{ marginBottom: '8px' }} />
+                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--studio-ink)' }}>{creationStats.projectCount}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--studio-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Projects</div>
+                      <div style={{ marginTop: '6px', fontSize: '0.7rem', color: 'var(--studio-muted)' }}>{creationStats.assetCount} project assets</div>
                     </div>
-                    <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                      <Zap size={18} color="#facc15" fill="#facc15" style={{ marginBottom: '8px' }} />
-                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#facc15' }}>{creditDisplay}</div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Avail. Credits</div>
+                    <div className="vital-card" style={{ background: 'rgba(var(--studio-ink-rgb),0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(var(--studio-ink-rgb),0.05)', textAlign: 'center' }}>
+                      <Zap size={18} color="var(--studio-warning)" fill="var(--studio-warning)" style={{ marginBottom: '8px' }} />
+                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--studio-warning)' }}>{creditDisplay}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--studio-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Avail. Credits</div>
                     </div>
-                    <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                      <UsersIcon size={18} color="var(--color-purple)" style={{ marginBottom: '8px' }} />
-                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--color-purple)' }}>{(managedAgents || []).filter(a => a.visible).length}</div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Active Agents</div>
+                    <div className="vital-card" style={{ background: 'rgba(var(--studio-ink-rgb),0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(var(--studio-ink-rgb),0.05)', textAlign: 'center' }}>
+                      <UsersIcon size={18} color="var(--studio-accent)" style={{ marginBottom: '8px' }} />
+                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--studio-accent)' }}>{(managedAgents || []).filter(a => a.visible).length}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--studio-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Active Agents</div>
                     </div>
                   </div>
                 </div>
 
-                <p style={{ margin: '16px 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                <p style={{ margin: '16px 0 0', fontSize: '0.75rem', color: 'var(--studio-muted)' }}>
                   Creation counts reflect this project list. Streaming and audience analytics are not connected here.
                 </p>
 
@@ -290,19 +290,19 @@ const DashboardView = ({
                 {selectedProject && (
                   <div style={{
                     marginTop: '24px',
-                    background: 'rgba(6, 182, 212, 0.05)',
+                    background: 'rgba(86, 105, 84, 0.05)',
                     padding: '12px 20px',
                     borderRadius: '12px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    border: '1px dashed rgba(6, 182, 212, 0.2)'
+                    border: '1px dashed rgba(86, 105, 84, 0.2)'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-cyan)', fontSize: '0.9rem' }}>
-                      <div className="pulse-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-cyan)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--studio-sage)', fontSize: '0.9rem' }}>
+                      <div className="pulse-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--studio-sage)' }} />
                       <span>Active Session: <strong>{selectedProject.name}</strong></span>
                     </div>
-                    <button className="text-button" onClick={() => setActiveTab('hub')} style={{ fontSize: '0.8rem', color: 'var(--color-cyan)', fontWeight: '600' }}>
+                    <button className="text-button" onClick={() => setActiveTab('hub')} style={{ fontSize: '0.8rem', color: 'var(--studio-sage)', fontWeight: '600' }}>
                       Switch Project <ArrowRight size={14} />
                     </button>
                   </div>
@@ -313,29 +313,29 @@ const DashboardView = ({
               <div className="dashboard-card animate-fadeInUp" style={{
                 order: 3,
                 marginBottom: '24px',
-                background: 'var(--color-bg-secondary)',
+                background: 'var(--studio-surface)',
                 borderRadius: '24px',
                 padding: '24px',
-                border: '1px solid var(--border-color)'
+                border: '1px solid var(--studio-border)'
               }}>
                 <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Zap size={20} className="text-purple" /> Quick Actions
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
                   {[
-                    { label: 'New Project', icon: Plus, color: 'var(--color-purple)', action: () => setShowProjectTypeChoice(true) },
-                    { label: 'AI Pipeline', icon: Sparkles, color: 'var(--color-cyan)', action: () => setShowOrchestrator(true) },
-                    { label: 'Browse Agents', icon: UsersIcon, color: 'var(--color-pink)', action: () => setActiveTab('agents') },
-                    { label: 'Project Hub', icon: Folder, color: 'var(--color-emerald)', action: () => setActiveTab('hub') }
+                    { label: 'New Project', icon: Plus, color: 'var(--studio-accent)', action: () => setShowProjectTypeChoice(true) },
+                    { label: 'AI Pipeline', icon: Sparkles, color: 'var(--studio-sage)', action: () => setShowOrchestrator(true) },
+                    { label: 'Browse Agents', icon: UsersIcon, color: 'var(--studio-accent)', action: () => setActiveTab('agents') },
+                    { label: 'Project Hub', icon: Folder, color: 'var(--studio-sage)', action: () => setActiveTab('hub') }
                   ].map((item, i) => (
                     <button key={i} onClick={item.action} className="haptic-press" style={{
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
-                      padding: '20px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px',
-                      border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', color: 'inherit',
+                      padding: '20px 12px', background: 'rgba(var(--studio-ink-rgb),0.03)', borderRadius: '16px',
+                      border: '1px solid rgba(var(--studio-ink-rgb),0.06)', cursor: 'pointer', color: 'inherit',
                       transition: 'all 0.2s ease'
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.borderColor = item.color; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(var(--studio-ink-rgb),0.06)'; e.currentTarget.style.transform = 'translateY(0)'; }}
                     >
                       <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: `${item.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <item.icon size={22} style={{ color: item.color }} />
@@ -350,8 +350,8 @@ const DashboardView = ({
               {!userProfile.stageName && (
                 <div className="profile-nudge-card animate-fadeInUp" style={{
                   order: 2,
-                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)',
-                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  background: 'linear-gradient(135deg, rgba(163, 66, 41, 0.1) 0%, rgba(154, 89, 63, 0.1) 100%)',
+                  border: '1px solid rgba(163, 66, 41, 0.3)',
                   borderRadius: '24px',
                   padding: '24px',
                   marginBottom: '24px',
@@ -362,12 +362,12 @@ const DashboardView = ({
                   gap: '16px'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ background: 'var(--color-purple)', padding: '10px', borderRadius: '50%', color: 'white' }}>
+                    <div style={{ background: 'var(--studio-accent)', padding: '10px', borderRadius: '50%', color: 'var(--studio-on-accent)' }}>
                       <User size={24} />
                     </div>
                     <div>
                       <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem' }}>Complete Your Creator Profile</h3>
-                      <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Set your stage name and genre to get personalized AI results.</p>
+                      <p style={{ margin: 0, color: 'var(--studio-muted)', fontSize: '0.9rem' }}>Set your stage name and genre to get personalized AI results.</p>
                     </div>
                   </div>
                   <button
@@ -383,25 +383,25 @@ const DashboardView = ({
               <div className="dashboard-card orchestrator-promo-card animate-fadeInUp" style={{
                 order: 4,
                 marginBottom: '24px',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
+                background: 'linear-gradient(135deg, rgba(163, 66, 41, 0.1) 0%, rgba(86, 105, 84, 0.1) 100%)',
+                border: '1px solid rgba(163, 66, 41, 0.3)',
                 borderRadius: '24px',
                 padding: '24px',
                 position: 'relative',
                 overflow: 'hidden'
               }}>
                 <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.1 }}>
-                  <Zap size={120} color="var(--color-purple)" />
+                  <Zap size={120} color="var(--studio-accent)" />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
                   <div style={{ flex: 1, minWidth: '280px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                      <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', padding: '10px', borderRadius: '12px', color: 'white' }}>
+                      <div style={{ background: 'linear-gradient(135deg, var(--studio-accent), var(--studio-sage))', padding: '10px', borderRadius: '12px', color: 'var(--studio-on-accent)' }}>
                         <Zap size={24} />
                       </div>
                       <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.5px' }}>AI Production Pipeline</h2>
                     </div>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: '1.5', margin: '0 0 20px 0' }}>
+                    <p style={{ color: 'var(--studio-muted)', fontSize: '1rem', lineHeight: '1.5', margin: '0 0 20px 0' }}>
                       Transform a single idea into a complete release package. Our multi-agent orchestrator handles lyrics, beats, visuals, and marketing in one automated flow.
                     </p>
                     <div style={{ display: 'flex', gap: '12px' }}>
@@ -421,13 +421,13 @@ const DashboardView = ({
                     </div>
                   </div>
                   <div className="orchestrator-stats" style={{ display: 'flex', gap: '20px' }}>
-                    <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-purple)' }}>4</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Agents</div>
+                    <div style={{ textAlign: 'center', background: 'rgba(var(--studio-ink-rgb),0.03)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(var(--studio-ink-rgb),0.05)' }}>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--studio-accent)' }}>4</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--studio-muted)', textTransform: 'uppercase' }}>Agents</div>
                     </div>
-                    <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-cyan)' }}>1-Click</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Workflow</div>
+                    <div style={{ textAlign: 'center', background: 'rgba(var(--studio-ink-rgb),0.03)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(var(--studio-ink-rgb),0.05)' }}>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--studio-sage)' }}>1-Click</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--studio-muted)', textTransform: 'uppercase' }}>Workflow</div>
                     </div>
                   </div>
                 </div>
@@ -454,13 +454,13 @@ const DashboardView = ({
                   <div className="empty-projects-state" style={{
                     textAlign: 'center',
                     padding: '40px 20px',
-                    background: 'rgba(255,255,255,0.02)',
+                    background: 'rgba(var(--studio-ink-rgb),0.02)',
                     borderRadius: '12px',
                     marginTop: '16px'
                   }}>
-                    <Folder size={40} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
-                    <h4 style={{ margin: '0 0 8px 0', color: 'var(--text-primary)' }}>No Projects Yet</h4>
-                    <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    <Folder size={40} style={{ color: 'var(--studio-muted)', marginBottom: '12px' }} />
+                    <h4 style={{ margin: '0 0 8px 0', color: 'var(--studio-ink)' }}>No Projects Yet</h4>
+                    <p style={{ margin: '0 0 16px 0', color: 'var(--studio-muted)', fontSize: '0.9rem' }}>
                       Start your first project and track your creative journey.
                     </p>
                     <button className="btn-pill primary" onClick={() => setShowProjectTypeChoice(true)}>
@@ -491,29 +491,29 @@ const DashboardView = ({
                             gap: '16px',
                             alignItems: 'center',
                             padding: '16px',
-                            background: selectedProject?.id === project.id ? 'rgba(168, 85, 247, 0.1)' : 'rgba(255,255,255,0.02)',
+                            background: selectedProject?.id === project.id ? 'rgba(163, 66, 41, 0.1)' : 'rgba(var(--studio-ink-rgb),0.02)',
                             borderRadius: '12px',
                             marginBottom: '8px',
-                            border: selectedProject?.id === project.id ? '1px solid var(--color-purple)' : '1px solid rgba(255,255,255,0.05)',
+                            border: selectedProject?.id === project.id ? '1px solid var(--studio-accent)' : '1px solid rgba(var(--studio-ink-rgb),0.05)',
                             cursor: 'pointer',
                             transition: 'all 0.2s ease'
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--color-purple)'}
-                          onMouseLeave={(e) => { if (selectedProject?.id !== project.id) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; }}
+                          onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--studio-accent)'}
+                          onMouseLeave={(e) => { if (selectedProject?.id !== project.id) e.currentTarget.style.borderColor = 'rgba(var(--studio-ink-rgb),0.05)'; }}
                         >
                           {/* Project Thumbnail/Icon */}
                           <div style={{
                             width: '48px',
                             height: '48px',
                             borderRadius: '10px',
-                            background: project.category === 'music' ? 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-pink) 100%)' :
-                                        project.category === 'visual' ? 'linear-gradient(135deg, var(--color-cyan) 0%, var(--color-blue) 100%)' :
-                                        project.category === 'marketing' ? 'linear-gradient(135deg, var(--color-orange) 0%, var(--color-red) 100%)' :
-                                        'linear-gradient(135deg, var(--color-emerald) 0%, var(--color-cyan) 100%)',
+                            background: project.category === 'music' ? 'linear-gradient(135deg, var(--studio-accent) 0%, var(--studio-accent) 100%)' :
+                                        project.category === 'visual' ? 'linear-gradient(135deg, var(--studio-sage) 0%, var(--studio-sage) 100%)' :
+                                        project.category === 'marketing' ? 'linear-gradient(135deg, var(--studio-accent) 0%, var(--color-red) 100%)' :
+                                        'linear-gradient(135deg, var(--studio-sage) 0%, var(--studio-sage) 100%)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: 'white',
+                            color: 'var(--studio-on-accent)',
                             fontSize: '1.2rem',
                             fontWeight: '700',
                             flexShrink: 0
@@ -544,12 +544,12 @@ const DashboardView = ({
                               </h4>
                               <span style={{
                                 padding: '2px 8px',
-                                background: project.status === 'completed' ? 'rgba(16, 185, 129, 0.2)' :
+                                background: project.status === 'completed' ? 'rgba(86, 105, 84, 0.2)' :
                                            project.status === 'archived' ? 'rgba(100, 116, 139, 0.2)' :
-                                           'rgba(168, 85, 247, 0.2)',
-                                color: project.status === 'completed' ? 'var(--color-emerald)' :
-                                       project.status === 'archived' ? 'var(--text-secondary)' :
-                                       'var(--color-purple)',
+                                           'rgba(163, 66, 41, 0.2)',
+                                color: project.status === 'completed' ? 'var(--studio-sage)' :
+                                       project.status === 'archived' ? 'var(--studio-muted)' :
+                                       'var(--studio-accent)',
                                 borderRadius: '20px',
                                 fontSize: '0.65rem',
                                 fontWeight: '600',
@@ -564,7 +564,7 @@ const DashboardView = ({
                               display: 'flex',
                               alignItems: 'center',
                               gap: '12px',
-                              color: 'var(--text-secondary)',
+                              color: 'var(--studio-muted)',
                               fontSize: '0.8rem'
                             }}>
                               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -586,7 +586,7 @@ const DashboardView = ({
                               <p style={{
                                 margin: '6px 0 0 0',
                                 fontSize: '0.8rem',
-                                color: 'var(--text-secondary)',
+                                color: 'var(--studio-muted)',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis'
@@ -610,9 +610,9 @@ const DashboardView = ({
                                 width: '32px',
                                 height: '32px',
                                 borderRadius: '8px',
-                                background: 'var(--color-purple)',
+                                background: 'var(--studio-accent)',
                                 border: 'none',
-                                color: 'white',
+                                color: 'var(--studio-on-accent)',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -643,10 +643,10 @@ const DashboardView = ({
               <div className="dashboard-card animate-fadeInUp" style={{
                 order: 6,
                 marginBottom: '24px',
-                background: 'var(--color-bg-secondary)',
+                background: 'var(--studio-surface)',
                 borderRadius: '24px',
                 padding: '24px',
-                border: '1px solid var(--border-color)'
+                border: '1px solid var(--studio-border)'
               }}>
                 <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Activity size={20} className="text-cyan" /> Project Insights
@@ -658,19 +658,19 @@ const DashboardView = ({
                     const archived = (projects || []).filter(p => p.status === 'archived').length;
                     const withAgents = (projects || []).filter(p => p.agents && p.agents.length > 0).length;
                     return [
-                      { label: 'Active', value: active, color: 'var(--color-purple)', icon: Folder },
-                      { label: 'Completed', value: completed, color: 'var(--color-emerald)', icon: CheckCircle },
-                      { label: 'Archived', value: archived, color: 'var(--text-secondary)', icon: Clock },
-                      { label: 'Multi-Agent', value: withAgents, color: 'var(--color-cyan)', icon: UsersIcon }
+                      { label: 'Active', value: active, color: 'var(--studio-accent)', icon: Folder },
+                      { label: 'Completed', value: completed, color: 'var(--studio-sage)', icon: CheckCircle },
+                      { label: 'Archived', value: archived, color: 'var(--studio-muted)', icon: Clock },
+                      { label: 'Multi-Agent', value: withAgents, color: 'var(--studio-sage)', icon: UsersIcon }
                     ];
                   })().map((stat, i) => (
                     <div key={i} style={{
-                      padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px',
-                      border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center'
+                      padding: '16px', background: 'rgba(var(--studio-ink-rgb),0.03)', borderRadius: '16px',
+                      border: '1px solid rgba(var(--studio-ink-rgb),0.06)', textAlign: 'center'
                     }}>
                       <stat.icon size={18} style={{ color: stat.color, marginBottom: '8px' }} />
                       <div style={{ fontSize: '1.5rem', fontWeight: '800', color: stat.color }}>{stat.value}</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '4px' }}>{stat.label}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--studio-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '4px' }}>{stat.label}</div>
                     </div>
                   ))}
                 </div>
@@ -678,13 +678,13 @@ const DashboardView = ({
 
               <div className="dashboard-grid" style={{ order: 7 }}>
                 {/* Dynamic Project Checklist */}
-                <div className="dashboard-card onboarding-card" style={{ border: '1px solid rgba(168, 85, 247, 0.3)', background: 'linear-gradient(145deg, rgba(168, 85, 247, 0.05) 0%, rgba(0,0,0,0) 100%)' }}>
+                <div className="dashboard-card onboarding-card" style={{ border: '1px solid rgba(163, 66, 41, 0.3)', background: 'linear-gradient(145deg, rgba(163, 66, 41, 0.05) 0%, rgba(0,0,0,0) 100%)' }}>
                   <div className="card-header">
                     <h3>
                       <Rocket size={18} className="text-purple" />
                       {selectedProject ? `Project Roadmap: ${selectedProject.name}` : 'Studio Setup Checklist'}
                     </h3>
-                    <span className="status-badge" style={{ background: 'var(--color-purple)', color: 'white' }}>
+                    <span className="status-badge" style={{ background: 'var(--studio-accent)', color: 'var(--studio-on-accent)' }}>
                       {selectedProject ? 'In Progress' : 'Ready to create'}
                     </span>
                   </div>
@@ -695,9 +695,9 @@ const DashboardView = ({
                       activeProjectSteps.map((step, i) => (
                         <div key={i} className="checklist-item" style={{
                           padding: '16px',
-                          background: 'rgba(255,255,255,0.03)',
+                          background: 'rgba(var(--studio-ink-rgb),0.03)',
                           borderRadius: '12px',
-                          border: '1px solid rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(var(--studio-ink-rgb),0.05)',
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '8px',
@@ -717,14 +717,14 @@ const DashboardView = ({
                               }
                           }
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--color-purple)'}
-                        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'}
+                        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--studio-accent)'}
+                        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(var(--studio-ink-rgb),0.05)'}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{i+1}. {step.label}</span>
+                            <span style={{ fontWeight: '600', color: 'var(--studio-ink)' }}>{i+1}. {step.label}</span>
                             {typeof step.icon === 'function' ? <step.icon size={16} className="text-purple" /> : <Sparkles size={16} className="text-purple" />}
                           </div>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{step.desc}</p>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--studio-muted)' }}>{step.desc}</p>
                           <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }}>Launch</button>
                         </div>
                       ))
@@ -732,18 +732,18 @@ const DashboardView = ({
                       /* Default first-project step */
                       <div className="checklist-item" style={{
                         padding: '16px',
-                        background: 'rgba(255,255,255,0.03)',
+                        background: 'rgba(var(--studio-ink-rgb),0.03)',
                         borderRadius: '12px',
-                        border: '1px solid rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(var(--studio-ink-rgb),0.05)',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '8px'
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Create your first project</span>
+                          <span style={{ fontWeight: '600', color: 'var(--studio-ink)' }}>Create your first project</span>
                           <Rocket size={16} className="text-purple" />
                         </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Start with an idea, a reference, or a release goal.</p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--studio-muted)' }}>Start with an idea, a reference, or a release goal.</p>
                         <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setShowProjectTypeChoice(true)}>Create Project</button>
                       </div>
                     )}
@@ -800,15 +800,15 @@ const DashboardView = ({
                 <p>Manage your payment methods and subscription plan.</p>
               </div>
               {!WEB_CHECKOUT_ENABLED && (
-                <div role="status" style={{ padding: '14px 16px', marginBottom: '1rem', borderRadius: '12px', border: '1px solid rgba(245,158,11,.35)', background: 'rgba(245,158,11,.08)', color: '#fbbf24' }}>
+                <div role="status" style={{ padding: '14px 16px', marginBottom: '1rem', borderRadius: '12px', border: '1px solid rgba(135,98,56,.35)', background: 'rgba(135,98,56,.08)', color: 'var(--studio-warning)' }}>
                   Web billing is not active. Plan and credit-pack checkout remain disabled, and no card will be requested.
                 </div>
               )}
 
               {/* Wallet Balance Card */}
               <div className="wallet-balance-card" style={{
-                background: 'linear-gradient(135deg, rgba(250, 204, 21, 0.15), rgba(0, 0, 0, 0.4))',
-                border: '1px solid rgba(250, 204, 21, 0.3)',
+                background: 'linear-gradient(135deg, rgba(135, 98, 56, 0.15), rgba(0, 0, 0, 0.4))',
+                border: '1px solid rgba(135, 98, 56, 0.3)',
                 padding: '24px',
                 borderRadius: '20px',
                 marginBottom: '2rem',
@@ -816,19 +816,19 @@ const DashboardView = ({
                 overflow: 'hidden'
               }}>
                 <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.1 }}>
-                  <Zap size={120} color="#facc15" fill="#facc15" />
+                  <Zap size={120} color="var(--studio-warning)" fill="var(--studio-warning)" />
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
                   <div className="balance-info">
-                    <div className="balance-label" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '4px' }}>Studio Balance</div>
-                    <div className="balance-amount" style={{ fontSize: '2.5rem', fontWeight: '800', color: '#facc15', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                      {creditDisplay} {!isAdmin && <span className="currency" style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>Credits</span>}
+                    <div className="balance-label" style={{ color: 'var(--studio-muted)', fontSize: '0.9rem', marginBottom: '4px' }}>Studio Balance</div>
+                    <div className="balance-amount" style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--studio-warning)', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                      {creditDisplay} {!isAdmin && <span className="currency" style={{ fontSize: '1rem', color: 'var(--studio-muted)', fontWeight: 'normal' }}>Credits</span>}
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="btn-pill primary" disabled={isAdmin || !WEB_CHECKOUT_ENABLED} onClick={() => setShowCreditsModal(true)} style={{ boxShadow: '0 4px 15px rgba(250, 204, 21, 0.3)', opacity: (!isAdmin && WEB_CHECKOUT_ENABLED) ? 1 : 0.5, cursor: (!isAdmin && WEB_CHECKOUT_ENABLED) ? 'pointer' : 'not-allowed' }}>
+                    <button className="btn-pill primary" disabled={isAdmin || !WEB_CHECKOUT_ENABLED} onClick={() => setShowCreditsModal(true)} style={{ boxShadow: 'var(--studio-shadow)', opacity: (!isAdmin && WEB_CHECKOUT_ENABLED) ? 1 : 0.5, cursor: (!isAdmin && WEB_CHECKOUT_ENABLED) ? 'pointer' : 'not-allowed' }}>
                       <Plus size={16} /> Purchase Packs
                     </button>
                   </div>
@@ -839,9 +839,9 @@ const DashboardView = ({
               <div className="topup-packs-section" style={{ marginBottom: '2.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                   <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Zap size={20} color="#facc15" /> Buy Credit Packs
+                    <Zap size={20} color="var(--studio-warning)" /> Buy Credit Packs
                   </h3>
-                  <span style={{ fontSize: '0.8rem', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px' }}>Instant Delivery</span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--studio-sage)', background: 'rgba(86, 105, 84, 0.1)', padding: '2px 8px', borderRadius: '4px' }}>Instant Delivery</span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
@@ -857,7 +857,7 @@ const DashboardView = ({
                       onClick={() => WEB_CHECKOUT_ENABLED && buyCreditPack(pack.amount, pack.price)}
                       style={{
                         background: 'var(--glass-bg)',
-                        border: pack.popular ? '1px solid #facc15' : '1px solid var(--glass-border)',
+                        border: pack.popular ? '1px solid #876238' : '1px solid var(--glass-border)',
                         padding: '20px',
                         borderRadius: '16px',
                         textAlign: 'center',
@@ -870,17 +870,17 @@ const DashboardView = ({
                       {pack.popular && (
                         <div style={{
                           position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)',
-                          background: '#facc15', color: '#000', fontSize: '0.65rem', fontWeight: 'bold',
+                          background: 'var(--studio-warning)', color: 'var(--studio-on-accent)', fontSize: '0.65rem', fontWeight: 'bold',
                           padding: '2px 8px', borderRadius: '40px', textTransform: 'uppercase'
                         }}>Best Value</div>
                       )}
-                      <div style={{ fontWeight: '800', fontSize: '1.5rem', color: '#facc15', marginBottom: '4px' }}>{pack.amount}</div>
+                      <div style={{ fontWeight: '800', fontSize: '1.5rem', color: 'var(--studio-warning)', marginBottom: '4px' }}>{pack.amount}</div>
                       <div style={{ fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '4px' }}>{pack.price}</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{pack.desc}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--studio-muted)' }}>{pack.desc}</div>
                     </div>
                   ))}
                 </div>
-                <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--studio-muted)', textAlign: 'center' }}>
                   Note: Purchased credits never expire and are used after your monthly plan credits.
                 </p>
               </div>
@@ -906,8 +906,8 @@ const DashboardView = ({
                   <div style={{
                     padding: '24px',
                     borderRadius: '16px',
-                    background: 'rgba(59, 130, 246, 0.05)',
-                    border: '1px solid rgba(59, 130, 246, 0.15)',
+                    background: 'rgba(86, 105, 84, 0.05)',
+                    border: '1px solid rgba(86, 105, 84, 0.15)',
                     textAlign: 'center',
                     marginTop: '1rem'
                   }}>
@@ -1147,13 +1147,13 @@ const DashboardView = ({
                   <div className="setting-row" style={{
                     marginTop: '32px',
                     paddingTop: '24px',
-                    borderTop: '1px solid rgba(59, 130, 246, 0.2)',
-                    background: 'rgba(59, 130, 246, 0.03)',
+                    borderTop: '1px solid rgba(86, 105, 84, 0.2)',
+                    background: 'rgba(86, 105, 84, 0.03)',
                     padding: '24px',
                     borderRadius: '16px'
                   }}>
                     <div className="setting-info">
-                      <h4 style={{ color: 'var(--color-primary)' }}>Export My Data</h4>
+                      <h4 style={{ color: 'var(--studio-accent)' }}>Export My Data</h4>
                       <p>Download a copy of all your personal data (profile, projects, generations).</p>
                     </div>
                     <button
@@ -1179,9 +1179,9 @@ const DashboardView = ({
                         }
                       }}
                       style={{
-                        background: 'rgba(59, 130, 246, 0.1)',
-                        border: '1px solid var(--color-primary)',
-                        color: 'var(--color-primary)',
+                        background: 'rgba(86, 105, 84, 0.1)',
+                        border: '1px solid var(--studio-accent)',
+                        color: 'var(--studio-accent)',
                         fontWeight: '700',
                         padding: '10px 20px'
                       }}
@@ -1197,8 +1197,8 @@ const DashboardView = ({
                   <div className="setting-row danger-zone" style={{
                     marginTop: '32px',
                     paddingTop: '24px',
-                    borderTop: '1px solid rgba(239, 68, 68, 0.2)',
-                    background: 'rgba(239, 68, 68, 0.03)',
+                    borderTop: '1px solid rgba(163, 56, 45, 0.2)',
+                    background: 'rgba(163, 56, 45, 0.03)',
                     padding: '24px',
                     borderRadius: '16px'
                   }}>
@@ -1210,7 +1210,7 @@ const DashboardView = ({
                       className="secondary-button"
                       onClick={handleDeleteAccount}
                       style={{
-                        background: 'rgba(239, 68, 68, 0.1)',
+                        background: 'rgba(163, 56, 45, 0.1)',
                         border: '1px solid var(--color-red)',
                         color: 'var(--color-red)',
                         fontWeight: '700',

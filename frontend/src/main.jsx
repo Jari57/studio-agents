@@ -7,6 +7,7 @@ import { initErrorMonitoring } from './utils/errorMonitoring'
 import './index.css'
 import './App.css'
 import './design-system.css'
+import './studio-theme.css'
 
 // Initialize Google Analytics
 initAnalytics();

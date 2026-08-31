@@ -1,0 +1,62 @@
+.studio-orchestrator-overlay {
+  color: var(--studio-ink, #202724);
+  color-scheme: light;
+}
+
+.dark-theme .studio-orchestrator-overlay {
+  color-scheme: dark;
+  --studio-danger: #e0a99b;
+  --studio-warning: #d7ba81;
+}
+
+.studio-orchestrator-overlay :is(input, textarea, select, button) { font-family: inherit; }
+.studio-orchestrator-overlay :is(input, textarea)::placeholder {
+  color: var(--studio-muted, #646c64);
+  opacity: 1;
+}
+.studio-orchestrator-overlay :is(button, a, input, textarea, select, summary):focus-visible {
+  outline: 2px solid var(--studio-accent, #a34229) !important;
+  outline-offset: 3px;
+}
+.studio-orchestrator-overlay .generator-icon-box {
+  background: var(--studio-accent-soft, #f0ded2);
+  color: var(--studio-accent, #a34229);
+  border: 1px solid var(--studio-border, #d8d5c9);
+  box-shadow: none;
+}
+.studio-orchestrator-overlay .pulse-next-btn { animation: none; }
+
+/* Charcoal is intentional only inside previews and the production timeline. */
+.studio-orchestrator-overlay .studio-media-stage {
+  --studio-bg: #202724;
+  --studio-surface: #202724;
+  --studio-surface-alt: #303c34;
+  --studio-ink: #f3efe5;
+  --studio-muted: #c1c9be;
+  --studio-border: #526052;
+  --studio-accent: #ecad8e;
+  --studio-accent-soft: #49382d;
+  --studio-sage: #bac7ac;
+  --studio-danger: #e0a99b;
+  --studio-warning: #d7ba81;
+  color-scheme: dark;
+  color: var(--studio-ink);
+  background: var(--studio-surface);
+}
+.studio-orchestrator-overlay .studio-media-stage :is(audio, video) { color-scheme: dark; }
+.studio-orchestrator-overlay .studio-primary-action {
+  background: var(--studio-accent, #a34229) !important;
+  color: var(--studio-on-accent, #fffaf0) !important;
+  border: 1px solid var(--studio-accent, #a34229) !important;
+  box-shadow: none !important;
+}
+.studio-orchestrator-overlay .studio-primary-action:disabled { opacity: .55; }
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-orchestrator-overlay *,
+  .studio-orchestrator-overlay *::before,
+  .studio-orchestrator-overlay *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}

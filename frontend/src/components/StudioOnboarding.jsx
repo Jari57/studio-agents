@@ -17,10 +17,10 @@ const PROMPTS = [
 ];
 
 const FEATURES = [
-  { icon: FileText, label: 'Lyrics', color: '#a855f7', desc: 'Verses, hooks & hooks' },
-  { icon: Music,    label: 'Beats',  color: '#22d3ee', desc: 'Full instrumentals' },
-  { icon: Mic,      label: 'Vocals', color: '#f472b6', desc: 'AI singing & rap' },
-  { icon: Video,    label: 'Video',  color: '#ef4444', desc: 'Music videos' },
+  { icon: FileText, label: 'Lyrics', color: "var(--studio-accent)", desc: 'Verses, hooks & hooks' },
+  { icon: Music,    label: 'Beats',  color: "var(--studio-blue)", desc: 'Full instrumentals' },
+  { icon: Mic,      label: 'Vocals', color: "var(--studio-accent)", desc: 'AI singing & rap' },
+  { icon: Video,    label: 'Video',  color: "var(--studio-danger)", desc: 'Music videos' },
   { icon: Image,    label: 'Art',    color: '#fb923c', desc: 'Album covers' },
 ];
 
@@ -104,10 +104,10 @@ export default function StudioOnboarding({ userName, onComplete, onSkip, isMobil
         maxHeight: 'min(680px, calc(100svh - 32px))',
         display: 'flex',
         flexDirection: 'column',
-        background: 'linear-gradient(160deg, #141428 0%, #0f0f1e 60%, #1a0d2e 100%)',
+        background: "linear-gradient(160deg, var(--studio-surface) 0%, var(--studio-surface) 60%, var(--studio-surface) 100%)",
         borderRadius: '24px',
-        border: '1px solid rgba(168,85,247,0.25)',
-        boxShadow: '0 32px 100px rgba(0,0,0,0.7), 0 0 0 1px rgba(168,85,247,0.08) inset',
+        border: "1px solid rgba(163,66,41, 0.25)",
+        boxShadow: "0 32px 100px rgba(0,0,0,0.7), 0 0 0 1px rgba(163,66,41, 0.08) inset",
         overflow: 'hidden',
         animation: 'onboarding-card-in 0.5s 0.1s cubic-bezier(0.16,1,0.3,1) both',
       }}>
@@ -116,7 +116,7 @@ export default function StudioOnboarding({ userName, onComplete, onSkip, isMobil
         <div aria-hidden="true" style={{
           position: 'absolute', top: '-80px', left: '-60px',
           width: '280px', height: '280px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(168,85,247,0.18) 0%, transparent 70%)',
+          background: "radial-gradient(circle, rgba(163,66,41, 0.18) 0%, transparent 70%)",
           animation: 'onboarding-orb-a 7s ease-in-out infinite',
           pointerEvents: 'none',
         }} />
@@ -134,14 +134,14 @@ export default function StudioOnboarding({ userName, onComplete, onSkip, isMobil
           aria-label="Skip onboarding"
           style={{
             position: 'absolute', top: '14px', right: '14px', zIndex: 10,
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+            background: "rgba(var(--studio-ink-rgb), 0.06)", border: "1px solid rgba(var(--studio-ink-rgb), 0.08)",
             borderRadius: '50%', width: '32px', height: '32px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: 'rgba(255,255,255,0.4)',
+            cursor: 'pointer', color: "var(--studio-muted)",
             transition: 'all 0.15s ease',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#fff'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
+          onMouseEnter={e => { e.currentTarget.style.background = "rgba(var(--studio-ink-rgb), 0.1)"; e.currentTarget.style.color = "var(--studio-ink)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "rgba(var(--studio-ink-rgb), 0.06)"; e.currentTarget.style.color = "var(--studio-muted)"; }}
         >
           <X size={15} />
         </button>
@@ -155,7 +155,7 @@ export default function StudioOnboarding({ userName, onComplete, onSkip, isMobil
               <div key={i} style={{
                 width: '3px', borderRadius: '2px',
                 height: `${h * 28}px`,
-                background: `linear-gradient(180deg, #a855f7, #22d3ee)`,
+                background: `linear-gradient(180deg, var(--studio-accent), var(--studio-blue))`,
                 opacity: 0.6,
                 animation: `onboarding-bar ${1.2 + (i % 5) * 0.3}s ${i * 0.07}s ease-in-out infinite`,
                 transformOrigin: 'center',
@@ -167,21 +167,21 @@ export default function StudioOnboarding({ userName, onComplete, onSkip, isMobil
           <div style={{ textAlign: 'center', marginBottom: '28px' }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '6px',
-              background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.22)',
+              background: "rgba(163,66,41, 0.12)", border: "1px solid rgba(163,66,41, 0.22)",
               borderRadius: '20px', padding: '4px 12px', marginBottom: '14px',
               fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em',
-              color: 'rgba(168,85,247,0.9)', textTransform: 'uppercase',
+              color: "rgba(163,66,41, 0.9)", textTransform: 'uppercase',
             }}>
               <Sparkles size={11} /> 16 AI Agents
             </div>
             <h1 style={{
               fontSize: isMobile ? 'clamp(1.5rem,6vw,1.9rem)' : '2rem',
-              fontWeight: 900, lineHeight: 1.15, color: '#fff', margin: '0 0 10px',
+              fontWeight: 900, lineHeight: 1.15, color: "var(--studio-ink)", margin: '0 0 10px',
               letterSpacing: '-0.02em',
             }}>
               {firstName ? `Hey ${firstName}, let's make\nsomething legendary.` : 'Make something\nlegendary.'}
             </h1>
-            <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.5, margin: 0 }}>
+            <p style={{ fontSize: '0.9rem', color: "var(--studio-muted)", lineHeight: 1.5, margin: 0 }}>
               Type your idea below - lyrics, beat, vocals, video & art in one shot.
             </p>
           </div>
@@ -194,7 +194,7 @@ export default function StudioOnboarding({ userName, onComplete, onSkip, isMobil
             {FEATURES.map(({ icon: Icon, label, color, desc }) => (
               <div key={label} title={desc} style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
-                background: `${color}10`, border: `1px solid ${color}28`,
+                background: `color-mix(in srgb, ${color} 7%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 18%, transparent)`,
                 borderRadius: '20px', padding: '6px 12px',
                 fontSize: '0.78rem', fontWeight: 600, color,
                 cursor: 'default',
@@ -217,15 +217,15 @@ export default function StudioOnboarding({ userName, onComplete, onSkip, isMobil
               style={{
                 width: '100%', boxSizing: 'border-box',
                 padding: '14px 16px', borderRadius: '14px', resize: 'none',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1.5px solid rgba(168,85,247,0.3)',
-                color: '#fff', fontSize: '0.93rem', lineHeight: 1.5,
+                background: "rgba(var(--studio-ink-rgb), 0.05)",
+                border: "1.5px solid rgba(163,66,41, 0.3)",
+                color: "var(--studio-ink)", fontSize: '0.93rem', lineHeight: 1.5,
                 outline: 'none', fontFamily: 'inherit',
                 transition: 'border-color 0.15s, box-shadow 0.15s',
                 caretColor: '#a855f7',
               }}
-              onFocus={e => { e.target.style.borderColor = 'rgba(168,85,247,0.7)'; e.target.style.boxShadow = '0 0 0 3px rgba(168,85,247,0.12)'; }}
-              onBlur={e => { e.target.style.borderColor = 'rgba(168,85,247,0.3)'; e.target.style.boxShadow = 'none'; }}
+              onFocus={e => { e.target.style.borderColor = "rgba(163,66,41, 0.7)"; e.target.style.boxShadow = "0 0 0 3px rgba(163,66,41, 0.12)"; }}
+              onBlur={e => { e.target.style.borderColor = "rgba(163,66,41, 0.3)"; e.target.style.boxShadow = 'none'; }}
             />
           </div>
 
@@ -236,19 +236,17 @@ export default function StudioOnboarding({ userName, onComplete, onSkip, isMobil
             style={{
               width: '100%', padding: '15px 24px',
               borderRadius: '14px', border: 'none', cursor: isEntering ? 'default' : 'pointer',
-              background: isEntering
-                ? 'rgba(168,85,247,0.4)'
-                : 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #22d3ee 100%)',
+              background: 'var(--studio-accent)',
               backgroundSize: '200% 200%',
-              color: '#fff', fontSize: '1rem', fontWeight: 800,
+              color: "var(--studio-on-accent)", fontSize: '1rem', fontWeight: 800,
               letterSpacing: '0.01em',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              boxShadow: isEntering ? 'none' : '0 4px 24px rgba(168,85,247,0.4)',
+              boxShadow: isEntering ? 'none' : "0 4px 24px rgba(163,66,41, 0.4)",
               transition: 'all 0.2s ease',
               animation: isEntering ? 'none' : 'onboarding-pulse 2.5s 1.5s ease-in-out infinite',
             }}
-            onMouseEnter={e => { if (!isEntering) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(168,85,247,0.55)'; }}}
-            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = isEntering ? 'none' : '0 4px 24px rgba(168,85,247,0.4)'; }}
+            onMouseEnter={e => { if (!isEntering) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = "0 8px 32px rgba(163,66,41, 0.55)"; }}}
+            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = isEntering ? 'none' : "0 4px 24px rgba(163,66,41, 0.4)"; }}
           >
             {isEntering ? (
               <>Entering Studio...</>
@@ -262,8 +260,8 @@ export default function StudioOnboarding({ userName, onComplete, onSkip, isMobil
         {/* Footer note */}
         <div style={{
           textAlign: 'center', padding: '10px 24px 18px',
-          fontSize: '0.72rem', color: 'rgba(255,255,255,0.2)',
-          borderTop: '1px solid rgba(255,255,255,0.05)',
+          fontSize: '0.72rem', color: "var(--studio-muted)",
+          borderTop: "1px solid rgba(var(--studio-ink-rgb), 0.05)",
         }}>
           4 agents free forever &middot; No credit card needed
         </div>

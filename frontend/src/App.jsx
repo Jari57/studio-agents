@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useStudioTheme } from './hooks/useStudioTheme';
 import { Toaster } from 'react-hot-toast';
 import './App.css';
 import { AGENTS } from './constants';
@@ -18,9 +19,9 @@ const lazyWithRetry = (importFn) => React.lazy(() =>
         }
         // If we already reloaded once, surface the error
         return { default: () => (
-          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0f', color: 'white', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: "var(--studio-bg)", color: "var(--studio-ink)", flexDirection: 'column', gap: '16px' }}>
             <p>Failed to load. Please refresh the page.</p>
-            <button onClick={() => { sessionStorage.removeItem('chunk_reload'); window.location.reload(); }} style={{ padding: '8px 24px', borderRadius: '8px', background: '#a855f7', color: 'white', border: 'none', cursor: 'pointer' }}>Refresh</button>
+            <button onClick={() => { sessionStorage.removeItem('chunk_reload'); window.location.reload(); }} style={{ padding: '8px 24px', borderRadius: '8px', background: "var(--studio-accent)", color: "var(--studio-on-accent)", border: 'none', cursor: 'pointer' }}>Refresh</button>
           </div>
         )};
       });
@@ -48,25 +49,25 @@ const StudioLoadingFallback = () => (
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'var(--color-bg-primary, #0a0a0f)',
-    color: 'white',
+    background: "var(--color-bg-primary, var(--studio-bg))",
+    color: "var(--studio-ink)",
     gap: '20px'
   }}>
     {/* Skeleton header bar */}
     <div style={{ width: '90%', maxWidth: '800px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ height: '48px', borderRadius: '12px', background: 'linear-gradient(90deg, rgba(168,85,247,0.08) 25%, rgba(168,85,247,0.15) 50%, rgba(168,85,247,0.08) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+      <div style={{ height: '48px', borderRadius: '12px', background: "linear-gradient(90deg, rgba(163,66,41, 0.08) 25%, rgba(163,66,41, 0.15) 50%, rgba(163,66,41, 0.08) 75%)", backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
       <div style={{ display: 'flex', gap: '12px' }}>
         {[1,2,3,4].map(i => (
-          <div key={i} style={{ flex: 1, height: '120px', borderRadius: '12px', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+          <div key={i} style={{ flex: 1, height: '120px', borderRadius: '12px', background: "linear-gradient(90deg, rgba(var(--studio-ink-rgb), 0.03) 25%, rgba(var(--studio-ink-rgb), 0.06) 50%, rgba(var(--studio-ink-rgb), 0.03) 75%)", backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
         ))}
       </div>
-      <div style={{ height: '200px', borderRadius: '12px', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', animationDelay: '0.6s' }} />
+      <div style={{ height: '200px', borderRadius: '12px', background: "linear-gradient(90deg, rgba(var(--studio-ink-rgb), 0.03) 25%, rgba(var(--studio-ink-rgb), 0.06) 50%, rgba(var(--studio-ink-rgb), 0.03) 75%)", backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', animationDelay: '0.6s' }} />
     </div>
     <div style={{
       width: '60px',
       height: '60px',
-      border: '3px solid rgba(168, 85, 247, 0.2)',
-      borderTopColor: '#a855f7',
+      border: "3px solid rgba(163,66,41, 0.2)",
+      borderTopColor: "var(--studio-accent)",
       borderRadius: '50%',
       animation: 'spin 1s linear infinite'
     }} />
@@ -76,6 +77,7 @@ const StudioLoadingFallback = () => (
 );
 
 function App() {
+  const [theme] = useStudioTheme();
   
   // Hash-based routing state
   const [currentHash, setCurrentHash] = useState(window.location.hash || '#/');
@@ -207,7 +209,7 @@ function App() {
   const shareMatch = currentHash.match(/^#\/(share|embed)\/([a-f0-9-]{12})$/i);
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${theme}-theme`}>
       <Toaster 
         position="bottom-center"
         containerStyle={{ bottom: 80 }}
@@ -218,10 +220,10 @@ function App() {
             fontSize: '0.9rem',
             borderRadius: '12px',
             padding: '10px 16px',
-            background: '#1a1a2e',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.1)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+            background: "var(--studio-surface)",
+            color: "var(--studio-ink)",
+            border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+            boxShadow: 'var(--studio-shadow)'
           },
           success: { duration: 2500 },
           error: { duration: 4000 },

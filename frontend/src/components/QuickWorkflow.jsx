@@ -227,20 +227,20 @@ function QuickWorkflow({
           margin: 'auto',
           padding: 0,
           boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          background: '#0f0f12'
+          border: "1px solid rgba(var(--studio-ink-rgb), 0.12)",
+          background: "var(--studio-surface)"
         }}
       >
         {/* Header */}
         <div className="modal-header" style={{ 
-          borderBottom: '1px solid rgba(255,255,255,0.08)', 
+          borderBottom: "1px solid rgba(var(--studio-ink-rgb), 0.08)",
           padding: '16px 20px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '12px',
           flexShrink: 0,
-          background: 'rgba(255,255,255,0.02)'
+          background: "rgba(var(--studio-ink-rgb), 0.02)"
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
             <div style={{ 
@@ -253,14 +253,14 @@ function QuickWorkflow({
               {typeof agent.icon === 'function' ? <agent.icon size={20} /> : <Sparkles size={20} />}
             </div>
             <div style={{ minWidth: 0 }}>
-              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white' }}>{agent.name}</h3>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: "var(--studio-ink)" }}>{agent.name}</h3>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.role || agent.category}</p>
             </div>
           </div>
           <button 
             className="modal-close" 
             onClick={onClose}
-            style={{ position: 'relative', top: 'auto', right: 'auto', flexShrink: 0, width: '32px', height: '32px', minWidth: '32px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }}
+            style={{ position: 'relative', top: 'auto', right: 'auto', flexShrink: 0, width: '32px', height: '32px', minWidth: '32px', background: "rgba(var(--studio-ink-rgb), 0.05)", borderRadius: '50%' }}
           >
             <X size={20} />
           </button>
@@ -285,16 +285,16 @@ function QuickWorkflow({
                   width: '100%',
                   padding: '10px 12px',
                   borderRadius: '8px',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'white',
+                  background: "rgba(var(--studio-ink-rgb), 0.04)",
+                  border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+                  color: "var(--studio-ink)",
                   fontSize: '0.8rem',
                   outline: 'none',
                   cursor: 'pointer'
                 }}
               >
                 {['English', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Portuguese', 'Italian', 'Chinese'].map(lang => (
-                  <option key={lang} value={lang} style={{ background: '#1a1a1a' }}>{lang}</option>
+                  <option key={lang} value={lang} style={{ background: "var(--studio-surface)" }}>{lang}</option>
                 ))}
               </select>
             </div>
@@ -308,16 +308,16 @@ function QuickWorkflow({
                   width: '100%',
                   padding: '10px 12px',
                   borderRadius: '8px',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'white',
+                  background: "rgba(var(--studio-ink-rgb), 0.04)",
+                  border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+                  color: "var(--studio-ink)",
                   fontSize: '0.8rem',
                   outline: 'none',
                   cursor: 'pointer'
                 }}
               >
                 {['Modern Hip-Hop', '90s Boom Bap', 'Trap', 'R&B / Soul', 'Pop', 'Rock', 'Electronic', 'Cinematic', 'Jazz', 'Lo-Fi'].map(s => (
-                  <option key={s} value={s} style={{ background: '#1a1a1a' }}>{s}</option>
+                  <option key={s} value={s} style={{ background: "var(--studio-surface)" }}>{s}</option>
                 ))}
               </select>
             </div>
@@ -331,16 +331,16 @@ function QuickWorkflow({
                   width: '100%',
                   padding: '10px 12px',
                   borderRadius: '8px',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'white',
+                  background: "rgba(var(--studio-ink-rgb), 0.04)",
+                  border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+                  color: "var(--studio-ink)",
                   fontSize: '0.8rem',
                   outline: 'none',
                   cursor: 'pointer'
                 }}
               >
                 {['Gemini 2.5 Flash', 'Gemini 2.5 Flash Lite', 'Gemini 2.5 Pro'].map(m => (
-                  <option key={m} value={m} style={{ background: '#1a1a1a' }}>{m}</option>
+                  <option key={m} value={m} style={{ background: "var(--studio-surface)" }}>{m}</option>
                 ))}
               </select>
             </div>
@@ -354,9 +354,9 @@ function QuickWorkflow({
                 style={{
                   padding: '6px 12px',
                   borderRadius: '10px',
-                  background: showSuggestions ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: showSuggestions ? '#a855f7' : '#94a3b8',
+                  background: showSuggestions ? "rgba(163,66,41, 0.2)" : "rgba(var(--studio-ink-rgb), 0.05)",
+                  border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+                  color: showSuggestions ? "var(--studio-accent)" : "var(--studio-muted)",
                   fontSize: '0.75rem',
                   fontWeight: '600',
                   cursor: 'pointer',
@@ -375,15 +375,15 @@ function QuickWorkflow({
                   style={{
                     padding: '6px 14px',
                     fontSize: '0.75rem',
-                    background: 'rgba(139, 92, 246, 0.12)',
-                    border: '1px solid rgba(139, 92, 246, 0.25)',
+                    background: "rgba(163,66,41, 0.12)",
+                    border: "1px solid rgba(163,66,41, 0.25)",
                     borderRadius: '20px',
                     color: '#e2e8f0',
                     cursor: 'pointer',
                     transition: 'all 0.2s'
                   }}
-                  onMouseOver={(e) => e.target.style.background = 'rgba(139, 92, 246, 0.2)'}
-                  onMouseOut={(e) => e.target.style.background = 'rgba(139, 92, 246, 0.12)'}
+                  onMouseOver={(e) => e.target.style.background = "rgba(163,66,41, 0.2)"}
+                  onMouseOut={(e) => e.target.style.background = "rgba(163,66,41, 0.12)"}
                 >
                   {ex.length > 35 ? ex.substring(0, 35) + '...' : ex}
                 </button>
@@ -402,10 +402,10 @@ function QuickWorkflow({
                 minHeight: '120px',
                 padding: '16px',
                 paddingRight: '50px',
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.1)',
+                background: "rgba(var(--studio-ink-rgb), 0.03)",
+                border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                 borderRadius: '12px',
-                color: 'white',
+                color: "var(--studio-ink)",
                 fontSize: '1rem',
                 resize: 'vertical',
                 fontFamily: 'inherit',
@@ -421,9 +421,9 @@ function QuickWorkflow({
                 position: 'absolute',
                 right: '12px',
                 top: '12px',
-                background: isListening ? '#a855f7' : 'rgba(255,255,255,0.05)',
+                background: isListening ? "var(--studio-accent)" : "rgba(var(--studio-ink-rgb), 0.05)",
                 border: 'none',
-                color: isListening ? 'white' : 'var(--text-secondary)',
+                color: isListening ? "var(--studio-ink)" : 'var(--text-secondary)',
                 cursor: 'pointer',
                 padding: '10px',
                 borderRadius: '10px',
@@ -446,8 +446,8 @@ function QuickWorkflow({
               padding: '16px',
               fontSize: '1rem',
               borderRadius: '12px',
-              background: isGenerating || !prompt.trim() ? 'rgba(139, 92, 246, 0.3)' : 'var(--color-purple)',
-              boxShadow: isGenerating || !prompt.trim() ? 'none' : '0 10px 20px rgba(139, 92, 246, 0.3)'
+              background: isGenerating || !prompt.trim() ? "rgba(163,66,41, 0.3)" : 'var(--color-purple)',
+              boxShadow: isGenerating || !prompt.trim() ? 'none' : "0 10px 20px rgba(163,66,41, 0.3)"
             }}
           >
             {isGenerating ? (
@@ -479,7 +479,7 @@ function QuickWorkflow({
                     <button
                       onClick={handleSpeakOutput}
                       style={{
-                        background: isSpeaking ? 'rgba(168, 85, 247, 0.2)' : 'none',
+                        background: isSpeaking ? "rgba(163,66,41, 0.2)" : 'none',
                         border: 'none',
                         color: isSpeaking ? 'var(--color-purple)' : 'var(--text-secondary)',
                         cursor: 'pointer',
@@ -516,8 +516,8 @@ function QuickWorkflow({
                 </div>
               </div>
               <div style={{
-                background: 'rgba(0,0,0,0.3)',
-                border: '1px solid rgba(255,255,255,0.1)',
+                background: "var(--studio-surface-alt)",
+                border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                 borderRadius: '12px',
                 padding: '16px',
                 maxHeight: '200px',
@@ -539,10 +539,10 @@ function QuickWorkflow({
                     style={{
                       width: '100%',
                       padding: '14px',
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: "rgba(var(--studio-ink-rgb), 0.05)",
+                      border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                       borderRadius: '12px',
-                      color: 'white',
+                      color: "var(--studio-ink)",
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -552,18 +552,18 @@ function QuickWorkflow({
                       fontWeight: '600',
                       transition: 'all 0.2s'
                     }}
-                    onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.08)'}
-                    onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseOver={(e) => e.target.style.background = "rgba(var(--studio-ink-rgb), 0.08)"}
+                    onMouseOut={(e) => e.target.style.background = "rgba(var(--studio-ink-rgb), 0.05)"}
                   >
                     <Save size={18} />
                     Save to Project
                   </button>
                 ) : (
                   <div className="save-options animate-fadeIn" style={{ 
-                    background: 'rgba(255,255,255,0.03)', 
+                    background: "rgba(var(--studio-ink-rgb), 0.03)",
                     borderRadius: '16px', 
                     padding: '20px',
-                    border: '1px solid rgba(255,255,255,0.1)'
+                    border: "1px solid rgba(var(--studio-ink-rgb), 0.1)"
                   }}>
                     {/* Create New Project */}
                     <div style={{ marginBottom: '20px' }}>
@@ -580,10 +580,10 @@ function QuickWorkflow({
                           style={{
                             flex: 1,
                             padding: '12px 14px',
-                            background: 'rgba(0,0,0,0.3)',
-                            border: '1px solid rgba(255,255,255,0.1)',
+                            background: "var(--studio-surface-alt)",
+                            border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                             borderRadius: '10px',
-                            color: 'white',
+                            color: "var(--studio-ink)",
                             fontSize: '0.95rem',
                             outline: 'none'
                           }}
@@ -613,10 +613,10 @@ function QuickWorkflow({
                               style={{
                                 width: '100%',
                                 padding: '12px 16px',
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid rgba(255,255,255,0.08)',
+                                background: "rgba(var(--studio-ink-rgb), 0.05)",
+                                border: "1px solid rgba(var(--studio-ink-rgb), 0.08)",
                                 borderRadius: '10px',
-                                color: 'white',
+                                color: "var(--studio-ink)",
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -624,8 +624,8 @@ function QuickWorkflow({
                                 fontSize: '0.95rem',
                                 transition: 'all 0.2s'
                               }}
-                              onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                              onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                              onMouseOver={(e) => e.target.style.background = "rgba(var(--studio-ink-rgb), 0.1)"}
+                              onMouseOut={(e) => e.target.style.background = "rgba(var(--studio-ink-rgb), 0.05)"}
                             >
                               <span style={{ fontWeight: '500' }}>{project.name}</span>
                               <ChevronRight size={18} style={{ color: 'var(--text-secondary)' }} />

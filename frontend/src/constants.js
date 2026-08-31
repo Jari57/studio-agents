@@ -587,17 +587,17 @@ export const AGENTS = [
 ];
 
 export const AGENT_COLOR_HEX = {
-  'agent-purple':  '#a855f7',
-  'agent-cyan':    '#06b6d4',
-  'agent-orange':  '#f97316',
-  'agent-red':     '#ef4444',
-  'agent-pink':    '#ec4899',
-  'agent-indigo':  '#6366f1',
-  'agent-emerald': '#10b981',
+  'agent-purple':  '#a34229',
+  'agent-cyan':    '#3d6472',
+  'agent-orange':  '#876015',
+  'agent-red':     '#ad372f',
+  'agent-pink':    '#945450',
+  'agent-indigo':  '#546659',
+  'agent-emerald': '#566954',
 };
 
 export function getAgentHex(agent) {
-  return AGENT_COLOR_HEX[agent?.colorClass] || '#a855f7';
+  return AGENT_COLOR_HEX[agent?.colorClass] || '#a34229';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

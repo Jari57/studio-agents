@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import StudioHomeIntro from './StudioHomeIntro';
+import { useStudioTheme } from '../hooks/useStudioTheme';
 import toast from 'react-hot-toast';
-import { Sparkles, ArrowRight, Zap, Music, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Headphones, ChevronRight, Layers, BarChart3, Briefcase, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LogIn, LogOut } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Headphones, ChevronRight, Layers, BarChart3, Briefcase, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LogIn, LogOut, Sun, Moon } from 'lucide-react';
 import { AGENTS, BACKEND_URL } from '../constants';
 import { auth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
 
@@ -23,6 +24,10 @@ import { AGENT_WHITEPAPER, DEFAULT_WHITEPAPER } from '../data/agentWhitepapers';
 const WEB_CHECKOUT_ENABLED = import.meta.env.VITE_STRIPE_CHECKOUT_ENABLED === 'true';
 
 export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
+  const [theme, setTheme] = useStudioTheme();
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
   const [scrolled, setScrolled] = useState(false);
   const [showCookieConsent, setShowCookieConsent] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -506,7 +511,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   };
 
   return (
-    <div className="landing-container studio-home">
+    <div className={`landing-container studio-home ${theme}-theme`}>
       {/* Native-style Mobile Header */}
       <header className={`native-header ${scrolled ? 'scrolled' : ''}`}>
         <div className="header-content">
@@ -520,6 +525,16 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             <button type="button" onClick={() => document.getElementById('studio-home-pricing')?.scrollIntoView({ block: 'start' })}>Pricing</button>
           </nav>
           <div className="header-actions">
+            <button
+              type="button"
+              className="studio-home-theme-toggle"
+              onClick={toggleTheme}
+              aria-label="Dark theme"
+              aria-pressed={theme === 'dark'}
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            >
+              {theme === 'dark' ? <Sun size={19} aria-hidden="true" /> : <Moon size={19} aria-hidden="true" />}
+            </button>
             {isLoggedMember ? (
               <button type="button" onClick={handleLogout} className="header-login-btn">
                 <LogOut size={16} aria-hidden="true" /> Sign Out
@@ -678,7 +693,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             }}>
               (music) Case Study
             </div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '8px', color: 'white' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '8px', color: "var(--studio-ink)" }}>
               The Lost Tapes of <a href="https://whipmontez.com" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff41', textDecoration: 'underline' }}>Whip Montez</a>
             </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.5', margin: 0 }}>
@@ -711,10 +726,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
       {/* Footer CTA */}
       <section className="footer-cta">
-        <h2 className="section-title" style={{ color: 'white', fontSize: '2.8rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '16px' }}>
+        <h2 className="section-title" style={{ color: "var(--studio-ink)", fontSize: '2.8rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '16px' }}>
           Stop Waiting for <span className="gradient-text-purple-pink">Permission.</span>
         </h2>
-        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.2rem', marginBottom: '32px', fontWeight: '500' }}>
+        <p style={{ color: "var(--studio-muted)", fontSize: '1.2rem', marginBottom: '32px', fontWeight: '500' }}>
           Your next project starts here. Generate, iterate, and export — keep your own creative direction.
         </p>
         <button
@@ -728,10 +743,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             display: 'flex',
             alignItems: 'center',
             gap: '16px',
-            boxShadow: '0 25px 50px rgba(168, 85, 247, 0.4)',
+            boxShadow: "0 25px 50px rgba(163,66,41, 0.4)",
             border: 'none',
-            background: 'linear-gradient(135deg, #a855f7 0%, #d946ef 100%)',
-            color: 'white',
+            background: "linear-gradient(135deg, var(--studio-accent) 0%, #d946ef 100%)",
+            color: "var(--studio-inverse)",
             cursor: 'pointer'
           }}
         >
@@ -745,7 +760,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         display: 'flex', 
         justifyContent: 'center', 
         padding: '24px 20px',
-        background: 'rgba(0,0,0,0.3)'
+        background: "var(--studio-surface-alt)"
       }}>
         <button
           onClick={() => setShowInvestorPitch(true)}
@@ -755,10 +770,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             width: '100%', 
             justifyContent: 'center', 
             padding: '14px 24px',
-            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
-            border: '1px solid rgba(139, 92, 246, 0.4)',
+            background: "linear-gradient(135deg, rgba(163,66,41, 0.15) 0%, rgba(61,100,114, 0.15) 100%)",
+            border: "1px solid rgba(163,66,41, 0.4)",
             borderRadius: '16px',
-            color: 'white',
+            color: "var(--studio-ink)",
             display: 'flex',
             alignItems: 'center',
             gap: '8px'
@@ -812,10 +827,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             className="auth-modal animate-scaleIn" 
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: 'linear-gradient(180deg, rgba(20, 20, 30, 0.98) 0%, rgba(10, 10, 20, 0.99) 100%)',
+              background: "linear-gradient(180deg, var(--studio-surface) 0%, var(--studio-surface) 100%)",
               backdropFilter: 'blur(20px)',
               borderRadius: '24px',
-              border: '1px solid rgba(139, 92, 246, 0.3)',
+              border: "1px solid rgba(163,66,41, 0.3)",
               padding: window.innerWidth < 768 ? '24px' : '40px',
               maxWidth: '420px',
               width: '90%',
@@ -832,7 +847,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                 position: 'absolute',
                 top: '16px',
                 right: '16px',
-                background: 'rgba(255,255,255,0.1)',
+                background: "rgba(var(--studio-ink-rgb), 0.1)",
                 border: 'none',
                 borderRadius: '50%',
                 width: '36px',
@@ -841,7 +856,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: 'white'
+                color: "var(--studio-ink)"
               }}
             >
               <X size={18} />
@@ -851,19 +866,19 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               <div style={{ 
                 width: '64px', 
                 height: '64px', 
-                background: 'linear-gradient(135deg, #a855f7 0%, #06b6d4 100%)',
+                background: "linear-gradient(135deg, var(--studio-accent) 0%, var(--studio-blue) 100%)",
                 borderRadius: '16px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: '0 auto 16px'
               }}>
-                <Zap size={32} style={{ color: 'white' }} />
+                <Zap size={32} style={{ color: "var(--studio-ink)" }} />
               </div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px', color: 'white' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px', color: "var(--studio-ink)" }}>
                 {authMode === 'reset' ? 'Reset Password' : authMode === 'signup' ? 'Create Account' : 'Welcome to Studio Agents'}
               </h2>
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.95rem' }}>
+              <p style={{ color: "var(--studio-muted)", fontSize: '0.95rem' }}>
                 {authMode === 'reset' 
                   ? 'Enter your email to receive a reset link'
                   : authMode === 'signup' 
@@ -874,12 +889,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
             {authError && (
               <div style={{
-                background: authError.includes('sent') ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                border: `1px solid ${authError.includes('sent') ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                background: authError.includes('sent') ? "rgba(86,105,84, 0.1)" : 'rgba(239, 68, 68, 0.1)',
+                border: `1px solid ${authError.includes('sent') ? "rgba(86,105,84, 0.3)" : 'rgba(239, 68, 68, 0.3)'}`,
                 borderRadius: '12px',
                 padding: '12px',
                 marginBottom: '20px',
-                color: authError.includes('sent') ? '#4ade80' : '#f87171',
+                color: authError.includes('sent') ? "var(--studio-sage)" : "var(--studio-danger)",
                 fontSize: '0.9rem'
               }}>
                 {authError}
@@ -896,8 +911,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     width: '100%',
                     padding: '16px 24px',
                     borderRadius: '14px',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    background: 'white',
+                    border: "1px solid rgba(var(--studio-ink-rgb), 0.16)",
+                    background: "var(--studio-surface)",
                     color: '#1a1a1a',
                     fontSize: '1rem',
                     fontWeight: '600',
@@ -930,9 +945,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     width: '100%',
                     padding: '16px 24px',
                     borderRadius: '14px',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    background: '#000',
-                    color: '#fff',
+                    border: "1px solid rgba(var(--studio-ink-rgb), 0.16)",
+                    background: "var(--studio-surface-alt)",
+                    color: "var(--studio-ink)",
                     fontSize: '1rem',
                     fontWeight: '600',
                     cursor: authLoading ? 'wait' : 'pointer',
@@ -945,7 +960,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                   }}
                   className="haptic-press"
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--studio-ink)">
                     <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
                   </svg>
                   {authLoading ? 'Signing in...' : 'Continue with Apple'}
@@ -960,9 +975,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                   gap: '12px',
                   margin: '8px 0'
                 }}>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>or</span>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                  <div style={{ flex: 1, height: '1px', background: "rgba(var(--studio-ink-rgb), 0.1)" }} />
+                  <span style={{ color: "var(--studio-muted)", fontSize: '0.85rem' }}>or</span>
+                  <div style={{ flex: 1, height: '1px', background: "rgba(var(--studio-ink-rgb), 0.1)" }} />
                 </div>
               )}
 
@@ -978,9 +993,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     width: '100%',
                     padding: '14px 16px',
                     borderRadius: '12px',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    background: 'rgba(255,255,255,0.05)',
-                    color: 'white',
+                    border: "1px solid rgba(var(--studio-ink-rgb), 0.15)",
+                    background: "rgba(var(--studio-ink-rgb), 0.05)",
+                    color: "var(--studio-ink)",
                     fontSize: '1rem',
                     outline: 'none',
                     boxSizing: 'border-box'
@@ -998,9 +1013,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       width: '100%',
                       padding: '14px 16px',
                       borderRadius: '12px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      background: 'rgba(255,255,255,0.05)',
-                      color: 'white',
+                      border: "1px solid rgba(var(--studio-ink-rgb), 0.15)",
+                      background: "rgba(var(--studio-ink-rgb), 0.05)",
+                      color: "var(--studio-ink)",
                       fontSize: '1rem',
                       outline: 'none',
                       boxSizing: 'border-box'
@@ -1018,8 +1033,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       padding: '14px 24px',
                       borderRadius: '12px',
                       border: 'none',
-                      background: 'linear-gradient(135deg, #a855f7, #06b6d4)',
-                      color: 'white',
+                      background: "linear-gradient(135deg, var(--studio-accent), var(--studio-blue))",
+                      color: "var(--studio-inverse)",
                       fontSize: '1rem',
                       fontWeight: '600',
                       cursor: authLoading ? 'wait' : 'pointer',
@@ -1036,9 +1051,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       width: '100%',
                       padding: '14px 24px',
                       borderRadius: '12px',
-                      border: '1px solid rgba(168, 85, 247, 0.5)',
-                      background: 'rgba(168, 85, 247, 0.1)',
-                      color: 'white',
+                      border: "1px solid rgba(163,66,41, 0.5)",
+                      background: "rgba(163,66,41, 0.1)",
+                      color: "var(--studio-ink)",
                       fontSize: '1rem',
                       fontWeight: '600',
                       cursor: authLoading ? 'wait' : 'pointer',
@@ -1063,7 +1078,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: 'rgba(255,255,255,0.5)',
+                        color: "var(--studio-muted)",
                         cursor: 'pointer',
                         fontSize: '0.85rem',
                         marginBottom: '8px'
@@ -1071,11 +1086,11 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     >
                       Forgot password?
                     </button>
-                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', margin: 0 }}>
+                    <p style={{ color: "var(--studio-muted)", fontSize: '0.85rem', margin: 0 }}>
                       Don't have an account?{' '}
                       <button
                         onClick={() => { setAuthMode('signup'); setAuthError(''); }}
-                        style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', fontWeight: '600' }}
+                        style={{ background: 'none', border: 'none', color: "var(--studio-accent)", cursor: 'pointer', fontWeight: '600' }}
                       >
                         Sign up
                       </button>
@@ -1083,11 +1098,11 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                   </>
                 )}
                 {authMode === 'signup' && (
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', margin: 0 }}>
+                  <p style={{ color: "var(--studio-muted)", fontSize: '0.85rem', margin: 0 }}>
                     Already have an account?{' '}
                     <button
                       onClick={() => { setAuthMode('login'); setAuthError(''); }}
-                      style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', fontWeight: '600' }}
+                      style={{ background: 'none', border: 'none', color: "var(--studio-accent)", cursor: 'pointer', fontWeight: '600' }}
                     >
                       Sign in
                     </button>
@@ -1096,7 +1111,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                 {authMode === 'reset' && (
                   <button
                     onClick={() => { setAuthMode('login'); setAuthError(''); }}
-                    style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', fontSize: '0.85rem' }}
+                    style={{ background: 'none', border: 'none', color: "var(--studio-accent)", cursor: 'pointer', fontSize: '0.85rem' }}
                   >
                     ← Back to sign in
                   </button>
@@ -1111,9 +1126,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                   gap: '12px',
                   margin: '8px 0'
                 }}>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>or</span>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                  <div style={{ flex: 1, height: '1px', background: "rgba(var(--studio-ink-rgb), 0.1)" }} />
+                  <span style={{ color: "var(--studio-muted)", fontSize: '0.85rem' }}>or</span>
+                  <div style={{ flex: 1, height: '1px', background: "rgba(var(--studio-ink-rgb), 0.1)" }} />
                 </div>
               )}
 
@@ -1126,9 +1141,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     width: '100%',
                     padding: '16px 24px',
                     borderRadius: '14px',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    background: 'rgba(255,255,255,0.05)',
-                    color: 'white',
+                    border: "1px solid rgba(var(--studio-ink-rgb), 0.15)",
+                    background: "rgba(var(--studio-ink-rgb), 0.05)",
+                    color: "var(--studio-ink)",
                     fontSize: '1rem',
                     fontWeight: '500',
                     cursor: 'pointer',
@@ -1149,7 +1164,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             <p style={{ 
               marginTop: '24px', 
               fontSize: '0.8rem', 
-              color: 'rgba(255,255,255,0.4)',
+              color: "var(--studio-muted)",
               lineHeight: '1.5'
             }}>
               By continuing, you agree to our <span style={{ color: 'var(--color-purple)', cursor: 'pointer' }} onClick={() => { setShowAuthModal(false); setShowTerms(true); }}>Terms of Service</span> and <span style={{ color: 'var(--color-purple)', cursor: 'pointer' }} onClick={() => { setShowAuthModal(false); setShowPrivacy(true); }}>Privacy Policy</span>
@@ -1245,7 +1260,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               maxWidth: 'min(92vw, 700px)',
               width: '100%',
               margin: '1rem auto',
-              background: 'linear-gradient(180deg, #0a0a0a 0%, #111 100%)',
+              background: "linear-gradient(180deg, var(--studio-bg) 0%, var(--studio-surface-alt) 100%)",
               border: '1px solid rgba(0, 255, 65, 0.2)'
             }}
             onClick={(e) => e.stopPropagation()}
@@ -1290,7 +1305,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                   boxShadow: '0 0 40px rgba(0, 255, 65, 0.4), 0 0 80px rgba(0, 255, 65, 0.2)',
                   position: 'relative'
                 }}>
-                  <Headphones size={48} color="black" />
+                  <Headphones size={48} color="var(--studio-ink)" />
                 </div>
                 
                 <h3 style={{ 
@@ -1351,7 +1366,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               {/* What We Proved */}
               <div style={{ marginBottom: '20px' }}>
                 <h4 style={{ 
-                  color: 'white', 
+                  color: "var(--studio-ink)",
                   fontSize: '1.1rem', 
                   fontWeight: '700',
                   marginBottom: '16px'
@@ -1370,9 +1385,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       display: 'flex',
                       gap: '14px',
                       padding: '14px',
-                      background: 'rgba(255, 255, 255, 0.03)',
+                      background: "rgba(var(--studio-ink-rgb), 0.03)",
                       borderRadius: '12px',
-                      border: '1px solid rgba(255, 255, 255, 0.08)'
+                      border: "1px solid rgba(var(--studio-ink-rgb), 0.08)"
                     }}>
                       <div style={{
                         width: '40px',
@@ -1387,7 +1402,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                         <item.icon size={20} style={{ color: '#00ff41' }} />
                       </div>
                       <div>
-                        <div style={{ fontWeight: '600', color: 'white', fontSize: '0.95rem', marginBottom: '4px' }}>
+                        <div style={{ fontWeight: '600', color: "var(--studio-ink)", fontSize: '0.95rem', marginBottom: '4px' }}>
                           {item.title}
                         </div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
@@ -1402,13 +1417,13 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               {/* The Point */}
               <div style={{
                 padding: '20px',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
+                background: "linear-gradient(135deg, rgba(163,66,41, 0.15) 0%, rgba(61,100,114, 0.15) 100%)",
                 borderRadius: '16px',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
+                border: "1px solid rgba(163,66,41, 0.3)",
                 textAlign: 'center'
               }}>
                 <p style={{ 
-                  color: 'white', 
+                  color: "var(--studio-ink)",
                   fontSize: '1.1rem', 
                   fontWeight: '600',
                   marginBottom: '12px'
@@ -1429,7 +1444,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                   width: '100%', 
                   justifyContent: 'center',
                   background: 'linear-gradient(135deg, #00ff41 0%, #00cc33 100%)',
-                  color: 'black'
+                  color: "var(--studio-ink)"
                 }}
               >
                 <Zap size={18} />
@@ -1456,15 +1471,15 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               margin: '1rem auto',
               display: 'flex',
               flexDirection: 'column',
-              background: 'linear-gradient(180deg, rgba(15, 15, 25, 0.98) 0%, rgba(10, 10, 18, 0.99) 100%)',
-              border: '1px solid rgba(139, 92, 246, 0.3)'
+              background: "linear-gradient(180deg, var(--studio-surface) 0%, var(--studio-surface) 100%)",
+              border: "1px solid rgba(163,66,41, 0.3)"
             }}
             onClick={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="modal-header" style={{ 
-              borderBottom: '1px solid rgba(139, 92, 246, 0.2)',
+              borderBottom: "1px solid rgba(163,66,41, 0.2)",
               padding: '20px 24px'
             }}>
               <div>
@@ -1484,7 +1499,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               display: 'flex', 
               gap: '4px', 
               padding: '16px 24px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+              borderBottom: "1px solid rgba(var(--studio-ink-rgb), 0.05)",
               overflowX: 'auto',
               flexShrink: 0
             }}>
@@ -1510,8 +1525,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       border: 'none',
                       background: pitchTab === tab.id 
                         ? 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)' 
-                        : isLocked ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
-                      color: pitchTab === tab.id ? 'white' : isLocked ? 'rgba(255,255,255,0.3)' : 'var(--text-secondary)',
+                        : isLocked ? "rgba(var(--studio-ink-rgb), 0.02)" : "rgba(var(--studio-ink-rgb), 0.05)",
+                      color: pitchTab === tab.id ? "var(--studio-ink)" : isLocked ? "var(--studio-muted)" : 'var(--text-secondary)',
                       cursor: 'pointer',
                       fontWeight: pitchTab === tab.id ? '600' : '400',
                       fontSize: '0.85rem',
@@ -1546,8 +1561,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     width: '80px',
                     height: '80px',
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%)',
-                    border: '2px solid rgba(139, 92, 246, 0.3)',
+                    background: "linear-gradient(135deg, rgba(163,66,41, 0.2) 0%, rgba(61,100,114, 0.2) 100%)",
+                    border: "2px solid rgba(163,66,41, 0.3)",
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1562,7 +1577,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       <h3 style={{ 
                         fontSize: '1.5rem', 
                         fontWeight: '700', 
-                        color: 'white',
+                        color: "var(--studio-ink)",
                         marginBottom: '12px'
                       }}>
                         ✅ Request Submitted
@@ -1581,9 +1596,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                         style={{
                           padding: '12px 24px',
                           borderRadius: '12px',
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          border: '1px solid rgba(255, 255, 255, 0.2)',
-                          color: 'white',
+                          background: "rgba(var(--studio-ink-rgb), 0.1)",
+                          border: "1px solid rgba(var(--studio-ink-rgb), 0.16)",
+                          color: "var(--studio-ink)",
                           fontWeight: '500',
                           cursor: 'pointer'
                         }}
@@ -1597,7 +1612,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       <h3 style={{ 
                         fontSize: '1.5rem', 
                         fontWeight: '700', 
-                        color: 'white',
+                        color: "var(--studio-ink)",
                         marginBottom: '12px'
                       }}>
                         Investor Access Required
@@ -1633,9 +1648,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                             width: '100%',
                             padding: '14px 18px',
                             borderRadius: '12px',
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: accessError && !investorName.trim() ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.1)',
-                            color: 'white',
+                            background: "rgba(var(--studio-ink-rgb), 0.05)",
+                            border: accessError && !investorName.trim() ? "1px solid var(--studio-danger)" : "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+                            color: "var(--studio-ink)",
                             fontSize: '1rem'
                           }}
                         />
@@ -1653,9 +1668,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                             width: '100%',
                             padding: '14px 18px',
                             borderRadius: '12px',
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: accessError && !investorEmail.trim() ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.1)',
-                            color: 'white',
+                            background: "rgba(var(--studio-ink-rgb), 0.05)",
+                            border: accessError && !investorEmail.trim() ? "1px solid var(--studio-danger)" : "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+                            color: "var(--studio-ink)",
                             fontSize: '1rem'
                           }}
                         />
@@ -1669,16 +1684,16 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                             width: '100%',
                             padding: '14px 18px',
                             borderRadius: '12px',
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            color: 'white',
+                            background: "rgba(var(--studio-ink-rgb), 0.05)",
+                            border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+                            color: "var(--studio-ink)",
                             fontSize: '1rem'
                           }}
                         />
                         
                         {accessError && (
                           <div style={{ 
-                            color: '#ef4444', 
+                            color: "var(--studio-danger)",
                             fontSize: '0.85rem',
                             display: 'flex',
                             alignItems: 'center',
@@ -1697,10 +1712,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                             padding: '14px 24px',
                             borderRadius: '12px',
                             background: accessLoading 
-                              ? 'rgba(139, 92, 246, 0.5)' 
+                              ? "rgba(163,66,41, 0.5)"
                               : 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)',
                             border: 'none',
-                            color: 'white',
+                            color: "var(--studio-ink)",
                             fontWeight: '600',
                             fontSize: '0.95rem',
                             cursor: accessLoading ? 'not-allowed' : 'pointer',
@@ -1716,8 +1731,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                               <div style={{
                                 width: '18px',
                                 height: '18px',
-                                border: '2px solid rgba(255,255,255,0.3)',
-                                borderTopColor: 'white',
+                                border: "2px solid rgba(var(--studio-ink-rgb), 0.16)",
+                                borderTopColor: "var(--studio-ink)",
                                 borderRadius: '50%',
                                 animation: 'spin 1s linear infinite'
                               }} />
@@ -1735,9 +1750,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       <div style={{ 
                         marginTop: '32px',
                         padding: '16px 24px',
-                        background: 'rgba(255, 255, 255, 0.03)',
+                        background: "rgba(var(--studio-ink-rgb), 0.03)",
                         borderRadius: '12px',
-                        border: '1px solid rgba(255, 255, 255, 0.08)'
+                        border: "1px solid rgba(var(--studio-ink-rgb), 0.08)"
                       }}>
                         <p style={{ 
                           color: 'var(--text-secondary)', 
@@ -1768,7 +1783,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     <h3 style={{ 
                       fontSize: '1.75rem', 
                       fontWeight: '800',
-                      background: 'linear-gradient(135deg, #fff 0%, #a78bfa 50%, #22d3ee 100%)',
+                      background: "linear-gradient(135deg, var(--studio-surface) 0%, var(--studio-accent) 50%, var(--studio-blue) 100%)",
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
                       lineHeight: '1.3',
@@ -1777,7 +1792,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       Accelerate Your Music with AI Agents
                     </h3>
                     <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
-                      We're building an <strong style={{ color: 'white' }}>AI-assisted creative workspace</strong> —
+                      We're building an <strong style={{ color: "var(--studio-ink)" }}>AI-assisted creative workspace</strong> —
                       a place to develop ideas with specialized tools and review the outputs,
                       with generation time, availability and quality dependent on the provider and prompt.
                     </p>
@@ -1790,13 +1805,13 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     marginBottom: '28px'
                   }}>
                     {[
-                      { title: 'The Problem', desc: 'Starting from scratch is slow. Artists waste hours on first drafts instead of perfecting their sound', color: '#ef4444' },
-                      { title: 'Our Solution', desc: 'Specialized tools for lyrics, audio, visuals and release planning, connected to a project you can refine.', color: '#22c55e' },
-                      { title: 'The Vision', desc: 'Help independent artists develop and finish work while keeping creative judgment in human hands.', color: '#8b5cf6' }
+                      { title: 'The Problem', desc: 'Starting from scratch is slow. Artists waste hours on first drafts instead of perfecting their sound', color: "var(--studio-danger)" },
+                      { title: 'Our Solution', desc: 'Specialized tools for lyrics, audio, visuals and release planning, connected to a project you can refine.', color: "var(--studio-sage)" },
+                      { title: 'The Vision', desc: 'Help independent artists develop and finish work while keeping creative judgment in human hands.', color: "var(--studio-accent)" }
                     ].map((item, i) => (
                       <div key={i} style={{
                         padding: '20px',
-                        background: `rgba(${item.color === '#ef4444' ? '239, 68, 68' : item.color === '#22c55e' ? '34, 197, 94' : '139, 92, 246'}, 0.1)`,
+                        background: `rgba(${item.color === "var(--studio-danger)" ? '239, 68, 68' : item.color === "var(--studio-sage)" ? '34, 197, 94' : '139, 92, 246'}, 0.1)`,
                         borderRadius: '16px',
                         border: `1px solid ${item.color}30`
                       }}>
@@ -1812,9 +1827,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
                   <div style={{
                     padding: '24px',
-                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                    background: "linear-gradient(135deg, rgba(163,66,41, 0.1) 0%, rgba(61,100,114, 0.1) 100%)",
                     borderRadius: '16px',
-                    border: '1px solid rgba(139, 92, 246, 0.2)',
+                    border: "1px solid rgba(163,66,41, 0.2)",
                     textAlign: 'center'
                   }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '8px', letterSpacing: '1px' }}>
@@ -1822,7 +1837,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     </div>
                     <p style={{ 
                       fontSize: '1.1rem', 
-                      color: 'white', 
+                      color: "var(--studio-ink)",
                       fontWeight: '500',
                       lineHeight: '1.6',
                       margin: 0,
@@ -1862,7 +1877,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     }}>
                       THE PLATFORM
                     </div>
-                    <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'white', marginBottom: '8px' }}>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: "var(--studio-ink)", marginBottom: '8px' }}>
                       {AGENTS.length} creative agents, connected workflows
                     </h3>
                     <p style={{ color: 'var(--text-secondary)', maxWidth: '500px', margin: '0 auto' }}>
@@ -1887,9 +1902,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       return (
                         <div key={i} style={{
                           padding: '16px',
-                          background: 'rgba(255, 255, 255, 0.03)',
+                          background: "rgba(var(--studio-ink-rgb), 0.03)",
                           borderRadius: '14px',
-                          border: '1px solid rgba(255, 255, 255, 0.08)'
+                          border: "1px solid rgba(var(--studio-ink-rgb), 0.08)"
                         }}>
                           <div style={{ 
                             fontSize: '0.7rem', 
@@ -1904,7 +1919,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                             {categoryAgents.map((agent) => (
                               <div key={agent.id} style={{ 
                                 fontSize: '0.85rem', 
-                                color: agent.tier === 'free' ? 'white' : 'var(--text-secondary)',
+                                color: agent.tier === 'free' ? "var(--studio-ink)" : 'var(--text-secondary)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '8px'
@@ -1927,12 +1942,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
                   <div style={{
                     padding: '24px',
-                    background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                    background: "linear-gradient(135deg, rgba(86,105,84, 0.1) 0%, rgba(61,100,114, 0.1) 100%)",
                     borderRadius: '16px',
-                    border: '1px solid rgba(34, 197, 94, 0.2)',
+                    border: "1px solid rgba(86,105,84, 0.2)",
                     marginBottom: '20px'
                   }}>
-                    <h4 style={{ color: 'white', fontSize: '1rem', fontWeight: '600', marginBottom: '16px', textAlign: 'center' }}>
+                    <h4 style={{ color: "var(--studio-ink)", fontSize: '1rem', fontWeight: '600', marginBottom: '16px', textAlign: 'center' }}>
                       Competitive Moat
                     </h4>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
@@ -1943,7 +1958,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                         { title: 'Consent Boundaries', desc: 'Personal voice activation requires explicit consent and a provider voice ID' }
                       ].map((item, i) => (
                         <div key={i}>
-                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#22c55e', marginBottom: '4px' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: "var(--studio-sage)", marginBottom: '4px' }}>
                             {item.title}
                           </div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -2000,7 +2015,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
             {/* Footer */}
             <div className="modal-footer" style={{ 
-              borderTop: '1px solid rgba(139, 92, 246, 0.2)',
+              borderTop: "1px solid rgba(163,66,41, 0.2)",
               display: 'flex',
               gap: '12px',
               padding: '20px 24px'
@@ -2046,17 +2061,17 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                 margin: '1rem auto',
                 display: 'flex',
                 flexDirection: 'column',
-                background: 'linear-gradient(180deg, rgba(15, 15, 25, 0.99) 0%, rgba(8, 8, 14, 1) 100%)',
-                border: '1px solid rgba(139, 92, 246, 0.3)'
+                background: "linear-gradient(180deg, var(--studio-surface) 0%, var(--studio-surface) 100%)",
+                border: "1px solid rgba(163,66,41, 0.3)"
               }}
               onClick={(e) => e.stopPropagation()}
               onTouchEnd={(e) => e.stopPropagation()}
             >
               {/* Header */}
               <div className="modal-header" style={{ 
-                borderBottom: '1px solid rgba(139, 92, 246, 0.2)',
+                borderBottom: "1px solid rgba(163,66,41, 0.2)",
                 padding: '20px 24px',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)'
+                background: "linear-gradient(135deg, rgba(163,66,41, 0.1) 0%, rgba(61,100,114, 0.1) 100%)"
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div style={{
@@ -2068,7 +2083,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}>
-                    <Icon size={24} style={{ color: 'white' }} />
+                    <Icon size={24} style={{ color: "var(--studio-ink)" }} />
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2px', minWidth: 0 }}>
@@ -2084,7 +2099,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       <span style={{ 
                         fontSize: '0.65rem', 
                         padding: '3px 8px', 
-                        background: 'rgba(139, 92, 246, 0.3)',
+                        background: "rgba(163,66,41, 0.3)",
                         borderRadius: '6px',
                         color: 'var(--color-purple)',
                         fontWeight: '600',
@@ -2098,7 +2113,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                           padding: '3px 8px', 
                           background: 'rgba(239, 68, 68, 0.2)',
                           borderRadius: '6px',
-                          color: '#ef4444',
+                          color: "var(--studio-danger)",
                           fontWeight: '600',
                           flexShrink: 0
                         }}>
@@ -2124,7 +2139,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                 display: 'flex', 
                 gap: '4px', 
                 padding: '12px 24px',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                borderBottom: "1px solid rgba(var(--studio-ink-rgb), 0.05)",
                 overflowX: 'auto',
                 flexShrink: 0
               }}>
@@ -2148,8 +2163,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       border: 'none',
                       background: whitepaperTab === tab.id 
                         ? 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)' 
-                        : 'rgba(255, 255, 255, 0.05)',
-                      color: whitepaperTab === tab.id ? 'white' : 'var(--text-secondary)',
+                        : "rgba(var(--studio-ink-rgb), 0.05)",
+                      color: whitepaperTab === tab.id ? "var(--studio-ink)" : 'var(--text-secondary)',
                       cursor: 'pointer',
                       fontWeight: whitepaperTab === tab.id ? '600' : '400',
                       fontSize: '0.8rem',
@@ -2209,8 +2224,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                         border: '1px solid rgba(239, 68, 68, 0.2)'
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                          <AlertCircle size={18} style={{ color: '#ef4444' }} />
-                          <h4 style={{ color: '#ef4444', fontSize: '0.9rem', fontWeight: '700', margin: 0 }}>
+                          <AlertCircle size={18} style={{ color: "var(--studio-danger)" }} />
+                          <h4 style={{ color: "var(--studio-danger)", fontSize: '0.9rem', fontWeight: '700', margin: 0 }}>
                             The Problem
                           </h4>
                         </div>
@@ -2221,13 +2236,13 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
                       <div style={{
                         padding: '20px',
-                        background: 'rgba(34, 197, 94, 0.08)',
+                        background: "rgba(86,105,84, 0.08)",
                         borderRadius: '16px',
-                        border: '1px solid rgba(34, 197, 94, 0.2)'
+                        border: "1px solid rgba(86,105,84, 0.2)"
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                          <CheckCircle size={18} style={{ color: '#22c55e' }} />
-                          <h4 style={{ color: '#22c55e', fontSize: '0.9rem', fontWeight: '700', margin: 0 }}>
+                          <CheckCircle size={18} style={{ color: "var(--studio-sage)" }} />
+                          <h4 style={{ color: "var(--studio-sage)", fontSize: '0.9rem', fontWeight: '700', margin: 0 }}>
                             The Solution
                           </h4>
                         </div>
@@ -2240,9 +2255,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     {/* Success Metrics */}
                     <div style={{
                       padding: '20px',
-                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                      background: "linear-gradient(135deg, rgba(163,66,41, 0.1) 0%, rgba(61,100,114, 0.1) 100%)",
                       borderRadius: '16px',
-                      border: '1px solid rgba(139, 92, 246, 0.2)',
+                      border: "1px solid rgba(163,66,41, 0.2)",
                       textAlign: 'center'
                     }}>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '8px', letterSpacing: '1px' }}>
@@ -2250,7 +2265,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       </div>
                       <p style={{ 
                         fontSize: '1rem', 
-                        color: 'white', 
+                        color: "var(--studio-ink)",
                         fontWeight: '500',
                         margin: 0
                       }}>
@@ -2282,9 +2297,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       {wp.technicalStack.map((tech, i) => (
                         <div key={i} style={{
                           padding: '16px',
-                          background: 'rgba(255, 255, 255, 0.03)',
+                          background: "rgba(var(--studio-ink-rgb), 0.03)",
                           borderRadius: '12px',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          border: "1px solid rgba(var(--studio-ink-rgb), 0.08)",
                           display: 'flex',
                           alignItems: 'center',
                           gap: '12px'
@@ -2299,9 +2314,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                             justifyContent: 'center',
                             flexShrink: 0
                           }}>
-                            <Cpu size={16} style={{ color: 'white' }} />
+                            <Cpu size={16} style={{ color: "var(--studio-ink)" }} />
                           </div>
-                          <span style={{ fontSize: '0.85rem', color: 'white', fontWeight: '500' }}>{tech}</span>
+                          <span style={{ fontSize: '0.85rem', color: "var(--studio-ink)", fontWeight: '500' }}>{tech}</span>
                         </div>
                       ))}
                     </div>
@@ -2309,9 +2324,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     {/* Integration */}
                     <div style={{
                       padding: '20px',
-                      background: 'rgba(139, 92, 246, 0.08)',
+                      background: "rgba(163,66,41, 0.08)",
                       borderRadius: '16px',
-                      border: '1px solid rgba(139, 92, 246, 0.2)'
+                      border: "1px solid rgba(163,66,41, 0.2)"
                     }}>
                       <h4 style={{ color: 'var(--color-purple)', fontSize: '0.9rem', fontWeight: '700', marginBottom: '12px' }}>
                         Workflow Integration
@@ -2340,9 +2355,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       {(wp.keyFeatures && wp.keyFeatures.length > 0 ? wp.keyFeatures : (agent.capabilities || []).map(c => ({ name: c, desc: '' }))).map((feature, i) => (
                         <div key={i} style={{
                           padding: '18px 20px',
-                          background: 'rgba(255, 255, 255, 0.03)',
+                          background: "rgba(var(--studio-ink-rgb), 0.03)",
                           borderRadius: '14px',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          border: "1px solid rgba(var(--studio-ink-rgb), 0.08)",
                           display: 'flex',
                           alignItems: 'flex-start',
                           gap: '14px'
@@ -2351,7 +2366,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                             width: '28px',
                             height: '28px',
                             borderRadius: '8px',
-                            background: 'rgba(139, 92, 246, 0.2)',
+                            background: "rgba(163,66,41, 0.2)",
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -2361,7 +2376,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                             <CheckCircle size={14} style={{ color: 'var(--color-purple)' }} />
                           </div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '0.95rem', color: 'white', fontWeight: '600', marginBottom: '4px' }}>
+                            <div style={{ fontSize: '0.95rem', color: "var(--studio-ink)", fontWeight: '600', marginBottom: '4px' }}>
                               {feature.name}
                             </div>
                             {feature.desc && (
@@ -2392,10 +2407,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                           gap: '8px',
                           marginBottom: '16px'
                         }}>
-                          <CheckCircle size={18} style={{ color: '#22c55e' }} />
+                          <CheckCircle size={18} style={{ color: "var(--studio-sage)" }} />
                           <span style={{ 
                             fontSize: '0.75rem', 
-                            color: '#22c55e', 
+                            color: "var(--studio-sage)",
                             fontWeight: '600',
                             letterSpacing: '1px'
                           }}>
@@ -2406,16 +2421,16 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                           {wp.whenToUse.map((item, i) => (
                             <div key={i} style={{
                               padding: '12px 16px',
-                              background: 'rgba(34, 197, 94, 0.08)',
+                              background: "rgba(86,105,84, 0.08)",
                               borderRadius: '10px',
-                              border: '1px solid rgba(34, 197, 94, 0.15)',
+                              border: "1px solid rgba(86,105,84, 0.15)",
                               fontSize: '0.85rem',
                               color: 'var(--text-secondary)',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '10px'
                             }}>
-                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: "var(--studio-sage)", flexShrink: 0 }} />
                               {item}
                             </div>
                           ))}
@@ -2430,10 +2445,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                           gap: '8px',
                           marginBottom: '16px'
                         }}>
-                          <AlertCircle size={18} style={{ color: '#ef4444' }} />
+                          <AlertCircle size={18} style={{ color: "var(--studio-danger)" }} />
                           <span style={{ 
                             fontSize: '0.75rem', 
-                            color: '#ef4444', 
+                            color: "var(--studio-danger)",
                             fontWeight: '600',
                             letterSpacing: '1px'
                           }}>
@@ -2453,7 +2468,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                               alignItems: 'center',
                               gap: '10px'
                             }}>
-                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: "var(--studio-danger)", flexShrink: 0 }} />
                               {item}
                             </div>
                           ))}
@@ -2480,9 +2495,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       {wp.examplePrompts.map((prompt, i) => (
                         <div key={i} style={{
                           padding: '18px 20px',
-                          background: 'rgba(255, 255, 255, 0.02)',
+                          background: "rgba(var(--studio-ink-rgb), 0.02)",
                           borderRadius: '14px',
-                          border: '1px solid rgba(139, 92, 246, 0.2)',
+                          border: "1px solid rgba(163,66,41, 0.2)",
                           position: 'relative'
                         }}>
                           <div style={{
@@ -2500,7 +2515,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                           </div>
                           <p style={{ 
                             fontSize: '0.9rem', 
-                            color: 'white', 
+                            color: "var(--studio-ink)",
                             lineHeight: '1.6',
                             margin: 0,
                             fontFamily: 'monospace',
@@ -2526,11 +2541,11 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       {wp.outputFormats.map((format, i) => (
                         <div key={i} style={{
                           padding: '8px 16px',
-                          background: 'rgba(139, 92, 246, 0.15)',
+                          background: "rgba(163,66,41, 0.15)",
                           borderRadius: '8px',
-                          border: '1px solid rgba(139, 92, 246, 0.3)',
+                          border: "1px solid rgba(163,66,41, 0.3)",
                           fontSize: '0.8rem',
-                          color: 'white',
+                          color: "var(--studio-ink)",
                           fontWeight: '500'
                         }}>
                           {format}
@@ -2568,15 +2583,15 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       ].map((spec, i) => (
                         <div key={i} style={{
                           padding: '16px',
-                          background: 'rgba(255, 255, 255, 0.03)',
+                          background: "rgba(var(--studio-ink-rgb), 0.03)",
                           borderRadius: '12px',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          border: "1px solid rgba(var(--studio-ink-rgb), 0.08)",
                           textAlign: 'center'
                         }}>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
                             {spec.label}
                           </div>
-                          <div style={{ fontSize: '0.95rem', color: 'white', fontWeight: '600' }}>
+                          <div style={{ fontSize: '0.95rem', color: "var(--studio-ink)", fontWeight: '600' }}>
                             {spec.value}
                           </div>
                         </div>
@@ -2591,7 +2606,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       border: '1px solid rgba(239, 68, 68, 0.15)'
                     }}>
                       <h4 style={{ 
-                        color: '#ef4444', 
+                        color: "var(--studio-danger)",
                         fontSize: '0.85rem', 
                         fontWeight: '700', 
                         marginBottom: '14px',
@@ -2621,7 +2636,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
               {/* Footer */}
               <div className="modal-footer" style={{ 
-                borderTop: '1px solid rgba(139, 92, 246, 0.2)',
+                borderTop: "1px solid rgba(163,66,41, 0.2)",
                 display: 'flex',
                 gap: '12px',
                 padding: '16px 24px'

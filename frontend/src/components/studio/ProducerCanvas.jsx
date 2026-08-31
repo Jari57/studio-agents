@@ -10,12 +10,12 @@ import ProducerControl from './ProducerControl';
 import { producerRenderSignature, producerAudioLibrary, inferProducerRole, producerSessionIssues } from '../../utils/producerSession.mjs';
 
 const ROLE_META = {
-  beat: { label: 'Beat', color: '#31c6f4', icon: Disc3 },
-  instrument: { label: 'Instrument', color: '#70d6a4', icon: Music2 },
-  vocal: { label: 'Lead vocal', color: '#c99bff', icon: Mic2 },
-  harmony: { label: 'Harmony', color: '#ff9ecf', icon: Mic2 },
-  adlib: { label: 'Ad-lib', color: '#ffbd70', icon: Mic2 },
-  fx: { label: 'FX', color: '#8da7ff', icon: Sparkles },
+  beat: { label: 'Beat', color: 'var(--studio-sage)', icon: Disc3 },
+  instrument: { label: 'Instrument', color: 'var(--studio-sage)', icon: Music2 },
+  vocal: { label: 'Lead vocal', color: 'var(--studio-accent)', icon: Mic2 },
+  harmony: { label: 'Harmony', color: 'var(--studio-accent)', icon: Mic2 },
+  adlib: { label: 'Ad-lib', color: 'var(--studio-warning)', icon: Mic2 },
+  fx: { label: 'FX', color: 'var(--studio-blue)', icon: Sparkles },
 };
 const EMPTY_TRACKS = [];
 

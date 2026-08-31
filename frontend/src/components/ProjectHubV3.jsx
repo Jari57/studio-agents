@@ -16,7 +16,7 @@ import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUt
 // ═══════════════════════════════════════════════════════════════════════════════
 const WAVEFORM_HEIGHTS = [42, 66, 34, 78, 54, 88, 46, 70, 38, 82, 58, 92, 50, 74, 40, 84, 62, 76, 48, 68];
 
-function WaveformOverlay({ color = 'var(--color-purple)' }) {
+function WaveformOverlay({ color = 'var(--studio-accent)' }) {
 
   return (
     <div className="waveform-container">
@@ -43,11 +43,11 @@ function DiscoverFeed() {
     <div className="discover-feed-container animate-fadeIn">
       {/* Featured Banner (Social Style) */}
       <div className="discovery-hero-banner" style={{
-        background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.4), rgba(147, 51, 234, 0.4))',
+        background: 'linear-gradient(135deg, rgba(163, 66, 41, 0.4), rgba(163, 66, 41, 0.4))',
         borderRadius: '20px',
         padding: '40px',
         marginBottom: '42px',
-        border: '1px solid rgba(255,255,255,0.1)',
+        border: '1px solid rgba(32,39,36,0.1)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -58,8 +58,8 @@ function DiscoverFeed() {
       }}>
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ 
-            background: 'var(--color-purple)', 
-            color: 'white', 
+            background: 'var(--studio-accent)',
+            color: 'var(--studio-on-accent)',
             padding: '6px 14px', 
             borderRadius: '20px', 
             fontSize: '0.75rem', 
@@ -69,8 +69,8 @@ function DiscoverFeed() {
             display: 'inline-block',
             marginBottom: '16px'
           }}>Studio Hub</div>
-          <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white' }}>Connect & Collaborate</h2>
-          <p style={{ color: 'rgba(255,255,255,0.8)', maxWidth: '600px', margin: '0 auto', fontSize: '1.1rem' }}>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: 'var(--studio-ink)' }}>Connect & Collaborate</h2>
+          <p style={{ color: 'var(--studio-muted)', maxWidth: '600px', margin: '0 auto', fontSize: '1.1rem' }}>
             The Fragments Project Hub is where you can discover templates, share your creations, and fork projects from the community.
           </p>
         </div>
@@ -87,7 +87,7 @@ function DiscoverFeed() {
 
       {/* Discovery Feed Empty State */}
       <section className="feed-tracks">
-        <div className="empty-state-v3" style={{ padding: '80px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+        <div className="empty-state-v3" style={{ padding: '80px 20px', background: 'rgba(32,39,36,0.02)', borderRadius: '24px', border: '1px dashed rgba(32,39,36,0.1)' }}>
           <div className="empty-icon main-icon" style={{ marginBottom: '20px' }}>
             <GlobeIcon size={48} style={{ opacity: 0.3 }} />
           </div>
@@ -249,22 +249,22 @@ function ProjectHubV3({
 
               try {
                 await Promise.all(emptyProjects.map(p => Promise.resolve(onDeleteProject?.(p.id, true))));
-                toast.success(`${count} empty projects purged!`, { icon: '🔥', style: { background: '#ef4444', color: 'white' } });
+                toast.success(`${count} empty projects purged!`, { icon: '🔥', style: { background: '#a3382d', color: 'white' } });
               } catch (err) {
                 console.error('[ProjectHub] Purge failed:', err);
                 setProjects?.(previous);
                 toast.error('Purge failed. Restored local projects.');
               }
             }}
-            style={{ padding: '6px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+            style={{ padding: '6px 16px', background: '#a3382d', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
           >Purge</button>
           <button 
             onClick={() => toast.dismiss(t.id)}
-            style={{ padding: '6px 16px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', cursor: 'pointer' }}
+            style={{ padding: '6px 16px', background: 'var(--studio-surface-alt)', color: 'var(--studio-ink)', border: '1px solid var(--studio-border)', borderRadius: '8px', cursor: 'pointer' }}
           >Cancel</button>
         </div>
       </div>
-    ), { duration: 10000, style: { background: '#1a1a2e', color: 'white', borderRadius: '12px' } });
+    ), { duration: 10000, style: { background: 'var(--studio-surface)', color: 'var(--studio-ink)', borderRadius: '12px' } });
   }, [projects, onDeleteProject]);
 
   // Get project thumbnail
@@ -343,15 +343,15 @@ function ProjectHubV3({
                 toast.error('Delete failed. Project restored.');
               }
             }}
-            style={{ padding: '6px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+            style={{ padding: '6px 16px', background: '#a3382d', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
           >Delete</button>
           <button 
             onClick={() => toast.dismiss(t.id)}
-            style={{ padding: '6px 16px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', cursor: 'pointer' }}
+            style={{ padding: '6px 16px', background: 'var(--studio-surface-alt)', color: 'var(--studio-ink)', border: '1px solid var(--studio-border)', borderRadius: '8px', cursor: 'pointer' }}
           >Cancel</button>
         </div>
       </div>
-    ), { duration: 10000, style: { background: '#1a1a2e', color: 'white', borderRadius: '12px' } });
+    ), { duration: 10000, style: { background: 'var(--studio-surface)', color: 'var(--studio-ink)', borderRadius: '12px' } });
   };
 
   // Handle duplicate
@@ -605,10 +605,10 @@ function ProjectHubV3({
 
   // Get progress color
   const getProgressColor = (progress) => {
-    if (progress >= 80) return 'var(--color-green)';
-    if (progress >= 50) return 'var(--color-cyan)';
-    if (progress >= 20) return 'var(--color-purple)';
-    return 'var(--color-pink)';
+    if (progress >= 80) return 'var(--studio-sage)';
+    if (progress >= 50) return 'var(--studio-sage)';
+    if (progress >= 20) return 'var(--studio-accent)';
+    return 'var(--studio-accent)';
   };
 
   return (
@@ -646,7 +646,7 @@ function ProjectHubV3({
               <button 
                 className="btn-secondary" 
                 onClick={handlePurgeEmptyProjects}
-                style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}
+                style={{ background: 'rgba(163, 56, 45, 0.1)', borderColor: 'rgba(163, 56, 45, 0.2)', color: '#a3382d' }}
               >
                 <Trash2 size={16} />
                 <span>Purge Empty</span>
@@ -766,7 +766,7 @@ function ProjectHubV3({
             setProjects?.(prev => [newProject, ...prev]);
             toast.success(`Remixing ${track.name} - Forked to Studio!`, {
               icon: '🍴',
-              style: { background: '#22c55e', color: 'white' }
+              style: { background: '#566954', color: 'white' }
             });
             onSelectProject?.(newProject);
             setActiveHubTab('my-projects');
@@ -888,7 +888,7 @@ function ProjectHubV3({
                   {!thumbnail && (
                     <div className="placeholder-thumb">
                       {assetIcons.includes('audio') ? (
-                        <WaveformOverlay color={index % 2 === 0 ? 'var(--color-purple)' : 'var(--color-cyan)'} />
+                        <WaveformOverlay color={index % 2 === 0 ? 'var(--studio-accent)' : 'var(--studio-sage)'} />
                       ) : (
                         <Sparkles size={32} />
                       )}
@@ -986,7 +986,7 @@ function ProjectHubV3({
                         </span>
                         <span className="meta-visibility">
                           {project.isPublic ? (
-                            <GlobeIcon size={12} color="var(--color-cyan)" />
+                            <GlobeIcon size={12} color="var(--studio-sage)" />
                           ) : (
                             <LockIcon size={12} />
                           )}
@@ -1138,14 +1138,15 @@ function ProjectHubV3({
           font-size: 2rem;
           font-weight: 700;
           margin: 0;
-          background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+          background: none;
+          color: var(--studio-ink);
           -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
+          -webkit-text-fill-color: currentColor;
           background-clip: text;
         }
 
         .hub-subtitle {
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           font-size: 0.9rem;
           margin: 4px 0 0;
           display: flex;
@@ -1155,10 +1156,10 @@ function ProjectHubV3({
         
         .filter-badge {
           padding: 2px 8px;
-          background: rgba(139, 92, 246, 0.2);
+          background: rgba(163, 66, 41, 0.2);
           border-radius: 4px;
           font-size: 0.75rem;
-          color: var(--color-purple);
+          color: var(--studio-accent);
           text-transform: capitalize;
         }
         
@@ -1173,10 +1174,10 @@ function ProjectHubV3({
           align-items: center;
           gap: 8px;
           padding: 12px 24px;
-          background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-pink) 100%);
+          background: linear-gradient(135deg, var(--studio-accent) 0%, var(--studio-accent) 100%);
           border: none;
           border-radius: 12px;
-          color: white;
+          color: var(--studio-on-accent);
           font-weight: 600;
           font-size: 0.95rem;
           cursor: pointer;
@@ -1196,7 +1197,7 @@ function ProjectHubV3({
 
         .btn-create-new:hover {
           transform: translateY(-3px) scale(1.02);
-          box-shadow: 0 12px 32px rgba(139, 92, 246, 0.5);
+          box-shadow: var(--studio-shadow);
         }
         
         .btn-create-new:hover::before {
@@ -1218,7 +1219,8 @@ function ProjectHubV3({
         
         .count-badge {
           padding: 0 6px;
-          background: var(--color-purple);
+          background: var(--studio-accent);
+          color: var(--studio-on-accent);
           border-radius: 10px;
           font-size: 0.7rem;
           min-width: 18px;
@@ -1239,33 +1241,33 @@ function ProjectHubV3({
           align-items: center;
           gap: 12px;
           padding: 12px 16px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
+          background: var(--studio-surface);
+          border: 1px solid var(--studio-border);
           border-radius: 12px;
           transition: border-color 0.2s;
         }
 
         .hub-search:focus-within {
-          border-color: var(--color-purple);
+          border-color: var(--studio-accent);
         }
 
         .hub-search input {
           flex: 1;
           background: none;
           border: none;
-          color: white;
+          color: var(--studio-ink);
           font-size: 0.95rem;
           outline: none;
         }
 
         .hub-search input::placeholder {
-          color: var(--text-secondary);
+          color: var(--studio-muted);
         }
 
         .clear-search {
           background: none;
           border: none;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           cursor: pointer;
           padding: 4px;
         }
@@ -1280,10 +1282,10 @@ function ProjectHubV3({
           align-items: center;
           gap: 6px;
           padding: 10px 16px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
+          background: var(--studio-surface);
+          border: 1px solid var(--studio-border);
           border-radius: 20px;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           font-size: 0.85rem;
           font-weight: 500;
           cursor: pointer;
@@ -1291,22 +1293,22 @@ function ProjectHubV3({
         }
 
         .filter-pill:hover {
-          border-color: var(--color-purple);
-          color: white;
+          border-color: var(--studio-accent);
+          color: var(--studio-ink);
         }
 
         .filter-pill.active {
-          background: var(--color-purple);
-          border-color: var(--color-purple);
-          color: white;
+          background: var(--studio-accent);
+          border-color: var(--studio-accent);
+          color: var(--studio-on-accent);
         }
 
         .sort-dropdown select {
           padding: 10px 14px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
+          background: var(--studio-surface);
+          border: 1px solid var(--studio-border);
           border-radius: 10px;
-          color: white;
+          color: var(--studio-ink);
           font-size: 0.85rem;
           font-weight: 500;
           cursor: pointer;
@@ -1322,35 +1324,35 @@ function ProjectHubV3({
 
         .sort-dropdown select:hover,
         .sort-dropdown select:focus {
-          border-color: var(--color-purple);
+          border-color: var(--studio-accent);
         }
 
         .sort-dropdown select option {
-          background: var(--bg-primary);
-          color: white;
+          background: var(--studio-bg);
+          color: var(--studio-ink);
         }
 
         .view-switch {
           display: flex;
-          background: var(--bg-secondary);
+          background: var(--studio-surface);
           border-radius: 10px;
           padding: 4px;
-          border: 1px solid var(--border-color);
+          border: 1px solid var(--studio-border);
         }
 
         .view-switch button {
           padding: 8px 12px;
           background: none;
           border: none;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           cursor: pointer;
           border-radius: 8px;
           transition: all 0.2s;
         }
 
         .view-switch button.active {
-          background: var(--color-purple);
-          color: white;
+          background: var(--studio-accent);
+          color: var(--studio-on-accent);
         }
 
         /* Projects Grid */
@@ -1403,8 +1405,8 @@ function ProjectHubV3({
 
         /* Project Card */
         .project-card {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
+          background: var(--studio-surface);
+          border: 1px solid var(--studio-border);
           border-radius: 16px;
           overflow: visible;
           cursor: pointer;
@@ -1421,22 +1423,22 @@ function ProjectHubV3({
 
         .project-card:hover {
           transform: translateY(-4px);
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-          border-color: var(--color-purple);
+          box-shadow: var(--studio-shadow);
+          border-color: var(--studio-accent);
         }
         
         /* Drag & Drop States */
         .project-card.dragging {
           opacity: 0.5;
           transform: scale(0.95);
-          border: 2px dashed var(--color-purple);
+          border: 2px dashed var(--studio-accent);
         }
         
         .project-card.drag-over {
           transform: translateY(-8px) scale(1.02);
-          box-shadow: 0 20px 60px rgba(139, 92, 246, 0.4);
-          border-color: var(--color-cyan);
-          background: rgba(139, 92, 246, 0.1);
+          box-shadow: var(--studio-shadow);
+          border-color: var(--studio-sage);
+          background: rgba(163, 66, 41, 0.1);
         }
         
         /* Staggered Animation for Cards */
@@ -1466,8 +1468,8 @@ function ProjectHubV3({
         
         /* Skeleton Loading */
         .skeleton-card {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
+          background: var(--studio-surface);
+          border: 1px solid var(--studio-border);
           border-radius: 16px;
           overflow: hidden;
           min-height: 280px;
@@ -1476,9 +1478,9 @@ function ProjectHubV3({
         .skeleton-thumb {
           height: 180px;
           background: linear-gradient(90deg, 
-            var(--bg-tertiary) 0%, 
+            var(--studio-surface-alt) 0%,
             rgba(255,255,255,0.1) 50%, 
-            var(--bg-tertiary) 100%);
+            var(--studio-surface-alt) 100%);
           background-size: 200% 100%;
           animation: shimmer 1.5s infinite;
         }
@@ -1490,9 +1492,9 @@ function ProjectHubV3({
         .skeleton-line {
           height: 16px;
           background: linear-gradient(90deg, 
-            var(--bg-tertiary) 0%, 
+            var(--studio-surface-alt) 0%,
             rgba(255,255,255,0.1) 50%, 
-            var(--bg-tertiary) 100%);
+            var(--studio-surface-alt) 100%);
           background-size: 200% 100%;
           animation: shimmer 1.5s infinite;
           border-radius: 4px;
@@ -1518,13 +1520,13 @@ function ProjectHubV3({
           justify-content: space-between;
           align-items: center;
           font-size: 0.75rem;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           margin-bottom: 6px;
         }
         
         .progress-bar {
           height: 4px;
-          background: var(--bg-tertiary);
+          background: var(--studio-surface-alt);
           border-radius: 2px;
           overflow: hidden;
         }
@@ -1566,7 +1568,7 @@ function ProjectHubV3({
         /* New Project Hint */
         .new-project-hint {
           font-size: 0.75rem;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           margin-top: 4px;
         }
         
@@ -1580,7 +1582,7 @@ function ProjectHubV3({
         }
 
         .project-card.new-project-card {
-          border: 2px dashed var(--border-color);
+          border: 2px dashed var(--studio-border);
           background: transparent;
           min-height: 280px;
           display: flex;
@@ -1589,8 +1591,8 @@ function ProjectHubV3({
         }
 
         .project-card.new-project-card:hover {
-          border-color: var(--color-purple);
-          background: rgba(139, 92, 246, 0.05);
+          border-color: var(--studio-accent);
+          background: rgba(163, 66, 41, 0.05);
         }
 
         .new-project-inner {
@@ -1598,18 +1600,18 @@ function ProjectHubV3({
           flex-direction: column;
           align-items: center;
           gap: 16px;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
         }
 
         .plus-circle {
           width: 72px;
           height: 72px;
           border-radius: 50%;
-          background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-pink) 100%);
+          background: linear-gradient(135deg, var(--studio-accent) 0%, var(--studio-accent) 100%);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: white;
+          color: var(--studio-on-accent);
           transition: transform 0.3s;
         }
 
@@ -1619,7 +1621,7 @@ function ProjectHubV3({
 
         .card-thumbnail {
           height: 180px;
-          background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%);
+          background: linear-gradient(135deg, rgba(163, 66, 41, 0.2) 0%, rgba(86, 105, 84, 0.2) 100%);
           background-size: cover;
           background-position: center;
           position: relative;
@@ -1633,7 +1635,7 @@ function ProjectHubV3({
           display: flex;
           align-items: center;
           justify-content: center;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           opacity: 0.5;
         }
 
@@ -1673,14 +1675,16 @@ function ProjectHubV3({
         }
 
         .action-btn:hover {
-          background: var(--color-purple);
+          background: var(--studio-accent);
           transform: scale(1.1);
+          color: var(--studio-on-accent);
         }
 
         .action-btn.play-btn {
           width: 56px;
           height: 56px;
-          background: var(--color-purple);
+          background: var(--studio-accent);
+          color: var(--studio-on-accent);
         }
 
         .fav-btn {
@@ -1703,7 +1707,7 @@ function ProjectHubV3({
         }
 
         .fav-btn:hover, .fav-btn.active {
-          color: var(--color-pink);
+          color: var(--studio-accent);
         }
 
         .asset-badges {
@@ -1730,14 +1734,14 @@ function ProjectHubV3({
         .badge:hover {
           transform: scale(1.1) translateY(-2px);
           filter: brightness(1.2);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          box-shadow: var(--studio-shadow);
           z-index: 10;
         }
 
-        .badge.audio { background: rgba(139, 92, 246, 0.8); }
-        .badge.image { background: rgba(236, 72, 153, 0.8); }
-        .badge.video { background: rgba(6, 182, 212, 0.8); }
-        .badge.text { background: rgba(16, 185, 129, 0.8); }
+        .badge.audio { background: rgba(163, 66, 41, 0.8); }
+        .badge.image { background: rgba(154, 89, 63, 0.8); }
+        .badge.video { background: rgba(86, 105, 84, 0.8); }
+        .badge.text { background: rgba(86, 105, 84, 0.8); }
 
         .card-info {
           padding: 12px;
@@ -1759,7 +1763,7 @@ function ProjectHubV3({
         .card-meta {
           display: flex;
           gap: 16px;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           font-size: clamp(0.7rem, 2vw, 0.8rem);
         }
 
@@ -1773,7 +1777,7 @@ function ProjectHubV3({
           display: flex;
           align-items: center;
           gap: 4px;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
         }
         
         .meta-visibility svg {
@@ -1786,8 +1790,8 @@ function ProjectHubV3({
           gap: 6px;
           margin-top: 10px;
           padding: 8px 16px;
-          background: var(--color-purple);
-          color: white;
+          background: var(--studio-accent);
+          color: var(--studio-on-accent);
           border: none;
           border-radius: 8px;
           font-size: 0.8rem;
@@ -1799,9 +1803,9 @@ function ProjectHubV3({
         }
 
         .btn-open-project:hover {
-          background: var(--color-purple-hover, #7c3aed);
+          background: var(--studio-accent);
           transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+          box-shadow: var(--studio-shadow);
         }
 
         .btn-open-project:active {
@@ -1817,7 +1821,7 @@ function ProjectHubV3({
           border-radius: 8px;
           background: none;
           border: none;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -1826,20 +1830,20 @@ function ProjectHubV3({
         }
 
         .context-btn:hover {
-          background: var(--bg-tertiary);
-          color: white;
+          background: var(--studio-surface-alt);
+          color: var(--studio-ink);
         }
 
         .context-menu {
           position: absolute;
           top: 48px;
           right: 12px;
-          background: var(--bg-primary);
-          border: 1px solid var(--border-color);
+          background: var(--studio-bg);
+          border: 1px solid var(--studio-border);
           border-radius: 12px;
           padding: 8px;
           min-width: 160px;
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+          box-shadow: var(--studio-shadow);
           z-index: 100;
         }
 
@@ -1851,7 +1855,7 @@ function ProjectHubV3({
           padding: 10px 12px;
           background: none;
           border: none;
-          color: white;
+          color: var(--studio-ink);
           font-size: 0.9rem;
           cursor: pointer;
           border-radius: 8px;
@@ -1859,7 +1863,7 @@ function ProjectHubV3({
         }
 
         .context-menu button:hover {
-          background: var(--bg-secondary);
+          background: var(--studio-surface);
         }
 
         .context-menu button.delete {
@@ -1868,7 +1872,7 @@ function ProjectHubV3({
 
         .menu-divider {
           height: 1px;
-          background: var(--border-color);
+          background: var(--studio-border);
           margin: 8px 0;
         }
 
@@ -1880,19 +1884,19 @@ function ProjectHubV3({
         .edit-name-row input {
           flex: 1;
           padding: 8px 12px;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--color-purple);
+          background: var(--studio-surface-alt);
+          border: 1px solid var(--studio-accent);
           border-radius: 8px;
-          color: white;
+          color: var(--studio-ink);
           font-size: 0.95rem;
         }
 
         .edit-name-row button {
           padding: 8px;
-          background: var(--color-purple);
+          background: var(--studio-accent);
           border: none;
           border-radius: 8px;
-          color: white;
+          color: var(--studio-on-accent);
           cursor: pointer;
         }
 
@@ -1929,28 +1933,28 @@ function ProjectHubV3({
         .float-item.item-1 {
           top: 10px;
           left: 20px;
-          background: linear-gradient(135deg, var(--color-purple) 0%, #a855f7 100%);
+          background: linear-gradient(135deg, var(--studio-accent) 0%, #a34229 100%);
           animation-delay: 0s;
         }
         
         .float-item.item-2 {
           top: 20px;
           right: 10px;
-          background: linear-gradient(135deg, var(--color-pink) 0%, #f472b6 100%);
+          background: linear-gradient(135deg, var(--studio-accent) 0%, #b7795b 100%);
           animation-delay: 0.5s;
         }
         
         .float-item.item-3 {
           bottom: 30px;
           left: 10px;
-          background: linear-gradient(135deg, var(--color-cyan) 0%, #22d3ee 100%);
+          background: linear-gradient(135deg, var(--studio-sage) 0%, #70836a 100%);
           animation-delay: 1s;
         }
         
         .float-item.item-4 {
           bottom: 10px;
           right: 30px;
-          background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+          background: linear-gradient(135deg, #566954 0%, #70836a 100%);
           animation-delay: 1.5s;
         }
         
@@ -1966,13 +1970,13 @@ function ProjectHubV3({
           transform: translate(-50%, -50%);
           width: 100px;
           height: 100px;
-          background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(6, 182, 212, 0.3) 100%);
+          background: linear-gradient(135deg, rgba(163, 66, 41, 0.3) 0%, rgba(86, 105, 84, 0.3) 100%);
           border-radius: 24px;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: white;
-          box-shadow: 0 20px 60px rgba(139, 92, 246, 0.3);
+          color: var(--studio-ink);
+          box-shadow: var(--studio-shadow);
         }
         
         .empty-icon.search-empty {
@@ -1984,21 +1988,22 @@ function ProjectHubV3({
           display: flex;
           align-items: center;
           justify-content: center;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
         }
 
         .empty-state-v3 h3 {
           font-size: 1.75rem;
           font-weight: 700;
           margin: 0 0 12px;
-          background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.8) 100%);
+          background: none;
+          color: var(--studio-ink);
           -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
+          -webkit-text-fill-color: currentColor;
           background-clip: text;
         }
 
         .empty-state-v3 p {
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           margin: 0 0 32px;
           font-size: 1rem;
           max-width: 400px;
@@ -2022,7 +2027,7 @@ function ProjectHubV3({
         
         .template-label {
           font-size: 0.85rem;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           margin-bottom: 16px !important;
         }
         
@@ -2038,19 +2043,19 @@ function ProjectHubV3({
           align-items: center;
           gap: 8px;
           padding: 10px 16px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
+          background: var(--studio-surface);
+          border: 1px solid var(--studio-border);
           border-radius: 20px;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           font-size: 0.85rem;
           cursor: pointer;
           transition: all 0.2s ease;
         }
         
         .template-chip:hover {
-          border-color: var(--color-purple);
-          color: white;
-          background: rgba(139, 92, 246, 0.1);
+          border-color: var(--studio-accent);
+          color: var(--studio-ink);
+          background: rgba(163, 66, 41, 0.1);
           transform: translateY(-2px);
         }
         
@@ -2059,18 +2064,18 @@ function ProjectHubV3({
           align-items: center;
           gap: 8px;
           padding: 12px 24px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
+          background: var(--studio-surface);
+          border: 1px solid var(--studio-border);
           border-radius: 12px;
-          color: white;
+          color: var(--studio-ink);
           font-weight: 500;
           cursor: pointer;
           transition: all 0.2s ease;
         }
         
         .btn-secondary:hover {
-          border-color: var(--color-purple);
-          background: rgba(139, 92, 246, 0.1);
+          border-color: var(--studio-accent);
+          background: rgba(163, 66, 41, 0.1);
         }
 
         /* Modal */
@@ -2087,8 +2092,8 @@ function ProjectHubV3({
         }
 
         .modal-v3 {
-          background: var(--bg-primary);
-          border: 1px solid var(--border-color);
+          background: var(--studio-bg);
+          border: 1px solid var(--studio-border);
           border-radius: 24px;
           padding: 32px;
           max-width: 520px;
@@ -2115,9 +2120,9 @@ function ProjectHubV3({
           width: 40px;
           height: 40px;
           border-radius: 12px;
-          background: var(--bg-secondary);
+          background: var(--studio-surface);
           border: none;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -2125,7 +2130,7 @@ function ProjectHubV3({
         }
 
         .modal-close:hover {
-          color: white;
+          color: var(--studio-ink);
         }
 
         .modal-v3 h2 {
@@ -2134,17 +2139,17 @@ function ProjectHubV3({
         }
 
         .modal-subtitle {
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           margin: 0 0 24px;
         }
 
         .modal-form input {
           width: 100%;
           padding: 14px 18px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
+          background: var(--studio-surface);
+          border: 1px solid var(--studio-border);
           border-radius: 12px;
-          color: white;
+          color: var(--studio-ink);
           font-size: 1rem;
           margin-bottom: 20px;
           box-sizing: border-box;
@@ -2152,7 +2157,7 @@ function ProjectHubV3({
 
         .modal-form input:focus {
           outline: none;
-          border-color: var(--color-purple);
+          border-color: var(--studio-accent);
         }
 
         .template-grid {
@@ -2164,8 +2169,8 @@ function ProjectHubV3({
 
         .template-card {
           padding: 20px 16px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
+          background: var(--studio-surface);
+          border: 1px solid var(--studio-border);
           border-radius: 12px;
           text-align: center;
           cursor: pointer;
@@ -2173,23 +2178,23 @@ function ProjectHubV3({
         }
 
         .template-card:hover {
-          border-color: var(--color-purple);
+          border-color: var(--studio-accent);
         }
 
         .template-card.selected {
-          background: rgba(139, 92, 246, 0.2);
-          border-color: var(--color-purple);
+          background: rgba(163, 66, 41, 0.2);
+          border-color: var(--studio-accent);
         }
 
         .template-card span {
           display: block;
           margin-top: 8px;
           font-size: 0.85rem;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
         }
 
         .template-card.selected span {
-          color: white;
+          color: var(--studio-ink);
         }
 
         .modal-actions {
@@ -2200,26 +2205,26 @@ function ProjectHubV3({
 
         .btn-secondary {
           padding: 12px 24px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
+          background: var(--studio-surface);
+          border: 1px solid var(--studio-border);
           border-radius: 12px;
-          color: white;
+          color: var(--studio-ink);
           font-weight: 500;
           cursor: pointer;
         }
 
         .btn-primary {
           padding: 12px 24px;
-          background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-pink) 100%);
+          background: linear-gradient(135deg, var(--studio-accent) 0%, var(--studio-accent) 100%);
           border: none;
           border-radius: 12px;
-          color: white;
+          color: var(--studio-on-accent);
           font-weight: 600;
           cursor: pointer;
         }
 
         .btn-primary:hover {
-          box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+          box-shadow: var(--studio-shadow);
         }
 
         /* Waveform Animation */
@@ -2443,10 +2448,10 @@ function ProjectHubV3({
           display: flex;
           gap: 12px;
           margin-bottom: 32px;
-          background: var(--bg-secondary);
+          background: var(--studio-surface);
           padding: 6px;
           border-radius: 16px;
-          border: 1px solid var(--border-color);
+          border: 1px solid var(--studio-border);
           width: fit-content;
         }
 
@@ -2457,7 +2462,7 @@ function ProjectHubV3({
           padding: 10px 20px;
           background: none;
           border: none;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           font-weight: 600;
           font-size: 0.9rem;
           cursor: pointer;
@@ -2467,25 +2472,25 @@ function ProjectHubV3({
         }
 
         .hub-tab-item:hover {
-          color: white;
+          color: var(--studio-ink);
           background: rgba(255,255,255,0.05);
         }
 
         .hub-tab-item.active {
-          color: white;
-          background: var(--bg-tertiary);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+          color: var(--studio-ink);
+          background: var(--studio-surface-alt);
+          box-shadow: var(--studio-shadow);
         }
 
         .live-dot {
           width: 8px;
           height: 8px;
-          background: #ef4444;
+          background: #a3382d;
           border-radius: 50%;
           position: absolute;
           top: 8px;
           right: 8px;
-          box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+          box-shadow: 0 0 10px rgba(163, 56, 45, 0.8);
           animation: pulse 2s infinite;
         }
 
@@ -2518,14 +2523,14 @@ function ProjectHubV3({
         .section-header h3 {
           font-size: 1.25rem;
           font-weight: 700;
-          color: white;
+          color: var(--studio-ink);
           margin: 0;
         }
 
         .btn-text {
           background: none;
           border: none;
-          color: var(--color-purple);
+          color: var(--studio-accent);
           font-size: 0.9rem;
           font-weight: 600;
           cursor: pointer;
@@ -2541,7 +2546,7 @@ function ProjectHubV3({
           overflow-x: auto;
           padding: 8px 0 24px;
           scrollbar-width: thin;
-          scrollbar-color: var(--border-color) transparent;
+          scrollbar-color: var(--studio-border) transparent;
         }
 
         .creator-scroll::-webkit-scrollbar {
@@ -2549,16 +2554,16 @@ function ProjectHubV3({
         }
         
         .creator-scroll::-webkit-scrollbar-thumb {
-          background: var(--border-color);
+          background: var(--studio-border);
           border-radius: 10px;
         }
 
         .creator-card {
           flex: 0 0 160px;
-          background: var(--bg-secondary);
+          background: var(--studio-surface);
           padding: 24px 16px;
           border-radius: 20px;
-          border: 1px solid var(--border-color);
+          border: 1px solid var(--studio-border);
           text-align: center;
           display: flex;
           flex-direction: column;
@@ -2569,9 +2574,9 @@ function ProjectHubV3({
 
         .creator-card:hover {
           transform: translateY(-5px);
-          border-color: var(--color-purple);
-          background: var(--bg-tertiary);
-          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+          border-color: var(--studio-accent);
+          background: var(--studio-surface-alt);
+          box-shadow: var(--studio-shadow);
         }
 
         .avatar-wrapper {
@@ -2585,7 +2590,7 @@ function ProjectHubV3({
           width: 100%;
           height: 100%;
           border-radius: 50%;
-          border: 2px solid var(--color-purple);
+          border: 2px solid var(--studio-accent);
           object-fit: cover;
         }
 
@@ -2595,20 +2600,20 @@ function ProjectHubV3({
           right: 2px;
           width: 14px;
           height: 14px;
-          background: #22c55e;
-          border: 2px solid var(--bg-secondary);
+          background: #566954;
+          border: 2px solid var(--studio-surface);
           border-radius: 50%;
         }
 
         .creator-name {
           font-weight: 700;
           font-size: 0.95rem;
-          color: white;
+          color: var(--studio-ink);
         }
 
         .creator-stat {
           font-size: 0.75rem;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
         }
 
         .btn-follow {
@@ -2617,8 +2622,8 @@ function ProjectHubV3({
           padding: 8px;
           border-radius: 10px;
           background: rgba(255,255,255,0.05);
-          border: 1px solid var(--border-color);
-          color: white;
+          border: 1px solid var(--studio-border);
+          color: var(--studio-ink);
           font-weight: 600;
           font-size: 0.85rem;
           cursor: pointer;
@@ -2626,8 +2631,9 @@ function ProjectHubV3({
         }
 
         .btn-follow:hover {
-          background: var(--color-purple);
-          border-color: var(--color-purple);
+          background: var(--studio-accent);
+          border-color: var(--studio-accent);
+          color: var(--studio-on-accent);
         }
 
         /* Feed Tracks */
@@ -2638,16 +2644,16 @@ function ProjectHubV3({
         }
 
         .feed-item-card {
-          background: var(--bg-secondary);
+          background: var(--studio-surface);
           border-radius: 24px;
           overflow: hidden;
-          border: 1px solid var(--border-color);
+          border: 1px solid var(--studio-border);
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .feed-item-card:hover {
           transform: translateY(-8px);
-          box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+          box-shadow: var(--studio-shadow);
           border-color: rgba(255,255,255,0.2);
         }
 
@@ -2677,9 +2683,9 @@ function ProjectHubV3({
           width: 56px;
           height: 56px;
           border-radius: 50%;
-          background: var(--color-purple);
+          background: var(--studio-accent);
           border: none;
-          color: white;
+          color: var(--studio-on-accent);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -2690,7 +2696,7 @@ function ProjectHubV3({
 
         .play-circle:hover {
           transform: scale(1.1);
-          background: var(--color-pink);
+          background: var(--studio-accent);
         }
 
         .remix-badge {
@@ -2716,14 +2722,14 @@ function ProjectHubV3({
           top: 16px;
           left: 16px;
           padding: 6px 12px;
-          background: var(--color-purple);
+          background: var(--studio-accent);
           border-radius: 100px;
           font-size: 0.75rem;
           font-weight: 800;
-          color: white;
+          color: var(--studio-on-accent);
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+          box-shadow: var(--studio-shadow);
           z-index: 2;
           border: 1px solid rgba(255,255,255,0.3);
         }
@@ -2736,12 +2742,12 @@ function ProjectHubV3({
           font-size: 1.125rem;
           font-weight: 700;
           margin: 0;
-          color: white;
+          color: var(--studio-ink);
         }
 
         .track-creator {
           font-size: 0.85rem;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           margin: 4px 0 16px;
         }
 
@@ -2754,8 +2760,8 @@ function ProjectHubV3({
 
         .tag {
           font-size: 0.7rem;
-          color: var(--color-cyan);
-          background: rgba(6, 182, 212, 0.1);
+          color: var(--studio-sage);
+          background: rgba(86, 105, 84, 0.1);
           padding: 4px 10px;
           border-radius: 6px;
           font-weight: 600;
@@ -2766,13 +2772,13 @@ function ProjectHubV3({
           justify-content: space-between;
           align-items: center;
           padding-top: 16px;
-          border-top: 1px solid var(--border-color);
+          border-top: 1px solid var(--studio-border);
         }
 
         .stats {
           display: flex;
           gap: 16px;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           font-size: 0.85rem;
         }
 
@@ -2787,10 +2793,10 @@ function ProjectHubV3({
           align-items: center;
           gap: 8px;
           padding: 10px 18px;
-          background: rgba(139, 92, 246, 0.1);
-          border: 1px solid rgba(139, 92, 246, 0.3);
+          background: rgba(163, 66, 41, 0.1);
+          border: 1px solid rgba(163, 66, 41, 0.3);
           border-radius: 12px;
-          color: var(--color-purple);
+          color: var(--studio-accent);
           font-weight: 700;
           font-size: 0.85rem;
           cursor: pointer;
@@ -2798,10 +2804,10 @@ function ProjectHubV3({
         }
 
         .btn-remix-action:hover {
-          background: var(--color-purple);
-          color: white;
+          background: var(--studio-accent);
+          color: var(--studio-on-accent);
           transform: scale(1.05);
-          box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+          box-shadow: var(--studio-shadow);
         }
 
         .feed-filters {
@@ -2812,7 +2818,7 @@ function ProjectHubV3({
         .feed-filters button {
           background: none;
           border: none;
-          color: var(--text-secondary);
+          color: var(--studio-muted);
           font-size: 0.9rem;
           font-weight: 600;
           cursor: pointer;
@@ -2822,11 +2828,11 @@ function ProjectHubV3({
         }
 
         .feed-filters button:hover {
-          color: white;
+          color: var(--studio-ink);
         }
 
         .feed-filters button.active {
-          color: white;
+          color: var(--studio-ink);
         }
 
         .feed-filters button.active::after {
@@ -2836,7 +2842,7 @@ function ProjectHubV3({
           left: 0;
           right: 0;
           height: 2px;
-          background: var(--color-purple);
+          background: var(--studio-accent);
           border-radius: 2px;
         }
 

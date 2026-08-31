@@ -12,14 +12,14 @@ import {
 // Turn one .wav into a 7-day social media campaign
 // ============================================================
 
-const ACCENT = '#a855f7';
-const CYAN = '#06b6d4';
-const PINK = '#ec4899';
-const ORANGE = '#f97316';
-const EMERALD = '#10b981';
-const GOLD = '#f59e0b';
-const INDIGO = '#6366f1';
-const RED = '#ef4444';
+const ACCENT = 'var(--studio-accent)';
+const CYAN = 'var(--studio-sage)';
+const PINK = 'var(--studio-accent)';
+const ORANGE = 'var(--studio-accent)';
+const EMERALD = 'var(--studio-sage)';
+const GOLD = 'var(--studio-accent)';
+const INDIGO = 'var(--studio-sage)';
+const RED = 'var(--studio-accent)';
 
 const PREP_STEPS = [
   {
@@ -194,24 +194,24 @@ export default function ContentMultiplicationPage({ onBack }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(180deg, #0a0a0f 0%, #0d0d18 40%, #0a0a0f 100%)',
-      color: 'white',
+      background: 'linear-gradient(180deg, var(--studio-bg) 0%, var(--studio-surface-alt) 40%, var(--studio-bg) 100%)',
+      color: 'var(--studio-ink)',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
       {/* ==================== HEADER ==================== */}
       <header style={{
         position: 'sticky', top: 0, zIndex: 100,
         padding: '12px 20px',
-        background: 'rgba(10, 10, 15, 0.9)',
+        background: 'var(--studio-surface)',
         backdropFilter: 'blur(16px)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        borderBottom: '1px solid var(--studio-border)',
         display: 'flex', alignItems: 'center', gap: '12px'
       }}>
         <button
           onClick={onBack}
           style={{
             padding: '8px', borderRadius: '10px', border: 'none',
-            background: 'rgba(255,255,255,0.06)', color: 'white',
+            background: 'var(--studio-surface-alt)', color: 'var(--studio-ink)',
             cursor: 'pointer', display: 'flex', alignItems: 'center'
           }}
         >
@@ -221,7 +221,7 @@ export default function ContentMultiplicationPage({ onBack }) {
           <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.01em' }}>
             Content Multiplication Engine
           </h1>
-          <p style={{ margin: 0, fontSize: '0.7rem', color: '#6b7280', fontWeight: '500' }}>
+          <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--studio-muted)', fontWeight: '500' }}>
             1 Track → 7-Day Campaign — Powered by Studio Agents AI
           </p>
         </div>
@@ -235,14 +235,14 @@ export default function ContentMultiplicationPage({ onBack }) {
         <div style={{
           position: 'absolute', top: '-100px', left: '50%', transform: 'translateX(-50%)',
           width: '900px', height: '500px',
-          background: 'radial-gradient(circle, rgba(168,85,247,0.1) 0%, rgba(236,72,153,0.06) 40%, transparent 70%)',
+          background: 'radial-gradient(circle, color-mix(in srgb, var(--studio-accent) 10%, transparent) 0%, color-mix(in srgb, var(--studio-accent) 6%, transparent) 40%, transparent 70%)',
           pointerEvents: 'none'
         }} />
 
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
-            background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)',
+            background: 'color-mix(in srgb, var(--studio-accent) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--studio-accent) 25%, transparent)',
             borderRadius: '100px', padding: '6px 18px', marginBottom: '20px',
             fontSize: '0.8rem', color: ACCENT, fontWeight: '700', letterSpacing: '0.1em'
           }}>
@@ -259,7 +259,7 @@ export default function ContentMultiplicationPage({ onBack }) {
           </h2>
 
           <p style={{
-            color: '#9ca3af', fontSize: '1.1rem', maxWidth: '650px',
+            color: 'var(--studio-muted)', fontSize: '1.1rem', maxWidth: '650px',
             margin: '0 auto 32px', lineHeight: '1.7'
           }}>
             The exact blueprint for turning a single track into a full week of high-converting
@@ -282,7 +282,7 @@ export default function ContentMultiplicationPage({ onBack }) {
                 <div style={{ fontSize: '1.6rem', fontWeight: '800', color: stat.color, fontFamily: 'Georgia, serif' }}>
                   {stat.value}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: '600', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--studio-muted)', fontWeight: '600', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   {stat.label}
                 </div>
               </div>
@@ -297,12 +297,12 @@ export default function ContentMultiplicationPage({ onBack }) {
             {['🎵 .WAV', '→', '🎨 Art', '→', '🎬 Video', '→', '✍️ Copy', '→', '📱 7-Day Campaign'].map((item, i) => (
               <span key={i} style={{
                 fontSize: item === '→' ? '1.2rem' : '0.85rem',
-                color: item === '→' ? '#4b5563' : '#d1d5db',
+                color: item === '→' ? 'var(--studio-muted)' : 'var(--studio-ink)',
                 fontWeight: item === '→' ? '400' : '600',
                 padding: item === '→' ? '0' : '6px 12px',
-                background: item === '→' ? 'none' : 'rgba(255,255,255,0.04)',
+                background: item === '→' ? 'none' : 'var(--studio-surface)',
                 borderRadius: '8px',
-                border: item === '→' ? 'none' : '1px solid rgba(255,255,255,0.06)'
+                border: item === '→' ? 'none' : '1px solid var(--studio-border)'
               }}>
                 {item}
               </span>
@@ -316,7 +316,7 @@ export default function ContentMultiplicationPage({ onBack }) {
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
-            background: `${CYAN}15`, border: `1px solid ${CYAN}30`,
+            background: `color-mix(in srgb, ${CYAN} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${CYAN} 19%, transparent)`,
             borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
             fontSize: '0.75rem', color: CYAN, fontWeight: '700', letterSpacing: '0.1em'
           }}>
@@ -328,7 +328,7 @@ export default function ContentMultiplicationPage({ onBack }) {
           }}>
             The AI Prep Day
           </h2>
-          <p style={{ color: '#9ca3af', fontSize: '1rem', maxWidth: '550px', margin: '0 auto' }}>
+          <p style={{ color: 'var(--studio-muted)', fontSize: '1rem', maxWidth: '550px', margin: '0 auto' }}>
             Before a single post goes live, spend a few hours feeding the track through your AI stack to build the full toolkit.
           </p>
         </div>
@@ -340,46 +340,46 @@ export default function ContentMultiplicationPage({ onBack }) {
             const isExpanded = expandedPrep === i;
             return (
               <div key={i} style={{
-                background: isExpanded ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${isExpanded ? `${step.color}30` : 'rgba(255,255,255,0.06)'}`,
+                background: isExpanded ? 'var(--studio-surface)' : 'var(--studio-surface)',
+                border: `1px solid ${isExpanded ? `color-mix(in srgb, ${step.color} 19%, transparent)` : 'var(--studio-border)'}`,
                 borderRadius: '16px', overflow: 'hidden', transition: 'all 0.3s'
               }}>
                 <button
                   onClick={() => setExpandedPrep(isExpanded ? null : i)}
                   style={{
                     width: '100%', padding: '18px 22px', border: 'none',
-                    background: 'transparent', color: 'white', cursor: 'pointer',
+                    background: 'transparent', color: 'var(--studio-ink)', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', gap: '14px', textAlign: 'left'
                   }}
                 >
                   <div style={{
                     width: '42px', height: '42px', borderRadius: '12px',
-                    background: `${step.color}15`, border: `1px solid ${step.color}30`,
+                    background: `color-mix(in srgb, ${step.color} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${step.color} 19%, transparent)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                   }}>
                     <Icon size={20} style={{ color: step.color }} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '1rem', fontWeight: '700' }}>{step.title}</div>
-                    <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '2px' }}>{step.subtitle}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--studio-muted)', marginTop: '2px' }}>{step.subtitle}</div>
                   </div>
                   <div style={{
                     fontSize: '0.7rem', color: step.color, fontWeight: '600',
                     padding: '4px 10px', borderRadius: '6px',
-                    background: `${step.color}10`, whiteSpace: 'nowrap',
+                    background: `color-mix(in srgb, ${step.color} 6%, transparent)`, whiteSpace: 'nowrap',
                     marginRight: '10px'
                   }}>
                     {step.tool}
                   </div>
                   <ChevronRight size={18} style={{
-                    color: '#6b7280', transition: 'transform 0.2s',
+                    color: 'var(--studio-muted)', transition: 'transform 0.2s',
                     transform: isExpanded ? 'rotate(90deg)' : 'rotate(0)'
                   }} />
                 </button>
 
                 {isExpanded && (
                   <div style={{ padding: '0 22px 22px' }}>
-                    <p style={{ color: '#9ca3af', fontSize: '0.9rem', lineHeight: '1.6', marginTop: 0, marginBottom: '16px' }}>
+                    <p style={{ color: 'var(--studio-muted)', fontSize: '0.9rem', lineHeight: '1.6', marginTop: 0, marginBottom: '16px' }}>
                       {step.description}
                     </p>
 
@@ -388,17 +388,17 @@ export default function ContentMultiplicationPage({ onBack }) {
                         <div key={j} style={{
                           display: 'flex', gap: '10px', alignItems: 'flex-start',
                           padding: '12px 14px', borderRadius: '10px',
-                          background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.04)'
+                          background: 'var(--studio-surface)', border: '1px solid var(--studio-border)'
                         }}>
                           <div style={{
                             width: '22px', height: '22px', borderRadius: '6px',
-                            background: `${step.color}20`, display: 'flex',
+                            background: `color-mix(in srgb, ${step.color} 13%, transparent)`, display: 'flex',
                             alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                             fontSize: '0.7rem', fontWeight: '800', color: step.color
                           }}>
                             {j + 1}
                           </div>
-                          <span style={{ fontSize: '0.85rem', color: '#d1d5db', lineHeight: '1.5' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--studio-ink)', lineHeight: '1.5' }}>
                             {action}
                           </span>
                         </div>
@@ -407,8 +407,8 @@ export default function ContentMultiplicationPage({ onBack }) {
 
                     <div style={{
                       padding: '12px 16px', borderRadius: '10px',
-                      background: `${EMERALD}08`, border: `1px solid ${EMERALD}15`,
-                      fontSize: '0.85rem', color: '#9ca3af', lineHeight: '1.5',
+                      background: `color-mix(in srgb, ${EMERALD} 3%, transparent)`, border: `1px solid color-mix(in srgb, ${EMERALD} 8%, transparent)`,
+                      fontSize: '0.85rem', color: 'var(--studio-muted)', lineHeight: '1.5',
                       display: 'flex', alignItems: 'flex-start', gap: '8px'
                     }}>
                       <Download size={14} style={{ color: EMERALD, flexShrink: 0, marginTop: '2px' }} />
@@ -427,7 +427,7 @@ export default function ContentMultiplicationPage({ onBack }) {
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
-            background: `${GOLD}15`, border: `1px solid ${GOLD}30`,
+            background: `color-mix(in srgb, ${GOLD} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${GOLD} 19%, transparent)`,
             borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
             fontSize: '0.75rem', color: GOLD, fontWeight: '700', letterSpacing: '0.1em'
           }}>
@@ -439,7 +439,7 @@ export default function ContentMultiplicationPage({ onBack }) {
           }}>
             The Distribution Playbook
           </h2>
-          <p style={{ color: '#9ca3af', fontSize: '1rem', maxWidth: '600px', margin: '0 auto' }}>
+          <p style={{ color: 'var(--studio-muted)', fontSize: '1rem', maxWidth: '600px', margin: '0 auto' }}>
             Assets generated. Now roll them out across Instagram, TikTok, X, and YouTube Shorts 
             with this day-by-day campaign blueprint.
           </p>
@@ -450,7 +450,7 @@ export default function ContentMultiplicationPage({ onBack }) {
           {/* Vertical timeline line */}
           <div style={{
             position: 'absolute', left: '23px', top: '20px', bottom: '20px',
-            width: '2px', background: 'linear-gradient(180deg, rgba(168,85,247,0.3), rgba(245,158,11,0.3), rgba(16,185,129,0.3))',
+            width: '2px', background: 'linear-gradient(180deg, color-mix(in srgb, var(--studio-accent) 30%, transparent), color-mix(in srgb, var(--studio-accent) 30%, transparent), color-mix(in srgb, var(--studio-sage) 30%, transparent))',
             borderRadius: '1px'
           }} />
 
@@ -464,32 +464,32 @@ export default function ContentMultiplicationPage({ onBack }) {
                   <div style={{
                     position: 'absolute', left: '12px', top: '18px',
                     width: '24px', height: '24px', borderRadius: '50%',
-                    background: isExpanded ? day.color : 'rgba(255,255,255,0.1)',
+                    background: isExpanded ? day.color : 'var(--studio-surface)',
                     border: `2px solid ${day.color}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '0.65rem', fontWeight: '800',
-                    color: isExpanded ? 'white' : day.color,
+                    color: isExpanded ? 'var(--studio-on-accent)' : day.color,
                     transition: 'all 0.3s', zIndex: 1
                   }}>
                     {day.day}
                   </div>
 
                   <div style={{
-                    background: isExpanded ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
-                    border: `1px solid ${isExpanded ? `${day.color}30` : 'rgba(255,255,255,0.06)'}`,
+                    background: isExpanded ? 'var(--studio-surface)' : 'var(--studio-surface)',
+                    border: `1px solid ${isExpanded ? `color-mix(in srgb, ${day.color} 19%, transparent)` : 'var(--studio-border)'}`,
                     borderRadius: '16px', overflow: 'hidden', transition: 'all 0.3s'
                   }}>
                     <button
                       onClick={() => setExpandedDay(isExpanded ? null : i)}
                       style={{
                         width: '100%', padding: '16px 20px', border: 'none',
-                        background: 'transparent', color: 'white', cursor: 'pointer',
+                        background: 'transparent', color: 'var(--studio-ink)', cursor: 'pointer',
                         display: 'flex', alignItems: 'center', gap: '12px', textAlign: 'left'
                       }}
                     >
                       <div style={{
                         width: '36px', height: '36px', borderRadius: '10px',
-                        background: `${day.color}15`, border: `1px solid ${day.color}25`,
+                        background: `color-mix(in srgb, ${day.color} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${day.color} 15%, transparent)`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                       }}>
                         <Icon size={18} style={{ color: day.color }} />
@@ -499,19 +499,19 @@ export default function ContentMultiplicationPage({ onBack }) {
                           <span style={{ fontSize: '0.95rem', fontWeight: '700' }}>Day {day.day}: {day.title}</span>
                           <span style={{
                             fontSize: '0.65rem', color: day.color, fontWeight: '600',
-                            padding: '2px 8px', borderRadius: '4px', background: `${day.color}12`
+                            padding: '2px 8px', borderRadius: '4px', background: `color-mix(in srgb, ${day.color} 7%, transparent)`
                           }}>
                             {day.strategy}
                           </span>
                         </div>
                         {!isExpanded && (
-                          <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--studio-muted)', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {day.post}
                           </div>
                         )}
                       </div>
                       <ChevronRight size={16} style={{
-                        color: '#6b7280', transition: 'transform 0.2s',
+                        color: 'var(--studio-muted)', transition: 'transform 0.2s',
                         transform: isExpanded ? 'rotate(90deg)' : 'rotate(0)'
                       }} />
                     </button>
@@ -521,13 +521,13 @@ export default function ContentMultiplicationPage({ onBack }) {
                         {/* What to post */}
                         <div style={{
                           padding: '14px 16px', borderRadius: '12px',
-                          background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.04)',
+                          background: 'var(--studio-surface)', border: '1px solid var(--studio-border)',
                           marginBottom: '12px'
                         }}>
-                          <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#6b7280', letterSpacing: '0.06em', marginBottom: '6px', textTransform: 'uppercase' }}>
+                          <div style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--studio-muted)', letterSpacing: '0.06em', marginBottom: '6px', textTransform: 'uppercase' }}>
                             What to Post
                           </div>
-                          <p style={{ margin: 0, fontSize: '0.9rem', color: '#d1d5db', lineHeight: '1.6' }}>
+                          <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--studio-ink)', lineHeight: '1.6' }}>
                             {day.post}
                           </p>
                         </div>
@@ -535,9 +535,9 @@ export default function ContentMultiplicationPage({ onBack }) {
                         {/* Caption */}
                         <div style={{
                           padding: '12px 16px', borderRadius: '10px',
-                          background: `${day.color}06`, border: `1px solid ${day.color}15`,
+                          background: `color-mix(in srgb, ${day.color} 2%, transparent)`, border: `1px solid color-mix(in srgb, ${day.color} 8%, transparent)`,
                           marginBottom: '12px',
-                          fontStyle: 'italic', fontSize: '0.9rem', color: '#d1d5db'
+                          fontStyle: 'italic', fontSize: '0.9rem', color: 'var(--studio-ink)'
                         }}>
                           <FileText size={14} style={{ color: day.color, marginRight: '8px', verticalAlign: 'middle' }} />
                           <strong style={{ color: day.color, fontStyle: 'normal' }}>Caption:</strong> {day.caption}
@@ -546,16 +546,16 @@ export default function ContentMultiplicationPage({ onBack }) {
                         {/* Platform + Assets row */}
                         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
                           <div style={{ flex: '1 1 200px' }}>
-                            <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#6b7280', letterSpacing: '0.06em', marginBottom: '6px', textTransform: 'uppercase' }}>
+                            <div style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--studio-muted)', letterSpacing: '0.06em', marginBottom: '6px', textTransform: 'uppercase' }}>
                               Platforms
                             </div>
                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                               {day.platforms.map((p, k) => (
                                 <span key={k} style={{
                                   fontSize: '0.75rem', padding: '4px 10px',
-                                  borderRadius: '6px', background: 'rgba(255,255,255,0.05)',
-                                  border: '1px solid rgba(255,255,255,0.08)',
-                                  color: '#9ca3af', fontWeight: '500'
+                                  borderRadius: '6px', background: 'var(--studio-surface-alt)',
+                                  border: '1px solid var(--studio-border)',
+                                  color: 'var(--studio-muted)', fontWeight: '500'
                                 }}>
                                   {p}
                                 </span>
@@ -563,15 +563,15 @@ export default function ContentMultiplicationPage({ onBack }) {
                             </div>
                           </div>
                           <div style={{ flex: '1 1 200px' }}>
-                            <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#6b7280', letterSpacing: '0.06em', marginBottom: '6px', textTransform: 'uppercase' }}>
+                            <div style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--studio-muted)', letterSpacing: '0.06em', marginBottom: '6px', textTransform: 'uppercase' }}>
                               Assets Needed
                             </div>
                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                               {day.assets.map((a, k) => (
                                 <span key={k} style={{
                                   fontSize: '0.75rem', padding: '4px 10px',
-                                  borderRadius: '6px', background: `${day.color}08`,
-                                  border: `1px solid ${day.color}15`,
+                                  borderRadius: '6px', background: `color-mix(in srgb, ${day.color} 3%, transparent)`,
+                                  border: `1px solid color-mix(in srgb, ${day.color} 8%, transparent)`,
                                   color: day.color, fontWeight: '500'
                                 }}>
                                   {a}
@@ -584,8 +584,8 @@ export default function ContentMultiplicationPage({ onBack }) {
                         {/* Pro tip */}
                         <div style={{
                           padding: '10px 14px', borderRadius: '10px',
-                          background: `${GOLD}08`, border: `1px solid ${GOLD}15`,
-                          fontSize: '0.8rem', color: '#9ca3af', lineHeight: '1.5',
+                          background: `color-mix(in srgb, ${GOLD} 3%, transparent)`, border: `1px solid color-mix(in srgb, ${GOLD} 8%, transparent)`,
+                          fontSize: '0.8rem', color: 'var(--studio-muted)', lineHeight: '1.5',
                           display: 'flex', alignItems: 'flex-start', gap: '8px'
                         }}>
                           <Target size={14} style={{ color: GOLD, flexShrink: 0, marginTop: '2px' }} />
@@ -607,8 +607,8 @@ export default function ContentMultiplicationPage({ onBack }) {
           onClick={() => setShowAssets(!showAssets)}
           style={{
             width: '100%', padding: '16px 24px', borderRadius: '14px',
-            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
-            color: 'white', cursor: 'pointer', display: 'flex',
+            background: 'var(--studio-surface-alt)', border: '1px solid var(--studio-border)',
+            color: 'var(--studio-ink)', cursor: 'pointer', display: 'flex',
             alignItems: 'center', justifyContent: 'space-between',
             fontSize: '1rem', fontWeight: '600'
           }}
@@ -619,20 +619,20 @@ export default function ContentMultiplicationPage({ onBack }) {
           </span>
           <ChevronRight size={18} style={{
             transform: showAssets ? 'rotate(90deg)' : 'rotate(0)',
-            transition: 'transform 0.2s', color: '#6b7280'
+            transition: 'transform 0.2s', color: 'var(--studio-muted)'
           }} />
         </button>
 
         {showAssets && (
           <div style={{
-            marginTop: '12px', background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', overflow: 'hidden'
+            marginTop: '12px', background: 'var(--studio-surface)',
+            border: '1px solid var(--studio-border)', borderRadius: '14px', overflow: 'hidden'
           }}>
             <div style={{
               display: 'grid', gridTemplateColumns: '2fr 1.5fr 0.8fr',
-              padding: '14px 20px', background: 'rgba(255,255,255,0.04)',
-              borderBottom: '1px solid rgba(255,255,255,0.08)',
-              fontSize: '0.75rem', fontWeight: '700', color: '#6b7280',
+              padding: '14px 20px', background: 'var(--studio-surface)',
+              borderBottom: '1px solid var(--studio-border)',
+              fontSize: '0.75rem', fontWeight: '700', color: 'var(--studio-muted)',
               letterSpacing: '0.08em', textTransform: 'uppercase', gap: '12px'
             }}>
               <div>Asset</div>
@@ -642,11 +642,11 @@ export default function ContentMultiplicationPage({ onBack }) {
             {ASSET_SUMMARY.map((row, i) => (
               <div key={i} style={{
                 display: 'grid', gridTemplateColumns: '2fr 1.5fr 0.8fr',
-                padding: '12px 20px', borderBottom: i < ASSET_SUMMARY.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                padding: '12px 20px', borderBottom: i < ASSET_SUMMARY.length - 1 ? '1px solid var(--studio-border)' : 'none',
                 fontSize: '0.85rem', alignItems: 'center', gap: '12px'
               }}>
-                <div style={{ fontWeight: '600', color: '#d1d5db' }}>{row.asset}</div>
-                <div style={{ color: '#9ca3af', fontSize: '0.8rem' }}>{row.agent}</div>
+                <div style={{ fontWeight: '600', color: 'var(--studio-ink)' }}>{row.asset}</div>
+                <div style={{ color: 'var(--studio-muted)', fontSize: '0.8rem' }}>{row.agent}</div>
                 <div style={{ textAlign: 'center', color: CYAN, fontFamily: 'monospace', fontWeight: '700' }}>
                   {row.credits}
                 </div>
@@ -654,12 +654,12 @@ export default function ContentMultiplicationPage({ onBack }) {
             ))}
             <div style={{
               display: 'grid', gridTemplateColumns: '2fr 1.5fr 0.8fr',
-              padding: '14px 20px', background: 'rgba(168,85,247,0.06)',
-              borderTop: '1px solid rgba(168,85,247,0.15)',
+              padding: '14px 20px', background: 'color-mix(in srgb, var(--studio-accent) 6%, transparent)',
+              borderTop: '1px solid color-mix(in srgb, var(--studio-accent) 15%, transparent)',
               fontSize: '0.9rem', fontWeight: '700', gap: '12px'
             }}>
-              <div style={{ color: '#d1d5db' }}>Total Campaign Cost</div>
-              <div style={{ color: '#6b7280' }}>12 assets</div>
+              <div style={{ color: 'var(--studio-ink)' }}>Total Campaign Cost</div>
+              <div style={{ color: 'var(--studio-muted)' }}>12 assets</div>
               <div style={{ textAlign: 'center', color: ACCENT, fontFamily: 'monospace', fontSize: '1.1rem' }}>
                 ~{ASSET_SUMMARY.reduce((sum, r) => sum + r.credits, 0)}
               </div>
@@ -671,9 +671,9 @@ export default function ContentMultiplicationPage({ onBack }) {
       {/* ==================== SCALABILITY CALLOUT ==================== */}
       <section style={{ padding: '0 24px 60px', maxWidth: '900px', margin: '0 auto' }}>
         <div style={{
-          background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(236,72,153,0.06))',
+          background: 'linear-gradient(135deg, color-mix(in srgb, var(--studio-accent) 8%, transparent), color-mix(in srgb, var(--studio-accent) 6%, transparent))',
           borderRadius: '20px', padding: '40px 32px',
-          border: '1px solid rgba(168,85,247,0.15)',
+          border: '1px solid color-mix(in srgb, var(--studio-accent) 15%, transparent)',
           textAlign: 'center'
         }}>
           <TrendingUp size={32} style={{ color: ACCENT, marginBottom: '16px' }} />
@@ -684,7 +684,7 @@ export default function ContentMultiplicationPage({ onBack }) {
             Why This Scales
           </h3>
           <p style={{
-            color: '#9ca3af', fontSize: '1rem', lineHeight: '1.8',
+            color: 'var(--studio-muted)', fontSize: '1rem', lineHeight: '1.8',
             maxWidth: '600px', margin: '0 auto 24px'
           }}>
             By templating this workflow, your production company becomes incredibly scalable.
@@ -693,7 +693,7 @@ export default function ContentMultiplicationPage({ onBack }) {
           </p>
 
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
             gap: '16px', marginTop: '24px'
           }}>
             {[
@@ -706,13 +706,13 @@ export default function ContentMultiplicationPage({ onBack }) {
               return (
                 <div key={i} style={{
                   padding: '20px 16px', borderRadius: '14px',
-                  background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)'
+                  background: 'var(--studio-surface)', border: '1px solid var(--studio-border)'
                 }}>
                   <ItemIcon size={22} style={{ color: item.color, marginBottom: '8px' }} />
-                  <div style={{ fontSize: '0.95rem', fontWeight: '700', color: 'white', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--studio-ink)', marginBottom: '4px' }}>
                     {item.label}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{item.detail}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--studio-muted)' }}>{item.detail}</div>
                 </div>
               );
             })}
@@ -728,7 +728,7 @@ export default function ContentMultiplicationPage({ onBack }) {
         <div style={{
           position: 'absolute', bottom: '-200px', left: '50%', transform: 'translateX(-50%)',
           width: '800px', height: '400px',
-          background: 'radial-gradient(circle, rgba(168,85,247,0.08) 0%, rgba(6,182,212,0.04) 50%, transparent 70%)',
+          background: 'radial-gradient(circle, color-mix(in srgb, var(--studio-accent) 8%, transparent) 0%, color-mix(in srgb, var(--studio-sage) 4%, transparent) 50%, transparent 70%)',
           pointerEvents: 'none'
         }} />
         <div style={{ maxWidth: '600px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
@@ -739,7 +739,7 @@ export default function ContentMultiplicationPage({ onBack }) {
           }}>
             Start Your Campaign Now
           </h2>
-          <p style={{ color: '#9ca3af', fontSize: '1rem', marginBottom: '28px', lineHeight: '1.7' }}>
+          <p style={{ color: 'var(--studio-muted)', fontSize: '1rem', marginBottom: '28px', lineHeight: '1.7' }}>
             Upload your track, generate every asset, and have a full 7-day social campaign
             ready before your next meeting.
           </p>
@@ -749,10 +749,10 @@ export default function ContentMultiplicationPage({ onBack }) {
               onClick={() => { window.location.hash = '#/studio/agents'; }}
               style={{
                 padding: '14px 36px', borderRadius: '100px', border: 'none',
-                background: 'linear-gradient(135deg, #a855f7, #ec4899)',
-                color: 'white', fontSize: '1.05rem', fontWeight: '700',
+                background: 'var(--studio-accent)',
+                color: 'var(--studio-on-accent)', fontSize: '1.05rem', fontWeight: '700',
                 cursor: 'pointer', letterSpacing: '0.03em',
-                boxShadow: '0 0 30px rgba(168,85,247,0.3)', transition: 'all 0.3s'
+                boxShadow: '0 6px 16px color-mix(in srgb, var(--studio-ink) 12%, transparent)', transition: 'all 0.3s'
               }}
               onMouseEnter={e => e.target.style.transform = 'scale(1.05)'}
               onMouseLeave={e => e.target.style.transform = 'scale(1)'}
@@ -763,8 +763,8 @@ export default function ContentMultiplicationPage({ onBack }) {
               onClick={() => { window.location.hash = '#/billboard'; }}
               style={{
                 padding: '14px 28px', borderRadius: '100px',
-                border: '1px solid rgba(245,158,11,0.3)',
-                background: 'rgba(245,158,11,0.1)',
+                border: '1px solid color-mix(in srgb, var(--studio-accent) 30%, transparent)',
+                background: 'color-mix(in srgb, var(--studio-accent) 10%, transparent)',
                 color: GOLD, fontSize: '1.05rem', fontWeight: '700',
                 cursor: 'pointer', transition: 'all 0.3s'
               }}
@@ -778,8 +778,8 @@ export default function ContentMultiplicationPage({ onBack }) {
 
         <div style={{
           marginTop: '48px', paddingTop: '32px',
-          borderTop: '1px solid rgba(255,255,255,0.05)',
-          fontSize: '0.8rem', color: '#4b5563'
+          borderTop: '1px solid var(--studio-border)',
+          fontSize: '0.8rem', color: 'var(--studio-muted)'
         }}>
           © 2026 studioagentsai.com — Studio Agents DAI. All rights reserved.
         </div>

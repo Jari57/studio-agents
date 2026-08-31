@@ -45,10 +45,10 @@ export default function VocalSynthControls({
 }) {
   return (
     <div style={{
-      background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.08), rgba(139, 92, 246, 0.08))',
+      background: "linear-gradient(135deg, rgba(163,66,41, 0.08), rgba(163,66,41, 0.08))",
       borderRadius: '14px',
       padding: isMobile ? '14px' : '18px',
-      border: '1px solid rgba(236, 72, 153, 0.2)',
+      border: "1px solid rgba(163,66,41, 0.2)",
       marginTop: '16px'
     }}>
       {/* Header */}
@@ -62,26 +62,26 @@ export default function VocalSynthControls({
           width: '28px',
           height: '28px',
           borderRadius: '8px',
-          background: 'rgba(236, 72, 153, 0.15)',
+          background: "rgba(163,66,41, 0.15)",
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          border: '1px solid rgba(236, 72, 153, 0.25)'
+          border: "1px solid rgba(163,66,41, 0.25)"
         }}>
-          <Sliders size={14} color="#ec4899" />
+          <Sliders size={14} color="var(--studio-accent)" />
         </div>
         <div>
           <span style={{
             fontSize: '0.8rem',
             fontWeight: '700',
-            color: '#ec4899'
+            color: "var(--studio-accent)"
           }}>
             Advanced Vocal Synthesis
           </span>
           <p style={{
             margin: 0,
             fontSize: '0.65rem',
-            color: 'rgba(255,255,255,0.4)'
+            color: "var(--studio-muted)"
           }}>
             Shape pitch, speed, vibrato, and expression
           </p>
@@ -94,7 +94,7 @@ export default function VocalSynthControls({
           <span style={{
             fontSize: '0.65rem',
             fontWeight: '700',
-            color: 'rgba(255,255,255,0.5)',
+            color: "var(--studio-muted)",
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             marginBottom: '8px',
@@ -125,9 +125,9 @@ export default function VocalSynthControls({
                   style={{
                     padding: '10px 8px',
                     borderRadius: '10px',
-                    background: isActive ? 'rgba(139, 92, 246, 0.15)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${isActive ? 'rgba(139, 92, 246, 0.4)' : 'rgba(255,255,255,0.06)'}`,
-                    color: isActive ? '#a78bfa' : 'rgba(255,255,255,0.5)',
+                    background: isActive ? "rgba(163,66,41, 0.15)" : "rgba(var(--studio-ink-rgb), 0.03)",
+                    border: `1px solid ${isActive ? "rgba(163,66,41, 0.4)" : "rgba(var(--studio-ink-rgb), 0.06)"}`,
+                    color: isActive ? "var(--studio-accent)" : "var(--studio-muted)",
                     fontSize: '0.7rem',
                     fontWeight: isActive ? '700' : '500',
                     cursor: 'pointer',
@@ -153,10 +153,10 @@ export default function VocalSynthControls({
       }}>
         {/* Pitch Shift */}
         <div style={{
-          background: 'rgba(0,0,0,0.2)',
+          background: "var(--studio-surface-alt)",
           borderRadius: '10px',
           padding: '12px',
-          border: '1px solid rgba(255,255,255,0.06)'
+          border: "1px solid rgba(var(--studio-ink-rgb), 0.06)"
         }}>
           <div style={{
             display: 'flex',
@@ -165,11 +165,11 @@ export default function VocalSynthControls({
             marginBottom: '8px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Music size={12} color="#a78bfa" />
+              <Music size={12} color="var(--studio-accent)" />
               <span style={{
                 fontSize: '0.7rem',
                 fontWeight: '700',
-                color: '#a78bfa',
+                color: "var(--studio-accent)",
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em'
               }}>Pitch Shift</span>
@@ -178,12 +178,12 @@ export default function VocalSynthControls({
               fontSize: '0.75rem',
               fontWeight: '700',
               color: pitchShift === 0
-                ? 'rgba(255,255,255,0.5)'
-                : (pitchShift > 0 ? '#22c55e' : '#ef4444'),
+                ? "var(--studio-muted)"
+                : (pitchShift > 0 ? "var(--studio-sage)" : "var(--studio-danger)"),
               fontFamily: 'monospace',
               padding: '2px 6px',
               borderRadius: '4px',
-              background: 'rgba(0,0,0,0.3)'
+              background: "var(--studio-surface-alt)"
             }}>
               {pitchShift > 0 ? '+' : ''}{pitchShift} st
             </span>
@@ -205,7 +205,7 @@ export default function VocalSynthControls({
             display: 'flex',
             justifyContent: 'space-between',
             fontSize: '0.55rem',
-            color: 'rgba(255,255,255,0.25)',
+            color: "var(--studio-muted)",
             marginTop: '4px'
           }}>
             <span>-12 (Low)</span>
@@ -216,10 +216,10 @@ export default function VocalSynthControls({
 
         {/* Speed Control */}
         <div style={{
-          background: 'rgba(0,0,0,0.2)',
+          background: "var(--studio-surface-alt)",
           borderRadius: '10px',
           padding: '12px',
-          border: '1px solid rgba(255,255,255,0.06)'
+          border: "1px solid rgba(var(--studio-ink-rgb), 0.06)"
         }}>
           <div style={{
             display: 'flex',
@@ -228,11 +228,11 @@ export default function VocalSynthControls({
             marginBottom: '8px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Gauge size={12} color="#22d3ee" />
+              <Gauge size={12} color="var(--studio-blue)" />
               <span style={{
                 fontSize: '0.7rem',
                 fontWeight: '700',
-                color: '#22d3ee',
+                color: "var(--studio-blue)",
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em'
               }}>Speed</span>
@@ -241,12 +241,12 @@ export default function VocalSynthControls({
               fontSize: '0.75rem',
               fontWeight: '700',
               color: speed === 1.0
-                ? 'rgba(255,255,255,0.5)'
-                : '#22d3ee',
+                ? "var(--studio-muted)"
+                : "var(--studio-blue)",
               fontFamily: 'monospace',
               padding: '2px 6px',
               borderRadius: '4px',
-              background: 'rgba(0,0,0,0.3)'
+              background: "var(--studio-surface-alt)"
             }}>
               {speed.toFixed(1)}x
             </span>
@@ -268,7 +268,7 @@ export default function VocalSynthControls({
             display: 'flex',
             justifyContent: 'space-between',
             fontSize: '0.55rem',
-            color: 'rgba(255,255,255,0.25)',
+            color: "var(--studio-muted)",
             marginTop: '4px'
           }}>
             <span>0.5x (Slow)</span>
@@ -279,10 +279,10 @@ export default function VocalSynthControls({
 
         {/* Vibrato Depth */}
         <div style={{
-          background: 'rgba(0,0,0,0.2)',
+          background: "var(--studio-surface-alt)",
           borderRadius: '10px',
           padding: '12px',
-          border: '1px solid rgba(255,255,255,0.06)'
+          border: "1px solid rgba(var(--studio-ink-rgb), 0.06)"
         }}>
           <div style={{
             display: 'flex',
@@ -291,11 +291,11 @@ export default function VocalSynthControls({
             marginBottom: '8px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Sparkles size={12} color="#f59e0b" />
+              <Sparkles size={12} color="var(--studio-warning)" />
               <span style={{
                 fontSize: '0.7rem',
                 fontWeight: '700',
-                color: '#f59e0b',
+                color: "var(--studio-warning)",
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em'
               }}>Vibrato</span>
@@ -304,12 +304,12 @@ export default function VocalSynthControls({
               fontSize: '0.75rem',
               fontWeight: '700',
               color: vibrato === 0
-                ? 'rgba(255,255,255,0.5)'
-                : '#f59e0b',
+                ? "var(--studio-muted)"
+                : "var(--studio-warning)",
               fontFamily: 'monospace',
               padding: '2px 6px',
               borderRadius: '4px',
-              background: 'rgba(0,0,0,0.3)'
+              background: "var(--studio-surface-alt)"
             }}>
               {vibrato}%
             </span>
@@ -331,7 +331,7 @@ export default function VocalSynthControls({
             display: 'flex',
             justifyContent: 'space-between',
             fontSize: '0.55rem',
-            color: 'rgba(255,255,255,0.25)',
+            color: "var(--studio-muted)",
             marginTop: '4px'
           }}>
             <span>None</span>
@@ -342,10 +342,10 @@ export default function VocalSynthControls({
 
         {/* Speed Quick Presets */}
         <div style={{
-          background: 'rgba(0,0,0,0.2)',
+          background: "var(--studio-surface-alt)",
           borderRadius: '10px',
           padding: '12px',
-          border: '1px solid rgba(255,255,255,0.06)',
+          border: "1px solid rgba(var(--studio-ink-rgb), 0.06)",
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center'
@@ -353,7 +353,7 @@ export default function VocalSynthControls({
           <span style={{
             fontSize: '0.65rem',
             fontWeight: '700',
-            color: 'rgba(255,255,255,0.4)',
+            color: "var(--studio-muted)",
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             marginBottom: '8px'
@@ -377,14 +377,14 @@ export default function VocalSynthControls({
                   padding: '4px 8px',
                   borderRadius: '6px',
                   background: (pitchShift === preset.pitch && speed === preset.speed && vibrato === preset.vibrato)
-                    ? 'rgba(139, 92, 246, 0.2)'
-                    : 'rgba(255,255,255,0.04)',
+                    ? "rgba(163,66,41, 0.2)"
+                    : "rgba(var(--studio-ink-rgb), 0.04)",
                   border: `1px solid ${(pitchShift === preset.pitch && speed === preset.speed && vibrato === preset.vibrato)
-                    ? 'rgba(139, 92, 246, 0.4)'
-                    : 'rgba(255,255,255,0.08)'}`,
+                    ? "rgba(163,66,41, 0.4)"
+                    : "rgba(var(--studio-ink-rgb), 0.08)"}`,
                   color: (pitchShift === preset.pitch && speed === preset.speed && vibrato === preset.vibrato)
-                    ? '#a78bfa'
-                    : 'rgba(255,255,255,0.4)',
+                    ? "var(--studio-accent)"
+                    : "var(--studio-muted)",
                   fontSize: '0.65rem',
                   fontWeight: '600',
                   cursor: 'pointer',
@@ -403,7 +403,7 @@ export default function VocalSynthControls({
         <span style={{
           fontSize: '0.65rem',
           fontWeight: '700',
-          color: 'rgba(255,255,255,0.5)',
+          color: "var(--studio-muted)",
           textTransform: 'uppercase',
           letterSpacing: '0.05em',
           marginBottom: '8px',
@@ -425,12 +425,12 @@ export default function VocalSynthControls({
                 padding: '8px 6px',
                 borderRadius: '8px',
                 background: expression === preset.id
-                  ? 'rgba(236, 72, 153, 0.15)'
-                  : 'rgba(255,255,255,0.03)',
+                  ? "rgba(163,66,41, 0.15)"
+                  : "rgba(var(--studio-ink-rgb), 0.03)",
                 border: `1px solid ${expression === preset.id
-                  ? 'rgba(236, 72, 153, 0.3)'
-                  : 'rgba(255,255,255,0.06)'}`,
-                color: expression === preset.id ? '#ec4899' : 'rgba(255,255,255,0.5)',
+                  ? "rgba(163,66,41, 0.3)"
+                  : "rgba(var(--studio-ink-rgb), 0.06)"}`,
+                color: expression === preset.id ? "var(--studio-accent)" : "var(--studio-muted)",
                 fontSize: '0.7rem',
                 fontWeight: expression === preset.id ? '700' : '500',
                 cursor: 'pointer',

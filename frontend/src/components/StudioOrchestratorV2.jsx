@@ -7,7 +7,7 @@ import {
   Settings, CheckCircle2, Lock as LockIcon, User, CircleHelp,
   ChevronUp, ChevronDown, Upload, Share2, ExternalLink, Globe, Dna, Disc
 } from 'lucide-react';
-import { BACKEND_URL, AGENTS, getAgentHex, getCreatorMode } from '../constants';
+import { BACKEND_URL, AGENTS, getCreatorMode } from '../constants';
 import toast from 'react-hot-toast';
 import { db, auth, doc, setDoc, updateDoc, increment, getDoc } from '../firebase';
 import { collection, query, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
@@ -20,6 +20,7 @@ import {
 } from '../services/productionJobs';
 import StudioOnboarding from './StudioOnboarding';
 import StudioOutputActions from './StudioOutputActions';
+import './StudioOrchestratorTheme.css';
 import { productionJobMatchesProject } from '../utils/productionRecovery.mjs';
 import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, artworkDirectionRequest, confirmProjectSave as confirmCloudProjectSave, currentRunLyrics } from '../utils/productionIntegrity.mjs';
 import { restoreProductionConfig, withProductionConfig, mergeProductionAssets } from '../utils/productionProjectConfig.mjs';
@@ -264,7 +265,8 @@ const SkeletonItem = ({ height = '14px', width = '100%', marginBottom = '8px', o
     width,
     marginBottom,
     borderRadius: '4px',
-    background: `linear-gradient(90deg, rgba(255,255,255,${opacity}) 25%, rgba(255,255,255,${opacity * 2}) 50%, rgba(255,255,255,${opacity}) 75%)`,
+    background: 'linear-gradient(90deg, var(--studio-surface-alt, #e4e8dc), var(--studio-accent-soft, #f0ded2), var(--studio-surface-alt, #e4e8dc))',
+    opacity: Math.min(1, opacity * 3),
     backgroundSize: '200% 100%',
     animation: 'shimmer 2s infinite linear'
   }} />
@@ -351,7 +353,7 @@ function GeneratorCard({
   };
 
   const agent = AGENTS.find(a => a.id === agentId);
-  const agentColor = agent ? getAgentHex(agent) : color;
+  const agentColor = color || '#a34229';
 
   return (
     <div className={`generator-card-unified ${agent?.colorClass || ''}`} style={{
@@ -359,16 +361,19 @@ function GeneratorCard({
       padding: 0,
       touchAction: 'manipulation',
       WebkitTapHighlightColor: 'transparent',
+      background: 'var(--studio-surface, #fbf8f1)',
+      color: 'var(--studio-ink, #202724)',
+      border: '1px solid var(--studio-border, #d8d5c9)',
       borderTop: `3px solid ${agentColor}`
     }}>
-      {/* Glow effect */}
+      {/* Decorative layer retained without a neon glow. */}
       <div style={{
         position: 'absolute',
         top: '-50%',
         left: '-50%',
         width: '200%',
         height: '200%',
-        background: `radial-gradient(circle at center, ${agentColor}08 0%, transparent 50%)`,
+        background: 'transparent',
         pointerEvents: 'none'
       }} />
 
@@ -390,7 +395,7 @@ function GeneratorCard({
             margin: 0, 
             fontSize: isMobile ? '0.95rem' : '1.125rem', 
             fontWeight: '700',
-            color: 'white',
+            color: "var(--studio-ink, #202724)",
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap'
@@ -400,7 +405,7 @@ function GeneratorCard({
           <p style={{ 
             margin: '2px 0 0', 
             fontSize: '0.75rem', 
-            color: 'var(--text-secondary)',
+            color: "var(--studio-muted, #646c64)",
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -413,10 +418,10 @@ function GeneratorCard({
               <span style={{
                 fontSize: '0.6rem',
                 padding: '1px 5px',
-                background: 'rgba(245, 158, 11, 0.1)',
-                color: '#f59e0b',
+                background: "var(--studio-accent-soft, #f0ded2)",
+                color: "var(--studio-warning, #806023)",
                 borderRadius: '4px',
-                border: '1px solid rgba(245, 158, 11, 0.2)',
+                border: "1px solid var(--studio-border, #d8d5c9)",
                 fontWeight: '800',
                 letterSpacing: '0.05em'
               }}>BETA</span>
@@ -425,35 +430,35 @@ function GeneratorCard({
           {agent?.capabilities && agent.capabilities.length > 0 && (
             <div className="agent-cap-pills" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
               {agent.category && (
-                <span style={{ padding: '1px 5px', background: `${agentColor}1A`, color: agentColor, borderRadius: '4px', fontSize: '0.55rem', fontWeight: '600' }}>{agent.category}</span>
+                <span style={{ padding: '1px 5px', background: 'var(--studio-accent-soft, #f0ded2)', color: 'var(--studio-accent, #a34229)', borderRadius: '4px', fontSize: '0.55rem', fontWeight: '600' }}>{agent.category}</span>
               )}
               {agent.capabilities.slice(0, 2).map((cap, i) => (
-                <span key={i} style={{ padding: '1px 5px', background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)', borderRadius: '4px', fontSize: '0.55rem' }}>{cap}</span>
+                <span key={i} style={{ padding: '1px 5px', background: "var(--studio-surface, #fbf8f1)", color: "var(--studio-muted, #646c64)", borderRadius: '4px', fontSize: '0.55rem' }}>{cap}</span>
               ))}
               {/* Reference Style Active Badge */}
               {dnaUrl && (
-                <span style={{ padding: '1px 6px', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', borderRadius: '4px', fontSize: '0.55rem', fontWeight: '700', border: '1px solid rgba(34, 197, 94, 0.3)' }}>REF ACTIVE</span>
+                <span style={{ padding: '1px 6px', background: "var(--studio-surface-alt, #e4e8dc)", color: "var(--studio-sage, #566954)", borderRadius: '4px', fontSize: '0.55rem', fontWeight: '700', border: "1px solid var(--studio-border, #d8d5c9)" }}>REF ACTIVE</span>
               )}
               {/* Provider Quality Badge */}
               {provider && !isLoading && (output || mediaUrl) && (() => {
                 const providerLabels = {
-                  'elevenlabs-premium': { label: 'ElevenLabs', tier: 'Premium', color: '#818cf8' },
-                  'elevenlabs': { label: 'ElevenLabs', tier: 'Premium', color: '#818cf8' },
-                  'gemini-tts': { label: 'Gemini TTS', tier: 'Standard', color: '#60a5fa' },
-                  'bark': { label: 'Bark', tier: 'Standard', color: '#60a5fa' },
-                  'suno': { label: 'Suno', tier: 'Premium', color: '#818cf8' },
-                  'udio': { label: 'Udio', tier: 'Premium', color: '#818cf8' },
-                  'replicate-flux': { label: 'Flux', tier: 'Premium', color: '#818cf8' },
-                  'flux-1.1-pro': { label: 'Flux Pro', tier: 'Premium', color: '#818cf8' },
-                  'nano-banana': { label: 'Gemini', tier: 'Standard', color: '#60a5fa' },
-                  'imagen-4': { label: 'Imagen 4', tier: 'Premium', color: '#818cf8' },
-                  'veo-3.0-fast': { label: 'Veo 3.0', tier: 'Premium', color: '#818cf8' },
-                  'veo-2.0': { label: 'Veo 2.0', tier: 'Standard', color: '#60a5fa' },
-                  'replicate-minimax': { label: 'Minimax', tier: 'Standard', color: '#60a5fa' },
+                  'elevenlabs-premium': { label: 'ElevenLabs', tier: 'Premium', color: "#566954" },
+                  'elevenlabs': { label: 'ElevenLabs', tier: 'Premium', color: "#566954" },
+                  'gemini-tts': { label: 'Gemini TTS', tier: 'Standard', color: "#566954" },
+                  'bark': { label: 'Bark', tier: 'Standard', color: "#566954" },
+                  'suno': { label: 'Suno', tier: 'Premium', color: "#566954" },
+                  'udio': { label: 'Udio', tier: 'Premium', color: "#566954" },
+                  'replicate-flux': { label: 'Flux', tier: 'Premium', color: "#566954" },
+                  'flux-1.1-pro': { label: 'Flux Pro', tier: 'Premium', color: "#566954" },
+                  'nano-banana': { label: 'Gemini', tier: 'Standard', color: "#566954" },
+                  'imagen-4': { label: 'Imagen 4', tier: 'Premium', color: "#566954" },
+                  'veo-3.0-fast': { label: 'Veo 3.0', tier: 'Premium', color: "#566954" },
+                  'veo-2.0': { label: 'Veo 2.0', tier: 'Standard', color: "#566954" },
+                  'replicate-minimax': { label: 'Minimax', tier: 'Standard', color: "#566954" },
                 };
-                const info = providerLabels[provider] || { label: provider, tier: '', color: '#94a3b8' };
+                const info = providerLabels[provider] || { label: provider, tier: '', color: "#646c64" };
                 return (
-                  <span style={{ padding: '1px 6px', background: `${info.color}1A`, color: info.color, borderRadius: '4px', fontSize: '0.55rem', fontWeight: '600', border: `1px solid ${info.color}33` }}>
+                  <span style={{ padding: '1px 6px', background: 'var(--studio-surface-alt, #e4e8dc)', color: 'var(--studio-sage, #566954)', borderRadius: '4px', fontSize: '0.55rem', fontWeight: '600', border: '1px solid var(--studio-border, #d8d5c9)' }}>
                     {info.label}{info.tier ? ` (${info.tier})` : ''}
                   </span>
                 );
@@ -483,9 +488,9 @@ function GeneratorCard({
               style={{
                 padding: '8px 10px',
                 borderRadius: '8px',
-                background: dnaUrl ? `${color}20` : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${dnaUrl ? color + '80' : 'rgba(255,255,255,0.1)'}`,
-                color: dnaUrl ? color : 'var(--text-secondary)',
+                background: dnaUrl ? `${color}20` : "var(--studio-surface, #fbf8f1)",
+                border: `1px solid ${dnaUrl ? color + '80' : "var(--studio-border, #d8d5c9)"}`,
+                color: dnaUrl ? 'var(--studio-accent, #a34229)' : "var(--studio-muted, #646c64)",
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -509,7 +514,7 @@ function GeneratorCard({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: 'rgba(255,255,255,0.3)',
+                  color: "var(--studio-muted, #646c64)",
                   cursor: 'pointer',
                   padding: '4px'
                 }}
@@ -530,7 +535,7 @@ function GeneratorCard({
             gap: '6px'
           }}>
             <Loader2 size={14} color={color} className="spin" />
-            <span style={{ fontSize: '0.7rem', color, fontWeight: '600' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--studio-accent, #a34229)', fontWeight: '600' }}>
               {isLoading ? 'Generating...' : 'Creating Media...'}
             </span>
           </div>
@@ -559,9 +564,9 @@ function GeneratorCard({
                     flex: 1,
                     padding: isMobile ? '8px' : '12px',
                     borderRadius: '10px',
-                    background: 'rgba(0,0,0,0.3)',
+                    background: "var(--studio-surface-alt, #e4e8dc)",
                     border: `1px solid ${color}40`,
-                    color: 'white',
+                    color: "var(--studio-ink, #202724)",
                     fontSize: isMobile ? '0.8rem' : '0.9rem',
                     lineHeight: '1.5',
                     resize: 'none',
@@ -578,9 +583,9 @@ function GeneratorCard({
                       height: '32px',
                       padding: '0 10px',
                       borderRadius: '8px',
-                      background: 'rgba(255,255,255,0.08)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      color: 'rgba(255,255,255,0.7)',
+                      background: "var(--studio-surface, #fbf8f1)",
+                      border: "1px solid var(--studio-border, #d8d5c9)",
+                      color: "var(--studio-muted, #646c64)",
                       cursor: 'pointer',
                       fontSize: '0.72rem',
                       fontWeight: '600'
@@ -597,7 +602,7 @@ function GeneratorCard({
                       borderRadius: '8px',
                       background: color,
                       border: 'none',
-                      color: 'white',
+                      color: "var(--studio-ink, #202724)",
                       cursor: 'pointer',
                       fontWeight: '700',
                       fontSize: '0.72rem'
@@ -612,7 +617,7 @@ function GeneratorCard({
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="lyrics-stanza-view"
                 style={{
-                  background: 'rgba(0,0,0,0.3)',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
                   borderRadius: isMobile ? '8px' : '12px',
                   padding: isMobile ? '10px' : '16px',
                   flex: 1,
@@ -634,18 +639,18 @@ function GeneratorCard({
                       position: 'absolute',
                       top: '8px',
                       right: '8px',
-                      background: showIntro ? color : 'rgba(255,255,255,0.1)',
+                      background: showIntro ? color : "var(--studio-surface, #fbf8f1)",
                       border: 'none',
                       borderRadius: '6px',
                       padding: '4px 8px',
                       fontSize: '0.65rem',
                       fontWeight: '700',
-                      color: 'white',
+                      color: "var(--studio-ink, #202724)",
                       zIndex: 2,
                       display: 'flex',
                       alignItems: 'center',
                       gap: '4px',
-                      boxShadow: showIntro ? `0 2px 8px ${color}44` : 'none'
+                      boxShadow: showIntro ? 'none' : 'none'
                     }}
                   >
                     {showIntro ? <FileText size={10} /> : <Lightbulb size={10} />}
@@ -656,7 +661,7 @@ function GeneratorCard({
                 <div style={{ 
                   fontSize: isMobile ? '0.85rem' : '1rem', 
                   lineHeight: isMobile ? '1.5' : '1.8', 
-                  color: 'rgba(255,255,255,0.95)',
+                  color: "var(--studio-ink, #202724)",
                   margin: 0,
                   whiteSpace: 'pre-wrap',
                   fontFamily: "'Georgia', 'Times New Roman', serif",
@@ -675,7 +680,7 @@ function GeneratorCard({
                             display: 'inline-flex', alignItems: 'center', gap: '5px',
                             background: `${color}20`, border: `1px solid ${color}40`,
                             borderRadius: '6px', padding: '2px 8px', marginBottom: '4px',
-                            fontSize: '0.72rem', fontWeight: '700', color: color,
+                            fontSize: '0.72rem', fontWeight: '700', color: 'var(--studio-accent, #a34229)',
                             letterSpacing: '0.03em'
                           }}>
                             🎬 {label} {tag}
@@ -719,11 +724,11 @@ function GeneratorCard({
               justifyContent: 'center',
               gap: '10px',
               padding: '12px',
-              background: 'rgba(255,255,255,0.02)',
+              background: "var(--studio-surface, #fbf8f1)",
               borderRadius: '8px'
             }}>
               <Loader2 size={16} className="spin" color={color} />
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
+              <span style={{ fontSize: '0.75rem', color: "var(--studio-muted, #646c64)", fontWeight: '500' }}>
                 {agent?.name ? `${agent.name} is writing...` : 'AI is thinking...'}
               </span>
             </div>
@@ -736,7 +741,7 @@ function GeneratorCard({
             justifyContent: 'center',
             flexDirection: 'column',
             gap: '8px',
-            color: 'var(--text-secondary)',
+            color: "var(--studio-muted, #646c64)",
             textAlign: 'center',
             padding: '20px'
           }}>
@@ -750,7 +755,7 @@ function GeneratorCard({
         {/* Media Preview Section */}
         {output && mediaType && (
           <div style={{
-            background: 'rgba(0,0,0,0.3)',
+            background: "var(--studio-surface-alt, #e4e8dc)",
             borderRadius: '12px',
             padding: '12px',
             border: `1px solid ${color}22`
@@ -769,6 +774,7 @@ function GeneratorCard({
                 >
                   {mediaType === 'audio' && mediaUrl && (
                     <div
+                      className="studio-media-stage"
                       onClick={(e) => e.stopPropagation()}
                       style={{
                       display: 'flex',
@@ -780,13 +786,13 @@ function GeneratorCard({
                         width: '40px',
                         height: '40px',
                         borderRadius: '50%',
-                        background: `linear-gradient(135deg, ${color}, ${color}88)`,
+                        background: 'var(--studio-accent-soft, #f0ded2)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: `0 4px 12px ${color}44`
+                        boxShadow: 'none'
                       }}>
-                        <Music size={18} color="white" />
+                        <Music size={18} color="var(--studio-ink, #202724)" />
                       </div>
                       <audio
                         src={formatAudioSrc(mediaUrl)}
@@ -802,7 +808,7 @@ function GeneratorCard({
                     </div>
                   )}
                   {mediaType === 'image' && mediaUrl && (
-                    <div style={{ position: 'relative' }}>
+                    <div className="studio-media-stage" style={{ position: 'relative', borderRadius: '8px' }}>
                       <img 
                         src={formatImageSrc(mediaUrl)}
                         alt="Generated"
@@ -821,7 +827,7 @@ function GeneratorCard({
                       <div className="image-hover-overlay" style={{
                         position: 'absolute',
                         inset: 0,
-                        background: 'rgba(0,0,0,0.4)',
+                        background: "var(--studio-surface-alt, #e4e8dc)",
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -829,7 +835,7 @@ function GeneratorCard({
                         borderRadius: '8px',
                         pointerEvents: 'none'
                       }}>
-                        <Eye size={24} color="white" />
+                        <Eye size={24} color="var(--studio-ink, #202724)" />
                       </div>
                       {/* Edit Cover button */}
                       {onEditCover && (
@@ -841,9 +847,9 @@ function GeneratorCard({
                             right: '6px',
                             padding: '4px 10px',
                             borderRadius: '6px',
-                            background: 'rgba(0,0,0,0.7)',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            color: 'white',
+                            background: "var(--studio-surface-alt, #e4e8dc)",
+                            border: "1px solid var(--studio-border, #d8d5c9)",
+                            color: "var(--studio-ink, #202724)",
                             fontSize: '0.68rem',
                             fontWeight: 700,
                             cursor: 'pointer',
@@ -868,9 +874,9 @@ function GeneratorCard({
                             left: '6px',
                             padding: '4px 10px',
                             borderRadius: '6px',
-                            background: 'rgba(0,0,0,0.7)',
-                            border: '1px solid rgba(34,197,94,0.4)',
-                            color: '#22c55e',
+                            background: "var(--studio-surface-alt, #e4e8dc)",
+                            border: "1px solid var(--studio-border, #d8d5c9)",
+                            color: "var(--studio-sage, #566954)",
                             fontSize: '0.68rem',
                             fontWeight: 700,
                             cursor: 'pointer',
@@ -887,7 +893,7 @@ function GeneratorCard({
                     </div>
                   )}
                   {mediaType === 'video' && mediaUrl && (
-                    <video 
+                    <video className="studio-media-stage"
                       src={formatVideoSrc(mediaUrl)}
                       playsInline
                       style={{ 
@@ -906,7 +912,7 @@ function GeneratorCard({
                 <SkeletonItem height={mediaType === 'image' || mediaType === 'video' ? '120px' : '44px'} width="100%" opacity={0.2} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px' }}>
                   <Loader2 size={14} className="spin" color={color} />
-                  <span style={{ fontSize: '0.75rem', color, fontWeight: '600' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--studio-accent, #a34229)', fontWeight: '600' }}>
                     {slot === 'lyrics' ? 'Cloning vocals...' : `Synthesizing ${mediaType}...`}
                   </span>
                 </div>
@@ -920,9 +926,9 @@ function GeneratorCard({
                   width: '100%',
                   padding: '12px',
                   borderRadius: '10px',
-                  background: `rgba(255,255,255,${isGeneratingMedia ? '0.03' : '0.07'})`,
+                  background: `rgba(32, 39, 36,${isGeneratingMedia ? '0.03' : '0.07'})`,
                   border: `1px solid ${color}60`,
-                  color: color,
+                  color: 'var(--studio-accent, #a34229)',
                   fontSize: '0.85rem',
                   fontWeight: '700',
                   cursor: isGeneratingMedia ? 'not-allowed' : 'pointer',
@@ -959,22 +965,22 @@ function GeneratorCard({
             margin: '0 12px',
             padding: isMobile ? '10px' : '12px 14px',
             borderRadius: '12px',
-            background: isGradingAr ? 'rgba(255,255,255,0.03)' :
-              arGrade?.overallScore >= 4.5 ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(255, 165, 0, 0.05))' :
-              arGrade?.overallScore >= 3.5 ? 'rgba(16, 185, 129, 0.06)' :
-              arGrade?.overallScore >= 2.5 ? 'rgba(59, 130, 246, 0.06)' :
-              'rgba(239, 68, 68, 0.06)',
-            border: isGradingAr ? '1px solid rgba(255,255,255,0.08)' :
-              arGrade?.overallScore >= 4.5 ? '1px solid rgba(255, 215, 0, 0.3)' :
-              arGrade?.overallScore >= 3.5 ? '1px solid rgba(16, 185, 129, 0.2)' :
-              arGrade?.overallScore >= 2.5 ? '1px solid rgba(59, 130, 246, 0.2)' :
-              '1px solid rgba(239, 68, 68, 0.2)',
+            background: isGradingAr ? "var(--studio-surface, #fbf8f1)" :
+              arGrade?.overallScore >= 4.5 ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))" :
+              arGrade?.overallScore >= 3.5 ? "var(--studio-surface-alt, #e4e8dc)" :
+              arGrade?.overallScore >= 2.5 ? "var(--studio-surface-alt, #e4e8dc)" :
+              "var(--studio-accent-soft, #f0ded2)",
+            border: isGradingAr ? "1px solid var(--studio-border, #d8d5c9)" :
+              arGrade?.overallScore >= 4.5 ? "1px solid var(--studio-border, #d8d5c9)" :
+              arGrade?.overallScore >= 3.5 ? "1px solid var(--studio-border, #d8d5c9)" :
+              arGrade?.overallScore >= 2.5 ? "1px solid var(--studio-border, #d8d5c9)" :
+              "1px solid var(--studio-border, #d8d5c9)",
             flexShrink: 0
           }}>
             {isGradingAr ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', padding: '6px 0' }}>
-                <div className="animate-pulse" style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }} />
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600' }}>A&R reviewing...</span>
+                <div className="animate-pulse" style={{ width: '16px', height: '16px', borderRadius: '50%', background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))" }} />
+                <span style={{ color: "var(--studio-muted, #646c64)", fontSize: '0.75rem', fontWeight: '600' }}>A&R reviewing...</span>
               </div>
             ) : arGrade && (
               <>
@@ -990,14 +996,14 @@ function GeneratorCard({
                       <div style={{
                         fontSize: '0.82rem',
                         fontWeight: '800',
-                        color: arGrade.overallScore >= 4.5 ? '#fbbf24' :
-                          arGrade.overallScore >= 3.5 ? '#10b981' :
-                          arGrade.overallScore >= 2.5 ? '#3b82f6' : '#ef4444',
+                        color: arGrade.overallScore >= 4.5 ? "var(--studio-warning, #806023)" :
+                          arGrade.overallScore >= 3.5 ? "var(--studio-sage, #566954)" :
+                          arGrade.overallScore >= 2.5 ? "var(--studio-sage, #566954)" : "var(--studio-danger, #9a4033)",
                         letterSpacing: '-0.3px'
                       }}>
                         {arGrade.verdict || 'Reviewed'}
                       </div>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>A&R Score</div>
+                      <div style={{ fontSize: '0.6rem', color: "var(--studio-muted, #646c64)", fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>A&R Score</div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
@@ -1005,14 +1011,14 @@ function GeneratorCard({
                       fontSize: '1.6rem',
                       fontWeight: '900',
                       background: arGrade.overallScore >= 4.5
-                        ? 'linear-gradient(135deg, #fbbf24, #f59e0b)'
+                        ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))"
                         : arGrade.overallScore >= 3.5
-                        ? 'linear-gradient(135deg, #10b981, #059669)'
-                        : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                        ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))"
+                        : "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent'
                     }}>{arGrade.overallScore}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>/5</span>
+                    <span style={{ fontSize: '0.75rem', color: "var(--studio-muted, #646c64)", fontWeight: '600' }}>/5</span>
                   </div>
                 </div>
 
@@ -1027,21 +1033,21 @@ function GeneratorCard({
                   ].map(({ label, score, icon: dimIcon }) => (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span style={{ fontSize: '0.6rem', width: '12px', textAlign: 'center' }}>{dimIcon}</span>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', width: '58px', fontWeight: '600' }}>{label}</span>
-                      <div style={{ flex: 1, height: '5px', borderRadius: '3px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                      <span style={{ fontSize: '0.65rem', color: "var(--studio-muted, #646c64)", width: '58px', fontWeight: '600' }}>{label}</span>
+                      <div style={{ flex: 1, height: '5px', borderRadius: '3px', background: "var(--studio-surface, #fbf8f1)", overflow: 'hidden' }}>
                         <div style={{
                           width: `${(score / 5) * 100}%`,
                           height: '100%',
                           borderRadius: '3px',
-                          background: score >= 4.5 ? 'linear-gradient(90deg, #fbbf24, #f59e0b)' :
-                            score >= 3.5 ? 'linear-gradient(90deg, #10b981, #059669)' :
-                            score >= 2.5 ? 'linear-gradient(90deg, #3b82f6, #2563eb)' :
-                            'linear-gradient(90deg, #ef4444, #dc2626)',
+                          background: score >= 4.5 ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))" :
+                            score >= 3.5 ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))" :
+                            score >= 2.5 ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))" :
+                            "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
                           transition: 'width 0.8s ease'
                         }} />
                       </div>
                       <span style={{ fontSize: '0.65rem', fontWeight: '700', width: '16px', textAlign: 'right',
-                        color: score >= 4 ? '#10b981' : score >= 3 ? '#3b82f6' : '#ef4444'
+                        color: score >= 4 ? "var(--studio-sage, #566954)" : score >= 3 ? "var(--studio-sage, #566954)" : "var(--studio-danger, #9a4033)"
                       }}>{score}</span>
                     </div>
                   ))}
@@ -1050,20 +1056,20 @@ function GeneratorCard({
                 {/* Feedback */}
                 <div style={{
                   fontSize: '0.72rem',
-                  color: 'var(--text-secondary)',
+                  color: "var(--studio-muted, #646c64)",
                   lineHeight: '1.4',
-                  background: 'rgba(0,0,0,0.15)',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
                   padding: '8px 10px',
                   borderRadius: '8px'
                 }}>
                   <div style={{ marginBottom: '4px' }}>{arGrade.feedback}</div>
                   {arGrade.highlights && (
-                    <div style={{ color: '#10b981', fontSize: '0.68rem' }}>
+                    <div style={{ color: "var(--studio-sage, #566954)", fontSize: '0.68rem' }}>
                       <strong>Strength:</strong> {arGrade.highlights}
                     </div>
                   )}
                   {arGrade.suggestion && (
-                    <div style={{ color: '#f59e0b', fontSize: '0.68rem', marginTop: '2px' }}>
+                    <div style={{ color: "var(--studio-warning, #806023)", fontSize: '0.68rem', marginTop: '2px' }}>
                       <strong>Level Up:</strong> {arGrade.suggestion}
                     </div>
                   )}
@@ -1078,7 +1084,7 @@ function GeneratorCard({
       {output && !isEditing && (
         <div style={{
           padding: '10px 14px',
-          borderTop: '1px solid rgba(255,255,255,0.05)',
+          borderTop: "1px solid var(--studio-border, #d8d5c9)",
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -1095,9 +1101,9 @@ function GeneratorCard({
               title={isSpeaking ? 'Stop' : (slot === 'lyrics' && mediaUrl) ? 'Play AI Vocals' : 'Text to Speech'}
               style={{
                 height: '32px', padding: '0 10px', borderRadius: '8px',
-                background: isSpeaking ? `${color}25` : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${isSpeaking ? color + '60' : 'rgba(255,255,255,0.08)'}`,
-                color: isSpeaking ? color : 'rgba(255,255,255,0.45)',
+                background: isSpeaking ? `${color}25` : "var(--studio-surface, #fbf8f1)",
+                border: `1px solid ${isSpeaking ? color + '60' : "var(--studio-border, #d8d5c9)"}`,
+                color: isSpeaking ? 'var(--studio-accent, #a34229)' : "var(--studio-muted, #646c64)",
                 cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
                 fontSize: '0.72rem', fontWeight: '600', whiteSpace: 'nowrap',
                 touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
@@ -1113,9 +1119,9 @@ function GeneratorCard({
               title="Copy to Clipboard"
               style={{
                 height: '32px', padding: '0 10px', borderRadius: '8px',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.45)',
+                background: "var(--studio-surface, #fbf8f1)",
+                border: "1px solid var(--studio-border, #d8d5c9)",
+                color: "var(--studio-muted, #646c64)",
                 cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
                 fontSize: '0.72rem', fontWeight: '600', whiteSpace: 'nowrap',
                 touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
@@ -1131,9 +1137,9 @@ function GeneratorCard({
               title="Edit Output"
               style={{
                 height: '32px', padding: '0 10px', borderRadius: '8px',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.45)',
+                background: "var(--studio-surface, #fbf8f1)",
+                border: "1px solid var(--studio-border, #d8d5c9)",
+                color: "var(--studio-muted, #646c64)",
                 cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
                 fontSize: '0.72rem', fontWeight: '600', whiteSpace: 'nowrap',
                 touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
@@ -1152,7 +1158,7 @@ function GeneratorCard({
                   height: '32px', padding: '0 10px', borderRadius: '8px',
                   background: `${color}18`,
                   border: `1px solid ${color}35`,
-                  color: color,
+                  color: 'var(--studio-accent, #a34229)',
                   cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
                   fontSize: '0.72rem', fontWeight: '700', whiteSpace: 'nowrap',
                   touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
@@ -1170,9 +1176,9 @@ function GeneratorCard({
                 title="Regenerate"
                 style={{
                   height: '32px', padding: '0 10px', borderRadius: '8px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: 'rgba(255,255,255,0.45)',
+                  background: "var(--studio-surface, #fbf8f1)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-muted, #646c64)",
                   cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
                   fontSize: '0.72rem', fontWeight: '600', whiteSpace: 'nowrap',
                   touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
@@ -1202,9 +1208,9 @@ function GeneratorCard({
                 aria-label={arGrade ? (showArReview ? 'Hide A&R review' : 'View A&R review') : 'Request an optional A&R review'}
                 style={{
                   height: '32px', padding: '0 9px', borderRadius: '8px',
-                  background: showArReview ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.05)',
-                  border: showArReview ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                  color: showArReview ? '#fbbf24' : 'rgba(255,255,255,0.45)',
+                  background: showArReview ? "var(--studio-accent-soft, #f0ded2)" : "var(--studio-surface, #fbf8f1)",
+                  border: showArReview ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)",
+                  color: showArReview ? "var(--studio-warning, #806023)" : "var(--studio-muted, #646c64)",
                   cursor: isGradingAr ? 'wait' : 'pointer',
                   display: 'flex', alignItems: 'center', gap: '5px',
                   fontSize: '0.72rem', fontWeight: '700', whiteSpace: 'nowrap',
@@ -1224,9 +1230,9 @@ function GeneratorCard({
                 title="Expand to Fullscreen"
                 style={{
                   height: '32px', width: '32px', borderRadius: '8px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: 'rgba(255,255,255,0.4)',
+                  background: "var(--studio-surface, #fbf8f1)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-muted, #646c64)",
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
                 }}
@@ -1242,9 +1248,9 @@ function GeneratorCard({
                 title="Download"
                 style={{
                   height: '32px', padding: '0 10px', borderRadius: '8px',
-                  background: 'rgba(34,197,94,0.12)',
-                  border: '1px solid rgba(34,197,94,0.25)',
-                  color: '#22c55e',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-sage, #566954)",
                   cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
                   fontSize: '0.72rem', fontWeight: '700', whiteSpace: 'nowrap',
                   touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
@@ -1262,9 +1268,9 @@ function GeneratorCard({
                 title="Delete"
                 style={{
                   height: '32px', width: '32px', borderRadius: '8px',
-                  background: 'rgba(239,68,68,0.08)',
-                  border: '1px solid rgba(239,68,68,0.15)',
-                  color: '#ef4444',
+                  background: "var(--studio-accent-soft, #f0ded2)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-danger, #9a4033)",
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'
                 }}
@@ -1293,7 +1299,7 @@ function GeneratorCard({
         @media (hover: hover) and (pointer: fine) {
           .generator-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 24px rgba(32,39,36,0.08);
           }
           .image-hover-overlay {
             transition: opacity 0.2s ease;
@@ -1393,15 +1399,15 @@ function ProductionControlHub({
   return (
     <div style={{
       background: allComplete 
-        ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98))'
-        : 'rgba(15, 23, 42, 0.4)',
+        ? "var(--studio-surface, #fbf8f1)"
+        : "var(--studio-surface-alt, #e4e8dc)",
       borderRadius: isMobile ? '16px' : '24px',
       padding: isMobile ? '14px' : '28px',
-      border: '1px solid rgba(255,255,255,0.1)',
+      border: "1px solid var(--studio-border, #d8d5c9)",
       marginTop: '32px',
       position: 'relative',
       overflow: 'visible',
-      boxShadow: allComplete ? '0 10px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(79, 70, 229, 0.3)' : 'none',
+      boxShadow: allComplete ? "none" : 'none',
       transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
     }}>
       {/* Visual background indicator for completion */}
@@ -1412,8 +1418,8 @@ function ProductionControlHub({
           left: 0,
           right: 0,
           height: '4px',
-          background: 'linear-gradient(90deg, #4f46e5, #9333ea, #ec4899)',
-          boxShadow: '0 0 15px rgba(79, 70, 229, 0.5)'
+          background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
+          boxShadow: "none"
         }} />
       )}
 
@@ -1433,12 +1439,12 @@ function ProductionControlHub({
             width: '44px',
             height: '44px',
             borderRadius: '12px',
-            background: allComplete ? 'rgba(79, 70, 229, 0.2)' : 'rgba(255,255,255,0.05)',
+            background: allComplete ? "var(--studio-accent-soft, #f0ded2)" : "var(--studio-surface, #fbf8f1)",
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: allComplete ? '#818cf8' : 'rgba(255,255,255,0.4)',
-            border: `1px solid ${allComplete ? 'rgba(79, 70, 229, 0.4)' : 'rgba(255,255,255,0.1)'}`
+            color: allComplete ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)",
+            border: `1px solid ${allComplete ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`
           }}>
             {allComplete ? <Zap size={22} /> : <Settings size={22} />}
           </div>
@@ -1447,15 +1453,15 @@ function ProductionControlHub({
               margin: 0, 
               fontSize: '1.3rem', 
               fontWeight: '700',
-              color: allComplete ? 'white' : 'rgba(255,255,255,0.6)',
+              color: allComplete ? "var(--studio-ink, #202724)" : "var(--studio-muted, #646c64)",
               display: 'flex',
               alignItems: 'center',
               gap: '8px'
             }}>
               {allComplete ? 'Selected outputs ready' : 'Production Control Hub'}
-              {allComplete && <CheckCircle2 size={18} color="#22c55e" />}
+              {allComplete && <CheckCircle2 size={18} color="var(--studio-sage, #566954)" />}
             </h3>
-            <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' }}>
+            <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: "var(--studio-muted, #646c64)" }}>
               {totalSlots
                 ? `${completedCount}/${totalSlots} selected outputs ready • ${totalSlots - completedCount} remaining`
                 : 'No outputs selected — choose generators above'}
@@ -1470,16 +1476,16 @@ function ProductionControlHub({
             style={{
               padding: '14px 22px',
               borderRadius: '12px',
-              background: allComplete ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : 'rgba(255,255,255,0.05)',
-              border: allComplete ? 'none' : '1px solid rgba(255,255,255,0.1)',
-              color: 'white',
+              background: allComplete ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))" : "var(--studio-surface, #fbf8f1)",
+              border: allComplete ? 'none' : "1px solid var(--studio-border, #d8d5c9)",
+              color: "var(--studio-ink, #202724)",
               fontWeight: '700',
               fontSize: '0.95rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              boxShadow: allComplete ? '0 6px 20px rgba(79, 70, 229, 0.35)' : 'none',
+              boxShadow: allComplete ? "none" : 'none',
               minHeight: '50px'
             }}
           >
@@ -1506,9 +1512,9 @@ function ProductionControlHub({
               borderRadius: '100px',
               fontSize: '0.8rem',
               fontWeight: '600',
-              background: ready ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255,255,255,0.03)',
-              color: ready ? '#4ade80' : 'rgba(255,255,255,0.25)',
-              border: `1px solid ${ready ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.05)'}`,
+              background: ready ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+              color: ready ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)",
+              border: `1px solid ${ready ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`,
               display: 'flex',
               alignItems: 'center',
               gap: '6px'
@@ -1523,35 +1529,35 @@ function ProductionControlHub({
       </div>
 
       {/* ── PRODUCTION TIMELINE (DAW-style) ── */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(0,0,0,0.5), rgba(30,30,40,0.5))',
+      <div className="studio-media-stage" style={{
+        background: "var(--studio-surface, #fbf8f1)",
         borderRadius: '16px',
         padding: '20px',
-        border: '2px solid rgba(34, 211, 238, 0.3)',
-        boxShadow: '0 8px 32px rgba(34, 211, 238, 0.1)',
+        border: "2px solid var(--studio-border, #d8d5c9)",
+        boxShadow: "none",
         marginBottom: '24px'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div>
-            <span style={{ fontSize: '0.85rem', color: '#22d3ee', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🎚️ Production Timeline</span>
-            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>Multi-Track Overview</div>
+            <span style={{ fontSize: '0.85rem', color: "var(--studio-sage, #566954)", fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🎚️ Production Timeline</span>
+            <div style={{ fontSize: '0.65rem', color: "var(--studio-muted, #646c64)", marginTop: '4px' }}>Multi-Track Overview</div>
           </div>
-          <span style={{ fontSize: '0.75rem', color: '#818cf8', fontWeight: '700', background: 'rgba(129, 140, 248, 0.1)', padding: '6px 12px', borderRadius: '8px' }}>{orchestratorBpm} BPM • STEREO</span>
+          <span style={{ fontSize: '0.75rem', color: "var(--studio-sage, #566954)", fontWeight: '700', background: "var(--studio-surface-alt, #e4e8dc)", padding: '6px 12px', borderRadius: '8px' }}>{orchestratorBpm} BPM • STEREO</span>
         </div>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {[
-            { label: 'BEAT', type: 'audio', color: '#22d3ee' },
-            { label: 'VOCALS', type: 'lyrics', color: '#a78bfa' },
-            { label: 'VISUALS', type: 'visual', color: '#fb923c' },
-            { label: 'VIDEO', type: 'video', color: '#f87171' }
+            { label: 'BEAT', type: 'audio', color: "#566954" },
+            { label: 'VOCALS', type: 'lyrics', color: "#566954" },
+            { label: 'VISUALS', type: 'visual', color: "#806023" },
+            { label: 'VIDEO', type: 'video', color: "#9a4033" }
           ].map(track => (
             <div key={track.label} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ 
                 width: '70px', 
                 fontSize: '0.65rem', 
                 fontWeight: '800', 
-                color: outputs[track.type] ? track.color : 'rgba(255,255,255,0.2)',
+                color: outputs[track.type] ? 'var(--studio-ink, #f3efe5)' : "var(--studio-muted, #646c64)",
                 letterSpacing: '0.05em'
               }}>
                 {track.label}
@@ -1559,11 +1565,11 @@ function ProductionControlHub({
               <div style={{ 
                 flex: 1, 
                 height: '24px', 
-                background: 'rgba(255,255,255,0.03)', 
+                background: "var(--studio-surface, #fbf8f1)",
                 borderRadius: '4px', 
                 position: 'relative',
                 overflow: 'hidden',
-                border: '1px solid rgba(255,255,255,0.05)'
+                border: "1px solid var(--studio-border, #d8d5c9)"
               }}>
                 {outputs[track.type] && (
                   <div style={{ 
@@ -1586,8 +1592,8 @@ function ProductionControlHub({
                   </div>
                 )}
               </div>
-              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: outputs[track.type] ? '#22c55e' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                 {outputs[track.type] && <CheckCircle2 size={10} color="white" />}
+              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: outputs[track.type] ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                 {outputs[track.type] && <CheckCircle2 size={10} color="var(--studio-ink, #202724)" />}
               </div>
             </div>
           ))}
@@ -1597,21 +1603,21 @@ function ProductionControlHub({
       {/* ── WHAT'S NEXT GUIDE ── contextual guidance based on current state */}
       {(
         <div style={{
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.05))',
+          background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
           borderRadius: '14px',
           padding: '16px 20px',
-          border: '1px solid rgba(99, 102, 241, 0.2)',
+          border: "1px solid var(--studio-border, #d8d5c9)",
           marginBottom: '24px',
           display: 'flex',
           alignItems: 'flex-start',
           gap: '12px'
         }}>
-          <Lightbulb size={20} style={{ color: '#818cf8', flexShrink: 0, marginTop: '2px' }} />
+          <Lightbulb size={20} style={{ color: "var(--studio-sage, #566954)", flexShrink: 0, marginTop: '2px' }} />
           <div>
-            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#a78bfa', marginBottom: '6px' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: "var(--studio-sage, #566954)", marginBottom: '6px' }}>
               What to do next
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.6' }}>
+            <div style={{ fontSize: '0.8rem', color: "var(--studio-muted, #646c64)", lineHeight: '1.6' }}>
               {!totalSlots ? (
                 <>Choose the generators you want above. Existing outputs stay available to save and review.</>
               ) : allComplete ? (
@@ -1628,21 +1634,21 @@ function ProductionControlHub({
 
       {/* ── MIXING CONSOLE ── always visible with guidance */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(0,0,0,0.6), rgba(20,20,35,0.6))',
+        background: "var(--studio-surface, #fbf8f1)",
         borderRadius: '16px',
         padding: isMobile ? '16px' : '24px',
-        border: `1px solid ${(hasBeat || hasVocalMedia) ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255,255,255,0.08)'}`,
+        border: `1px solid ${(hasBeat || hasVocalMedia) ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`,
         marginBottom: '24px',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+        boxShadow: "none",
         opacity: (hasBeat || hasVocalMedia) ? 1 : 0.7
       }}>
         {/* Mixing Header with Instructions */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
           <div>
-            <h4 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: '700', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: '700', color: "var(--studio-sage, #566954)", display: 'flex', alignItems: 'center', gap: '8px' }}>
               🎛️ Mixing Console
             </h4>
-            <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.5', maxWidth: '500px' }}>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: "var(--studio-muted, #646c64)", lineHeight: '1.5', maxWidth: '500px' }}>
               {!audioSelected && !hasBeat && !hasVocalMedia
                 ? 'Optional audio tool — mixing is not required for your selected outputs. Add audio only if you want to make a mix.'
                 : !hasBeat && !hasVocalMedia
@@ -1658,9 +1664,9 @@ function ProductionControlHub({
               <div style={{
                 padding: '6px 14px',
                 borderRadius: '20px',
-                background: 'rgba(34, 197, 94, 0.15)',
-                border: '1px solid rgba(34, 197, 94, 0.3)',
-                color: '#4ade80',
+                background: "var(--studio-surface-alt, #e4e8dc)",
+                border: "1px solid var(--studio-border, #d8d5c9)",
+                color: "var(--studio-sage, #566954)",
                 fontSize: '0.75rem',
                 fontWeight: '700',
                 display: 'flex',
@@ -1675,7 +1681,7 @@ function ProductionControlHub({
           {/* Mix Preset Cards — larger, with descriptions */}
           {hasBeat && hasVocalMedia && (
             <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: '700', color: "var(--studio-muted, #646c64)", marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Step 1: Choose a Mix Style
               </div>
               <div style={{
@@ -1700,9 +1706,9 @@ function ProductionControlHub({
                     style={{
                       padding: '10px 8px',
                       borderRadius: '10px',
-                      background: mixPreset === preset.id ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.03)',
-                      border: `1px solid ${mixPreset === preset.id ? 'rgba(99, 102, 241, 0.45)' : 'rgba(255,255,255,0.08)'}`,
-                      color: mixPreset === preset.id ? '#a78bfa' : 'rgba(255,255,255,0.55)',
+                      background: mixPreset === preset.id ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                      border: `1px solid ${mixPreset === preset.id ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`,
+                      color: mixPreset === preset.id ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)",
                       cursor: 'pointer',
                       transition: 'all 0.2s',
                       textAlign: 'center',
@@ -1711,7 +1717,7 @@ function ProductionControlHub({
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: mixPreset === preset.id ? '0 4px 16px rgba(99, 102, 241, 0.2)' : 'none'
+                      boxShadow: mixPreset === preset.id ? "none" : 'none'
                     }}
                   >
                     <div style={{ fontSize: '0.88rem', fontWeight: '700', marginBottom: '3px' }}>{preset.label}</div>
@@ -1725,7 +1731,7 @@ function ProductionControlHub({
           {/* Volume Sliders — bigger, clearer */}
           {hasBeat && hasVocalMedia && setMixVocalVolume && setMixBeatVolume && (
             <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: '700', color: "var(--studio-muted, #646c64)", marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Step 2: Fine-Tune Volumes
               </div>
               <div style={{
@@ -1733,14 +1739,14 @@ function ProductionControlHub({
                 flexDirection: 'column',
                 gap: '14px',
                 padding: '16px',
-                background: 'rgba(0,0,0,0.3)',
+                background: "var(--studio-surface-alt, #e4e8dc)",
                 borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.06)'
+                border: "1px solid var(--studio-border, #d8d5c9)"
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '80px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Music size={14} style={{ color: '#22d3ee' }} />
-                    <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#22d3ee' }}>Beat</span>
+                    <Music size={14} style={{ color: "var(--studio-sage, #566954)" }} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: '700', color: "var(--studio-sage, #566954)" }}>Beat</span>
                   </div>
                   <input
                     type="range"
@@ -1749,14 +1755,14 @@ function ProductionControlHub({
                     step="0.05"
                     value={mixBeatVolume}
                     onChange={(e) => setMixBeatVolume(parseFloat(e.target.value))}
-                    style={{ flex: 1, accentColor: '#22d3ee', height: '6px' }}
+                    style={{ flex: 1, accentColor: "var(--studio-sage, #566954)", height: '6px' }}
                   />
-                  <span style={{ fontSize: '0.85rem', color: '#22d3ee', fontWeight: '700', width: '42px', textAlign: 'right' }}>{Math.round(mixBeatVolume * 100)}%</span>
+                  <span style={{ fontSize: '0.85rem', color: "var(--studio-sage, #566954)", fontWeight: '700', width: '42px', textAlign: 'right' }}>{Math.round(mixBeatVolume * 100)}%</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '80px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Mic size={14} style={{ color: '#a78bfa' }} />
-                    <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#a78bfa' }}>Vocal</span>
+                    <Mic size={14} style={{ color: "var(--studio-sage, #566954)" }} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: '700', color: "var(--studio-sage, #566954)" }}>Vocal</span>
                   </div>
                   <input
                     type="range"
@@ -1765,9 +1771,9 @@ function ProductionControlHub({
                     step="0.05"
                     value={mixVocalVolume}
                     onChange={(e) => setMixVocalVolume(parseFloat(e.target.value))}
-                    style={{ flex: 1, accentColor: '#a78bfa', height: '6px' }}
+                    style={{ flex: 1, accentColor: "var(--studio-sage, #566954)", height: '6px' }}
                   />
-                  <span style={{ fontSize: '0.85rem', color: '#a78bfa', fontWeight: '700', width: '42px', textAlign: 'right' }}>{Math.round(mixVocalVolume * 100)}%</span>
+                  <span style={{ fontSize: '0.85rem', color: "var(--studio-sage, #566954)", fontWeight: '700', width: '42px', textAlign: 'right' }}>{Math.round(mixVocalVolume * 100)}%</span>
                 </div>
               </div>
             </div>
@@ -1788,7 +1794,7 @@ function ProductionControlHub({
 
           {/* Create Mix + Preview buttons */}
           <div style={{ marginTop: '16px' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: "var(--studio-muted, #646c64)", marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               {hasBeat && hasVocalMedia ? 'Step 3: Export Your Mix' : 'Export'}
             </div>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', flexWrap: 'wrap' }}>
@@ -1805,17 +1811,17 @@ function ProductionControlHub({
                   padding: '14px 28px',
                   borderRadius: '12px',
                   background: (hasBeat || hasVocalMedia)
-                    ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
-                    : 'rgba(255,255,255,0.05)',
-                  border: (hasBeat || hasVocalMedia) ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                  color: (hasBeat || hasVocalMedia) ? 'white' : 'rgba(255,255,255,0.3)',
+                    ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))"
+                    : "var(--studio-surface, #fbf8f1)",
+                  border: (hasBeat || hasVocalMedia) ? 'none' : "1px solid var(--studio-border, #d8d5c9)",
+                  color: (hasBeat || hasVocalMedia) ? "var(--studio-ink, #202724)" : "var(--studio-muted, #646c64)",
                   fontWeight: '700',
                   fontSize: '0.95rem',
                   cursor: (hasBeat || hasVocalMedia) && !creatingFinalMix ? 'pointer' : 'default',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '10px',
-                  boxShadow: (hasBeat || hasVocalMedia) ? '0 6px 24px rgba(79, 70, 229, 0.4)' : 'none',
+                  boxShadow: (hasBeat || hasVocalMedia) ? "none" : 'none',
                   transition: 'all 0.3s ease',
                   flex: 1,
                   justifyContent: 'center',
@@ -1835,9 +1841,9 @@ function ProductionControlHub({
                   style={{
                     padding: '14px 24px',
                     borderRadius: '12px',
-                    background: 'rgba(34, 197, 94, 0.1)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                    color: '#4ade80',
+                    background: "var(--studio-surface-alt, #e4e8dc)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
+                    color: "var(--studio-sage, #566954)",
                     fontWeight: '700',
                     fontSize: '0.95rem',
                     cursor: 'pointer',
@@ -1858,9 +1864,9 @@ function ProductionControlHub({
                   style={{
                     padding: '14px 18px',
                     borderRadius: '12px',
-                    background: 'rgba(139, 92, 246, 0.08)',
-                    border: '1px solid rgba(139, 92, 246, 0.25)',
-                    color: '#c4b5fd',
+                    background: "var(--studio-surface-alt, #e4e8dc)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
+                    color: "var(--studio-sage, #566954)",
                     fontWeight: '700',
                     fontSize: '0.88rem',
                     cursor: 'pointer',
@@ -1888,7 +1894,7 @@ function ProductionControlHub({
             textAlign: 'center'
           }}>
             <div style={{ fontSize: '2rem', opacity: 0.4 }}>🎚️</div>
-            <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', maxWidth: '400px', lineHeight: '1.5' }}>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: "var(--studio-muted, #646c64)", maxWidth: '400px', lineHeight: '1.5' }}>
               {audioSelected
                 ? 'Once audio is ready, you can choose whether to combine tracks and export a mix here.'
                 : 'Your selected outputs do not require audio. This console remains available if you choose to add it later.'}
@@ -1900,11 +1906,11 @@ function ProductionControlHub({
       {/* ── VIDEO SYNC SECTION ── always visible */}
       <div style={{
         background: isSyncAvailable 
-          ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.06), rgba(236, 72, 153, 0.02))'
-          : 'rgba(20, 20, 30, 0.4)',
+          ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))"
+          : "var(--studio-surface-alt, #e4e8dc)",
         borderRadius: '14px',
         padding: '16px 20px',
-        border: `1px solid ${isSyncAvailable ? 'rgba(236, 72, 153, 0.2)' : 'rgba(255,255,255,0.06)'}`,
+        border: `1px solid ${isSyncAvailable ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`,
         marginBottom: '16px',
         display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
@@ -1914,11 +1920,11 @@ function ProductionControlHub({
         opacity: isSyncAvailable ? 1 : 0.6
       }}>
         <div>
-          <div style={{ fontSize: '0.9rem', fontWeight: '700', color: isSyncAvailable ? '#f472b6' : 'rgba(255,255,255,0.4)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: '700', color: isSyncAvailable ? "var(--studio-accent, #a34229)" : "var(--studio-muted, #646c64)", marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             🎬 Music Video Sync
-            {isSyncComplete && <CheckCircle2 size={14} color="#22c55e" />}
+            {isSyncComplete && <CheckCircle2 size={14} color="var(--studio-sage, #566954)" />}
           </div>
-          <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.4' }}>
+          <p style={{ margin: 0, fontSize: '0.78rem', color: "var(--studio-muted, #646c64)", lineHeight: '1.4' }}>
             {!isSyncAvailable
               ? `Need a beat${!hasBeat ? '' : ' ✓'} + image or video${!(hasVideo || hasVisual || !!outputs?.video) ? '' : ' ✓'} to create a music video.`
               : isSyncComplete 
@@ -1932,9 +1938,9 @@ function ProductionControlHub({
           style={{
             padding: '13px 24px',
             borderRadius: '12px',
-            background: !isSyncAvailable ? 'rgba(255,255,255,0.04)' : isSyncComplete ? 'rgba(34, 197, 94, 0.1)' : 'rgba(236, 72, 153, 0.15)',
-            border: `1px solid ${!isSyncAvailable ? 'rgba(255,255,255,0.1)' : isSyncComplete ? 'rgba(34, 197, 94, 0.3)' : 'rgba(236, 72, 153, 0.3)'}`,
-            color: !isSyncAvailable ? 'rgba(255,255,255,0.3)' : isSyncComplete ? '#4ade80' : '#f472b6',
+            background: !isSyncAvailable ? "var(--studio-surface, #fbf8f1)" : isSyncComplete ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-accent-soft, #f0ded2)",
+            border: `1px solid ${!isSyncAvailable ? "var(--studio-border, #d8d5c9)" : isSyncComplete ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`,
+            color: !isSyncAvailable ? "var(--studio-muted, #646c64)" : isSyncComplete ? "var(--studio-sage, #566954)" : "var(--studio-accent, #a34229)",
             fontWeight: '700',
             fontSize: '0.88rem',
             cursor: (generatingMusicVideo || !isSyncAvailable) ? 'not-allowed' : 'pointer',
@@ -1970,9 +1976,9 @@ function ProductionControlHub({
             style={{
               padding: '13px 18px',
               borderRadius: '12px',
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#f87171',
+              background: "var(--studio-accent-soft, #f0ded2)",
+              border: "1px solid var(--studio-border, #d8d5c9)",
+              color: "var(--studio-danger, #9a4033)",
               fontWeight: '700',
               fontSize: '0.88rem',
               cursor: 'pointer',
@@ -1990,15 +1996,15 @@ function ProductionControlHub({
       {/* ── DISTRIBUTE & GO VIRAL ── always visible */}
       <div style={{
         background: (finalMixPreview || mediaUrls.mixedAudio) 
-          ? 'linear-gradient(135deg, rgba(249, 115, 22, 0.06), rgba(234, 88, 12, 0.02))'
-          : 'rgba(20, 20, 30, 0.4)',
+          ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))"
+          : "var(--studio-surface-alt, #e4e8dc)",
         borderRadius: '14px',
         padding: '16px 20px',
-        border: `1px solid ${(finalMixPreview || mediaUrls.mixedAudio) ? 'rgba(249, 115, 22, 0.2)' : 'rgba(255,255,255,0.06)'}`,
+        border: `1px solid ${(finalMixPreview || mediaUrls.mixedAudio) ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`,
         marginBottom: '16px',
         opacity: (finalMixPreview || mediaUrls.mixedAudio) ? 1 : 0.6
       }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: '700', color: "var(--studio-muted, #646c64)", marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Globe size={13} /> Share & Distribute
           </div>
 
@@ -2010,9 +2016,9 @@ function ProductionControlHub({
               style={{
                 padding: '13px 20px',
                 borderRadius: '12px',
-                background: (finalMixPreview || mediaUrls.mixedAudio) ? 'linear-gradient(135deg, #ff5500, #ff7700)' : 'rgba(255,255,255,0.04)',
-                border: (finalMixPreview || mediaUrls.mixedAudio) ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                color: (finalMixPreview || mediaUrls.mixedAudio) ? 'white' : 'rgba(255,255,255,0.3)',
+                background: (finalMixPreview || mediaUrls.mixedAudio) ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))" : "var(--studio-surface, #fbf8f1)",
+                border: (finalMixPreview || mediaUrls.mixedAudio) ? 'none' : "1px solid var(--studio-border, #d8d5c9)",
+                color: (finalMixPreview || mediaUrls.mixedAudio) ? "var(--studio-ink, #202724)" : "var(--studio-muted, #646c64)",
                 fontWeight: '700',
                 fontSize: '0.88rem',
                 cursor: (distributing || !(finalMixPreview || mediaUrls.mixedAudio)) ? 'not-allowed' : 'pointer',
@@ -2023,7 +2029,7 @@ function ProductionControlHub({
                 flex: 1,
                 justifyContent: 'center',
                 minHeight: '50px',
-                boxShadow: '0 4px 16px rgba(255, 85, 0, 0.3)'
+                boxShadow: "none"
               }}
             >
               {distributing === 'soundcloud' ? (
@@ -2040,9 +2046,9 @@ function ProductionControlHub({
               style={{
                 padding: '13px 20px',
                 borderRadius: '12px',
-                background: (finalMixPreview || mediaUrls.mixedAudio) ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${(finalMixPreview || mediaUrls.mixedAudio) ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.1)'}`,
-                color: (finalMixPreview || mediaUrls.mixedAudio) ? '#818cf8' : 'rgba(255,255,255,0.3)',
+                background: (finalMixPreview || mediaUrls.mixedAudio) ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                border: `1px solid ${(finalMixPreview || mediaUrls.mixedAudio) ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`,
+                color: (finalMixPreview || mediaUrls.mixedAudio) ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)",
                 fontWeight: '700',
                 fontSize: '0.88rem',
                 cursor: (distributing || !(finalMixPreview || mediaUrls.mixedAudio)) ? 'not-allowed' : 'pointer',
@@ -2065,10 +2071,10 @@ function ProductionControlHub({
           {/* Share Link Results */}
           {shareLink?.shareUrl && (
             <div style={{
-              background: 'rgba(0,0,0,0.3)',
+              background: "var(--studio-surface-alt, #e4e8dc)",
               borderRadius: '10px',
               padding: '12px',
-              border: '1px solid rgba(255,255,255,0.08)'
+              border: "1px solid var(--studio-border, #d8d5c9)"
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <input
@@ -2081,11 +2087,11 @@ function ProductionControlHub({
                   }}
                   style={{
                     flex: 1,
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: "var(--studio-surface, #fbf8f1)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
                     borderRadius: '8px',
                     padding: '8px 12px',
-                    color: 'white',
+                    color: "var(--studio-ink, #202724)",
                     fontSize: '0.8rem',
                     fontFamily: 'monospace'
                   }}
@@ -2095,9 +2101,9 @@ function ProductionControlHub({
                   style={{
                     padding: '8px 12px',
                     borderRadius: '8px',
-                    background: 'rgba(255,255,255,0.1)',
+                    background: "var(--studio-surface, #fbf8f1)",
                     border: 'none',
-                    color: 'white',
+                    color: "var(--studio-ink, #202724)",
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center'
@@ -2116,8 +2122,8 @@ function ProductionControlHub({
                     rel="noopener noreferrer"
                     style={{
                       padding: '6px 14px', borderRadius: '8px',
-                      background: 'rgba(29, 161, 242, 0.15)', border: '1px solid rgba(29, 161, 242, 0.3)',
-                      color: '#1da1f2', fontSize: '0.75rem', fontWeight: '600',
+                      background: "var(--studio-surface-alt, #e4e8dc)", border: "1px solid var(--studio-border, #d8d5c9)",
+                      color: "var(--studio-sage, #566954)", fontSize: '0.75rem', fontWeight: '600',
                       textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px'
                     }}
                   >
@@ -2129,8 +2135,8 @@ function ProductionControlHub({
                     rel="noopener noreferrer"
                     style={{
                       padding: '6px 14px', borderRadius: '8px',
-                      background: 'rgba(255, 69, 0, 0.15)', border: '1px solid rgba(255, 69, 0, 0.3)',
-                      color: '#ff4500', fontSize: '0.75rem', fontWeight: '600',
+                      background: "var(--studio-accent-soft, #f0ded2)", border: "1px solid var(--studio-border, #d8d5c9)",
+                      color: "var(--studio-danger, #9a4033)", fontSize: '0.75rem', fontWeight: '600',
                       textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px'
                     }}
                   >
@@ -2142,8 +2148,8 @@ function ProductionControlHub({
                     rel="noopener noreferrer"
                     style={{
                       padding: '6px 14px', borderRadius: '8px',
-                      background: 'rgba(66, 103, 178, 0.15)', border: '1px solid rgba(66, 103, 178, 0.3)',
-                      color: '#4267b2', fontSize: '0.75rem', fontWeight: '600',
+                      background: "var(--studio-surface-alt, #e4e8dc)", border: "1px solid var(--studio-border, #d8d5c9)",
+                      color: "var(--studio-sage, #566954)", fontSize: '0.75rem', fontWeight: '600',
                       textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px'
                     }}
                   >
@@ -2163,8 +2169,8 @@ function ProductionControlHub({
               style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
                 marginTop: '8px', padding: '8px 14px', borderRadius: '10px',
-                background: 'rgba(255, 85, 0, 0.1)', border: '1px solid rgba(255, 85, 0, 0.2)',
-                color: '#ff7700', fontSize: '0.8rem', fontWeight: '600',
+                background: "var(--studio-accent-soft, #f0ded2)", border: "1px solid var(--studio-border, #d8d5c9)",
+                color: "var(--studio-danger, #9a4033)", fontSize: '0.8rem', fontWeight: '600',
                 textDecoration: 'none'
               }}
             >
@@ -2173,7 +2179,7 @@ function ProductionControlHub({
           )}
           {/* No mix guidance */}
           {!(finalMixPreview || mediaUrls.mixedAudio) && (
-            <div style={{ textAlign: 'center', padding: '8px', color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>
+            <div style={{ textAlign: 'center', padding: '8px', color: "var(--studio-muted, #646c64)", fontSize: '0.75rem' }}>
               Optional: create a final audio mix to unlock these distribution tools.
             </div>
           )}
@@ -2187,12 +2193,12 @@ function ProductionControlHub({
           left: 0,
           right: 0,
           height: '4px',
-          background: 'rgba(255,255,255,0.05)'
+          background: "var(--studio-surface, #fbf8f1)"
         }}>
           <div style={{
             width: `${progressPercent}%`,
             height: '100%',
-            background: 'linear-gradient(90deg, #3b82f6, #6366f1)',
+            background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
             transition: 'width 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
           }} />
         </div>
@@ -2936,7 +2942,7 @@ export default function StudioOrchestratorV2({
       title: currentMode.slotTitles.lyrics,
       subtitle: currentMode.slotSubtitles.lyrics,
       icon: Sparkles,
-      color: vocalQuality === 'premium' ? '#fbbf24' : '#8b5cf6',
+      color: vocalQuality === 'premium' ? "#806023" : "#566954",
       mediaType: 'audio'
     },
     { 
@@ -2944,7 +2950,7 @@ export default function StudioOrchestratorV2({
       title: currentMode.slotTitles.audio, 
       subtitle: currentMode.slotSubtitles.audio, 
       icon: Zap, 
-      color: vocalQuality === 'premium' ? '#f59e0b' : '#06b6d4',
+      color: vocalQuality === 'premium' ? "#806023" : "#566954",
       mediaType: 'audio' 
     },
     { 
@@ -2952,7 +2958,7 @@ export default function StudioOrchestratorV2({
       title: currentMode.slotTitles.visual, 
       subtitle: currentMode.slotSubtitles.visual, 
       icon: ImageIcon, 
-      color: '#ec4899',
+      color: "#9a4033",
       mediaType: 'image' 
     },
     { 
@@ -2960,7 +2966,7 @@ export default function StudioOrchestratorV2({
       title: currentMode.slotTitles.video, 
       subtitle: currentMode.slotSubtitles.video, 
       icon: VideoIcon, 
-      color: '#f59e0b',
+      color: "#806023",
       mediaType: 'video' 
     }
   ];
@@ -3425,7 +3431,7 @@ export default function StudioOrchestratorV2({
       toast(`Genre auto-set to ${detectedGenre} based on your prompt`, {
         icon: '🎵',
         duration: 4000,
-        style: { borderLeft: '4px solid #8b5cf6' }
+        style: { borderLeft: "4px solid var(--studio-border, #d8d5c9)" }
       });
     }
     
@@ -4239,7 +4245,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             toast(`Beat duration was ${data.actualDuration}s (max for ${data.provider}). Requested: ${duration}s. Consider Stability AI for longer beats.`, {
               icon: '⚠️',
               duration: 6000,
-              style: { borderLeft: '4px solid #f59e0b' }
+              style: { borderLeft: "4px solid var(--studio-border, #d8d5c9)" }
             });
           }
           // Store actual beat duration for downstream alignment (vocal gen, mux)
@@ -4317,14 +4323,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           toast.error(
             <div style={{ padding: '4px' }}>
               <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Zap size={14} color="#fbbf24" fill="#fbbf24" />
+                <Zap size={14} color="var(--studio-warning, #806023)" fill="var(--studio-warning, #806023)" />
                 System Maintenance
               </div>
               <p style={{ fontSize: '12px', marginTop: '4px', opacity: 0.9 }}>
                 The AI engine is currently being refilled with credits. Your personal balance was not affected.
               </p>
             </div>, 
-            { id: 'gen-audio', duration: 8000, style: { borderLeft: '4px solid #fbbf24' } }
+            { id: 'gen-audio', duration: 8000, style: { borderLeft: "4px solid var(--studio-border, #d8d5c9)" } }
           );
         } else if (errData.isUserCreditIssue || response.status === 403) {
           lastAudioErrorRef.current = 'Your Studio generation balance is insufficient for this beat.';
@@ -6757,7 +6763,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         left: 0,
         right: 0,
         height: '100dvh',
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(10,10,20,0.98) 100%)',
+        background: 'var(--studio-bg, #f3efe5)',
+        color: 'var(--studio-ink, #202724)',
         zIndex: 10000,
         display: 'flex',
         flexDirection: 'column',
@@ -6788,8 +6795,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
-        background: 'rgba(0,0,0,0.5)',
+        borderBottom: "1px solid var(--studio-border, #d8d5c9)",
+        background: "var(--studio-surface-alt, #e4e8dc)",
         backdropFilter: 'blur(10px)',
         position: 'sticky',
         top: 0,
@@ -6800,21 +6807,21 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             width: isMobile ? '40px' : '48px',
             height: isMobile ? '40px' : '48px',
             borderRadius: '14px',
-            background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+            background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(139, 92, 246, 0.3)'
+            boxShadow: "none"
           }}>
-            <Zap size={isMobile ? 22 : 26} color="white" />
+            <Zap size={isMobile ? 22 : 26} color="var(--studio-ink, #202724)" />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.4rem', fontWeight: '700' }}>Studio Orchestrator <span style={{ color: 'var(--color-purple)', fontSize: '0.6em', border: '1px solid var(--color-purple)', padding: '1px 4px', borderRadius: '4px', marginLeft: '6px' }}>V3.5</span></h2>
-            <p style={{ margin: 0, fontSize: isMobile ? '0.7rem' : '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <h2 style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.4rem', fontWeight: '700' }}>Studio Orchestrator <span style={{ color: "var(--studio-accent, #a34229)", fontSize: '0.6em', border: "1px solid var(--studio-accent, #a34229)", padding: '1px 4px', borderRadius: '4px', marginLeft: '6px' }}>V3.5</span></h2>
+            <p style={{ margin: 0, fontSize: isMobile ? '0.7rem' : '0.8rem', color: "var(--studio-muted, #646c64)", display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
               {existingProject ? (
                 <>
                   <span style={{ 
-                    color: '#8b5cf6', 
+                    color: "var(--studio-sage, #566954)",
                     fontWeight: '600',
                     maxWidth: isMobile ? '120px' : '200px',
                     overflow: 'hidden',
@@ -6828,11 +6835,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     <button
                       onClick={(e) => { e.stopPropagation(); setShowProjectSwitcher(true); }}
                       style={{
-                        background: 'rgba(139, 92, 246, 0.15)',
-                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                        background: "var(--studio-surface-alt, #e4e8dc)",
+                        border: "1px solid var(--studio-border, #d8d5c9)",
                         borderRadius: '6px',
                         padding: '1px 6px',
-                        color: '#a78bfa',
+                        color: "var(--studio-sage, #566954)",
                         fontSize: '0.65rem',
                         fontWeight: '600',
                         cursor: 'pointer',
@@ -6854,7 +6861,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         <button 
           onClick={handleCloseWithCheck}
           style={{ 
-            background: 'rgba(255,255,255,0.1)', 
+            background: "var(--studio-surface, #fbf8f1)",
             border: 'none', 
             borderRadius: '12px',
             width: isMobile ? '38px' : '44px',
@@ -6867,7 +6874,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             transition: 'all 0.2s'
           }}
         >
-          <X size={20} color="white" />
+          <X size={20} color="var(--studio-ink, #202724)" />
         </button>
       </div>
 
@@ -6889,24 +6896,24 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           aria-label="Creation progress"
           style={{
             marginBottom: '10px',
-            border: '1px solid rgba(34, 211, 238, 0.24)',
+            border: "1px solid var(--studio-border, #d8d5c9)",
             borderRadius: '16px',
             padding: isMobile ? '12px' : '14px 16px',
-            background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.08), rgba(139, 92, 246, 0.08))'
+            background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))"
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
             <div>
-              <div style={{ color: '#67e8f9', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Your next creative step</div>
-              <p style={{ margin: '4px 0 0', color: 'rgba(255,255,255,0.84)', fontSize: isMobile ? '0.82rem' : '0.9rem', lineHeight: 1.45 }}>{quickMode ? journeyMessage : advancedJourneyMessage}</p>
+              <div style={{ color: "var(--studio-sage, #566954)", fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Your next creative step</div>
+              <p style={{ margin: '4px 0 0', color: "var(--studio-ink, #202724)", fontSize: isMobile ? '0.82rem' : '0.9rem', lineHeight: 1.45 }}>{quickMode ? journeyMessage : advancedJourneyMessage}</p>
             </div>
             <button
               type="button"
               disabled={isGenerating || isSavingProject}
               onClick={quickMode ? handleJourneyAction : () => document.getElementById('studio-song-brief')?.focus()}
               style={{
-                border: '1px solid rgba(103, 232, 249, 0.45)',
-                borderRadius: '10px', background: 'rgba(8, 145, 178, 0.18)', color: '#cffafe',
+                border: "1px solid var(--studio-border, #d8d5c9)",
+                borderRadius: '10px', background: "var(--studio-surface-alt, #e4e8dc)", color: "var(--studio-sage, #566954)",
                 cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', minHeight: '40px', padding: '8px 12px', whiteSpace: 'nowrap'
               }}
             >
@@ -6915,8 +6922,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           </div>
           <div style={{ display: 'flex', gap: '6px', marginTop: '12px', overflowX: 'auto', paddingBottom: '2px' }}>
             {(quickMode ? journeyStages : journeyStages.filter(stage => stage.id === 'brief' || (stage.id === 'write' && selectedAgents.lyrics) || (stage.id === 'produce' && selectedAgents.audio) || (stage.id === 'visuals' && (selectedAgents.visual || selectedAgents.video)))).map((stage) => (
-              <div key={stage.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: stage.complete ? '#bbf7d0' : stage.id === nextJourneyStage ? '#cffafe' : 'rgba(255,255,255,0.42)', fontSize: '0.7rem', fontWeight: stage.id === nextJourneyStage ? 700 : 600, whiteSpace: 'nowrap' }}>
-                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: stage.complete ? '#34d399' : stage.id === nextJourneyStage ? '#22d3ee' : 'rgba(255,255,255,0.2)' }} />
+              <div key={stage.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: stage.complete ? "var(--studio-sage, #566954)" : stage.id === nextJourneyStage ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)", fontSize: '0.7rem', fontWeight: stage.id === nextJourneyStage ? 700 : 600, whiteSpace: 'nowrap' }}>
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: stage.complete ? "var(--studio-surface-alt, #e4e8dc)" : stage.id === nextJourneyStage ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)" }} />
                 {stage.label}
               </div>
             ))}
@@ -6925,12 +6932,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         
         {/* Input Section */}
         <div style={{
-          background: 'rgba(255,255,255,0.025)',
+          background: "var(--studio-surface, #fbf8f1)",
           borderRadius: '16px',
           padding: isMobile ? '10px' : '16px',
           marginBottom: '10px',
-          border: '1px solid rgba(255,255,255,0.07)',
-          boxShadow: '0 2px 20px rgba(0,0,0,0.3)'
+          border: "1px solid var(--studio-border, #d8d5c9)",
+          boxShadow: "none"
         }}>
           {/* Mode Toggle */}
           <div style={{
@@ -6943,7 +6950,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               style={{
                 background: 'none',
                 border: 'none',
-                color: 'rgba(139, 92, 246, 0.8)',
+                color: "var(--studio-sage, #566954)",
                 fontSize: '0.75rem',
                 cursor: 'pointer',
                 display: 'flex',
@@ -6982,9 +6989,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   flex: 1,
                   padding: '14px 20px',
                   borderRadius: '12px',
-                  background: 'rgba(0,0,0,0.5)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  color: 'white',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-ink, #202724)",
                   fontSize: isMobile ? '0.9rem' : '1rem',
                   outline: 'none',
                   minHeight: '52px',
@@ -7000,9 +7007,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 style={{
                   padding: '14px 16px',
                   borderRadius: '12px',
-                  background: 'rgba(0,0,0,0.5)',
-                  border: '1px solid rgba(139, 92, 246, 0.3)',
-                  color: '#a78bfa',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-sage, #566954)",
                   fontSize: '0.85rem',
                   fontWeight: '600',
                   cursor: 'pointer',
@@ -7017,7 +7024,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 }}
               >
                 {ALL_GENRES.map(g => (
-                  <option key={g} value={g} style={{ background: '#1a1a1a' }}>{g}</option>
+                  <option key={g} value={g} style={{ background: "var(--studio-surface, #fbf8f1)" }}>{g}</option>
                 ))}
               </select>
               <select
@@ -7025,17 +7032,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 onChange={(e) => setQuickOutcome(e.target.value)}
                 aria-label="Choose what to create"
                 style={{
-                  padding: '14px 16px', borderRadius: '12px', background: 'rgba(0,0,0,0.5)',
-                  border: '1px solid rgba(34, 211, 238, 0.3)', color: '#67e8f9', fontSize: '0.85rem',
+                  padding: '14px 16px', borderRadius: '12px', background: "var(--studio-surface-alt, #e4e8dc)",
+                  border: "1px solid var(--studio-border, #d8d5c9)", color: "var(--studio-sage, #566954)", fontSize: '0.85rem',
                   fontWeight: '600', cursor: 'pointer', outline: 'none', minHeight: '52px',
                   minWidth: isMobile ? 'auto' : '150px'
                 }}
               >
-                <option value="song-draft" style={{ background: '#1a1a1a' }}>Draft song first</option>
-                <option value="full-package" style={{ background: '#1a1a1a' }}>Full package</option>
+                <option value="song-draft" style={{ background: "var(--studio-surface, #fbf8f1)" }}>Draft song first</option>
+                <option value="full-package" style={{ background: "var(--studio-surface, #fbf8f1)" }}>Full package</option>
               </select>
               <button
-                className="quick-create-submit"
+                className="quick-create-submit studio-primary-action"
                 onClick={() => {
                   startQuickCreate();
                 }}
@@ -7043,9 +7050,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 style={{
                   padding: '14px 28px',
                   borderRadius: '12px',
-                  background: isGenerating ? (vocalQuality === 'premium' ? 'rgba(251, 191, 36, 0.3)' : 'rgba(139, 92, 246, 0.3)') : (vocalQuality === 'premium' ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'linear-gradient(135deg, #8b5cf6, #06b6d4)'),
+                  background: isGenerating ? (vocalQuality === 'premium' ? "var(--studio-accent-soft, #f0ded2)" : "var(--studio-surface-alt, #e4e8dc)") : (vocalQuality === 'premium' ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))" : "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))"),
                   border: 'none',
-                  color: vocalQuality === 'premium' ? '#000' : 'white',
+                  color: vocalQuality === 'premium' ? "var(--studio-ink, #202724)" : "var(--studio-ink, #202724)",
                   fontWeight: '800',
                   fontSize: '1rem',
                   cursor: isGenerating || !songIdea.trim() ? 'not-allowed' : 'pointer',
@@ -7054,7 +7061,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   justifyContent: 'center',
                   gap: '8px',
                   opacity: !songIdea.trim() ? 0.5 : 1,
-                  boxShadow: isGenerating ? 'none' : '0 4px 20px rgba(139, 92, 246, 0.4)',
+                  boxShadow: isGenerating ? 'none' : "none",
                   minHeight: '52px',
                   whiteSpace: 'nowrap',
                   minWidth: isMobile ? 'auto' : '160px'
@@ -7102,9 +7109,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 width: '100%',
                 padding: isMobile ? '10px 12px' : '16px 20px',
                 borderRadius: '12px',
-                background: 'rgba(0,0,0,0.5)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: 'white',
+                background: "var(--studio-surface-alt, #e4e8dc)",
+                border: "1px solid var(--studio-border, #d8d5c9)",
+                color: "var(--studio-ink, #202724)",
                 fontSize: isMobile ? '0.9rem' : '1rem',
                 outline: 'none',
                 minHeight: isMobile ? '100px' : '56px',
@@ -7127,9 +7134,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   style={{
                     padding: '6px 12px',
                     borderRadius: '8px',
-                    background: songStructure === opt.id ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${songStructure === opt.id ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`,
-                    color: songStructure === opt.id ? '#a78bfa' : 'var(--text-secondary)',
+                    background: songStructure === opt.id ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                    border: `1px solid ${songStructure === opt.id ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`,
+                    color: songStructure === opt.id ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)",
                     fontSize: '0.75rem',
                     fontWeight: songStructure === opt.id ? '600' : '400',
                     cursor: 'pointer',
@@ -7152,9 +7159,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 style={{
                   padding: '14px 16px',
                   borderRadius: '12px',
-                  background: isListening ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${isListening ? '#ef4444' : 'rgba(255,255,255,0.15)'}`,
-                  color: isListening ? '#ef4444' : 'white',
+                  background: isListening ? "var(--studio-accent-soft, #f0ded2)" : "var(--studio-surface, #fbf8f1)",
+                  border: `1px solid ${isListening ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`,
+                  color: isListening ? "var(--studio-danger, #9a4033)" : "var(--studio-ink, #202724)",
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -7169,14 +7176,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               
               <button
                 onClick={handleGenerate}
+                className="studio-primary-action"
                 disabled={isGenerating || !songIdea.trim() || Object.values(selectedAgents).filter(Boolean).length === 0}
                 style={{
                   flex: 1,
                   padding: '14px 24px',
                   borderRadius: '12px',
-                  background: isGenerating ? (vocalQuality === 'premium' ? 'rgba(251, 191, 36, 0.3)' : 'rgba(139, 92, 246, 0.3)') : (vocalQuality === 'premium' ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'linear-gradient(135deg, #8b5cf6, #06b6d4)'),
+                  background: isGenerating ? (vocalQuality === 'premium' ? "var(--studio-accent-soft, #f0ded2)" : "var(--studio-surface-alt, #e4e8dc)") : (vocalQuality === 'premium' ? "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))" : "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))"),
                   border: 'none',
-                  color: vocalQuality === 'premium' ? '#000' : 'white',
+                  color: vocalQuality === 'premium' ? "var(--studio-ink, #202724)" : "var(--studio-ink, #202724)",
                   fontWeight: '800',
                   fontSize: '1rem',
                   cursor: isGenerating || !songIdea.trim() || Object.values(selectedAgents).filter(Boolean).length === 0 ? 'not-allowed' : 'pointer',
@@ -7185,7 +7193,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   justifyContent: 'center',
                   gap: '10px',
                   opacity: !songIdea.trim() || Object.values(selectedAgents).filter(Boolean).length === 0 ? 0.5 : 1,
-                  boxShadow: isGenerating ? 'none' : '0 4px 20px rgba(139, 92, 246, 0.4)',
+                  boxShadow: isGenerating ? 'none' : "none",
                   minHeight: '52px'
                 }}
               >
@@ -7231,9 +7239,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               style={{
                 padding: '8px 14px',
                 borderRadius: '10px',
-                background: showSuggestions ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: showSuggestions ? '#a855f7' : 'var(--text-secondary)',
+                background: showSuggestions ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                border: "1px solid var(--studio-border, #d8d5c9)",
+                color: showSuggestions ? "var(--studio-accent, #a34229)" : "var(--studio-muted, #646c64)",
                 fontSize: '0.8rem',
                 cursor: 'pointer',
                 display: 'flex',
@@ -7253,9 +7261,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 style={{
                   padding: '10px 16px',
                   borderRadius: '20px',
-                  background: 'rgba(139, 92, 246, 0.15)',
-                  border: '1px solid rgba(139, 92, 246, 0.3)',
-                  color: 'rgba(255,255,255,0.8)',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-ink, #202724)",
                   fontSize: '0.85rem',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
@@ -7278,8 +7286,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           const slotItems = Object.entries(generatingSlots).filter(([, v]) => v);
           // Combine: generatingMedia tracks media synthesis, generatingSlots tracks text generation
           const allActive = [
-            ...activeItems.map(([k]) => ({ key: k, label: `Creating ${mediaLabels[k] || k}...`, color: (k === 'vocals' && vocalQuality === 'premium') ? '#fbbf24' : (mediaColors[k] || '#8b5cf6') })),
-            ...slotItems.filter(([k]) => !activeItems.some(([mk]) => mk === k)).map(([k]) => ({ key: `slot-${k}`, label: `Generating ${k} concept...`, color: (k === 'lyrics' && vocalQuality === 'premium') ? '#fbbf24' : '#8b5cf6' }))
+            ...activeItems.map(([k]) => ({ key: k, label: `Creating ${mediaLabels[k] || k}...`, color: (k === 'vocals' && vocalQuality === 'premium') ? "#806023" : (mediaColors[k] || "#566954") })),
+            ...slotItems.filter(([k]) => !activeItems.some(([mk]) => mk === k)).map(([k]) => ({ key: `slot-${k}`, label: `Generating ${k} concept...`, color: (k === 'lyrics' && vocalQuality === 'premium') ? "#806023" : "#566954" }))
           ];
           if (allActive.length === 0 || (isGenerating && pipelineSteps.length > 0)) return null;
           return (
@@ -7289,17 +7297,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               gap: '8px',
               marginBottom: '16px',
               padding: '12px 16px',
-              background: 'rgba(139, 92, 246, 0.06)',
+              background: "var(--studio-surface-alt, #e4e8dc)",
               borderRadius: '12px',
-              border: '1px solid rgba(139, 92, 246, 0.15)',
+              border: "1px solid var(--studio-border, #d8d5c9)",
               alignItems: 'center'
             }}>
-              <Loader2 size={14} className="spin" style={{ color: '#8b5cf6', flexShrink: 0 }} />
+              <Loader2 size={14} className="spin" style={{ color: "var(--studio-sage, #566954)", flexShrink: 0 }} />
               {allActive.map(item => (
                 <span key={item.key} style={{
                   fontSize: '0.8rem',
                   fontWeight: '600',
-                  color: item.color,
+                  color: 'var(--studio-sage, #566954)',
                   background: `${item.color}15`,
                   padding: '4px 10px',
                   borderRadius: '6px',
@@ -7314,23 +7322,23 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
         {(isRecoveringProduction || recoveredProductionJob) && !isGenerating && (
           <div style={{
-            background: 'linear-gradient(135deg, rgba(124,58,237,0.16), rgba(14,165,233,0.10))',
+            background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
             borderRadius: '14px',
             padding: isMobile ? '14px' : '16px 18px',
             marginBottom: '16px',
-            border: '1px solid rgba(167,139,250,0.38)',
+            border: "1px solid var(--studio-border, #d8d5c9)",
             display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
             gap: '14px',
             alignItems: isMobile ? 'stretch' : 'center'
           }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ddd6fe', fontWeight: 700 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: "var(--studio-ink, #202724)", fontWeight: 700 }}>
                 <RefreshCw size={16} className={isRecoveringProduction ? 'spin' : ''} />
                 {isRecoveringProduction ? 'Checking your production desk…' : 'Production ready to resume'}
               </div>
               {recoveredProductionJob && (
-                <div style={{ marginTop: '5px', color: 'rgba(255,255,255,0.72)', fontSize: '0.8rem', lineHeight: 1.45 }}>
+                <div style={{ marginTop: '5px', color: "var(--studio-muted, #646c64)", fontSize: '0.8rem', lineHeight: 1.45 }}>
                   “{recoveredProductionJob.prompt}” was safely checkpointed. Completed assets will be reused; only unfinished stages will run again.
                 </div>
               )}
@@ -7343,8 +7351,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     border: 0,
                     borderRadius: '9px',
                     padding: '9px 14px',
-                    background: '#8b5cf6',
-                    color: '#fff',
+                    background: "var(--studio-surface-alt, #e4e8dc)",
+                    color: "var(--studio-ink, #202724)",
                     fontWeight: 700,
                     cursor: 'pointer'
                   }}
@@ -7357,9 +7365,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   style={{
                     borderRadius: '9px',
                     padding: '9px 11px',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    color: 'rgba(255,255,255,0.75)',
+                    background: "var(--studio-surface, #fbf8f1)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
+                    color: "var(--studio-muted, #646c64)",
                     cursor: 'pointer'
                   }}
                 >
@@ -7373,16 +7381,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         {/* Pipeline Progress Feed */}
         {pipelineSteps.length > 0 && (isGenerating || pipelineSteps.some(step => step.status === 'error')) && (
           <div style={{
-            background: 'rgba(255,255,255,0.03)',
+            background: "var(--studio-surface, #fbf8f1)",
             borderRadius: '12px',
             padding: isMobile ? '12px' : '16px',
             marginBottom: '16px',
-            border: '1px solid rgba(139, 92, 246, 0.15)'
+            border: "1px solid var(--studio-border, #d8d5c9)"
           }}>
             <div style={{
               fontSize: '0.75rem',
               fontWeight: '600',
-              color: 'var(--text-secondary)',
+              color: "var(--studio-muted, #646c64)",
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               marginBottom: '12px',
@@ -7391,8 +7399,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               gap: '8px'
             }}>
               {isGenerating
-                ? <Loader2 size={14} className="spin" style={{ color: '#8b5cf6' }} />
-                : <X size={14} style={{ color: '#ef4444' }} />}
+                ? <Loader2 size={14} className="spin" style={{ color: "var(--studio-sage, #566954)" }} />
+                : <X size={14} style={{ color: "var(--studio-danger, #9a4033)" }} />}
               {isGenerating ? 'Pipeline Progress' : 'Pipeline needs attention'}
             </div>
             {pipelineSteps.map((step) => (
@@ -7403,32 +7411,32 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 padding: '6px 0',
                 opacity: step.status === 'pending' ? 0.4 : 1,
                 transition: 'opacity 0.3s',
-                color: (vocalQuality === 'premium' && (step.id === 'vocals' || step.id === 'lyrics')) ? '#fbbf24' : 'inherit'
+                color: (vocalQuality === 'premium' && (step.id === 'vocals' || step.id === 'lyrics')) ? "var(--studio-warning, #806023)" : 'inherit'
               }}>
                 {step.status === 'done' ? (
-                  <CheckCircle2 size={16} style={{ color: '#22c55e', flexShrink: 0 }} />
+                  <CheckCircle2 size={16} style={{ color: "var(--studio-sage, #566954)", flexShrink: 0 }} />
                 ) : step.status === 'active' ? (
-                  <Loader2 size={16} className="spin" style={{ color: vocalQuality === 'premium' ? '#fbbf24' : '#8b5cf6', flexShrink: 0 }} />
+                  <Loader2 size={16} className="spin" style={{ color: vocalQuality === 'premium' ? "var(--studio-warning, #806023)" : "var(--studio-sage, #566954)", flexShrink: 0 }} />
                 ) : step.status === 'error' ? (
-                  <X size={16} style={{ color: '#ef4444', flexShrink: 0 }} />
+                  <X size={16} style={{ color: "var(--studio-danger, #9a4033)", flexShrink: 0 }} />
                 ) : (
-                  <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.15)', flexShrink: 0 }} />
+                  <div style={{ width: 16, height: 16, borderRadius: '50%', border: "2px solid var(--studio-border, #d8d5c9)", flexShrink: 0 }} />
                 )}
                 <div style={{
                   fontSize: '0.8rem',
-                  color: step.status === 'active' ? '#a78bfa' : step.status === 'done' ? '#22c55e' : step.status === 'error' ? '#ef4444' : 'rgba(255,255,255,0.5)',
+                  color: step.status === 'active' ? "var(--studio-sage, #566954)" : step.status === 'done' ? "var(--studio-sage, #566954)" : step.status === 'error' ? "var(--studio-danger, #9a4033)" : "var(--studio-muted, #646c64)",
                   fontWeight: step.status === 'active' ? '600' : '400',
                   flex: 1
                 }}>
                   <div>{step.label}</div>
                   {step.status === 'error' && step.errorMessage && (
-                    <div style={{ marginTop: '3px', fontSize: '0.7rem', lineHeight: 1.35, color: 'rgba(254, 202, 202, 0.82)' }}>
+                    <div style={{ marginTop: '3px', fontSize: '0.7rem', lineHeight: 1.35, color: "var(--studio-accent, #a34229)" }}>
                       {step.errorMessage}
                     </div>
                   )}
                 </div>
                 {step.status === 'done' && step.startTime && step.endTime && (
-                  <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
+                  <span style={{ fontSize: '0.7rem', color: "var(--studio-muted, #646c64)" }}>
                     {((step.endTime - step.startTime) / 1000).toFixed(1)}s
                   </span>
                 )}
@@ -7477,9 +7485,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     style={{
                       padding: '2px 8px',
                       borderRadius: '4px',
-                      background: retryingStep === step.id ? 'rgba(239, 68, 68, 0.06)' : 'rgba(239, 68, 68, 0.15)',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      color: retryingStep === step.id ? 'rgba(239,68,68,0.4)' : '#ef4444',
+                      background: retryingStep === step.id ? "var(--studio-accent-soft, #f0ded2)" : "var(--studio-accent-soft, #f0ded2)",
+                      border: "1px solid var(--studio-border, #d8d5c9)",
+                      color: retryingStep === step.id ? "var(--studio-danger, #9a4033)" : "var(--studio-danger, #9a4033)",
                       fontSize: '0.65rem',
                       fontWeight: '600',
                       cursor: retryingStep === step.id ? 'not-allowed' : 'pointer'
@@ -7489,7 +7497,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   </button>
                 )}
                 {step.status === 'active' && step.startTime && (
-                  <span style={{ fontSize: '0.7rem', color: 'rgba(139, 92, 246, 0.6)' }}>
+                  <span style={{ fontSize: '0.7rem', color: "var(--studio-sage, #566954)" }}>
                     ...
                   </span>
                 )}
@@ -7502,15 +7510,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         {!quickMode && (
           <>
         {/* ── Configuration Row ── collapsible */}
-        <div style={{ marginBottom: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.config ? '1px solid rgba(139,92,246,0.25)' : '1px solid rgba(255,255,255,0.06)', background: expandedSections.config ? 'rgba(139,92,246,0.04)' : 'rgba(255,255,255,0.02)' }}>
-          <button onClick={() => toggleSection('config')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: expandedSections.config ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: `1px solid ${expandedSections.config ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Settings size={13} color={expandedSections.config ? '#a78bfa' : 'rgba(255,255,255,0.35)'} /></div>
-            <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: '600', color: expandedSections.config ? '#c4b5fd' : 'rgba(255,255,255,0.65)' }}>Production Settings</span>
-            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.22)', marginRight: '8px', fontVariantNumeric: 'tabular-nums' }}>{style} · {projectBpm} BPM · {language}</span>
-            <div style={{ color: 'rgba(255,255,255,0.25)', transition: 'transform 0.3s ease', transform: expandedSections.config ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
+        <div style={{ marginBottom: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.config ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)", background: expandedSections.config ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)" }}>
+          <button onClick={() => toggleSection('config')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: "var(--studio-ink, #202724)", textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: expandedSections.config ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)", border: `1px solid ${expandedSections.config ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Settings size={13} color={expandedSections.config ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)"} /></div>
+            <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: '600', color: expandedSections.config ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)" }}>Production Settings</span>
+            <span style={{ fontSize: '0.68rem', color: "var(--studio-muted, #646c64)", marginRight: '8px', fontVariantNumeric: 'tabular-nums' }}>{style} · {projectBpm} BPM · {language}</span>
+            <div style={{ color: "var(--studio-muted, #646c64)", transition: 'transform 0.3s ease', transform: expandedSections.config ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
           </button>
           {expandedSections.config && (
-            <div style={{ padding: '14px 16px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ padding: '14px 16px 16px', borderTop: "1px solid var(--studio-border, #d8d5c9)" }}>
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
@@ -7534,7 +7542,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               <label style={{ 
                 display: 'block', 
                 fontSize: '0.7rem', 
-                color: 'var(--text-secondary)', 
+                color: "var(--studio-muted, #646c64)",
                 marginBottom: '6px',
                 textTransform: 'uppercase',
                 fontWeight: '600',
@@ -7561,9 +7569,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   width: '100%',
                   padding: '12px 14px',
                   borderRadius: '10px',
-                  background: 'rgba(0,0,0,0.4)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'white',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-ink, #202724)",
                   fontSize: '0.85rem',
                   cursor: 'pointer',
                   outline: 'none',
@@ -7576,7 +7584,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 }}
               >
                 {config.options.map(opt => (
-                  <option key={opt} value={opt} style={{ background: '#1a1a1a' }}>{opt}</option>
+                  <option key={opt} value={opt} style={{ background: "var(--studio-surface, #fbf8f1)" }}>{opt}</option>
                 ))}
               </select>
             </div>
@@ -7584,7 +7592,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           
           {/* Udio-style Musicality Toggle */}
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-             <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '6px', textTransform: 'uppercase', fontWeight: '600' }}>
+             <label style={{ fontSize: '0.7rem', color: "var(--studio-muted, #646c64)", marginBottom: '6px', textTransform: 'uppercase', fontWeight: '600' }}>
                High Musicality (Udio)
              </label>
              <button 
@@ -7592,9 +7600,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                style={{
                  height: '48px',
                  borderRadius: '10px',
-                 background: highMusicality ? 'rgba(139, 92, 246, 0.2)' : 'rgba(0,0,0,0.4)',
-                 border: `1px solid ${highMusicality ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`,
-                 color: highMusicality ? '#a78bfa' : 'var(--text-secondary)',
+                 background: highMusicality ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface-alt, #e4e8dc)",
+                 border: `1px solid ${highMusicality ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`,
+                 color: highMusicality ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)",
                  display: 'flex',
                  alignItems: 'center',
                  gap: '8px',
@@ -7610,7 +7618,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
           {/* Seed Control (Riffusion/Suno) */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-             <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '6px', textTransform: 'uppercase', fontWeight: '600' }}>
+             <label style={{ fontSize: '0.7rem', color: "var(--studio-muted, #646c64)", marginBottom: '6px', textTransform: 'uppercase', fontWeight: '600' }}>
                Generation Seed
              </label>
              <div style={{ display: 'flex', gap: '4px' }}>
@@ -7623,9 +7631,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     height: '48px',
                     padding: '0 12px',
                     borderRadius: '10px 0 0 10px',
-                    background: 'rgba(0,0,0,0.4)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'white',
+                    background: "var(--studio-surface-alt, #e4e8dc)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
+                    color: "var(--studio-ink, #202724)",
                     fontSize: '0.8rem',
                     outline: 'none'
                   }}
@@ -7636,10 +7644,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   style={{
                     padding: '0 12px',
                     borderRadius: '0 10px 10px 0',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: "var(--studio-surface, #fbf8f1)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
                     borderLeft: 'none',
-                    color: 'var(--text-secondary)',
+                    color: "var(--studio-muted, #646c64)",
                     cursor: 'pointer'
                   }}
                   title="Randomize Seed"
@@ -7654,15 +7662,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         </div>
 
         {/* ── Output Format Presets ── collapsible */}
-        <div style={{ marginBottom: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.outputPresets ? '1px solid rgba(139,92,246,0.25)' : '1px solid rgba(255,255,255,0.06)', background: expandedSections.outputPresets ? 'rgba(139,92,246,0.04)' : 'rgba(255,255,255,0.02)' }}>
-          <button onClick={() => toggleSection('outputPresets')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: expandedSections.outputPresets ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: `1px solid ${expandedSections.outputPresets ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Disc size={13} color={expandedSections.outputPresets ? '#a78bfa' : 'rgba(255,255,255,0.35)'} /></div>
-            <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: '600', color: expandedSections.outputPresets ? '#c4b5fd' : 'rgba(255,255,255,0.65)' }}>Output Format</span>
-            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.22)', marginRight: '8px' }}>{selectedOutputPreset}</span>
-            <div style={{ color: 'rgba(255,255,255,0.25)', transition: 'transform 0.3s ease', transform: expandedSections.outputPresets ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
+        <div style={{ marginBottom: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.outputPresets ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)", background: expandedSections.outputPresets ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)" }}>
+          <button onClick={() => toggleSection('outputPresets')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: "var(--studio-ink, #202724)", textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: expandedSections.outputPresets ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)", border: `1px solid ${expandedSections.outputPresets ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Disc size={13} color={expandedSections.outputPresets ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)"} /></div>
+            <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: '600', color: expandedSections.outputPresets ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)" }}>Output Format</span>
+            <span style={{ fontSize: '0.68rem', color: "var(--studio-muted, #646c64)", marginRight: '8px' }}>{selectedOutputPreset}</span>
+            <div style={{ color: "var(--studio-muted, #646c64)", transition: 'transform 0.3s ease', transform: expandedSections.outputPresets ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
           </button>
           {expandedSections.outputPresets && (
-            <div style={{ padding: '14px 16px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ padding: '14px 16px 16px', borderTop: "1px solid var(--studio-border, #d8d5c9)" }}>
         {/* Output Format Preset Selector */}
         <div style={{
           display: 'flex',
@@ -7673,7 +7681,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         }}>
           <span style={{
             fontSize: '0.7rem',
-            color: 'var(--text-secondary)',
+            color: "var(--studio-muted, #646c64)",
             fontWeight: '600',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
@@ -7688,9 +7696,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               style={{
                 padding: '6px 12px',
                 borderRadius: '20px',
-                background: selectedOutputPreset === name ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${selectedOutputPreset === name ? 'rgba(139, 92, 246, 0.5)' : 'rgba(255,255,255,0.1)'}`,
-                color: selectedOutputPreset === name ? '#a78bfa' : 'rgba(255,255,255,0.6)',
+                background: selectedOutputPreset === name ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                border: `1px solid ${selectedOutputPreset === name ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`,
+                color: selectedOutputPreset === name ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)",
                 fontSize: '0.75rem',
                 fontWeight: selectedOutputPreset === name ? '600' : '400',
                 cursor: 'pointer',
@@ -7710,17 +7718,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         </div>
 
         {/* ── Arrangement Editor ── collapsible */}
-        <div style={{ marginBottom: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.arrangement ? '1px solid rgba(34,211,238,0.22)' : '1px solid rgba(255,255,255,0.06)', background: expandedSections.arrangement ? 'rgba(34,211,238,0.03)' : 'rgba(255,255,255,0.02)' }}>
-          <button onClick={() => toggleSection('arrangement')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: expandedSections.arrangement ? 'rgba(34,211,238,0.18)' : 'rgba(255,255,255,0.06)', border: `1px solid ${expandedSections.arrangement ? 'rgba(34,211,238,0.3)' : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Music size={13} color={expandedSections.arrangement ? '#22d3ee' : 'rgba(255,255,255,0.35)'} /></div>
-            <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: '600', color: expandedSections.arrangement ? '#67e8f9' : 'rgba(255,255,255,0.65)' }}>Song Arrangement</span>
-            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.22)', marginRight: '8px' }}>{structure}</span>
-            <div style={{ color: 'rgba(255,255,255,0.25)', transition: 'transform 0.3s ease', transform: expandedSections.arrangement ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
+        <div style={{ marginBottom: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.arrangement ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)", background: expandedSections.arrangement ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)" }}>
+          <button onClick={() => toggleSection('arrangement')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: "var(--studio-ink, #202724)", textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: expandedSections.arrangement ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)", border: `1px solid ${expandedSections.arrangement ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Music size={13} color={expandedSections.arrangement ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)"} /></div>
+            <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: '600', color: expandedSections.arrangement ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)" }}>Song Arrangement</span>
+            <span style={{ fontSize: '0.68rem', color: "var(--studio-muted, #646c64)", marginRight: '8px' }}>{structure}</span>
+            <div style={{ color: "var(--studio-muted, #646c64)", transition: 'transform 0.3s ease', transform: expandedSections.arrangement ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
           </button>
           {expandedSections.arrangement && (
-            <div style={{ padding: '4px 0 0', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ padding: '4px 0 0', borderTop: "1px solid var(--studio-border, #d8d5c9)" }}>
         {/* Arrangement Editor — Visual Song Structure Builder */}
-        <Suspense fallback={<div style={{ padding: '20px', color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem' }}>Loading arrangement editor...</div>}>
+        <Suspense fallback={<div style={{ padding: '20px', color: "var(--studio-muted, #646c64)", fontSize: '0.85rem' }}>Loading arrangement editor...</div>}>
           <ArrangementEditor
             bpm={projectBpm}
             genre={style}
@@ -7734,21 +7742,21 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         </div>
 
         {/* ── Agent Selection ── collapsible */}
-        <div style={{ marginBottom: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.agentSelection ? '1px solid rgba(139,92,246,0.25)' : '1px solid rgba(255,255,255,0.06)', background: expandedSections.agentSelection ? 'rgba(139,92,246,0.04)' : 'rgba(255,255,255,0.02)' }}>
-          <button onClick={() => toggleSection('agentSelection')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: expandedSections.agentSelection ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: `1px solid ${expandedSections.agentSelection ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Users size={13} color={expandedSections.agentSelection ? '#a78bfa' : 'rgba(255,255,255,0.35)'} /></div>
-            <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: '600', color: expandedSections.agentSelection ? '#c4b5fd' : 'rgba(255,255,255,0.65)' }}>Generator Agents</span>
-            <span style={{ fontSize: '0.68rem', fontWeight: '700', color: '#a78bfa', background: 'rgba(139,92,246,0.15)', padding: '2px 9px', borderRadius: '20px', border: '1px solid rgba(139,92,246,0.25)', marginRight: '8px' }}>{Object.values(selectedAgents).filter(Boolean).length}/4</span>
-            <div style={{ color: 'rgba(255,255,255,0.25)', transition: 'transform 0.3s ease', transform: expandedSections.agentSelection ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
+        <div style={{ marginBottom: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.agentSelection ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)", background: expandedSections.agentSelection ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)" }}>
+          <button onClick={() => toggleSection('agentSelection')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: "var(--studio-ink, #202724)", textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: expandedSections.agentSelection ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)", border: `1px solid ${expandedSections.agentSelection ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Users size={13} color={expandedSections.agentSelection ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)"} /></div>
+            <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: '600', color: expandedSections.agentSelection ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)" }}>Generator Agents</span>
+            <span style={{ fontSize: '0.68rem', fontWeight: '700', color: "var(--studio-sage, #566954)", background: "var(--studio-surface-alt, #e4e8dc)", padding: '2px 9px', borderRadius: '20px', border: "1px solid var(--studio-border, #d8d5c9)", marginRight: '8px' }}>{Object.values(selectedAgents).filter(Boolean).length}/4</span>
+            <div style={{ color: "var(--studio-muted, #646c64)", transition: 'transform 0.3s ease', transform: expandedSections.agentSelection ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
           </button>
           {expandedSections.agentSelection && (
-            <div style={{ padding: '14px 16px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ padding: '14px 16px 16px', borderTop: "1px solid var(--studio-border, #d8d5c9)" }}>
         {/* Agent Selection */}
         <div style={{
-          background: 'rgba(255,255,255,0.03)',
+          background: "var(--studio-surface, #fbf8f1)",
           borderRadius: '16px',
           padding: isMobile ? '16px' : '20px',
-          border: '1px solid rgba(255,255,255,0.06)',
+          border: "1px solid var(--studio-border, #d8d5c9)",
           marginBottom: '24px'
         }}>
           <div style={{ 
@@ -7761,10 +7769,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             flexDirection: isMobile ? 'column' : 'row'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Users size={isMobile ? 14 : 16} color="var(--text-secondary)" />
+              <Users size={isMobile ? 14 : 16} color="var(--studio-muted, #646c64)" />
               <span style={{ 
                 fontSize: isMobile ? '0.75rem' : '0.8rem', 
-                color: 'var(--text-secondary)', 
+                color: "var(--studio-muted, #646c64)",
                 fontWeight: '600',
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em'
@@ -7774,8 +7782,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               <span style={{
                 padding: '2px 8px',
                 borderRadius: '10px',
-                background: 'rgba(139, 92, 246, 0.3)',
-                color: '#a78bfa',
+                background: "var(--studio-surface-alt, #e4e8dc)",
+                color: "var(--studio-sage, #566954)",
                 fontSize: '0.7rem',
                 fontWeight: '600'
               }}>
@@ -7794,7 +7802,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <label style={{ 
                     fontSize: '0.7rem', 
-                    color: slot.color, 
+                    color: 'var(--studio-accent, #a34229)',
                     fontWeight: '500'
                   }}>
                     {slot.title} <span style={{ opacity: 0.6, fontWeight: '400' }}>— {slot.subtitle}</span>
@@ -7802,7 +7810,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   {selectedAgents[slot.key] && (
                     <div 
                       title={`${AGENTS.find(a => a.id === selectedAgents[slot.key])?.name} Capabilities:\n• ${AGENTS.find(a => a.id === selectedAgents[slot.key])?.capabilities?.join('\n• ')}`}
-                      style={{ color: 'rgba(255,255,255,0.3)', cursor: 'help' }}
+                      style={{ color: "var(--studio-muted, #646c64)", cursor: 'help' }}
                     >
                       <CircleHelp size={12} />
                     </div>
@@ -7820,15 +7828,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     width: '100%',
                     padding: '10px 12px',
                     borderRadius: '10px',
-                    background: selectedAgents[slot.key] ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.2)',
-                    border: `1px solid ${selectedAgents[slot.key] ? slot.color + '60' : 'rgba(255,255,255,0.1)'}`,
-                    color: selectedAgents[slot.key] ? 'white' : 'var(--text-muted)',
+                    background: selectedAgents[slot.key] ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface-alt, #e4e8dc)",
+                    border: `1px solid ${selectedAgents[slot.key] ? slot.color + '60' : "var(--studio-border, #d8d5c9)"}`,
+                    color: selectedAgents[slot.key] ? "var(--studio-ink, #202724)" : "var(--studio-muted, #646c64)",
                     fontSize: '0.85rem',
                     cursor: 'pointer',
                     outline: 'none'
                   }}
                 >
-                  <option value="" style={{ background: '#1a1a1a' }}>— None —</option>
+                  <option value="" style={{ background: "var(--studio-surface, #fbf8f1)" }}>— None —</option>
                   {AGENTS.filter(a => {
                     // Filter based on user tier
                     if (userPlan === 'Pro') return true; // Pro sees all
@@ -7845,7 +7853,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     <option 
                       key={agent.id} 
                       value={agent.id} 
-                      style={{ background: '#1a1a1a' }}
+                      style={{ background: "var(--studio-surface, #fbf8f1)" }}
                       disabled={agent.comingSoon}
                     >
                       {agent.name} {agent.comingSoon ? '(Coming Soon)' : (agent.isBeta ? '(Beta)' : '')}
@@ -7867,31 +7875,31 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         {/* VOCAL PERFORMANCE ENGINE — Premium Voice Production Suite       */}
         {/* ═══════════════════════════════════════════════════════════════ */}
         {outputs.lyrics && (
-          <div style={{ marginTop: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.vocalEngine ? '1px solid rgba(251,191,36,0.28)' : '1px solid rgba(255,255,255,0.07)', background: expandedSections.vocalEngine ? 'rgba(251,191,36,0.04)' : 'rgba(255,255,255,0.02)', boxShadow: expandedSections.vocalEngine ? '0 2px 20px rgba(251,191,36,0.06)' : 'none' }}>
+          <div style={{ marginTop: '6px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.vocalEngine ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)", background: expandedSections.vocalEngine ? "var(--studio-accent-soft, #f0ded2)" : "var(--studio-surface, #fbf8f1)", boxShadow: expandedSections.vocalEngine ? "none" : 'none' }}>
             {/* Vocal Engine Accordion Header */}
-            <button onClick={() => toggleSection('vocalEngine')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left', WebkitTapHighlightColor: 'transparent', position: 'relative' }}>
-              {expandedSections.vocalEngine && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, rgba(251,191,36,0.6), rgba(139,92,246,0.6), rgba(251,191,36,0.6), transparent)' }} />}
-              <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: expandedSections.vocalEngine ? 'rgba(251,191,36,0.18)' : 'rgba(255,255,255,0.06)', border: `1px solid ${expandedSections.vocalEngine ? 'rgba(251,191,36,0.32)' : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Mic size={15} color={expandedSections.vocalEngine ? '#fbbf24' : 'rgba(255,255,255,0.3)'} />
+            <button onClick={() => toggleSection('vocalEngine')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 18px', background: 'transparent', border: 'none', cursor: 'pointer', color: "var(--studio-ink, #202724)", textAlign: 'left', WebkitTapHighlightColor: 'transparent', position: 'relative' }}>
+              {expandedSections.vocalEngine && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))" }} />}
+              <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: expandedSections.vocalEngine ? "var(--studio-accent-soft, #f0ded2)" : "var(--studio-surface, #fbf8f1)", border: `1px solid ${expandedSections.vocalEngine ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Mic size={15} color={expandedSections.vocalEngine ? "var(--studio-warning, #806023)" : "var(--studio-muted, #646c64)"} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.88rem', fontWeight: '700', color: expandedSections.vocalEngine ? '#fde68a' : 'rgba(255,255,255,0.65)' }}>Vocal Performance Engine</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.58rem', fontWeight: '700', color: '#fbbf24', background: 'rgba(251,191,36,0.12)', padding: '2px 7px', borderRadius: '20px', border: '1px solid rgba(251,191,36,0.22)' }}><Zap size={8} />Premium</span>
-                  {mediaUrls.lyricsVocal && <span style={{ fontSize: '0.58rem', fontWeight: '700', color: '#22c55e', background: 'rgba(34,197,94,0.1)', padding: '2px 7px', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.2)' }}>✓ Vocals Ready</span>}
+                  <span style={{ fontSize: '0.88rem', fontWeight: '700', color: expandedSections.vocalEngine ? "var(--studio-accent, #a34229)" : "var(--studio-muted, #646c64)" }}>Vocal Performance Engine</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.58rem', fontWeight: '700', color: "var(--studio-warning, #806023)", background: "var(--studio-accent-soft, #f0ded2)", padding: '2px 7px', borderRadius: '20px', border: "1px solid var(--studio-border, #d8d5c9)" }}><Zap size={8} />Premium</span>
+                  {mediaUrls.lyricsVocal && <span style={{ fontSize: '0.58rem', fontWeight: '700', color: "var(--studio-sage, #566954)", background: "var(--studio-surface-alt, #e4e8dc)", padding: '2px 7px', borderRadius: '20px', border: "1px solid var(--studio-border, #d8d5c9)" }}>✓ Vocals Ready</span>}
                 </div>
-                <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.28)' }}>Voice cloning, ElevenLabs, style control</p>
+                <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: "var(--studio-muted, #646c64)" }}>Voice cloning, ElevenLabs, style control</p>
               </div>
-              <div style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0, transition: 'transform 0.3s ease', transform: expandedSections.vocalEngine ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
+              <div style={{ color: "var(--studio-muted, #646c64)", flexShrink: 0, transition: 'transform 0.3s ease', transform: expandedSections.vocalEngine ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
             </button>
 
             {expandedSections.vocalEngine && (
           <div style={{
-            background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.06) 0%, rgba(139, 92, 246, 0.10) 40%, rgba(251, 191, 36, 0.04) 100%)',
+            background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
             padding: isMobile ? '20px' : '28px',
             position: 'relative',
             overflow: 'hidden',
-            borderTop: '1px solid rgba(251,191,36,0.15)'
+            borderTop: "1px solid var(--studio-border, #d8d5c9)"
           }}>
             {/* ── Preview Section ── */}
             <div style={{
@@ -7902,15 +7910,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             }}>
               {/* Lyrics Preview */}
               <div style={{
-                background: 'rgba(0,0,0,0.35)',
+                background: "var(--studio-surface-alt, #e4e8dc)",
                 borderRadius: '14px',
                 padding: '18px',
-                border: '1px solid rgba(251, 191, 36, 0.15)'
+                border: "1px solid var(--studio-border, #d8d5c9)"
               }}>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
                   fontSize: '0.7rem',
-                  color: '#fbbf24',
+                  color: "var(--studio-warning, #806023)",
                   fontWeight: '700',
                   textTransform: 'uppercase',
                   letterSpacing: '0.06em',
@@ -7919,18 +7927,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   <FileText size={12} /> Lyrics Text
                 </div>
                 <div style={{
-                  background: 'rgba(0,0,0,0.25)',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
                   borderRadius: '10px',
                   padding: '14px',
                   maxHeight: '320px',
                   overflowY: 'auto',
                   fontSize: '0.9rem',
                   lineHeight: '1.7',
-                  color: 'rgba(255,255,255,0.85)',
+                  color: "var(--studio-ink, #202724)",
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
                   fontFamily: "'Georgia', 'Times New Roman', serif",
-                  border: '1px solid rgba(255,255,255,0.04)'
+                  border: "1px solid var(--studio-border, #d8d5c9)"
                 }}>
                   {outputs.lyrics}
                 </div>
@@ -7938,17 +7946,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
               {/* Vocal Audio Preview */}
               <div style={{
-                background: 'rgba(0,0,0,0.35)',
+                background: "var(--studio-surface-alt, #e4e8dc)",
                 borderRadius: '14px',
                 padding: '18px',
-                border: '1px solid rgba(251, 191, 36, 0.15)',
+                border: "1px solid var(--studio-border, #d8d5c9)",
                 display: 'flex',
                 flexDirection: 'column'
               }}>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
                   fontSize: '0.7rem',
-                  color: '#fbbf24',
+                  color: "var(--studio-warning, #806023)",
                   fontWeight: '700',
                   textTransform: 'uppercase',
                   letterSpacing: '0.06em',
@@ -7964,10 +7972,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     flex: 1
                   }}>
                     <div style={{
-                      background: 'rgba(251, 191, 36, 0.06)',
+                      background: "var(--studio-accent-soft, #f0ded2)",
                       borderRadius: '10px',
                       padding: '14px',
-                      border: '1px solid rgba(251, 191, 36, 0.12)'
+                      border: "1px solid var(--studio-border, #d8d5c9)"
                     }}>
                       <audio 
                         src={formatAudioSrc(mediaUrls.lyricsVocal)}
@@ -7984,9 +7992,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       style={{
                         padding: '10px 16px',
                         borderRadius: '10px',
-                        background: 'rgba(139, 92, 246, 0.15)',
-                        border: '1px solid rgba(139, 92, 246, 0.3)',
-                        color: '#a855f7',
+                        background: "var(--studio-surface-alt, #e4e8dc)",
+                        border: "1px solid var(--studio-border, #d8d5c9)",
+                        color: "var(--studio-accent, #a34229)",
                         fontWeight: '600',
                         fontSize: '0.8rem',
                         cursor: 'pointer',
@@ -8007,23 +8015,23 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 14px',
-                      background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.06), rgba(139, 92, 246, 0.06))',
+                      background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
                       borderRadius: '10px',
-                      border: '1px solid rgba(251, 191, 36, 0.12)',
+                      border: "1px solid var(--studio-border, #d8d5c9)",
                       flexWrap: 'wrap'
                     }}>
-                      <Zap size={12} color="#fbbf24" fill="#fbbf24" />
-                      <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)' }}>
+                      <Zap size={12} color="var(--studio-warning, #806023)" fill="var(--studio-warning, #806023)" />
+                      <span style={{ fontSize: '0.7rem', color: "var(--studio-muted, #646c64)" }}>
                         {voiceStyle === 'cloned' ? 'Cloned Voice' : voiceStyle.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       </span>
                       {elevenLabsVoiceId && (
-                        <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', fontWeight: '700' }}>ElevenLabs</span>
+                        <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: "var(--studio-accent-soft, #f0ded2)", color: "var(--studio-warning, #806023)", fontWeight: '700' }}>ElevenLabs</span>
                       )}
                       {referenceSongUrl && (
-                        <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: '700' }}>Ref Match</span>
+                        <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: "var(--studio-surface-alt, #e4e8dc)", color: "var(--studio-sage, #566954)", fontWeight: '700' }}>Ref Match</span>
                       )}
                       {clonedVoiceId && (
-                        <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.15)', color: '#a855f7', fontWeight: '700' }}>DNA Clone</span>
+                        <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: "var(--studio-accent-soft, #f0ded2)", color: "var(--studio-accent, #a34229)", fontWeight: '700' }}>DNA Clone</span>
                       )}
                     </div>
                   </div>
@@ -8034,24 +8042,24 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     alignItems: 'center',
                     justifyContent: 'center',
                     minHeight: '160px',
-                    color: 'var(--text-secondary)',
+                    color: "var(--studio-muted, #646c64)",
                     fontSize: '0.85rem',
                     textAlign: 'center',
                     gap: '14px',
                     flex: 1,
-                    background: 'rgba(0,0,0,0.15)',
+                    background: "var(--studio-surface-alt, #e4e8dc)",
                     borderRadius: '10px',
-                    border: '1px dashed rgba(251, 191, 36, 0.15)'
+                    border: "1px dashed var(--studio-border, #d8d5c9)"
                   }}>
                     <div style={{
                       width: '48px', height: '48px', borderRadius: '50%',
-                      background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(139, 92, 246, 0.1))',
+                      background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
                       display: 'flex', alignItems: 'center', justifyContent: 'center'
                     }}>
-                      <Volume2 size={24} color="rgba(251, 191, 36, 0.4)" />
+                      <Volume2 size={24} color="var(--studio-warning, #806023)" />
                     </div>
-                    <span style={{ fontWeight: '600', color: 'rgba(255,255,255,0.5)' }}>No vocal generated yet</span>
-                    <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', maxWidth: '200px' }}>Configure your voice engine below, then hit Create Vocal</span>
+                    <span style={{ fontWeight: '600', color: "var(--studio-muted, #646c64)" }}>No vocal generated yet</span>
+                    <span style={{ fontSize: '0.75rem', color: "var(--studio-muted, #646c64)", maxWidth: '200px' }}>Configure your voice engine below, then hit Create Vocal</span>
                   </div>
                 )}
               </div>
@@ -8059,19 +8067,19 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
             {/* ── Voice Engine Controls ── */}
             <div style={{
-              background: 'rgba(0,0,0,0.2)',
+              background: "var(--studio-surface-alt, #e4e8dc)",
               borderRadius: '14px',
               padding: isMobile ? '16px' : '20px',
-              border: '1px solid rgba(251, 191, 36, 0.1)',
+              border: "1px solid var(--studio-border, #d8d5c9)",
               marginBottom: '16px'
             }}>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
                 marginBottom: '14px', paddingBottom: '10px',
-                borderBottom: '1px solid rgba(255,255,255,0.04)'
+                borderBottom: "1px solid var(--studio-border, #d8d5c9)"
               }}>
-                <Settings size={14} color="#fbbf24" />
-                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Voice Engine</span>
+                <Settings size={14} color="var(--studio-warning, #806023)" />
+                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: "var(--studio-warning, #806023)", textTransform: 'uppercase', letterSpacing: '0.06em' }}>Voice Engine</span>
               </div>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
               <select
@@ -8101,9 +8109,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 style={{
                   padding: '10px 14px',
                   borderRadius: '10px',
-                  background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid rgba(251, 191, 36, 0.3)',
-                  color: 'white',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-ink, #202724)",
                   fontSize: '0.85rem',
                   cursor: 'pointer',
                   outline: 'none'
@@ -8136,9 +8144,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 style={{
                   padding: '10px 14px',
                   borderRadius: '10px',
-                  background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid #fbbf24',
-                  color: 'white',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-ink, #202724)",
                   fontSize: '0.85rem',
                   cursor: 'pointer',
                   outline: 'none'
@@ -8167,9 +8175,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     style={{
                       padding: '10px 14px',
                       borderRadius: '10px',
-                      background: voiceSampleUrl ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                      border: voiceSampleUrl ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
-                      color: voiceSampleUrl ? '#22c55e' : 'white',
+                      background: voiceSampleUrl ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                      border: voiceSampleUrl ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)",
+                      color: voiceSampleUrl ? "var(--studio-sage, #566954)" : "var(--studio-ink, #202724)",
                       fontSize: '0.85rem',
                       cursor: 'pointer',
                       flex: 1,
@@ -8190,10 +8198,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         if (voiceStyle === 'cloned') setVoiceStyle('rapper');
                       }}
                       style={{
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        background: "var(--studio-accent-soft, #f0ded2)",
+                        border: "1px solid var(--studio-border, #d8d5c9)",
                         borderRadius: '10px',
-                        color: '#ef4444',
+                        color: "var(--studio-danger, #9a4033)",
                         cursor: 'pointer',
                         padding: '10px'
                       }}
@@ -8206,14 +8214,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
                 {/* Premium ElevenLabs Input / Voice Selector */}
                 {voiceStyle === 'cloned' && clonedVoiceId ? (
-                  <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.1)',
-                    border: '1px solid rgba(139, 92, 246, 0.3)', color: personalVoiceStatus.available ? '#22c55e' : '#fbbf24', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ padding: '10px 14px', borderRadius: '10px', background: "var(--studio-surface-alt, #e4e8dc)",
+                    border: "1px solid var(--studio-border, #d8d5c9)", color: personalVoiceStatus.available ? "var(--studio-sage, #566954)" : "var(--studio-warning, #806023)", fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>{personalVoiceStatus.label}</span>
                     <button 
                       onClick={() => handleDeleteVoice(clonedVoiceId)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(239, 68, 68, 0.7)', padding: '2px', display: 'flex', transition: 'color 0.2s' }}
-                      onMouseEnter={(e) => e.target.style.color = '#ef4444'}
-                      onMouseLeave={(e) => e.target.style.color = 'rgba(239, 68, 68, 0.7)'}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: "var(--studio-danger, #9a4033)", padding: '2px', display: 'flex', transition: 'color 0.2s' }}
+                      onMouseEnter={(e) => e.target.style.color = "#9a4033"}
+                      onMouseLeave={(e) => e.target.style.color = "#9a4033"}
                       title="Permanently Delete Cloned Voice"
                     >
                       <Trash2 size={14} />
@@ -8233,9 +8241,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                             width: '100%',
                             padding: '10px 42px 10px 14px', // Right padding for trash icon
                             borderRadius: '10px',
-                            background: 'rgba(0,0,0,0.3)',
-                            border: elevenLabsVoiceId ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)',
-                            color: 'white',
+                            background: "var(--studio-surface-alt, #e4e8dc)",
+                            border: elevenLabsVoiceId ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)",
+                            color: "var(--studio-ink, #202724)",
                             fontSize: '0.85rem',
                             outline: 'none',
                             cursor: 'pointer',
@@ -8283,20 +8291,20 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                                 background: 'none', 
                                 border: 'none', 
                                 cursor: 'pointer', 
-                                color: 'rgba(239, 68, 68, 0.6)', 
+                                color: "var(--studio-danger, #9a4033)",
                                 padding: '4px',
                                 display: 'flex', 
                                 transition: 'color 0.2s',
                                 zIndex: 10
                               }}
-                              onMouseEnter={(e) => e.target.style.color = '#ef4444'}
-                              onMouseLeave={(e) => e.target.style.color = 'rgba(239, 68, 68, 0.6)'}
+                              onMouseEnter={(e) => e.target.style.color = "#9a4033"}
+                              onMouseLeave={(e) => e.target.style.color = "#9a4033"}
                               title="Delete this cloned voice"
                             >
                               <Trash2 size={14} />
                             </button>
                           )}
-                          <ChevronDown size={14} color="rgba(255,255,255,0.4)" style={{ pointerEvents: 'none' }} />
+                          <ChevronDown size={14} color="var(--studio-muted, #646c64)" style={{ pointerEvents: 'none' }} />
                         </div>
                       </div>
                     ) : (
@@ -8312,9 +8320,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                           width: '100%',
                           padding: '10px 14px',
                           borderRadius: '10px',
-                          background: 'rgba(0,0,0,0.3)',
-                          border: elevenLabsVoiceId ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)',
-                          color: 'white',
+                          background: "var(--studio-surface-alt, #e4e8dc)",
+                          border: elevenLabsVoiceId ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)",
+                          color: "var(--studio-ink, #202724)",
                           fontSize: '0.8rem',
                           outline: 'none'
                         }}
@@ -8331,8 +8339,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         gap: '4px', 
                         pointerEvents: 'none' 
                       }}>
-                        <Zap size={10} color="#fbbf24" fill="#fbbf24" />
-                        <span style={{ fontSize: '0.65rem', color: '#fbbf24', fontWeight: 'bold' }}>PREMIUM</span>
+                        <Zap size={10} color="var(--studio-warning, #806023)" fill="var(--studio-warning, #806023)" />
+                        <span style={{ fontSize: '0.65rem', color: "var(--studio-warning, #806023)", fontWeight: 'bold' }}>PREMIUM</span>
                       </div>
                     )}
                   </div>
@@ -8341,8 +8349,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
               {/* Saved Voices Library Mini-List */}
               {savedVoices.length > 0 && (
-                <div style={{ marginTop: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', padding: '10px' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '6px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ marginTop: '8px', background: "var(--studio-surface, #fbf8f1)", borderRadius: '8px', padding: '10px' }}>
+                  <div style={{ fontSize: '0.75rem', color: "var(--studio-muted, #646c64)", marginBottom: '6px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     My Voice Library
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -8355,12 +8363,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                           toast.success(`Voice "${voice.name}" loaded`);
                         }}
                         style={{
-                          background: voiceSampleUrl === voice.url ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255,255,255,0.05)',
-                          border: voiceSampleUrl === voice.url ? '1px solid #8b5cf6' : '1px solid rgba(255,255,255,0.1)',
+                          background: voiceSampleUrl === voice.url ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                          border: voiceSampleUrl === voice.url ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)",
                           borderRadius: '20px',
                           padding: '4px 10px',
                           fontSize: '0.72rem',
-                          color: 'white',
+                          color: "var(--studio-ink, #202724)",
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -8377,7 +8385,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                             setDeleteVoiceTarget(voice);
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.color = '#ef4444';
+                            e.currentTarget.style.color = "#9a4033";
                             e.currentTarget.style.opacity = '1';
                             e.currentTarget.style.transform = 'scale(1.2)';
                           }}
@@ -8391,7 +8399,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                             opacity: 0.7, 
                             cursor: 'pointer',
                             padding: '2px',
-                            background: 'rgba(0,0,0,0.2)',
+                            background: "var(--studio-surface-alt, #e4e8dc)",
                             borderRadius: '4px',
                             transition: 'all 0.2s'
                           }}
@@ -8406,8 +8414,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               {/* ── ElevenLabs Premium Voice Selector ── */}
               {elVoices.length > 0 && (
                 <div style={{ width: '100%', marginTop: '4px' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Zap size={10} color="#fbbf24" fill="#fbbf24" /> Premium Voice Engine
+                  <div style={{ fontSize: '0.7rem', color: "var(--studio-warning, #806023)", fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Zap size={10} color="var(--studio-warning, #806023)" fill="var(--studio-warning, #806023)" /> Premium Voice Engine
                   </div>
                   <select
                     value={elevenLabsVoiceId}
@@ -8420,16 +8428,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: '10px',
-                      background: elevenLabsVoiceId ? 'rgba(251, 191, 36, 0.1)' : 'rgba(0,0,0,0.3)',
-                      border: elevenLabsVoiceId ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)',
-                      color: elevenLabsVoiceId ? '#fbbf24' : 'rgba(255,255,255,0.7)',
+                      background: elevenLabsVoiceId ? "var(--studio-accent-soft, #f0ded2)" : "var(--studio-surface-alt, #e4e8dc)",
+                      border: elevenLabsVoiceId ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)",
+                      color: elevenLabsVoiceId ? "var(--studio-warning, #806023)" : "var(--studio-muted, #646c64)",
                       fontSize: '0.85rem',
                       fontWeight: '600',
                       outline: 'none',
                       cursor: 'pointer'
                     }}
                   >
-                    <option value="" style={{ background: '#111', color: '#888' }}>
+                    <option value="" style={{ background: "var(--studio-surface, #fbf8f1)", color: "var(--studio-muted, #646c64)" }}>
                       -- Select Premium Voice --
                     </option>
                     {(() => {
@@ -8441,7 +8449,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                           {males.length > 0 && (
                             <optgroup label="Male Voices">
                               {males.map(voice => (
-                                <option key={voice.voice_id} value={voice.voice_id} style={{ background: '#111', color: 'white' }}>
+                                <option key={voice.voice_id} value={voice.voice_id} style={{ background: "var(--studio-surface, #fbf8f1)", color: "var(--studio-ink, #202724)" }}>
                                   {voice.name} ({voice.labels?.accent || voice.labels?.use_case || 'Pro'})
                                 </option>
                               ))}
@@ -8450,7 +8458,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                           {females.length > 0 && (
                             <optgroup label="Female Voices">
                               {females.map(voice => (
-                                <option key={voice.voice_id} value={voice.voice_id} style={{ background: '#111', color: 'white' }}>
+                                <option key={voice.voice_id} value={voice.voice_id} style={{ background: "var(--studio-surface, #fbf8f1)", color: "var(--studio-ink, #202724)" }}>
                                   {voice.name} ({voice.labels?.accent || voice.labels?.use_case || 'Pro'})
                                 </option>
                               ))}
@@ -8459,7 +8467,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                           {other.length > 0 && (
                             <optgroup label="Other Voices">
                               {other.map(voice => (
-                                <option key={voice.voice_id} value={voice.voice_id} style={{ background: '#111', color: 'white' }}>
+                                <option key={voice.voice_id} value={voice.voice_id} style={{ background: "var(--studio-surface, #fbf8f1)", color: "var(--studio-ink, #202724)" }}>
                                   {voice.name} ({voice.labels?.accent || voice.labels?.use_case || 'Pro'})
                                 </option>
                               ))}
@@ -8477,8 +8485,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 width: '100%',
                 padding: '12px 14px',
                 borderRadius: '10px',
-                background: referenceSongUrl ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255,255,255,0.03)',
-                border: referenceSongUrl ? '1px solid rgba(16, 185, 129, 0.4)' : '1px dashed rgba(255,255,255,0.15)',
+                background: referenceSongUrl ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                border: referenceSongUrl ? "1px solid var(--studio-border, #d8d5c9)" : "1px dashed var(--studio-border, #d8d5c9)",
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -8487,30 +8495,30 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
                   <div style={{
                     width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
-                    background: referenceSongUrl ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+                    background: referenceSongUrl ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface-alt, #e4e8dc)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}>
-                    <Disc size={16} color="#10b981" />
+                    <Disc size={16} color="var(--studio-sage, #566954)" />
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '0.7rem', color: referenceSongUrl ? '#10b981' : 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: '0.7rem', color: referenceSongUrl ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)", fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Reference Song
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '0.75rem', color: "var(--studio-muted, #646c64)", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {referenceSongUrl ? 'Style reference active' : 'Match tone, warmth & energy'}
                     </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                   {referenceSongUrl && (
-                    <button onClick={() => setReferenceSongUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}>
+                    <button onClick={() => setReferenceSongUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: "var(--studio-muted, #646c64)", cursor: 'pointer' }}>
                       <X size={14} />
                     </button>
                   )}
                   <label style={{
-                    padding: '6px 12px', background: referenceSongUrl ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.05)',
+                    padding: '6px 12px', background: referenceSongUrl ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
                     borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer',
-                    color: referenceSongUrl ? '#10b981' : 'white', fontWeight: '600',
+                    color: referenceSongUrl ? "var(--studio-sage, #566954)" : "var(--studio-ink, #202724)", fontWeight: '600',
                     display: 'flex', alignItems: 'center', gap: '4px'
                   }}>
                     <input type="file" accept="audio/*" style={{ display: 'none' }} onChange={handleUploadReferenceSong} />
@@ -8527,9 +8535,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   style={{
                     padding: '10px 14px',
                     borderRadius: '10px',
-                    background: 'rgba(0,0,0,0.3)',
-                    border: '1px solid rgba(236, 72, 153, 0.5)',
-                    color: 'white',
+                    background: "var(--studio-surface-alt, #e4e8dc)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
+                    color: "var(--studio-ink, #202724)",
                     fontSize: '0.85rem',
                     cursor: 'pointer',
                     outline: 'none'
@@ -8556,9 +8564,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   style={{
                     padding: '10px 14px',
                     borderRadius: '10px',
-                    background: 'rgba(0,0,0,0.3)',
-                    border: '1px solid rgba(139, 92, 246, 0.5)',
-                    color: 'white',
+                    background: "var(--studio-surface-alt, #e4e8dc)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
+                    color: "var(--studio-ink, #202724)",
                     fontSize: '0.85rem',
                     cursor: 'pointer',
                     outline: 'none'
@@ -8640,10 +8648,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   padding: '12px 28px',
                   borderRadius: '12px',
                   background: generatingMedia.vocals
-                    ? 'rgba(251, 191, 36, 0.2)'
-                    : 'linear-gradient(135deg, rgba(251, 191, 36, 0.25), rgba(139, 92, 246, 0.25))',
-                  border: '1px solid rgba(251, 191, 36, 0.5)',
-                  color: '#fbbf24',
+                    ? "var(--studio-accent-soft, #f0ded2)"
+                    : "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-warning, #806023)",
                   fontWeight: '700',
                   fontSize: '0.9rem',
                   cursor: generatingMedia.vocals ? 'not-allowed' : 'pointer',
@@ -8662,7 +8670,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   </>
                 ) : (
                   <>
-                    <Zap size={16} fill="#fbbf24" />
+                    <Zap size={16} fill="var(--studio-warning, #806023)" />
                     Create Vocal
                   </>
                 )}
@@ -8677,9 +8685,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 style={{
                   padding: '10px 16px',
                   borderRadius: '10px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'var(--text-secondary)',
+                  background: "var(--studio-surface, #fbf8f1)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-muted, #646c64)",
                   fontWeight: '500',
                   fontSize: '0.85rem',
                   cursor: 'pointer',
@@ -8729,9 +8737,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   style={{
                     padding: '10px 16px',
                     borderRadius: '10px',
-                    background: 'rgba(34, 197, 94, 0.15)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                    color: '#22c55e',
+                    background: "var(--studio-surface-alt, #e4e8dc)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
+                    color: "var(--studio-sage, #566954)",
                     fontWeight: '600',
                     fontSize: '0.85rem',
                     cursor: 'pointer',
@@ -8759,9 +8767,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         {/* ════════════════════════════════════════════════════════════ */}
         <div style={{
           marginBottom: '6px',
-          background: showAssets ? 'rgba(139,92,246,0.04)' : 'rgba(255,255,255,0.02)',
+          background: showAssets ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
           borderRadius: '14px',
-          border: showAssets ? '1px solid rgba(139,92,246,0.22)' : '1px solid rgba(255,255,255,0.06)',
+          border: showAssets ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)",
           overflow: 'hidden'
         }}>
           {/* Header with collapse toggle */}
@@ -8775,13 +8783,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               padding: '13px 18px',
               background: 'transparent',
               border: 'none',
-              color: 'white',
+              color: "var(--studio-ink, #202724)",
               cursor: 'pointer',
             }}
           >
-            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: showAssets ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: `1px solid ${showAssets ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Upload size={13} color={showAssets ? '#a78bfa' : 'rgba(255,255,255,0.35)'} /></div>
+            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: showAssets ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)", border: `1px solid ${showAssets ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Upload size={13} color={showAssets ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)"} /></div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: '600', color: showAssets ? '#c4b5fd' : 'rgba(255,255,255,0.65)' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: '600', color: showAssets ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)" }}>
                 Your Assets
               </span>
               {(voiceSamples.length > 0 || visualDnaUrl || audioDnaUrl) && (
@@ -8789,21 +8797,21 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   fontSize: '0.65rem',
                   padding: '2px 8px',
                   borderRadius: '10px',
-                  background: 'rgba(34, 197, 94, 0.15)',
-                  color: '#22c55e',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
+                  color: "var(--studio-sage, #566954)",
                   fontWeight: '600'
                 }}>
                   {[voiceSamples.length > 0 && 'Voice', visualDnaUrl && 'Image', audioDnaUrl && 'Audio'].filter(Boolean).join(' + ')}
                 </span>
               )}
             </div>
-            <div style={{ color: 'rgba(255,255,255,0.25)', transition: 'transform 0.3s ease', transform: showAssets ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
+            <div style={{ color: "var(--studio-muted, #646c64)", transition: 'transform 0.3s ease', transform: showAssets ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
           </button>
 
           {showAssets && (
             <div style={{
               padding: '14px 16px 16px',
-              borderTop: '1px solid rgba(255,255,255,0.05)',
+              borderTop: "1px solid var(--studio-border, #d8d5c9)",
               display: 'grid',
               gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
               gap: '12px'
@@ -8812,25 +8820,25 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               {/* Column 1: Voice Samples */}
               <div style={{
                 padding: '16px',
-                background: 'rgba(0,0,0,0.3)',
+                background: "var(--studio-surface-alt, #e4e8dc)",
                 borderRadius: '12px',
-                border: '1px solid rgba(139, 92, 246, 0.15)',
+                border: "1px solid var(--studio-border, #d8d5c9)",
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '10px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <Mic size={16} color="#a855f7" />
-                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>New Voice Samples</span>
-                  <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginLeft: 'auto' }}>{voiceSamples.length}/3 queued</span>
+                  <Mic size={16} color="var(--studio-accent, #a34229)" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: "var(--studio-ink, #202724)", textTransform: 'uppercase', letterSpacing: '0.05em' }}>New Voice Samples</span>
+                  <span style={{ fontSize: '0.65rem', color: "var(--studio-muted, #646c64)", marginLeft: 'auto' }}>{voiceSamples.length}/3 queued</span>
                 </div>
 
                 {clonedVoiceId && (
-                  <div role="status" style={{ padding: '10px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
-                    <strong style={{ display: 'block', fontSize: '0.75rem', color: personalVoiceStatus.available ? '#4ade80' : '#fbbf24' }}>{personalVoiceStatus.label}</strong>
-                    <p style={{ margin: '6px 0', fontSize: '0.7rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}>{personalVoiceStatus.detail}</p>
+                  <div role="status" style={{ padding: '10px', borderRadius: '8px', background: "var(--studio-surface-alt, #e4e8dc)", border: "1px solid var(--studio-border, #d8d5c9)" }}>
+                    <strong style={{ display: 'block', fontSize: '0.75rem', color: personalVoiceStatus.available ? "var(--studio-sage, #566954)" : "var(--studio-warning, #806023)" }}>{personalVoiceStatus.label}</strong>
+                    <p style={{ margin: '6px 0', fontSize: '0.7rem', lineHeight: 1.5, color: "var(--studio-muted, #646c64)" }}>{personalVoiceStatus.detail}</p>
                     <button type="button" disabled={loadingElVoices} onClick={() => setVoiceCatalogRefresh(value => value + 1)}
-                      style={{ border: '1px solid rgba(139,92,246,0.4)', borderRadius: '6px', background: 'transparent', color: '#c4b5fd', padding: '6px 9px', cursor: 'pointer' }}>
+                      style={{ border: "1px solid var(--studio-border, #d8d5c9)", borderRadius: '6px', background: 'transparent', color: "var(--studio-sage, #566954)", padding: '6px 9px', cursor: 'pointer' }}>
                       {loadingElVoices ? 'Checking voice…' : 'Recheck saved voice'}
                     </button>
                   </div>
@@ -8843,16 +8851,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '8px 10px',
-                    background: 'rgba(139, 92, 246, 0.08)',
+                    background: "var(--studio-surface-alt, #e4e8dc)",
                     borderRadius: '8px',
-                    border: '1px solid rgba(139, 92, 246, 0.1)'
+                    border: "1px solid var(--studio-border, #d8d5c9)"
                   }}>
-                    <span style={{ fontSize: '0.75rem', color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
+                    <span style={{ fontSize: '0.75rem', color: "var(--studio-ink, #202724)", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
                       {sample.name}
                     </span>
                     <button
                       onClick={() => setVoiceSamples(prev => prev.filter((_, i) => i !== idx))}
-                      style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '2px' }}
+                      style={{ background: 'none', border: 'none', color: "var(--studio-muted, #646c64)", cursor: 'pointer', padding: '2px' }}
                     >
                       <X size={12} />
                     </button>
@@ -8867,9 +8875,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     justifyContent: 'center',
                     gap: '6px',
                     padding: '10px',
-                    border: '1px dashed rgba(139, 92, 246, 0.3)',
+                    border: "1px dashed var(--studio-border, #d8d5c9)",
                     borderRadius: '8px',
-                    color: 'rgba(255,255,255,0.6)',
+                    color: "var(--studio-muted, #646c64)",
                     fontSize: '0.8rem',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
@@ -8894,9 +8902,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   style={{
                     padding: '10px',
                     borderRadius: '10px',
-                    border: '1px solid rgba(139, 92, 246, 0.4)',
-                    background: 'rgba(139, 92, 246, 0.15)',
-                    color: voiceSamples.length < 2 || !voiceOwnershipConfirmed ? 'rgba(255,255,255,0.3)' : '#a855f7',
+                    border: "1px solid var(--studio-border, #d8d5c9)",
+                    background: "var(--studio-surface-alt, #e4e8dc)",
+                    color: voiceSamples.length < 2 || !voiceOwnershipConfirmed ? "var(--studio-muted, #646c64)" : "var(--studio-accent, #a34229)",
                     fontSize: '0.8rem',
                     fontWeight: '700',
                     cursor: voiceSamples.length < 2 || !voiceOwnershipConfirmed || isCloningVoice ? 'not-allowed' : 'pointer',
@@ -8912,17 +8920,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   {personalVoiceCloneLabel({ isCloning: isCloningVoice, voiceId: clonedVoiceId })}
                 </button>
 
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.68rem', lineHeight: 1.4, color: 'rgba(255,255,255,0.55)', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.68rem', lineHeight: 1.4, color: "var(--studio-muted, #646c64)", cursor: 'pointer' }}>
                   <input
                     type="checkbox"
                     checked={voiceOwnershipConfirmed}
                     onChange={(event) => setVoiceOwnershipConfirmed(event.target.checked)}
-                    style={{ marginTop: '2px', accentColor: '#a855f7' }}
+                    style={{ marginTop: '2px', accentColor: "var(--studio-accent, #a34229)" }}
                   />
                   <span>I own this voice or have explicit permission to create and use this personal voice model. Reference songs are never used as my voice.</span>
                 </label>
 
-                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', margin: 0, lineHeight: 1.4 }}>
+                <p style={{ fontSize: '0.65rem', color: "var(--studio-muted, #646c64)", margin: 0, lineHeight: 1.4 }}>
                   Upload 2–3 recordings to create a new personal voice. This queue is separate from your saved voice; leave it empty to reuse an available saved voice.
                 </p>
               </div>
@@ -8930,16 +8938,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               {/* Column 2: Artist Image */}
               <div style={{
                 padding: '16px',
-                background: 'rgba(0,0,0,0.3)',
+                background: "var(--studio-surface-alt, #e4e8dc)",
                 borderRadius: '12px',
-                border: '1px solid rgba(236, 72, 153, 0.15)',
+                border: "1px solid var(--studio-border, #d8d5c9)",
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '10px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <ImageIcon size={16} color="#ec4899" />
-                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Artist Image</span>
+                  <ImageIcon size={16} color="var(--studio-danger, #9a4033)" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: "var(--studio-ink, #202724)", textTransform: 'uppercase', letterSpacing: '0.05em' }}>Artist Image</span>
                 </div>
 
                 {visualDnaUrl ? (
@@ -8952,7 +8960,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         height: '120px',
                         objectFit: 'cover',
                         borderRadius: '8px',
-                        border: '1px solid rgba(236, 72, 153, 0.2)'
+                        border: "1px solid var(--studio-border, #d8d5c9)"
                       }}
                     />
                     <button
@@ -8967,10 +8975,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         position: 'absolute',
                         top: '6px',
                         right: '6px',
-                        background: 'rgba(0,0,0,0.7)',
+                        background: "var(--studio-surface-alt, #e4e8dc)",
                         border: 'none',
                         borderRadius: '50%',
-                        color: 'white',
+                        color: "var(--studio-ink, #202724)",
                         cursor: 'pointer',
                         padding: '4px',
                         display: 'flex'
@@ -8987,9 +8995,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     justifyContent: 'center',
                     gap: '8px',
                     padding: '24px 10px',
-                    border: '1px dashed rgba(236, 72, 153, 0.3)',
+                    border: "1px dashed var(--studio-border, #d8d5c9)",
                     borderRadius: '8px',
-                    color: 'rgba(255,255,255,0.5)',
+                    color: "var(--studio-muted, #646c64)",
                     fontSize: '0.8rem',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
@@ -9002,12 +9010,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       onChange={handleUploadArtistImage}
                       style={{ display: 'none' }}
                     />
-                    <ImageIcon size={24} color="rgba(236, 72, 153, 0.5)" />
+                    <ImageIcon size={24} color="var(--studio-danger, #9a4033)" />
                     Upload your photo
                   </label>
                 )}
 
-                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', margin: 0, lineHeight: 1.4 }}>
+                <p style={{ fontSize: '0.65rem', color: "var(--studio-muted, #646c64)", margin: 0, lineHeight: 1.4 }}>
                   Your photo or image for music videos. Videos will feature you instead of AI-generated visuals.
                 </p>
               </div>
@@ -9015,16 +9023,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               {/* Column 3: Reference Audio */}
               <div style={{
                 padding: '16px',
-                background: 'rgba(0,0,0,0.3)',
+                background: "var(--studio-surface-alt, #e4e8dc)",
                 borderRadius: '12px',
-                border: '1px solid rgba(6, 182, 212, 0.15)',
+                border: "1px solid var(--studio-border, #d8d5c9)",
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '10px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <Music size={16} color="#06b6d4" />
-                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reference Audio</span>
+                  <Music size={16} color="var(--studio-sage, #566954)" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: "var(--studio-ink, #202724)", textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reference Audio</span>
                 </div>
 
                 {audioDnaUrl ? (
@@ -9033,17 +9041,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '10px 12px',
-                    background: 'rgba(6, 182, 212, 0.08)',
+                    background: "var(--studio-surface-alt, #e4e8dc)",
                     borderRadius: '8px',
-                    border: '1px solid rgba(6, 182, 212, 0.15)'
+                    border: "1px solid var(--studio-border, #d8d5c9)"
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Music size={14} color="#06b6d4" />
-                      <span style={{ fontSize: '0.75rem', color: '#06b6d4', fontWeight: '600' }}>Reference Active</span>
+                      <Music size={14} color="var(--studio-sage, #566954)" />
+                      <span style={{ fontSize: '0.75rem', color: "var(--studio-sage, #566954)", fontWeight: '600' }}>Reference Active</span>
                     </div>
                     <button
                       onClick={() => setAudioDnaUrl(null)}
-                      style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '2px' }}
+                      style={{ background: 'none', border: 'none', color: "var(--studio-muted, #646c64)", cursor: 'pointer', padding: '2px' }}
                     >
                       <X size={12} />
                     </button>
@@ -9056,9 +9064,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     justifyContent: 'center',
                     gap: '8px',
                     padding: '24px 10px',
-                    border: '1px dashed rgba(6, 182, 212, 0.3)',
+                    border: "1px dashed var(--studio-border, #d8d5c9)",
                     borderRadius: '8px',
-                    color: 'rgba(255,255,255,0.5)',
+                    color: "var(--studio-muted, #646c64)",
                     fontSize: '0.8rem',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
@@ -9071,12 +9079,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       onChange={handleUploadReferenceAudio}
                       style={{ display: 'none' }}
                     />
-                    <Music size={24} color="rgba(6, 182, 212, 0.5)" />
+                    <Music size={24} color="var(--studio-sage, #566954)" />
                     Upload song or vocals
                   </label>
                 )}
 
-                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', margin: 0, lineHeight: 1.4 }}>
+                <p style={{ fontSize: '0.65rem', color: "var(--studio-muted, #646c64)", margin: 0, lineHeight: 1.4 }}>
                   Upload a reference song or vocals. The AI matches your style, tone, and energy.
                 </p>
               </div>
@@ -9092,9 +9100,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           gap: isMobile ? '4px' : '0',
           margin: '8px 0',
           padding: isMobile ? '10px 12px' : '11px 20px',
-          background: 'rgba(255,255,255,0.02)',
+          background: "var(--studio-surface, #fbf8f1)",
           borderRadius: '14px',
-          border: '1px solid rgba(255,255,255,0.05)',
+          border: "1px solid var(--studio-border, #d8d5c9)",
           flexDirection: isMobile ? 'column' : 'row',
           justifyContent: 'center',
           overflow: 'hidden'
@@ -9121,14 +9129,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     width: '28px',
                     height: '28px',
                     borderRadius: '50%',
-                    background: step.done ? 'rgba(34, 197, 94, 0.15)' : isActive ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255,255,255,0.03)',
-                    border: `2px solid ${step.done ? '#22c55e' : isActive ? '#6366f1' : 'rgba(255,255,255,0.1)'}`,
+                    background: step.done ? "var(--studio-surface-alt, #e4e8dc)" : isActive ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                    border: `2px solid ${step.done ? "var(--studio-border, #d8d5c9)" : isActive ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '0.7rem',
                     fontWeight: '800',
-                    color: step.done ? '#22c55e' : isActive ? '#818cf8' : 'rgba(255,255,255,0.3)',
+                    color: step.done ? "var(--studio-sage, #566954)" : isActive ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)",
                     flexShrink: 0
                   }}>
                     {step.done ? '✓' : step.num}
@@ -9136,7 +9144,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   <span style={{
                     fontSize: '0.78rem',
                     fontWeight: step.done || isActive ? '700' : '500',
-                    color: step.done ? '#4ade80' : isActive ? '#a78bfa' : 'rgba(255,255,255,0.35)',
+                    color: step.done ? "var(--studio-sage, #566954)" : isActive ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)",
                     whiteSpace: 'nowrap'
                   }}>
                     {step.icon} {step.label}
@@ -9147,7 +9155,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     flex: 1,
                     height: '2px',
                     margin: '0 8px',
-                    background: step.done ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255,255,255,0.06)',
+                    background: step.done ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
                     minWidth: '20px'
                   }} />
                 )}
@@ -9173,12 +9181,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
             return (
               <div key={slot.key} style={{
-                background: hasOutput ? `${slot.color}07` : 'rgba(255,255,255,0.02)',
+                background: hasOutput ? `${slot.color}07` : "var(--studio-surface, #fbf8f1)",
                 borderRadius: '14px',
-                border: `1px solid ${hasOutput ? slot.color + '30' : isLoadingSlot ? slot.color + '22' : 'rgba(255,255,255,0.06)'}`,
+                border: `1px solid ${hasOutput ? slot.color + '30' : isLoadingSlot ? slot.color + '22' : "var(--studio-border, #d8d5c9)"}`,
                 overflow: 'hidden',
                 transition: 'border-color 0.3s ease, background 0.3s ease',
-                boxShadow: hasOutput ? `0 2px 16px ${slot.color}08` : 'none'
+                boxShadow: hasOutput ? 'none' : 'none'
               }}>
                 {/* Accordion Header — always visible */}
                 <button
@@ -9192,7 +9200,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     background: 'transparent',
                     border: 'none',
                     cursor: 'pointer',
-                    color: 'white',
+                    color: "var(--studio-ink, #202724)",
                     textAlign: 'left',
                     WebkitTapHighlightColor: 'transparent',
                     touchAction: 'manipulation'
@@ -9203,13 +9211,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     width: '32px',
                     height: '32px',
                     borderRadius: '9px',
-                    background: hasOutput ? `${slot.color}20` : 'rgba(255,255,255,0.06)',
+                    background: hasOutput ? `${slot.color}20` : "var(--studio-surface, #fbf8f1)",
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: hasOutput ? slot.color : 'rgba(255,255,255,0.3)',
+                    color: hasOutput ? 'var(--studio-sage, #566954)' : "var(--studio-muted, #646c64)",
                     flexShrink: 0,
-                    border: `1px solid ${hasOutput ? slot.color + '35' : 'rgba(255,255,255,0.08)'}`,
+                    border: `1px solid ${hasOutput ? slot.color + '35' : "var(--studio-border, #d8d5c9)"}`,
                     transition: 'all 0.25s ease'
                   }}>
                     {React.createElement(slot.icon, { size: 15 })}
@@ -9218,39 +9226,39 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   {/* Title + preview */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.88rem', fontWeight: '700', color: hasOutput ? 'white' : 'rgba(255,255,255,0.65)' }}>
+                      <span style={{ fontSize: '0.88rem', fontWeight: '700', color: hasOutput ? "var(--studio-ink, #202724)" : "var(--studio-muted, #646c64)" }}>
                         {agentName}
                       </span>
                       {/* Status badge */}
                       {isLoadingSlot ? (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.62rem', fontWeight: '700', color: slot.color, background: `${slot.color}15`, padding: '2px 8px', borderRadius: '20px', border: `1px solid ${slot.color}28` }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.62rem', fontWeight: '700', color: 'var(--studio-sage, #566954)', background: 'var(--studio-surface-alt, #e4e8dc)', padding: '2px 8px', borderRadius: '20px', border: '1px solid var(--studio-border, #d8d5c9)' }}>
                           <Loader2 size={9} className="spin" /> Generating...
                         </span>
                       ) : hasOutput ? (
-                        <span style={{ fontSize: '0.62rem', fontWeight: '700', color: '#22c55e', background: 'rgba(34,197,94,0.1)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <span style={{ fontSize: '0.62rem', fontWeight: '700', color: "var(--studio-sage, #566954)", background: "var(--studio-surface-alt, #e4e8dc)", padding: '2px 8px', borderRadius: '20px', border: "1px solid var(--studio-border, #d8d5c9)", display: 'flex', alignItems: 'center', gap: '3px' }}>
                           <CheckCircle2 size={9} /> {hasMedia ? 'Done + Media' : 'Generated'}
                         </span>
                       ) : (
-                        <span style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.03)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ fontSize: '0.62rem', color: "var(--studio-muted, #646c64)", background: "var(--studio-surface, #fbf8f1)", padding: '2px 8px', borderRadius: '20px', border: "1px solid var(--studio-border, #d8d5c9)" }}>
                           {slot.subtitle}
                         </span>
                       )}
                       {arGrades[slot.key] && (
-                        <span style={{ fontSize: '0.6rem', fontWeight: '800', color: '#fbbf24', background: 'rgba(251,191,36,0.12)', padding: '2px 6px', borderRadius: '20px' }}>
+                        <span style={{ fontSize: '0.6rem', fontWeight: '800', color: "var(--studio-warning, #806023)", background: "var(--studio-accent-soft, #f0ded2)", padding: '2px 6px', borderRadius: '20px' }}>
                           A&R {arGrades[slot.key].overallScore}/5
                         </span>
                       )}
                     </div>
                     {/* Content preview when collapsed */}
                     {!isOpen && previewText && (
-                      <p style={{ margin: '3px 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                      <p style={{ margin: '3px 0 0', fontSize: '0.72rem', color: "var(--studio-muted, #646c64)", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                         {previewText}{outputs[slot.key]?.length > 90 ? '…' : ''}
                       </p>
                     )}
                   </div>
 
                   {/* Chevron */}
-                  <div style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0, transition: 'transform 0.3s ease', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  <div style={{ color: "var(--studio-muted, #646c64)", flexShrink: 0, transition: 'transform 0.3s ease', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
                     <ChevronDown size={15} />
                   </div>
                 </button>
@@ -9334,32 +9342,32 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             PRODUCTION CONTROL HUB — collapsible accordion
             ═══════════════════════════════════════════════════════════════════ */}
         {/* Collapsible header for Production Hub */}
-        <div style={{ marginTop: '8px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.productionHub ? '1px solid rgba(99,102,241,0.28)' : '1px solid rgba(255,255,255,0.07)', background: expandedSections.productionHub ? 'rgba(99,102,241,0.04)' : 'rgba(255,255,255,0.02)', boxShadow: expandedSections.productionHub ? '0 2px 20px rgba(99,102,241,0.08)' : 'none' }}>
+        <div style={{ marginTop: '8px', borderRadius: '14px', overflow: 'hidden', border: expandedSections.productionHub ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)", background: expandedSections.productionHub ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)", boxShadow: expandedSections.productionHub ? "none" : 'none' }}>
           <button
             onClick={() => toggleSection('productionHub')}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', gap: '12px',
               padding: '13px 18px',
               background: 'transparent',
-              border: 'none', cursor: 'pointer', color: 'white', textAlign: 'left',
+              border: 'none', cursor: 'pointer', color: "var(--studio-ink, #202724)", textAlign: 'left',
               WebkitTapHighlightColor: 'transparent'
             }}
           >
-            <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: expandedSections.productionHub ? 'rgba(99,102,241,0.22)' : 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: expandedSections.productionHub ? '#818cf8' : 'rgba(255,255,255,0.3)', border: `1px solid ${expandedSections.productionHub ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.08)'}`, flexShrink: 0 }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: expandedSections.productionHub ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)", display: 'flex', alignItems: 'center', justifyContent: 'center', color: expandedSections.productionHub ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)", border: `1px solid ${expandedSections.productionHub ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`, flexShrink: 0 }}>
               <Zap size={15} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.88rem', fontWeight: '700', color: expandedSections.productionHub ? '#a5b4fc' : 'rgba(255,255,255,0.65)' }}>Production Control Hub</span>
+                <span style={{ fontSize: '0.88rem', fontWeight: '700', color: expandedSections.productionHub ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)" }}>Production Control Hub</span>
                 {Object.values(outputs).some(Boolean) && (
-                  <span style={{ fontSize: '0.62rem', fontWeight: '700', color: '#4ade80', background: 'rgba(34,197,94,0.1)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.2)' }}>
+                  <span style={{ fontSize: '0.62rem', fontWeight: '700', color: "var(--studio-sage, #566954)", background: "var(--studio-surface-alt, #e4e8dc)", padding: '2px 8px', borderRadius: '20px', border: "1px solid var(--studio-border, #d8d5c9)" }}>
                     {['lyrics', 'audio', 'visual', 'video'].filter(key => selectedAgents[key] && Boolean(key === 'lyrics' ? outputs?.lyrics : mediaUrls[key === 'visual' ? 'image' : key])).length}/{['lyrics', 'audio', 'visual', 'video'].filter(key => selectedAgents[key]).length} selected ready
                   </span>
                 )}
               </div>
-              <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.28)' }}>Final mix, distribution, mastering &amp; export</p>
+              <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: "var(--studio-muted, #646c64)" }}>Final mix, distribution, mastering &amp; export</p>
             </div>
-            <div style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0, transition: 'transform 0.3s ease', transform: expandedSections.productionHub ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+            <div style={{ color: "var(--studio-muted, #646c64)", flexShrink: 0, transition: 'transform 0.3s ease', transform: expandedSections.productionHub ? 'rotate(180deg)' : 'rotate(0deg)' }}>
               <ChevronDown size={15} />
             </div>
           </button>
@@ -9411,7 +9419,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(10,10,20,0.98) 100%)',
+            background: "var(--studio-surface, #fbf8f1)",
             display: 'flex',
             alignItems: isMobile ? 'flex-start' : 'center',
             justifyContent: 'center',
@@ -9423,9 +9431,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         >
           <div 
             style={{
-              background: 'rgba(10, 10, 20, 0.95)',
+              background: "var(--studio-surface, #fbf8f1)",
               borderRadius: isMobile ? '12px' : '24px',
-              border: '1px solid rgba(255,255,255,0.1)',
+              border: "1px solid var(--studio-border, #d8d5c9)",
               width: '100%',
               maxWidth: isMobile ? '100%' : 'min(1280px, 95vw)',
               maxHeight: isMobile ? '100dvh' : '92vh',
@@ -9439,13 +9447,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             {/* Close Button */}
             <div style={{
               padding: isMobile ? '12px 16px' : '16px 24px',
-              borderBottom: '1px solid rgba(255,255,255,0.1)',
+              borderBottom: "1px solid var(--studio-border, #d8d5c9)",
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
               position: 'sticky',
               top: 0,
-              background: 'rgba(0,0,0,0.8)',
+              background: "var(--studio-surface, #fbf8f1)",
               backdropFilter: 'blur(10px)',
               zIndex: 10
             }}>
@@ -9455,8 +9463,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               <button
                 onClick={() => setMaximizedSlot(null)}
                 style={{
-                  background: 'rgba(239, 68, 68, 0.2)',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  background: "var(--studio-accent-soft, #f0ded2)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
                   borderRadius: '10px',
                   padding: isMobile ? '6px 10px' : '10px 16px',
                   display: 'flex',
@@ -9464,7 +9472,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   justifyContent: 'center',
                   gap: '8px',
                   cursor: 'pointer',
-                  color: '#ef4444',
+                  color: "var(--studio-danger, #9a4033)",
                   fontWeight: '600',
                   fontSize: isMobile ? '0.8rem' : '0.9rem',
                   transition: 'all 0.2s',
@@ -9560,10 +9568,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             {/* Bottom Close Button - More Visible */}
             <div style={{
               padding: isMobile ? '8px' : '16px 24px',
-              borderTop: '1px solid rgba(255,255,255,0.1)',
+              borderTop: "1px solid var(--studio-border, #d8d5c9)",
               display: 'flex',
               justifyContent: 'center',
-              background: 'rgba(0,0,0,0.5)',
+              background: "var(--studio-surface-alt, #e4e8dc)",
               position: 'sticky',
               bottom: 0,
               zIndex: 5,
@@ -9572,8 +9580,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               <button
                 onClick={() => setMaximizedSlot(null)}
                 style={{
-                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.2))',
-                  border: '1px solid rgba(239, 68, 68, 0.5)',
+                  background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
                   borderRadius: '12px',
                   padding: isMobile ? '10px 20px' : '14px 32px',
                   display: 'flex',
@@ -9581,11 +9589,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   justifyContent: 'center',
                   gap: '10px',
                   cursor: 'pointer',
-                  color: '#ef4444',
+                  color: "var(--studio-danger, #9a4033)",
                   fontWeight: '700',
                   fontSize: isMobile ? '0.9rem' : '1rem',
                   transition: 'all 0.2s',
-                  boxShadow: '0 4px 20px rgba(239, 68, 68, 0.2)'
+                  boxShadow: "none"
                 }}
               >
                 <X size={20} />
@@ -9618,7 +9626,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.85)',
+            background: "var(--studio-surface, #fbf8f1)",
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -9633,7 +9641,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               padding: '28px',
               maxWidth: '420px',
               width: '90%',
-              border: '1px solid rgba(255,255,255,0.1)'
+              border: "1px solid var(--studio-border, #d8d5c9)"
             }}
             onClick={e => e.stopPropagation()}
           >
@@ -9649,9 +9657,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 width: '100%',
                 padding: '14px 18px',
                 borderRadius: '12px',
-                background: 'rgba(0,0,0,0.4)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: 'white',
+                background: "var(--studio-surface-alt, #e4e8dc)",
+                border: "1px solid var(--studio-border, #d8d5c9)",
+                color: "var(--studio-ink, #202724)",
                 fontSize: '1rem',
                 marginBottom: '20px',
                 outline: 'none'
@@ -9686,7 +9694,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.85)',
+          background: "var(--studio-surface, #fbf8f1)",
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -9694,38 +9702,38 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           padding: '20px'
         }} onClick={(e) => { if (e.target === e.currentTarget) setShowSaveConfirm(false); }}>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
+            background: "var(--studio-surface, #fbf8f1)",
             borderRadius: '20px',
             padding: '32px',
-            border: '1px solid rgba(34, 197, 94, 0.4)',
+            border: "1px solid var(--studio-border, #d8d5c9)",
             maxWidth: '450px',
             width: '100%',
             textAlign: 'center',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+            boxShadow: "none"
           }}>
             <div style={{
               width: '64px',
               height: '64px',
               borderRadius: '50%',
-              background: 'rgba(34, 197, 94, 0.2)',
+              background: "var(--studio-surface-alt, #e4e8dc)",
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 20px'
             }}>
-              <FolderPlus size={32} color="#22c55e" />
+              <FolderPlus size={32} color="var(--studio-sage, #566954)" />
             </div>
             <h2 style={{
               margin: '0 0 12px',
               fontSize: '1.4rem',
               fontWeight: '700',
-              color: 'white'
+              color: "var(--studio-ink, #202724)"
             }}>
               Project Saved! 🎉
             </h2>
             <p style={{
               margin: '0 0 24px',
-              color: 'rgba(255,255,255,0.7)',
+              color: "var(--studio-muted, #646c64)",
               fontSize: '0.95rem',
               lineHeight: '1.5'
             }}>
@@ -9734,18 +9742,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             
             {/* Asset quick list */}
             <div style={{ 
-              background: 'rgba(0,0,0,0.3)', 
+              background: "var(--studio-surface-alt, #e4e8dc)",
               borderRadius: '12px', 
               padding: '12px', 
               marginBottom: '24px',
               textAlign: 'left'
             }}>
-               <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '10px' }}>Generated Content</div>
+               <div style={{ fontSize: '0.75rem', color: "var(--studio-muted, #646c64)", fontWeight: '700', textTransform: 'uppercase', marginBottom: '10px' }}>Generated Content</div>
                {Object.entries(outputs).filter(([_, val]) => val !== null).map(([key, _]) => {
                  const slot = GENERATOR_SLOTS.find(s => s.key === key);
                  return (
-                   <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)' }}>
-                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: slot?.color || '#8b5cf6' }} />
+                   <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '0.85rem', color: "var(--studio-ink, #202724)" }}>
+                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: slot?.color || "var(--studio-surface-alt, #e4e8dc)" }} />
                      {slot?.title || key}
                    </div>
                  );
@@ -9804,7 +9812,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           aria-label="Vocal Audio Player"
           style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.9)', zIndex: 10002,
+            background: "var(--studio-surface, #fbf8f1)", zIndex: 10002,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '20px'
           }}
@@ -9812,15 +9820,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         >
           <div 
             style={{
-              background: 'rgba(0,0,0,0.8)', borderRadius: '20px',
+              background: "var(--studio-surface, #fbf8f1)", borderRadius: '20px',
               padding: '24px', maxWidth: '500px', width: '100%',
-              border: '1px solid rgba(139, 92, 246, 0.4)'
+              border: "1px solid var(--studio-border, #d8d5c9)"
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ fontWeight: 700, color: '#8b5cf6' }}>🎧 Vocal Audio Player</div>
-              <button onClick={() => setShowVocalFullscreen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }} aria-label="Close vocal player">
+              <div style={{ fontWeight: 700, color: "var(--studio-sage, #566954)" }}>🎧 Vocal Audio Player</div>
+              <button onClick={() => setShowVocalFullscreen(false)} style={{ background: 'none', border: 'none', color: "var(--studio-ink, #202724)", cursor: 'pointer' }} aria-label="Close vocal player">
                 <X size={20} />
               </button>
             </div>
@@ -9830,7 +9838,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               autoPlay
               style={{ width: '100%', height: '50px', borderRadius: '10px' }}
             />
-            <div style={{ marginTop: '16px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            <div style={{ marginTop: '16px', fontSize: '0.85rem', color: "var(--studio-muted, #646c64)" }}>
               Voice Style: <strong>{voiceStyle}</strong>
             </div>
           </div>
@@ -9845,7 +9853,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           aria-label="Confirm voice deletion"
           style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.85)', zIndex: 10003,
+            background: "var(--studio-surface, #fbf8f1)", zIndex: 10003,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '20px'
           }}
@@ -9853,14 +9861,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         >
           <div 
             style={{
-              background: '#1a1a2e', borderRadius: '16px',
+              background: "var(--studio-surface, #fbf8f1)", borderRadius: '16px',
               padding: '24px', maxWidth: '380px', width: '100%',
-              border: '1px solid rgba(255,255,255,0.1)'
+              border: "1px solid var(--studio-border, #d8d5c9)"
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ margin: '0 0 8px', fontSize: '1.1rem' }}>Delete Voice</h3>
-            <p style={{ margin: '0 0 20px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+            <p style={{ margin: '0 0 20px', color: "var(--studio-muted, #646c64)", fontSize: '0.9rem' }}>
               Remove <strong>{deleteVoiceTarget.name || 'this voice'}</strong> from your library? This cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -9868,8 +9876,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 onClick={() => setDeleteVoiceTarget(null)}
                 style={{
                   flex: 1, padding: '12px', borderRadius: '10px',
-                  background: 'rgba(255,255,255,0.1)', border: 'none',
-                  color: 'white', fontWeight: 600, cursor: 'pointer'
+                  background: "var(--studio-surface, #fbf8f1)", border: 'none',
+                  color: "var(--studio-ink, #202724)", fontWeight: 600, cursor: 'pointer'
                 }}
               >
                 Cancel
@@ -9892,8 +9900,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 }}
                 style={{
                   flex: 1, padding: '12px', borderRadius: '10px',
-                  background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)',
-                  color: '#ef4444', fontWeight: 600, cursor: 'pointer'
+                  background: "var(--studio-accent-soft, #f0ded2)", border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-danger, #9a4033)", fontWeight: 600, cursor: 'pointer'
                 }}
               >
                 Delete
@@ -9910,7 +9918,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         <div role="dialog" aria-modal="true" aria-label="Switch project" style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.85)',
+          background: "var(--studio-surface, #fbf8f1)",
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -9918,30 +9926,30 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           padding: '20px'
         }} onClick={(e) => { if (e.target === e.currentTarget) setShowProjectSwitcher(false); }}>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
+            background: "var(--studio-surface, #fbf8f1)",
             borderRadius: '20px',
             padding: isMobile ? '20px' : '32px',
-            border: '1px solid rgba(139, 92, 246, 0.4)',
+            border: "1px solid var(--studio-border, #d8d5c9)",
             maxWidth: '500px',
             width: '100%',
             maxHeight: '80vh',
             display: 'flex',
             flexDirection: 'column',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+            boxShadow: "none"
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '700', color: 'white' }}>
+              <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '700', color: "var(--studio-ink, #202724)" }}>
                 Switch Project
               </h2>
               <button
                 onClick={() => setShowProjectSwitcher(false)}
                 style={{
-                  background: 'rgba(255,255,255,0.1)',
+                  background: "var(--studio-surface, #fbf8f1)",
                   border: 'none',
                   borderRadius: '8px',
                   width: '32px', height: '32px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', color: 'white'
+                  cursor: 'pointer', color: "var(--studio-ink, #202724)"
                 }}
               >
                 <X size={16} />
@@ -9962,9 +9970,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 width: '100%',
                 padding: '14px 16px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.1))',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
-                color: 'white',
+                background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
+                border: "1px solid var(--studio-border, #d8d5c9)",
+                color: "var(--studio-ink, #202724)",
                 fontWeight: '600',
                 fontSize: '0.9rem',
                 cursor: 'pointer',
@@ -9975,9 +9983,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 textAlign: 'left'
               }}
             >
-              <Sparkles size={18} color="#8b5cf6" />
+              <Sparkles size={18} color="var(--studio-sage, #566954)" />
               Start New Project
-              <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Fresh start</span>
+              <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: "var(--studio-muted, #646c64)" }}>Fresh start</span>
             </button>
 
             {/* Projects list */}
@@ -9990,7 +9998,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               paddingRight: '4px'
             }}>
               {projects.filter(p => p && p.id).length === 0 ? (
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textAlign: 'center', padding: '20px' }}>
+                <p style={{ color: "var(--studio-muted, #646c64)", fontSize: '0.85rem', textAlign: 'center', padding: '20px' }}>
                   No saved projects yet. Create your first song above!
                 </p>
               ) : (
@@ -10011,12 +10019,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       padding: '12px 14px',
                       borderRadius: '10px',
                       background: project.id === existingProject?.id 
-                        ? 'rgba(139, 92, 246, 0.2)' 
-                        : 'rgba(255,255,255,0.03)',
+                        ? "var(--studio-surface-alt, #e4e8dc)"
+                        : "var(--studio-surface, #fbf8f1)",
                       border: project.id === existingProject?.id
-                        ? '1px solid rgba(139, 92, 246, 0.5)'
-                        : '1px solid rgba(255,255,255,0.08)',
-                      color: 'white',
+                        ? "1px solid var(--studio-border, #d8d5c9)"
+                        : "1px solid var(--studio-border, #d8d5c9)",
+                      color: "var(--studio-ink, #202724)",
                       cursor: project.id === existingProject?.id ? 'default' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -10032,11 +10040,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       borderRadius: '8px',
                       background: project.coverImage 
                         ? `url(${project.coverImage}) center/cover` 
-                        : 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                        : "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
                       flexShrink: 0,
                       display: 'flex', alignItems: 'center', justifyContent: 'center'
                     }}>
-                      {!project.coverImage && <Music size={16} color="white" />}
+                      {!project.coverImage && <Music size={16} color="var(--studio-ink, #202724)" />}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{
@@ -10048,16 +10056,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       }}>
                         {project.name || 'Untitled'}
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      <div style={{ fontSize: '0.7rem', color: "var(--studio-muted, #646c64)" }}>
                         {project.assets?.length || 0} assets • {project.style || project.category || ''}
                       </div>
                     </div>
                     {project.id === existingProject?.id && (
                       <span style={{
                         fontSize: '0.6rem',
-                        color: '#8b5cf6',
+                        color: "var(--studio-sage, #566954)",
                         fontWeight: '700',
-                        background: 'rgba(139, 92, 246, 0.2)',
+                        background: "var(--studio-surface-alt, #e4e8dc)",
                         padding: '2px 6px',
                         borderRadius: '4px',
                         flexShrink: 0
@@ -10080,7 +10088,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.85)',
+          background: "var(--studio-surface, #fbf8f1)",
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -10088,38 +10096,38 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           padding: '20px'
         }} onClick={(e) => { if (e.target === e.currentTarget) setShowExitConfirm(false); }}>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
+            background: "var(--studio-surface, #fbf8f1)",
             borderRadius: '20px',
             padding: '32px',
-            border: '1px solid rgba(245, 158, 11, 0.4)',
+            border: "1px solid var(--studio-border, #d8d5c9)",
             maxWidth: '450px',
             width: '100%',
             textAlign: 'center',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+            boxShadow: "none"
           }}>
             <div style={{
               width: '64px',
               height: '64px',
               borderRadius: '50%',
-              background: 'rgba(245, 158, 11, 0.2)',
+              background: "var(--studio-accent-soft, #f0ded2)",
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 20px'
             }}>
-              <FolderPlus size={32} color="#f59e0b" />
+              <FolderPlus size={32} color="var(--studio-warning, #806023)" />
             </div>
             <h2 style={{
               margin: '0 0 12px',
               fontSize: '1.4rem',
               fontWeight: '700',
-              color: 'white'
+              color: "var(--studio-ink, #202724)"
             }}>
               Save Your Work?
             </h2>
             <p style={{
               margin: '0 0 24px',
-              color: 'rgba(255,255,255,0.7)',
+              color: "var(--studio-muted, #646c64)",
               fontSize: '0.95rem',
               lineHeight: '1.5'
             }}>
@@ -10184,7 +10192,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         <div role="dialog" aria-modal="true" aria-label="Regeneration confirmation" style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.85)',
+          background: "var(--studio-surface, #fbf8f1)",
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -10192,27 +10200,27 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           padding: '20px'
         }} onClick={(e) => { if (e.target === e.currentTarget) setShowRegenerateConfirm(false); }}>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
+            background: "var(--studio-surface, #fbf8f1)",
             borderRadius: '20px',
             padding: '32px',
-            border: '1px solid rgba(139, 92, 246, 0.4)',
+            border: "1px solid var(--studio-border, #d8d5c9)",
             maxWidth: '450px',
             width: '100%',
             textAlign: 'center',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+            boxShadow: "none"
           }}>
             <div style={{
               width: '64px', height: '64px', borderRadius: '50%',
-              background: 'rgba(139, 92, 246, 0.2)',
+              background: "var(--studio-surface-alt, #e4e8dc)",
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               margin: '0 auto 20px'
             }}>
-              <FolderPlus size={32} color="#8b5cf6" />
+              <FolderPlus size={32} color="var(--studio-sage, #566954)" />
             </div>
-            <h2 style={{ margin: '0 0 12px', fontSize: '1.4rem', fontWeight: '700', color: 'white' }}>
+            <h2 style={{ margin: '0 0 12px', fontSize: '1.4rem', fontWeight: '700', color: "var(--studio-ink, #202724)" }}>
               Unsaved Content
             </h2>
-            <p style={{ margin: '0 0 24px', color: 'rgba(255,255,255,0.7)', fontSize: '0.95rem', lineHeight: '1.5' }}>
+            <p style={{ margin: '0 0 24px', color: "var(--studio-muted, #646c64)", fontSize: '0.95rem', lineHeight: '1.5' }}>
               You have unsaved content. Save your project before generating new content?
             </p>
             <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
@@ -10255,7 +10263,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(0,0,0,0.9)',
+            background: "var(--studio-surface, #fbf8f1)",
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -10267,17 +10275,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           }}
         >
           <div style={{
-            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
+            background: "var(--studio-surface, #fbf8f1)",
             borderRadius: previewMaximized ? '0' : '20px',
             padding: previewMaximized ? '16px' : (isMobile ? '16px' : '24px'),
-            border: previewMaximized ? 'none' : '1px solid rgba(148, 163, 184, 0.2)',
+            border: previewMaximized ? 'none' : "1px solid var(--studio-border, #d8d5c9)",
             width: previewMaximized ? '100%' : '100%',
             maxWidth: previewMaximized ? '100%' : '900px',
             height: previewMaximized ? '100%' : 'auto',
             maxHeight: previewMaximized ? '100%' : '90vh',
             overflowY: 'auto',
             position: 'relative',
-            boxShadow: previewMaximized ? 'none' : '0 25px 80px rgba(0,0,0,0.5)'
+            boxShadow: previewMaximized ? 'none' : "none"
           }}>
             {/* Header with controls */}
             <div style={{
@@ -10287,7 +10295,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               marginBottom: '24px',
               position: 'sticky',
               top: 0,
-              background: previewMaximized ? 'rgba(15, 23, 42, 0.95)' : 'transparent',
+              background: previewMaximized ? "var(--studio-surface, #fbf8f1)" : 'transparent',
               padding: previewMaximized ? '8px 0 16px' : '0',
               zIndex: 5
             }}>
@@ -10295,7 +10303,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 margin: 0,
                 fontSize: previewMaximized ? '1.75rem' : '1.5rem',
                 fontWeight: '700',
-                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
@@ -10303,7 +10311,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 alignItems: 'center',
                 gap: '12px'
               }}>
-                <Eye size={previewMaximized ? 28 : 24} color="#8b5cf6" />
+                <Eye size={previewMaximized ? 28 : 24} color="var(--studio-sage, #566954)" />
                 Preview All Creations
               </h2>
               
@@ -10312,12 +10320,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 <button
                   onClick={() => setPreviewMaximized(!previewMaximized)}
                   style={{
-                    background: 'rgba(255,255,255,0.1)',
-                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: "var(--studio-surface, #fbf8f1)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
                     borderRadius: '10px',
                     padding: '10px',
                     cursor: 'pointer',
-                    color: 'white',
+                    color: "var(--studio-ink, #202724)",
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
@@ -10333,12 +10341,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 <button
                   onClick={() => setShowPreviewModal(false)}
                   style={{
-                    background: 'rgba(239, 68, 68, 0.2)',
-                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    background: "var(--studio-accent-soft, #f0ded2)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
                     borderRadius: '10px',
                     padding: '10px',
                     cursor: 'pointer',
-                    color: '#ef4444'
+                    color: "var(--studio-danger, #9a4033)"
                   }}
                 >
                   <X size={20} />
@@ -10355,13 +10363,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             }}>
               {/* Lyrics Preview - Always safe */}
               <div style={{
-                background: 'rgba(139, 92, 246, 0.1)',
+                background: "var(--studio-surface-alt, #e4e8dc)",
                 borderRadius: '16px',
                 padding: isMobile ? '12px' : '16px',
-                border: '1px solid rgba(139, 92, 246, 0.3)'
+                border: "1px solid var(--studio-border, #d8d5c9)"
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 style={{ margin: 0, color: '#a78bfa', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, color: "var(--studio-sage, #566954)", fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <FileText size={18} />
                     Lyrics
                   </h3>
@@ -10370,14 +10378,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     borderRadius: '20px',
                     fontSize: '0.75rem',
                     fontWeight: '600',
-                    background: safeOutputs.lyrics ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100,100,100,0.2)',
-                    color: safeOutputs.lyrics ? '#22c55e' : 'rgba(255,255,255,0.5)'
+                    background: safeOutputs.lyrics ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                    color: safeOutputs.lyrics ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)"
                   }}>
                     {safeOutputs.lyrics ? '✓ Ready' : 'Pending'}
                   </span>
                 </div>
                 <div style={{
-                  background: 'rgba(0,0,0,0.4)',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
                   borderRadius: '12px',
                   padding: '16px',
                   minHeight: previewMaximized ? '300px' : '180px',
@@ -10385,7 +10393,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   overflowY: 'auto',
                   fontSize: '1rem',
                   lineHeight: '1.7',
-                  color: safeOutputs.lyrics ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)',
+                  color: safeOutputs.lyrics ? "var(--studio-ink, #202724)" : "var(--studio-muted, #646c64)",
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
                   fontStyle: safeOutputs.lyrics ? 'normal' : 'italic',
@@ -10397,13 +10405,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
               {/* Beat Audio Preview - Safe audio handling */}
               <div style={{
-                background: 'rgba(6, 182, 212, 0.1)',
+                background: "var(--studio-surface-alt, #e4e8dc)",
                 borderRadius: '16px',
                 padding: isMobile ? '12px' : '16px',
-                border: '1px solid rgba(6, 182, 212, 0.3)'
+                border: "1px solid var(--studio-border, #d8d5c9)"
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 style={{ margin: 0, color: '#22d3ee', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, color: "var(--studio-sage, #566954)", fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Music size={18} />
                     Beat Audio
                   </h3>
@@ -10412,14 +10420,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     borderRadius: '20px',
                     fontSize: '0.75rem',
                     fontWeight: '600',
-                    background: safeMediaUrls.audio ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100,100,100,0.2)',
-                    color: safeMediaUrls.audio ? '#22c55e' : 'rgba(255,255,255,0.5)'
+                    background: safeMediaUrls.audio ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                    color: safeMediaUrls.audio ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)"
                   }}>
                     {safeMediaUrls.audio ? '✓ Ready' : 'Pending'}
                   </span>
                 </div>
                 <div style={{
-                  background: 'rgba(0,0,0,0.4)',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
                   borderRadius: '12px',
                   padding: '16px',
                   minHeight: '100px'
@@ -10432,7 +10440,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         src={formatAudioSrc(safeMediaUrls.audio)}
                         onError={(e) => devWarn('[Preview] Audio load error:', e)}
                       />
-                      <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ fontSize: '0.8rem', color: "var(--studio-muted, #646c64)", display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Volume2 size={14} />
                         Audio ready to play
                       </div>
@@ -10440,7 +10448,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   ) : (
                     <div style={{
                       textAlign: 'center',
-                      color: 'rgba(255,255,255,0.4)',
+                      color: "var(--studio-muted, #646c64)",
                       fontSize: '0.9rem',
                       padding: '24px',
                       fontStyle: 'italic'
@@ -10453,13 +10461,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
               {/* Visual Image Preview - Safe image handling */}
               <div style={{
-                background: 'rgba(236, 72, 153, 0.1)',
+                background: "var(--studio-accent-soft, #f0ded2)",
                 borderRadius: '16px',
                 padding: isMobile ? '12px' : '16px',
-                border: '1px solid rgba(236, 72, 153, 0.3)'
+                border: "1px solid var(--studio-border, #d8d5c9)"
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 style={{ margin: 0, color: '#f472b6', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, color: "var(--studio-accent, #a34229)", fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ImageIcon size={18} />
                     Cover Visual
                   </h3>
@@ -10468,14 +10476,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     borderRadius: '20px',
                     fontSize: '0.75rem',
                     fontWeight: '600',
-                    background: safeMediaUrls.image ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100,100,100,0.2)',
-                    color: safeMediaUrls.image ? '#22c55e' : 'rgba(255,255,255,0.5)'
+                    background: safeMediaUrls.image ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                    color: safeMediaUrls.image ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)"
                   }}>
                     {safeMediaUrls.image ? '✓ Ready' : 'Pending'}
                   </span>
                 </div>
                 <div style={{
-                  background: 'rgba(0,0,0,0.4)',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
                   borderRadius: '12px',
                   padding: '8px',
                   aspectRatio: '1',
@@ -10502,7 +10510,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   ) : (
                     <div style={{
                       textAlign: 'center',
-                      color: 'rgba(255,255,255,0.4)',
+                      color: "var(--studio-muted, #646c64)",
                       fontSize: '0.9rem',
                       fontStyle: 'italic'
                     }}>
@@ -10513,7 +10521,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
                 {(mediaUrls.video || musicVideoUrl) && (
                   <button type="button" onClick={tryVideoFrameFallback} disabled={generatingMedia.image || isGenerating}
-                    style={{ width: '100%', marginTop: '8px', minHeight: '40px', borderRadius: '8px', border: '1px solid rgba(139,92,246,0.4)', background: 'rgba(139,92,246,0.12)', color: '#ddd6fe', cursor: 'pointer' }}>
+                    style={{ width: '100%', marginTop: '8px', minHeight: '40px', borderRadius: '8px', border: "1px solid var(--studio-border, #d8d5c9)", background: "var(--studio-surface-alt, #e4e8dc)", color: "var(--studio-ink, #202724)", cursor: 'pointer' }}>
                     Use a frame from my video instead
                   </button>
                 )}
@@ -10527,9 +10535,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         flex: 1,
                         padding: '8px 12px',
                         borderRadius: '8px',
-                        background: generatingMedia.image ? 'rgba(236, 72, 153, 0.15)' : 'rgba(236, 72, 153, 0.2)',
-                        border: '1px solid rgba(236, 72, 153, 0.3)',
-                        color: '#f472b6',
+                        background: generatingMedia.image ? "var(--studio-accent-soft, #f0ded2)" : "var(--studio-accent-soft, #f0ded2)",
+                        border: "1px solid var(--studio-border, #d8d5c9)",
+                        color: "var(--studio-accent, #a34229)",
                         fontSize: '0.75rem',
                         fontWeight: '600',
                         cursor: generatingMedia.image ? 'wait' : 'pointer',
@@ -10547,9 +10555,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       style={{
                         padding: '8px 12px',
                         borderRadius: '8px',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        color: 'rgba(255,255,255,0.6)',
+                        background: "var(--studio-surface, #fbf8f1)",
+                        border: "1px solid var(--studio-border, #d8d5c9)",
+                        color: "var(--studio-muted, #646c64)",
                         fontSize: '0.75rem',
                         fontWeight: '600',
                         cursor: 'pointer',
@@ -10567,7 +10575,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 {/* Image History Thumbnails */}
                 {imageHistory.length > 0 && (
                   <div style={{ marginTop: '8px' }}>
-                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: '6px', fontWeight: '600' }}>
+                    <div style={{ fontSize: '0.65rem', color: "var(--studio-muted, #646c64)", marginBottom: '6px', fontWeight: '600' }}>
                       Previous Variations ({imageHistory.length})
                     </div>
                     <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
@@ -10592,13 +10600,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                             borderRadius: '6px',
                             objectFit: 'cover',
                             cursor: 'pointer',
-                            border: '2px solid rgba(236, 72, 153, 0.3)',
+                            border: "2px solid var(--studio-border, #d8d5c9)",
                             opacity: 0.7,
                             transition: 'all 0.15s',
                             flexShrink: 0
                           }}
-                          onMouseEnter={(e) => { e.target.style.opacity = '1'; e.target.style.borderColor = '#f472b6'; }}
-                          onMouseLeave={(e) => { e.target.style.opacity = '0.7'; e.target.style.borderColor = 'rgba(236, 72, 153, 0.3)'; }}
+                          onMouseEnter={(e) => { e.target.style.opacity = '1'; e.target.style.borderColor = "var(--studio-border, #d8d5c9)"; }}
+                          onMouseLeave={(e) => { e.target.style.opacity = '0.7'; e.target.style.borderColor = "var(--studio-border, #d8d5c9)"; }}
                           onError={(e) => { e.target.style.display = 'none'; }}
                         />
                       ))}
@@ -10609,14 +10617,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
               {/* Video Preview - Safe video handling */}
               <div style={{
-                background: 'rgba(245, 158, 11, 0.1)',
+                background: "var(--studio-accent-soft, #f0ded2)",
                 borderRadius: '16px',
                 padding: isMobile ? '12px' : '16px',
-                border: musicVideoUrl ? '1px solid rgba(34, 197, 94, 0.5)' : '1px solid rgba(245, 158, 11, 0.3)',
-                boxShadow: musicVideoUrl ? '0 0 15px rgba(34, 197, 94, 0.2)' : 'none'
+                border: musicVideoUrl ? "1px solid var(--studio-border, #d8d5c9)" : "1px solid var(--studio-border, #d8d5c9)",
+                boxShadow: musicVideoUrl ? "none" : 'none'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 style={{ margin: 0, color: musicVideoUrl ? '#22c55e' : '#fbbf24', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, color: musicVideoUrl ? "var(--studio-sage, #566954)" : "var(--studio-warning, #806023)", fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {musicVideoUrl ? <Zap size={18} /> : <VideoIcon size={18} />}
                     {musicVideoUrl ? 'Professional Sync' : 'Concept Video'}
                   </h3>
@@ -10625,14 +10633,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     borderRadius: '20px',
                     fontSize: '0.75rem',
                     fontWeight: '600',
-                    background: (musicVideoUrl || safeMediaUrls.video) ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100,100,100,0.2)',
-                    color: (musicVideoUrl || safeMediaUrls.video) ? '#22c55e' : 'rgba(255,255,255,0.5)'
+                    background: (musicVideoUrl || safeMediaUrls.video) ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)",
+                    color: (musicVideoUrl || safeMediaUrls.video) ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)"
                   }}>
                     {musicVideoUrl ? '✓ Synced' : (safeMediaUrls.video ? '✓ Concept' : 'Pending')}
                   </span>
                 </div>
                 <div style={{
-                  background: 'rgba(0,0,0,0.4)',
+                  background: "var(--studio-surface-alt, #e4e8dc)",
                   borderRadius: '12px',
                   padding: '8px',
                   aspectRatio: '16/9',
@@ -10642,7 +10650,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   overflow: 'hidden'
                 }}>
                   {(musicVideoUrl || safeMediaUrls.video) ? (
-                    <video
+                    <video className="studio-media-stage"
                       src={formatVideoSrc(musicVideoUrl || safeMediaUrls.video)}
                       controls
                       style={{
@@ -10650,14 +10658,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         height: '100%',
                         borderRadius: '8px',
                         objectFit: 'contain',
-                        backgroundColor: '#000'
+                        backgroundColor: "var(--studio-surface, #fbf8f1)"
                       }}
                       onError={(e) => devWarn('[Preview] Video load error:', e)}
                     />
                   ) : (
                     <div style={{
                       textAlign: 'center',
-                      color: 'rgba(255,255,255,0.4)',
+                      color: "var(--studio-muted, #646c64)",
                       fontSize: '0.9rem',
                       fontStyle: 'italic'
                     }}>
@@ -10670,10 +10678,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
             {/* Summary Stats */}
             <div style={{
-              background: 'rgba(255,255,255,0.05)',
+              background: "var(--studio-surface, #fbf8f1)",
               borderRadius: '12px',
               padding: '16px',
-              border: '1px solid rgba(148, 163, 184, 0.2)',
+              border: "1px solid var(--studio-border, #d8d5c9)",
               marginBottom: '20px'
             }}>
               <div style={{
@@ -10683,26 +10691,26 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 fontSize: '0.9rem'
               }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '6px', fontSize: '0.8rem' }}>Lyrics</div>
-                  <div style={{ fontWeight: '700', color: '#a78bfa', fontSize: '1.1rem' }}>
+                  <div style={{ color: "var(--studio-muted, #646c64)", marginBottom: '6px', fontSize: '0.8rem' }}>Lyrics</div>
+                  <div style={{ fontWeight: '700', color: "var(--studio-sage, #566954)", fontSize: '1.1rem' }}>
                     {safeOutputs.lyrics ? `${safeOutputs.lyrics.length} chars` : '—'}
                   </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '6px', fontSize: '0.8rem' }}>Audio</div>
-                  <div style={{ fontWeight: '700', color: '#22d3ee', fontSize: '1.1rem' }}>
+                  <div style={{ color: "var(--studio-muted, #646c64)", marginBottom: '6px', fontSize: '0.8rem' }}>Audio</div>
+                  <div style={{ fontWeight: '700', color: "var(--studio-sage, #566954)", fontSize: '1.1rem' }}>
                     {safeMediaUrls.audio ? '✓ Ready' : '—'}
                   </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '6px', fontSize: '0.8rem' }}>Visual</div>
-                  <div style={{ fontWeight: '700', color: '#f472b6', fontSize: '1.1rem' }}>
+                  <div style={{ color: "var(--studio-muted, #646c64)", marginBottom: '6px', fontSize: '0.8rem' }}>Visual</div>
+                  <div style={{ fontWeight: '700', color: "var(--studio-accent, #a34229)", fontSize: '1.1rem' }}>
                     {safeMediaUrls.image ? '✓ Ready' : '—'}
                   </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '6px', fontSize: '0.8rem' }}>Video</div>
-                  <div style={{ fontWeight: '700', color: '#fbbf24', fontSize: '1.1rem' }}>
+                  <div style={{ color: "var(--studio-muted, #646c64)", marginBottom: '6px', fontSize: '0.8rem' }}>Video</div>
+                  <div style={{ fontWeight: '700', color: "var(--studio-warning, #806023)", fontSize: '1.1rem' }}>
                     {safeMediaUrls.video ? '✓ Ready' : '—'}
                   </div>
                 </div>
@@ -10718,9 +10726,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   minWidth: '120px',
                   padding: '14px',
                   borderRadius: '12px',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  color: 'white',
+                  background: "var(--studio-surface, #fbf8f1)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-ink, #202724)",
                   fontWeight: '600',
                   cursor: 'pointer',
                   fontSize: '0.95rem'
@@ -10740,9 +10748,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   minWidth: '140px',
                   padding: '14px',
                   borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+                  background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
                   border: 'none',
-                  color: 'white',
+                  color: "var(--studio-ink, #202724)",
                   fontWeight: '700',
                   cursor: 'pointer',
                   fontSize: '0.95rem',
@@ -10768,10 +10776,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   padding: '14px',
                   borderRadius: '12px',
                   background: (creatingFinalMix || !Object.values(safeOutputs).some(Boolean)) 
-                    ? 'rgba(34, 197, 94, 0.2)' 
-                    : 'rgba(34, 197, 94, 0.5)',
-                  border: '1px solid rgba(34, 197, 94, 0.6)',
-                  color: '#22c55e',
+                    ? "var(--studio-surface-alt, #e4e8dc)"
+                    : "var(--studio-surface-alt, #e4e8dc)",
+                  border: "1px solid var(--studio-border, #d8d5c9)",
+                  color: "var(--studio-sage, #566954)",
                   fontWeight: '600',
                   cursor: (creatingFinalMix || !Object.values(safeOutputs).some(Boolean)) ? 'not-allowed' : 'pointer',
                   fontSize: '0.95rem',
@@ -10803,9 +10811,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     minWidth: '140px',
                     padding: '14px',
                     borderRadius: '12px',
-                    background: 'rgba(249, 115, 22, 0.5)',
-                    border: '1px solid rgba(249, 115, 22, 0.6)',
-                    color: '#f97316',
+                    background: "var(--studio-accent-soft, #f0ded2)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
+                    color: "var(--studio-danger, #9a4033)",
                     fontWeight: '600',
                     cursor: 'pointer',
                     fontSize: '0.95rem',
@@ -10881,14 +10889,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           to { opacity: 1; }
         }
 
-        .pulse-next-btn {
-          animation: pulseNext 2s ease-in-out infinite;
-        }
-
-        @keyframes pulseNext {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
-          50% { box-shadow: 0 0 0 6px rgba(139, 92, 246, 0); }
-        }
+        .studio-orchestrator-overlay .pulse-next-btn { animation: none; }
       `}</style>
     </div>
   );

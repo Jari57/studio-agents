@@ -104,11 +104,11 @@ function NewsHub({
     <div className="news-hub-v2 animate-fadeInUp">
       {/* Hero Header */}
       <div className="news-header-hero" style={{
-        background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%)',
+        background: "linear-gradient(135deg, rgba(163,66,41, 0.15) 0%, rgba(163,66,41, 0.1) 100%)",
         borderRadius: '20px',
         padding: '28px',
         marginBottom: '24px',
-        border: '1px solid rgba(236, 72, 153, 0.2)',
+        border: "1px solid rgba(163,66,41, 0.2)",
         position: 'relative',
         overflow: 'hidden'
       }}>
@@ -118,7 +118,7 @@ function NewsHub({
           right: '-30px', 
           width: '150px', 
           height: '150px', 
-          background: 'radial-gradient(circle, rgba(236,72,153,0.3) 0%, transparent 70%)', 
+          background: "radial-gradient(circle, rgba(163,66,41, 0.3) 0%, transparent 70%)",
           pointerEvents: 'none' 
         }} />
         
@@ -180,7 +180,7 @@ function NewsHub({
                   style={{
                     minWidth: '260px',
                     padding: '14px 16px',
-                    background: 'rgba(0,0,0,0.3)',
+                    background: "var(--studio-surface-alt)",
                     borderRadius: '12px',
                     cursor: 'pointer',
                     backdropFilter: 'blur(8px)'
@@ -324,7 +324,7 @@ function NewsHub({
                       position: 'relative',
                       display: 'block',
                       height: '180px',
-                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.2))',
+                      background: "linear-gradient(135deg, rgba(163,66,41, 0.2), rgba(163,66,41, 0.2))",
                       overflow: 'hidden'
                     }}
                   >
@@ -362,19 +362,19 @@ function NewsHub({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: 'rgba(0,0,0,0.2)',
+                      background: "var(--studio-surface-alt)",
                       pointerEvents: 'none'
                     }}>
                       <div style={{
                         width: '60px',
                         height: '60px',
                         borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.9)',
+                        background: "var(--studio-surface)",
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
                       }}>
-                        <PlayCircle size={36} style={{ color: '#000' }} />
+                        <PlayCircle size={36} style={{ color: "var(--studio-ink)" }} />
                       </div>
                     </div>
                     <div style={{
@@ -386,7 +386,7 @@ function NewsHub({
                       borderRadius: '6px',
                       fontSize: '0.7rem',
                       fontWeight: '600',
-                      color: 'white',
+                      color: "var(--studio-ink)",
                       zIndex: 2
                     }}>
                       VIDEO
@@ -460,7 +460,7 @@ function NewsHub({
                           alignItems: 'center',
                           gap: '4px',
                           padding: '4px 10px',
-                          background: 'rgba(236, 72, 153, 0.2)',
+                          background: "rgba(163,66,41, 0.2)",
                           borderRadius: '12px',
                           color: 'var(--color-pink)',
                           fontWeight: '600',
@@ -497,7 +497,7 @@ function NewsHub({
                       {item.tags.slice(0, 3).map(tag => (
                         <span key={tag} style={{
                           padding: '2px 8px',
-                          background: 'rgba(139, 92, 246, 0.15)',
+                          background: "rgba(163,66,41, 0.15)",
                           borderRadius: '8px',
                           color: 'var(--color-purple)',
                           fontSize: '0.7rem',
@@ -557,7 +557,7 @@ function NewsHub({
                         onClick={() => toggleSave(item.id)}
                         title={isSaved ? 'Unsave' : 'Save'}
                         style={{
-                          background: isSaved ? 'rgba(139, 92, 246, 0.2)' : 'var(--color-bg-tertiary)',
+                          background: isSaved ? "rgba(163,66,41, 0.2)" : 'var(--color-bg-tertiary)',
                           border: 'none',
                           borderRadius: '8px',
                           padding: '8px',

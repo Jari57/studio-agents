@@ -12,13 +12,13 @@ import {
 // Premium styling with marketing focus on vocal IP
 // ============================================================
 
-const ACCENT = '#a855f7';
-const ACCENT_LIGHT = 'rgba(168, 85, 247, 0.15)';
-const CYAN = '#06b6d4';
-const PINK = '#ec4899';
-const ORANGE = '#f97316';
-const EMERALD = '#10b981';
-const INDIGO = '#6366f1';
+const ACCENT = 'var(--studio-accent)';
+const ACCENT_LIGHT = 'var(--studio-accent-soft)';
+const CYAN = 'var(--studio-sage)';
+const PINK = 'var(--studio-accent)';
+const ORANGE = 'var(--studio-accent)';
+const EMERALD = 'var(--studio-sage)';
+const INDIGO = 'var(--studio-sage)';
 
 const VOICE_STYLES = [
   {
@@ -129,12 +129,12 @@ const VOICE_CLONING_STEPS = [
 const EMOTIONAL_TAGS = [
   { tag: '[Raspy]', description: 'Adds grit and texture to the vocal delivery, perfect for rock, blues, or raw hip-hop', color: ORANGE },
   { tag: '[Soulful]', description: 'Warm, emotional delivery with natural vibrato and depth', color: CYAN },
-  { tag: '[Aggressive]', description: 'Hard-hitting, high-energy delivery for battle rap and diss tracks', color: '#ef4444' },
+  { tag: '[Aggressive]', description: 'Hard-hitting, high-energy delivery for battle rap and diss tracks', color: 'var(--studio-accent)' },
   { tag: '[Breathy]', description: 'Intimate, close-mic feel for R&B, lo-fi, and atmospheric tracks', color: PINK },
   { tag: '[Operatic]', description: 'Dramatic, powerful vocals with classical influence', color: ACCENT },
   { tag: '[Ad-lib]', description: 'Background flair — ad-libs, shouts, harmonics between verses', color: EMERALD },
   { tag: '[Harmony]', description: 'Generates backing harmony vocals to layer with lead', color: INDIGO },
-  { tag: '[Whispering]', description: 'Ultra-soft delivery for ASMR, intros, and atmospheric moments', color: '#6b7280' },
+  { tag: '[Whispering]', description: 'Ultra-soft delivery for ASMR, intros, and atmospheric moments', color: 'var(--studio-muted)' },
   { tag: '[Electronic]', description: 'Robotic, processed sound — Daft Punk, vocoder, autotune effects', color: CYAN },
   { tag: '[Grit]', description: 'Raw, unpolished texture for punk, grunge, and underground hip-hop', color: ORANGE }
 ];
@@ -226,8 +226,8 @@ export default function VocalsResourcePage({ onBack }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(180deg, #0a0a0f 0%, #0d0d1a 30%, #0a0a0f 100%)',
-      color: 'white',
+      background: 'linear-gradient(180deg, var(--studio-bg) 0%, var(--studio-surface-alt) 30%, var(--studio-bg) 100%)',
+      color: 'var(--studio-ink)',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
       {/* ==================== HEADER ==================== */}
@@ -235,9 +235,9 @@ export default function VocalsResourcePage({ onBack }) {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        background: 'rgba(10, 10, 15, 0.9)',
+        background: 'var(--studio-surface)',
         backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(168, 85, 247, 0.15)',
+        borderBottom: '1px solid color-mix(in srgb, var(--studio-accent) 15%, transparent)',
         padding: '12px 24px',
         display: 'flex',
         alignItems: 'center',
@@ -247,12 +247,12 @@ export default function VocalsResourcePage({ onBack }) {
           onClick={onBack}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px',
-            background: 'none', border: 'none', color: '#9ca3af',
+            background: 'none', border: 'none', color: 'var(--studio-muted)',
             cursor: 'pointer', fontSize: '0.95rem', padding: '8px 12px',
             borderRadius: '8px', transition: 'all 0.2s'
           }}
-          onMouseEnter={e => e.target.style.color = 'white'}
-          onMouseLeave={e => e.target.style.color = '#9ca3af'}
+          onMouseEnter={e => e.target.style.color = 'var(--studio-ink)'}
+          onMouseLeave={e => e.target.style.color = 'var(--studio-muted)'}
         >
           <ArrowLeft size={18} /> Back
         </button>
@@ -276,13 +276,13 @@ export default function VocalsResourcePage({ onBack }) {
         <div style={{
           position: 'absolute', top: '-100px', left: '50%', transform: 'translateX(-50%)',
           width: '600px', height: '600px',
-          background: 'radial-gradient(circle, rgba(168,85,247,0.12) 0%, rgba(236,72,153,0.06) 50%, transparent 70%)',
+          background: 'radial-gradient(circle, color-mix(in srgb, var(--studio-accent) 12%, transparent) 0%, color-mix(in srgb, var(--studio-accent) 6%, transparent) 50%, transparent 70%)',
           pointerEvents: 'none'
         }} />
 
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '8px',
-          background: ACCENT_LIGHT, border: `1px solid rgba(168,85,247,0.3)`,
+          background: ACCENT_LIGHT, border: `1px solid color-mix(in srgb, var(--studio-accent) 30%, transparent)`,
           borderRadius: '100px', padding: '6px 18px', marginBottom: '24px',
           fontSize: '0.85rem', color: ACCENT, fontWeight: '600', letterSpacing: '0.08em'
         }}>
@@ -295,7 +295,7 @@ export default function VocalsResourcePage({ onBack }) {
           fontFamily: 'Georgia, serif',
           lineHeight: '1.1',
           marginBottom: '20px',
-          background: 'linear-gradient(135deg, #ffffff 0%, #a855f7 50%, #ec4899 100%)',
+          background: 'linear-gradient(135deg, var(--studio-ink) 0%, var(--studio-accent) 50%, var(--studio-accent) 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent'
         }}>
@@ -304,7 +304,7 @@ export default function VocalsResourcePage({ onBack }) {
 
         <p style={{
           fontSize: 'clamp(1.1rem, 2vw, 1.35rem)',
-          color: '#9ca3af',
+          color: 'var(--studio-muted)',
           maxWidth: '740px',
           margin: '0 auto 32px',
           lineHeight: '1.7'
@@ -325,7 +325,7 @@ export default function VocalsResourcePage({ onBack }) {
           ].map(stat => (
             <div key={stat.label} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '1.8rem', fontWeight: '800', color: ACCENT }}>{stat.value}</div>
-              <div style={{ fontSize: '0.8rem', color: '#6b7280', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{stat.label}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--studio-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{stat.label}</div>
             </div>
           ))}
         </div>
@@ -336,7 +336,7 @@ export default function VocalsResourcePage({ onBack }) {
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
-            background: `${CYAN}15`, border: `1px solid ${CYAN}30`,
+            background: `color-mix(in srgb, ${CYAN} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${CYAN} 19%, transparent)`,
             borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
             fontSize: '0.8rem', color: CYAN, fontWeight: '700', letterSpacing: '0.1em'
           }}>
@@ -348,7 +348,7 @@ export default function VocalsResourcePage({ onBack }) {
           }}>
             Every Voice, Every Style
           </h2>
-          <p style={{ color: '#9ca3af', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
+          <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
             Hand-curated ElevenLabs voices mapped by style, delivery, and genre. Each voice is tuned with custom stability, similarity, and style parameters.
           </p>
         </div>
@@ -367,9 +367,9 @@ export default function VocalsResourcePage({ onBack }) {
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
                   padding: '10px 18px', borderRadius: '100px',
-                  background: activeVoiceStyle === i ? `${vs.color}20` : 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${activeVoiceStyle === i ? vs.color : 'rgba(255,255,255,0.1)'}`,
-                  color: activeVoiceStyle === i ? vs.color : '#9ca3af',
+                  background: activeVoiceStyle === i ? `color-mix(in srgb, ${vs.color} 13%, transparent)` : 'var(--studio-surface)',
+                  border: `1px solid ${activeVoiceStyle === i ? vs.color : 'var(--studio-border)'}`,
+                  color: activeVoiceStyle === i ? vs.color : 'var(--studio-muted)',
                   cursor: 'pointer', fontSize: '0.9rem', fontWeight: '600',
                   transition: 'all 0.3s'
                 }}
@@ -386,19 +386,19 @@ export default function VocalsResourcePage({ onBack }) {
           const Icon = vs.icon;
           return (
             <div style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: `1px solid ${vs.color}25`,
+              background: 'var(--studio-surface)',
+              border: `1px solid color-mix(in srgb, ${vs.color} 15%, transparent)`,
               borderRadius: '20px', overflow: 'hidden'
             }}>
               <div style={{
                 padding: '32px 36px 24px',
-                background: `linear-gradient(135deg, ${vs.color}08, transparent)`,
-                borderBottom: `1px solid ${vs.color}15`
+                background: `linear-gradient(135deg, color-mix(in srgb, ${vs.color} 3%, transparent), transparent)`,
+                borderBottom: `1px solid color-mix(in srgb, ${vs.color} 8%, transparent)`
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
                   <div style={{
                     width: '48px', height: '48px', borderRadius: '14px',
-                    background: `${vs.color}20`, display: 'flex',
+                    background: `color-mix(in srgb, ${vs.color} 13%, transparent)`, display: 'flex',
                     alignItems: 'center', justifyContent: 'center'
                   }}>
                     <Icon size={24} style={{ color: vs.color }} />
@@ -410,35 +410,35 @@ export default function VocalsResourcePage({ onBack }) {
                     <p style={{ color: vs.color, fontSize: '0.9rem', fontWeight: '600', margin: 0 }}>{vs.tagline}</p>
                   </div>
                 </div>
-                <p style={{ fontSize: '1rem', color: '#9ca3af', lineHeight: '1.6' }}>{vs.description}</p>
+                <p style={{ fontSize: '1rem', color: 'var(--studio-muted)', lineHeight: '1.6' }}>{vs.description}</p>
               </div>
 
               {/* Sub-styles Grid */}
               <div style={{ padding: '24px 36px 32px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '12px' }}>
                   {vs.subStyles.map((sub, i) => (
                     <div key={i} style={{
                       padding: '16px 18px',
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: 'var(--studio-surface)',
+                      border: '1px solid var(--studio-border)',
                       borderRadius: '12px', transition: 'border-color 0.3s'
                     }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = `${vs.color}40`}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = `color-mix(in srgb, ${vs.color} 25%, transparent)`}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--studio-border)'}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                         <span style={{ fontWeight: '700', fontSize: '1rem', color: vs.color }}>{sub.name}</span>
                         <span style={{
                           fontSize: '0.7rem', padding: '2px 8px', borderRadius: '100px',
-                          background: 'rgba(255,255,255,0.05)', color: '#6b7280', fontWeight: '600'
+                          background: 'var(--studio-surface-alt)', color: 'var(--studio-muted)', fontWeight: '600'
                         }}>
                           {sub.voice.split('—')[0].trim()}
                         </span>
                       </div>
-                      <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: '0 0 6px', fontStyle: 'italic' }}>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--studio-muted)', margin: '0 0 6px', fontStyle: 'italic' }}>
                         {sub.voice}
                       </p>
-                      <p style={{ fontSize: '0.85rem', color: '#9ca3af', margin: 0 }}>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--studio-muted)', margin: 0 }}>
                         {sub.use}
                       </p>
                     </div>
@@ -453,15 +453,15 @@ export default function VocalsResourcePage({ onBack }) {
       {/* ==================== EMOTIONAL TAGS ==================== */}
       <section style={{
         padding: '80px 24px',
-        background: 'linear-gradient(180deg, rgba(236,72,153,0.04) 0%, transparent 100%)',
-        borderTop: '1px solid rgba(236,72,153,0.1)',
-        borderBottom: '1px solid rgba(236,72,153,0.1)'
+        background: 'linear-gradient(180deg, color-mix(in srgb, var(--studio-accent) 4%, transparent) 0%, transparent 100%)',
+        borderTop: '1px solid color-mix(in srgb, var(--studio-accent) 10%, transparent)',
+        borderBottom: '1px solid color-mix(in srgb, var(--studio-accent) 10%, transparent)'
       }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
-              background: `${PINK}15`, border: `1px solid ${PINK}30`,
+              background: `color-mix(in srgb, ${PINK} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${PINK} 19%, transparent)`,
               borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
               fontSize: '0.8rem', color: PINK, fontWeight: '700', letterSpacing: '0.1em'
             }}>
@@ -473,7 +473,7 @@ export default function VocalsResourcePage({ onBack }) {
             }}>
               Emotional Tagging System
             </h2>
-            <p style={{ color: '#9ca3af', fontSize: '1.05rem', maxWidth: '650px', margin: '0 auto' }}>
+            <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem', maxWidth: '650px', margin: '0 auto' }}>
               Use <code style={{ color: ACCENT, background: ACCENT_LIGHT, padding: '2px 6px', borderRadius: '4px' }}>[Brackets]</code> to
               define vocal character, emotion, and texture. Stack multiple tags for complex vocal performances.
             </p>
@@ -481,29 +481,29 @@ export default function VocalsResourcePage({ onBack }) {
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
             gap: '12px'
           }}>
             {EMOTIONAL_TAGS.map((tag, i) => (
               <div key={i} style={{
                 padding: '18px 20px',
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'var(--studio-surface)',
+                border: '1px solid var(--studio-border)',
                 borderRadius: '14px',
                 display: 'flex', gap: '14px', alignItems: 'flex-start',
                 transition: 'border-color 0.3s'
               }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = `${tag.color}40`}
-                onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                onMouseEnter={e => e.currentTarget.style.borderColor = `color-mix(in srgb, ${tag.color} 25%, transparent)`}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--studio-border)'}
               >
                 <code style={{
                   fontSize: '0.85rem', fontWeight: '800', color: tag.color,
-                  background: `${tag.color}15`, padding: '4px 10px',
+                  background: `color-mix(in srgb, ${tag.color} 8%, transparent)`, padding: '4px 10px',
                   borderRadius: '6px', whiteSpace: 'nowrap', flexShrink: 0
                 }}>
                   {tag.tag}
                 </code>
-                <p style={{ fontSize: '0.9rem', color: '#9ca3af', lineHeight: '1.5', margin: 0 }}>
+                <p style={{ fontSize: '0.9rem', color: 'var(--studio-muted)', lineHeight: '1.5', margin: 0 }}>
                   {tag.description}
                 </p>
               </div>
@@ -513,15 +513,15 @@ export default function VocalsResourcePage({ onBack }) {
           {/* Example prompt */}
           <div style={{
             marginTop: '32px', padding: '24px',
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(168,85,247,0.15)',
+            background: 'var(--studio-surface)',
+            border: '1px solid color-mix(in srgb, var(--studio-accent) 15%, transparent)',
             borderRadius: '14px'
           }}>
-            <h4 style={{ fontSize: '0.9rem', fontWeight: '700', color: '#6b7280', letterSpacing: '0.08em', marginBottom: '12px' }}>
+            <h4 style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--studio-muted)', letterSpacing: '0.08em', marginBottom: '12px' }}>
               EXAMPLE PROMPT
             </h4>
             <code style={{
-              fontSize: '1rem', color: '#d1d5db', lineHeight: '1.8', display: 'block',
+              fontSize: '1rem', color: 'var(--studio-ink)', lineHeight: '1.8', display: 'block',
               fontFamily: '"Fira Code", "Cascadia Code", monospace'
             }}>
               <span style={{ color: PINK }}>[Soulful Grit]</span> I found my way through the dark,
@@ -529,7 +529,7 @@ export default function VocalsResourcePage({ onBack }) {
               <span style={{ color: CYAN }}> [Harmony]</span> every scar tells a story,
               <span style={{ color: ORANGE }}> [Raspy]</span> and I wear mine like armor
             </code>
-            <p style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '12px', marginBottom: 0 }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--studio-muted)', marginTop: '12px', marginBottom: 0 }}>
               → Generates a soulful lead vocal with raw texture, background ad-libs, harmonic backing, and a gritty bridge delivery.
             </p>
           </div>
@@ -541,7 +541,7 @@ export default function VocalsResourcePage({ onBack }) {
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
-            background: `${EMERALD}15`, border: `1px solid ${EMERALD}30`,
+            background: `color-mix(in srgb, ${EMERALD} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${EMERALD} 19%, transparent)`,
             borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
             fontSize: '0.8rem', color: EMERALD, fontWeight: '700', letterSpacing: '0.1em'
           }}>
@@ -553,7 +553,7 @@ export default function VocalsResourcePage({ onBack }) {
           }}>
             Activate Your Personal Voice
           </h2>
-          <p style={{ color: '#9ca3af', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
+          <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
             ElevenLabs Instant Voice Cloning (IVC) captures your unique vocal identity.
             Upload samples, confirm ownership, and wait for provider activation before personal-voice generation is enabled.
           </p>
@@ -569,16 +569,17 @@ export default function VocalsResourcePage({ onBack }) {
                   <div style={{
                     width: '48px', height: '48px', borderRadius: '50%',
                     background: `linear-gradient(135deg, ${EMERALD}, ${CYAN})`,
+                    color: 'var(--studio-on-accent)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '1.1rem', fontWeight: '800', flexShrink: 0,
-                    boxShadow: `0 0 20px rgba(16,185,129,0.3)`
+                    boxShadow: `0 0 20px color-mix(in srgb, var(--studio-sage) 30%, transparent)`
                   }}>
                     {step.step}
                   </div>
                   {i < VOICE_CLONING_STEPS.length - 1 && (
                     <div style={{
                       width: '2px', flex: 1, minHeight: '40px',
-                      background: 'linear-gradient(to bottom, rgba(16,185,129,0.3), rgba(16,185,129,0.05))'
+                      background: 'linear-gradient(to bottom, color-mix(in srgb, var(--studio-sage) 30%, transparent), color-mix(in srgb, var(--studio-sage) 5%, transparent))'
                     }} />
                   )}
                 </div>
@@ -587,17 +588,17 @@ export default function VocalsResourcePage({ onBack }) {
                   <h3 style={{ fontSize: '1.15rem', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Icon size={16} style={{ color: EMERALD }} /> {step.title}
                   </h3>
-                  <p style={{ fontSize: '0.95rem', color: '#9ca3af', lineHeight: '1.6', marginBottom: '10px' }}>
+                  <p style={{ fontSize: '0.95rem', color: 'var(--studio-muted)', lineHeight: '1.6', marginBottom: '10px' }}>
                     {step.description}
                   </p>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: '8px',
                     padding: '8px 14px', borderRadius: '8px',
-                    background: 'rgba(245, 158, 11, 0.05)',
-                    border: '1px solid rgba(245, 158, 11, 0.1)',
-                    fontSize: '0.85rem', color: '#d1d5db'
+                    background: 'color-mix(in srgb, var(--studio-accent) 5%, transparent)',
+                    border: '1px solid color-mix(in srgb, var(--studio-accent) 10%, transparent)',
+                    fontSize: '0.85rem', color: 'var(--studio-ink)'
                   }}>
-                    <Lightbulb size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                    <Lightbulb size={14} style={{ color: 'var(--studio-accent)', flexShrink: 0 }} />
                     {step.tip}
                   </div>
                 </div>
@@ -610,15 +611,15 @@ export default function VocalsResourcePage({ onBack }) {
       {/* ==================== PROVIDER CHAIN ==================== */}
       <section style={{
         padding: '80px 24px',
-        background: 'rgba(255,255,255,0.02)',
-        borderTop: '1px solid rgba(255,255,255,0.05)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)'
+        background: 'var(--studio-surface)',
+        borderTop: '1px solid var(--studio-border)',
+        borderBottom: '1px solid var(--studio-border)'
       }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
-              background: `${INDIGO}15`, border: `1px solid ${INDIGO}30`,
+              background: `color-mix(in srgb, ${INDIGO} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${INDIGO} 19%, transparent)`,
               borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
               fontSize: '0.8rem', color: INDIGO, fontWeight: '700', letterSpacing: '0.1em'
             }}>
@@ -630,62 +631,62 @@ export default function VocalsResourcePage({ onBack }) {
             }}>
               Multi-Provider Voice Engine
             </h2>
-            <p style={{ color: '#9ca3af', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
+            <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
               Three AI providers in a priority chain ensure your vocals are always generated at the highest possible quality.
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '20px' }}>
             {PROVIDER_CHAIN.map((provider, i) => {
               const Icon = provider.icon;
               return (
                 <div key={i}
                   style={{
-                    background: activeProvider === i ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${activeProvider === i ? provider.color : 'rgba(255,255,255,0.08)'}`,
+                    background: activeProvider === i ? 'var(--studio-surface)' : 'var(--studio-surface)',
+                    border: `1px solid ${activeProvider === i ? provider.color : 'var(--studio-border)'}`,
                     borderRadius: '16px', padding: '28px',
                     cursor: 'pointer', transition: 'all 0.3s',
                     position: 'relative'
                   }}
                   onClick={() => setActiveProvider(activeProvider === i ? null : i)}
                   onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = `${provider.color}40`;
+                    e.currentTarget.style.borderColor = `color-mix(in srgb, ${provider.color} 25%, transparent)`;
                     e.currentTarget.style.transform = 'translateY(-2px)';
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = activeProvider === i ? provider.color : 'rgba(255,255,255,0.08)';
+                    e.currentTarget.style.borderColor = activeProvider === i ? provider.color : 'var(--studio-border)';
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
                   <div style={{
                     position: 'absolute', top: '16px', right: '16px',
                     fontSize: '0.7rem', fontWeight: '800', padding: '3px 10px',
-                    borderRadius: '100px', background: `${provider.color}15`, color: provider.color,
+                    borderRadius: '100px', background: `color-mix(in srgb, ${provider.color} 8%, transparent)`, color: provider.color,
                     letterSpacing: '0.08em'
                   }}>
                     PRIORITY {provider.priority}
                   </div>
                   <div style={{
                     width: '48px', height: '48px', borderRadius: '14px',
-                    background: `${provider.color}15`, display: 'flex',
+                    background: `color-mix(in srgb, ${provider.color} 8%, transparent)`, display: 'flex',
                     alignItems: 'center', justifyContent: 'center', marginBottom: '16px'
                   }}>
                     <Icon size={24} style={{ color: provider.color }} />
                   </div>
                   <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px' }}>{provider.name}</h3>
-                  <p style={{ fontSize: '0.9rem', color: '#9ca3af', lineHeight: '1.6', marginBottom: '16px' }}>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--studio-muted)', lineHeight: '1.6', marginBottom: '16px' }}>
                     {provider.description}
                   </p>
                   <div style={{
                     padding: '10px 14px', borderRadius: '8px',
-                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
+                    background: 'var(--studio-surface-alt)', border: '1px solid var(--studio-border)',
                     fontSize: '0.8rem', marginBottom: '8px'
                   }}>
-                    <span style={{ color: '#6b7280' }}>Model:</span>{' '}
+                    <span style={{ color: 'var(--studio-muted)' }}>Model:</span>{' '}
                     <code style={{ color: provider.color }}>{provider.model}</code>
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-                    <strong style={{ color: '#9ca3af' }}>Best for:</strong> {provider.bestFor}
+                  <div style={{ fontSize: '0.85rem', color: 'var(--studio-muted)' }}>
+                    <strong style={{ color: 'var(--studio-muted)' }}>Best for:</strong> {provider.bestFor}
                   </div>
                 </div>
               );
@@ -699,7 +700,7 @@ export default function VocalsResourcePage({ onBack }) {
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
-            background: `${ORANGE}15`, border: `1px solid ${ORANGE}30`,
+            background: `color-mix(in srgb, ${ORANGE} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${ORANGE} 19%, transparent)`,
             borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
             fontSize: '0.8rem', color: ORANGE, fontWeight: '700', letterSpacing: '0.1em'
           }}>
@@ -711,14 +712,14 @@ export default function VocalsResourcePage({ onBack }) {
           }}>
             Per-Style Voice Parameters
           </h2>
-          <p style={{ color: '#9ca3af', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
+          <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
             Every voice style uses custom-tuned ElevenLabs parameters. These aren't defaults — they're the product of extensive testing for each use case.
           </p>
         </div>
 
         <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: 'var(--studio-surface)',
+          border: '1px solid var(--studio-border)',
           borderRadius: '16px', overflow: 'hidden'
         }}>
           {/* Table Header */}
@@ -726,9 +727,9 @@ export default function VocalsResourcePage({ onBack }) {
             display: 'grid',
             gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr',
             padding: '16px 20px',
-            background: 'rgba(255,255,255,0.04)',
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
-            fontSize: '0.75rem', fontWeight: '700', color: '#6b7280',
+            background: 'var(--studio-surface)',
+            borderBottom: '1px solid var(--studio-border)',
+            fontSize: '0.75rem', fontWeight: '700', color: 'var(--studio-muted)',
             letterSpacing: '0.08em', textTransform: 'uppercase',
             gap: '8px'
           }}>
@@ -746,12 +747,12 @@ export default function VocalsResourcePage({ onBack }) {
               display: 'grid',
               gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr',
               padding: '14px 20px',
-              borderBottom: i < VOICE_SETTINGS_TABLE.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+              borderBottom: i < VOICE_SETTINGS_TABLE.length - 1 ? '1px solid var(--studio-border)' : 'none',
               fontSize: '0.9rem', alignItems: 'center', gap: '8px'
             }}>
               <div>
-                <div style={{ fontWeight: '600', color: '#d1d5db' }}>{row.setting}</div>
-                <div style={{ fontSize: '0.75rem', color: '#4b5563', marginTop: '2px' }}>{row.description}</div>
+                <div style={{ fontWeight: '600', color: 'var(--studio-ink)' }}>{row.setting}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--studio-muted)', marginTop: '2px' }}>{row.description}</div>
               </div>
               <div style={{ textAlign: 'center', color: ACCENT, fontWeight: '600', fontFamily: 'monospace' }}>{row.rapper}</div>
               <div style={{ textAlign: 'center', color: CYAN, fontWeight: '600', fontFamily: 'monospace' }}>{row.singer}</div>
@@ -765,8 +766,8 @@ export default function VocalsResourcePage({ onBack }) {
         {/* Reference Song Analysis */}
         <div style={{
           marginTop: '24px', padding: '28px',
-          background: 'rgba(255,255,255,0.03)',
-          border: `1px solid ${ACCENT}20`,
+          background: 'var(--studio-surface)',
+          border: `1px solid color-mix(in srgb, ${ACCENT} 13%, transparent)`,
           borderRadius: '16px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
@@ -782,10 +783,10 @@ export default function VocalsResourcePage({ onBack }) {
               <p style={{ fontSize: '0.85rem', color: ACCENT, margin: 0 }}>Powered by Google Gemini 2.5 Flash</p>
             </div>
           </div>
-          <p style={{ fontSize: '0.95rem', color: '#9ca3af', lineHeight: '1.6', marginBottom: '16px' }}>
+          <p style={{ fontSize: '0.95rem', color: 'var(--studio-muted)', lineHeight: '1.6', marginBottom: '16px' }}>
             Provide a reference song URL and the system analyzes it through Gemini AI with a professional producer perspective. It extracts:
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '8px' }}>
             {[
               'Warmth (1-10)', 'Depth (1-10)', 'Energy (1-10)',
               'Tone & Timbre', 'Tempo Feel', 'Vocal Style',
@@ -794,14 +795,14 @@ export default function VocalsResourcePage({ onBack }) {
             ].map((item, i) => (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
-                fontSize: '0.85rem', color: '#9ca3af'
+                fontSize: '0.85rem', color: 'var(--studio-muted)'
               }}>
                 <CheckCircle size={12} style={{ color: ACCENT, flexShrink: 0 }} />
                 {item}
               </div>
             ))}
           </div>
-          <p style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '12px', marginBottom: 0 }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--studio-muted)', marginTop: '12px', marginBottom: 0 }}>
             These parameters dynamically override voice settings — higher warmth increases stability, higher energy lowers it for more expression.
           </p>
         </div>
@@ -810,9 +811,9 @@ export default function VocalsResourcePage({ onBack }) {
       {/* ==================== OUTPUT FORMATS ==================== */}
       <section style={{
         padding: '80px 24px',
-        background: 'rgba(255,255,255,0.02)',
-        borderTop: '1px solid rgba(255,255,255,0.05)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)'
+        background: 'var(--studio-surface)',
+        borderTop: '1px solid var(--studio-border)',
+        borderBottom: '1px solid var(--studio-border)'
       }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '40px' }}>
@@ -822,35 +823,35 @@ export default function VocalsResourcePage({ onBack }) {
             }}>
               Output Formats
             </h2>
-            <p style={{ color: '#9ca3af', fontSize: '1rem' }}>
+            <p style={{ color: 'var(--studio-muted)', fontSize: '1rem' }}>
               Every format tunes voice parameters for its target medium.
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '16px' }}>
             {OUTPUT_FORMATS.map((fmt, i) => {
               const Icon = fmt.icon;
               return (
                 <div key={i} style={{
                   padding: '24px',
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'var(--studio-surface)',
+                  border: '1px solid var(--studio-border)',
                   borderRadius: '14px',
                   textAlign: 'center', transition: 'border-color 0.3s'
                 }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = `${fmt.color}40`}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = `color-mix(in srgb, ${fmt.color} 25%, transparent)`}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--studio-border)'}
                 >
                   <div style={{
                     width: '44px', height: '44px', borderRadius: '12px',
-                    background: `${fmt.color}15`, display: 'flex',
+                    background: `color-mix(in srgb, ${fmt.color} 8%, transparent)`, display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
                     margin: '0 auto 12px'
                   }}>
                     <Icon size={22} style={{ color: fmt.color }} />
                   </div>
                   <h3 style={{ fontSize: '1.05rem', fontWeight: '700', marginBottom: '6px' }}>{fmt.format}</h3>
-                  <p style={{ fontSize: '0.85rem', color: '#9ca3af', lineHeight: '1.5', margin: 0 }}>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--studio-muted)', lineHeight: '1.5', margin: 0 }}>
                     {fmt.description}
                   </p>
                 </div>
@@ -866,9 +867,9 @@ export default function VocalsResourcePage({ onBack }) {
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
-              background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.2)',
+              background: 'color-mix(in srgb, var(--studio-sage) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--studio-sage) 20%, transparent)',
               borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
-              fontSize: '0.8rem', color: '#6366f1', fontWeight: '700', letterSpacing: '0.1em'
+              fontSize: '0.8rem', color: 'var(--studio-sage)', fontWeight: '700', letterSpacing: '0.1em'
             }}>
               <HelpCircle size={14} /> FAQ & HELP
             </div>
@@ -883,8 +884,8 @@ export default function VocalsResourcePage({ onBack }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {FAQ_ITEMS.map((faq, i) => (
               <div key={i} style={{
-                background: expandedFaq === i ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${expandedFaq === i ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.06)'}`,
+                background: expandedFaq === i ? 'var(--studio-surface)' : 'var(--studio-surface)',
+                border: `1px solid ${expandedFaq === i ? 'color-mix(in srgb, var(--studio-accent) 20%, transparent)' : 'var(--studio-border)'}`,
                 borderRadius: '12px', overflow: 'hidden',
                 transition: 'all 0.3s'
               }}>
@@ -892,7 +893,7 @@ export default function VocalsResourcePage({ onBack }) {
                   onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
                   style={{
                     width: '100%', padding: '18px 24px', background: 'none', border: 'none',
-                    color: 'white', fontSize: '1rem', fontWeight: '600', textAlign: 'left',
+                    color: 'var(--studio-ink)', fontSize: '1rem', fontWeight: '600', textAlign: 'left',
                     cursor: 'pointer', display: 'flex', alignItems: 'center',
                     justifyContent: 'space-between'
                   }}
@@ -900,13 +901,13 @@ export default function VocalsResourcePage({ onBack }) {
                   {faq.q}
                   <ChevronRight size={18} style={{
                     transform: expandedFaq === i ? 'rotate(90deg)' : 'rotate(0)',
-                    transition: 'transform 0.2s', color: '#6b7280', flexShrink: 0
+                    transition: 'transform 0.2s', color: 'var(--studio-muted)', flexShrink: 0
                   }} />
                 </button>
                 {expandedFaq === i && (
                   <div style={{
                     padding: '0 24px 20px',
-                    fontSize: '0.95rem', color: '#9ca3af', lineHeight: '1.7'
+                    fontSize: '0.95rem', color: 'var(--studio-muted)', lineHeight: '1.7'
                   }}>
                     {faq.a}
                   </div>
@@ -927,7 +928,7 @@ export default function VocalsResourcePage({ onBack }) {
         <div style={{
           position: 'absolute', bottom: '-200px', left: '50%', transform: 'translateX(-50%)',
           width: '800px', height: '400px',
-          background: 'radial-gradient(circle, rgba(168,85,247,0.08) 0%, rgba(236,72,153,0.04) 50%, transparent 70%)',
+          background: 'radial-gradient(circle, color-mix(in srgb, var(--studio-accent) 8%, transparent) 0%, color-mix(in srgb, var(--studio-accent) 4%, transparent) 50%, transparent 70%)',
           pointerEvents: 'none'
         }} />
 
@@ -941,7 +942,7 @@ export default function VocalsResourcePage({ onBack }) {
           }}>
             Your Voice. Your Rules.
           </h2>
-          <p style={{ color: '#9ca3af', fontSize: '1.05rem', marginBottom: '32px', lineHeight: '1.7' }}>
+          <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem', marginBottom: '32px', lineHeight: '1.7' }}>
             Curated studio voices, personal-voice activation, and optional reference analysis are provider-dependent.
             Provider-backed vocals show their source and fail explicitly when unavailable.
           </p>
@@ -950,10 +951,10 @@ export default function VocalsResourcePage({ onBack }) {
               onClick={() => { window.location.hash = '#/studio/agents'; }}
               style={{
                 padding: '14px 36px', borderRadius: '100px', border: 'none',
-                background: 'linear-gradient(135deg, #a855f7, #ec4899)',
-                color: 'white', fontSize: '1.05rem', fontWeight: '700',
+                background: 'var(--studio-accent)',
+                color: 'var(--studio-on-accent)', fontSize: '1.05rem', fontWeight: '700',
                 cursor: 'pointer', letterSpacing: '0.03em',
-                boxShadow: '0 0 30px rgba(168,85,247,0.3)',
+                boxShadow: '0 6px 16px color-mix(in srgb, var(--studio-ink) 12%, transparent)',
                 transition: 'all 0.3s'
               }}
               onMouseEnter={e => e.target.style.transform = 'scale(1.05)'}
@@ -965,8 +966,8 @@ export default function VocalsResourcePage({ onBack }) {
               onClick={() => { window.location.hash = '#/dna'; }}
               style={{
                 padding: '14px 36px', borderRadius: '100px',
-                border: '1px solid rgba(168,85,247,0.3)',
-                background: 'rgba(168,85,247,0.1)',
+                border: '1px solid color-mix(in srgb, var(--studio-accent) 30%, transparent)',
+                background: 'color-mix(in srgb, var(--studio-accent) 10%, transparent)',
                 color: ACCENT, fontSize: '1.05rem', fontWeight: '700',
                 cursor: 'pointer', letterSpacing: '0.03em',
                 transition: 'all 0.3s'
@@ -981,8 +982,8 @@ export default function VocalsResourcePage({ onBack }) {
 
         <div style={{
           marginTop: '48px', paddingTop: '32px',
-          borderTop: '1px solid rgba(255,255,255,0.05)',
-          fontSize: '0.8rem', color: '#4b5563'
+          borderTop: '1px solid var(--studio-border)',
+          fontSize: '0.8rem', color: 'var(--studio-muted)'
         }}>
           © 2026 studioagentsai.com — Vocal Lab is proprietary technology of Studio Agents DAI.
         </div>

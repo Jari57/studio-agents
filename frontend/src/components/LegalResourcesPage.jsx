@@ -23,7 +23,7 @@ const FormattedLegalContent = ({ content, accentColor }) => {
             <h4 key={idx} style={{ 
               fontSize: '1.3rem', 
               fontWeight: '800', 
-              color: 'var(--text-primary)',
+              color: 'var(--studio-ink)',
               marginTop: '16px',
               marginBottom: '6px',
               display: 'flex',
@@ -50,14 +50,14 @@ const FormattedLegalContent = ({ content, accentColor }) => {
               gap: '14px', 
               alignItems: 'flex-start',
               padding: '12px 16px',
-              background: 'rgba(255, 255, 255, 0.02)',
+              background: 'var(--studio-surface)',
               borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.04)'
+              border: '1px solid var(--studio-border)'
             }}>
               <CheckCircle size={16} style={{ color: accentColor, marginTop: '4px', flexShrink: 0 }} />
-              <span style={{ fontSize: '1.05rem', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: '1.05rem', lineHeight: '1.6', color: 'var(--studio-muted)' }}>
                 {trimmed.slice(1).trim().split('**').map((part, i) => 
-                  i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)', fontWeight: '700' }}>{part}</strong> : part
+                  i % 2 === 1 ? <strong key={i} style={{ color: 'var(--studio-ink)', fontWeight: '700' }}>{part}</strong> : part
                 )}
               </span>
             </div>
@@ -72,17 +72,17 @@ const FormattedLegalContent = ({ content, accentColor }) => {
               gap: '14px', 
               alignItems: 'flex-start',
               padding: '16px 20px',
-              background: 'rgba(239, 68, 68, 0.08)',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
+              background: 'color-mix(in srgb, var(--studio-accent) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--studio-accent) 20%, transparent)',
               borderRadius: '12px',
-              color: 'var(--text-secondary)'
+              color: 'var(--studio-muted)'
             }}>
-              <AlertTriangle size={18} style={{ color: '#ef4444', marginTop: '2px', flexShrink: 0 }} />
+              <AlertTriangle size={18} style={{ color: 'var(--studio-accent)', marginTop: '2px', flexShrink: 0 }} />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: '800', color: '#ef4444', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1px' }}>Legal Caution</span>
+                <span style={{ fontWeight: '800', color: 'var(--studio-accent)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1px' }}>Legal Caution</span>
                 <span style={{ fontSize: '1rem', lineHeight: '1.5' }}>
                   {trimmed.slice(2).trim().split('**').map((part, i) => 
-                    i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)' }}>{part}</strong> : part
+                    i % 2 === 1 ? <strong key={i} style={{ color: 'var(--studio-ink)' }}>{part}</strong> : part
                   )}
                 </span>
               </div>
@@ -94,13 +94,13 @@ const FormattedLegalContent = ({ content, accentColor }) => {
         if (trimmed.toLowerCase().startsWith('step ')) {
           return (
             <div key={idx} style={{ 
-              background: 'linear-gradient(90deg, var(--color-bg-elevated), transparent)',
+              background: 'linear-gradient(90deg, var(--studio-surface), transparent)',
               padding: '10px 16px',
               borderRadius: '8px',
               borderLeft: `4px solid ${accentColor}`,
               fontSize: '1.1rem',
               fontWeight: '700',
-              color: 'var(--text-primary)',
+              color: 'var(--studio-ink)',
               marginTop: '10px'
             }}>
               {trimmed}
@@ -113,11 +113,11 @@ const FormattedLegalContent = ({ content, accentColor }) => {
           <p key={idx} style={{ 
             fontSize: '1.1rem', 
             lineHeight: '1.8', 
-            color: 'var(--text-secondary)',
+            color: 'var(--studio-muted)',
             margin: 0
           }}>
             {trimmed.split('**').map((part, i) => 
-              i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)', fontWeight: '700' }}>{part}</strong> : part
+              i % 2 === 1 ? <strong key={i} style={{ color: 'var(--studio-ink)', fontWeight: '700' }}>{part}</strong> : part
             )}
           </p>
         );
@@ -135,7 +135,7 @@ const LegalResourcesPage = ({ onBack }) => {
       title: 'Platform Terms of Service',
       category: 'Legal Agreements',
       icon: Gavel,
-      color: '#ef4444',
+      color: 'var(--studio-accent)',
       readTime: '12 min',
       type: 'Legal',
       summary: 'The binding legal agreement between you and Studio Agents regarding your use of the platform and AI generation services.',
@@ -173,7 +173,7 @@ const LegalResourcesPage = ({ onBack }) => {
       title: 'Global Privacy Policy',
       category: 'Data Protection',
       icon: Shield,
-      color: '#10b981',
+      color: 'var(--studio-sage)',
       readTime: '10 min',
       type: 'Legal',
       summary: 'How we collect, use, and protect your personal data and creative inputs.',
@@ -267,7 +267,7 @@ Each provider has its own privacy policy. We encourage you to review them.`
       title: 'Music Copyright 101: Complete Guide',
       category: 'Foundational Knowledge',
       icon: Shield,
-      color: '#8b5cf6',
+      color: 'var(--studio-accent)',
       readTime: '18 min',
       type: 'Guide',
       summary: 'Everything you need to know about protecting your creative work and understanding your rights as a music creator.',
@@ -548,7 +548,7 @@ Also register with SoundExchange (US) or equivalent for digital performance roya
       title: 'Split Sheet Template & Best Practices',
       category: 'Essential Templates',
       icon: FileText,
-      color: '#06b6d4',
+      color: 'var(--studio-sage)',
       readTime: '10 min',
       type: 'Template',
       summary: 'Protect your collaborations with proper split sheet documentation—the single most important document in music creation.',
@@ -852,7 +852,7 @@ You write new lyrics over a re-sung melody from Hotline Bling:
       title: 'Sync Licensing: Film, TV & Advertising',
       category: 'Revenue Streams',
       icon: Tv,
-      color: '#f59e0b',
+      color: 'var(--studio-accent)',
       readTime: '14 min',
       type: 'Guide',
       summary: 'Unlock one of music\'s most lucrative revenue streams - placing your songs in visual media.',
@@ -1213,7 +1213,7 @@ Sync can be your sustainable income while building your artist career.`
       title: 'Music Publishing 101: Collect What You\'re Owed',
       category: 'Revenue Streams',
       icon: CreditCard,
-      color: '#22c55e',
+      color: 'var(--studio-sage)',
       readTime: '16 min',
       type: 'Guide',
       summary: 'Understand the complex world of music publishing and ensure you\'re collecting every dollar you\'ve earned.',
@@ -1600,7 +1600,7 @@ Publishing is complex, but it's YOUR money. Don't leave it uncollected.`
       title: 'Standard Music Industry Agreements',
       category: 'Legal Documents',
       icon: FileText,
-      color: '#10b981',
+      color: 'var(--studio-sage)',
       readTime: '15 min',
       type: 'Templates',
       summary: 'Essential legal templates and guides for split sheets, work-for-hire, and management contracts.',
@@ -1634,7 +1634,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
       title: 'Industry Research & Strategy Whitepapers',
       category: 'Strategic Analysis',
       icon: Target,
-      color: '#3b82f6',
+      color: 'var(--studio-sage)',
       readTime: '25 min',
       type: 'Data',
       summary: 'In-depth analysis of the 2025 music economy, AI integration reports, and streaming growth strategies.',
@@ -1665,7 +1665,8 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
     return (
       <div className="legal-resources-page" style={{
         minHeight: '100vh',
-        background: 'var(--color-bg-primary)',
+        background: 'var(--studio-bg)',
+        color: 'var(--studio-ink)',
         paddingTop: '80px'
       }}>
         {/* Header */}
@@ -1675,8 +1676,8 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
           left: 0,
           right: 0,
           height: '80px',
-          background: 'var(--color-bg-elevated)',
-          borderBottom: '1px solid var(--border-color)',
+          background: 'var(--studio-surface)',
+          borderBottom: '1px solid var(--studio-border)',
           display: 'flex',
           alignItems: 'center',
           padding: '0 24px',
@@ -1688,7 +1689,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--text-primary)',
+              color: 'var(--studio-ink)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -1714,14 +1715,14 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
           <div style={{
             marginBottom: '48px',
             paddingBottom: '32px',
-            borderBottom: '1px solid var(--border-color)'
+            borderBottom: '1px solid var(--studio-border)'
           }}>
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
               padding: '6px 14px',
-              background: `${selectedResource.color}15`,
+              background: `color-mix(in srgb, ${selectedResource.color} 8%, transparent)`,
               color: selectedResource.color,
               borderRadius: '20px',
               fontSize: '0.75rem',
@@ -1738,7 +1739,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
               fontWeight: '700',
               marginBottom: '16px',
               lineHeight: '1.1',
-              background: 'linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))',
+              background: 'linear-gradient(135deg, var(--studio-accent), var(--studio-sage))',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
@@ -1747,7 +1748,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
             </h1>
             <p style={{
               fontSize: '1.1rem',
-              color: 'var(--text-secondary)',
+              color: 'var(--studio-muted)',
               lineHeight: '1.6',
               marginBottom: '20px'
             }}>
@@ -1758,7 +1759,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
               alignItems: 'center',
               gap: '16px',
               fontSize: '0.85rem',
-              color: 'var(--text-secondary)'
+              color: 'var(--studio-muted)'
             }}>
               <span>⏱️{selectedResource.readTime} read</span>
               <span>•</span>
@@ -1773,9 +1774,9 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
             <div key={idx} style={{
               marginBottom: '40px',
               padding: '32px',
-              background: 'rgba(255, 255, 255, 0.02)',
+              background: 'var(--studio-surface)',
               borderRadius: '24px',
-              border: '1px solid var(--border-color)',
+              border: '1px solid var(--studio-border)',
               position: 'relative',
               overflow: 'hidden'
             }}>
@@ -1786,7 +1787,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
                 right: '-50px',
                 width: '150px',
                 height: '150px',
-                background: `radial-gradient(circle, ${selectedResource.color}15 0%, transparent 70%)`,
+                background: `radial-gradient(circle, color-mix(in srgb, ${selectedResource.color} 8%, transparent) 0%, transparent 70%)`,
                 pointerEvents: 'none'
               }} />
 
@@ -1794,7 +1795,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
                 fontSize: '1.75rem',
                 fontWeight: '800',
                 marginBottom: '24px',
-                color: 'var(--text-primary)',
+                color: 'var(--studio-ink)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '16px',
@@ -1804,14 +1805,14 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
                   width: '36px',
                   height: '36px',
                   borderRadius: '10px',
-                  background: `${selectedResource.color}20`,
+                  background: `color-mix(in srgb, ${selectedResource.color} 13%, transparent)`,
                   color: selectedResource.color,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '1rem',
                   fontWeight: '800',
-                  boxShadow: `0 4px 12px ${selectedResource.color}15`
+                  boxShadow: `0 4px 12px color-mix(in srgb, ${selectedResource.color} 8%, transparent)`
                 }}>
                   {idx + 1}
                 </span>
@@ -1820,7 +1821,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
               <div style={{
                 fontSize: '1.05rem',
                 lineHeight: '1.8',
-                color: 'var(--text-secondary)'
+                color: 'var(--studio-muted)'
               }}>
                 <FormattedLegalContent content={section.content} accentColor={selectedResource.color} />
               </div>
@@ -1831,9 +1832,9 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
           <div style={{
             marginTop: '64px',
             padding: '32px',
-            background: 'var(--color-bg-elevated)',
+            background: 'var(--studio-surface)',
             borderRadius: '16px',
-            border: '1px solid var(--border-color)',
+            border: '1px solid var(--studio-border)',
             textAlign: 'center'
           }}>
             <Shield size={40} style={{ color: selectedResource.color, marginBottom: '16px' }} />
@@ -1846,7 +1847,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
             </h3>
             <p style={{
               fontSize: '1rem',
-              color: 'var(--text-secondary)',
+              color: 'var(--studio-muted)',
               marginBottom: '24px'
             }}>
               Knowledge is power. Use these resources to safeguard your rights and maximize your income.
@@ -1872,7 +1873,8 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
   return (
     <div className="legal-resources-page" style={{
       minHeight: '100vh',
-      background: 'var(--color-bg-primary)',
+      background: 'var(--studio-bg)',
+      color: 'var(--studio-ink)',
       paddingTop: '80px'
     }}>
       {/* Header */}
@@ -1882,8 +1884,8 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
         left: 0,
         right: 0,
         height: '80px',
-        background: 'var(--color-bg-elevated)',
-        borderBottom: '1px solid var(--border-color)',
+        background: 'var(--studio-surface)',
+        borderBottom: '1px solid var(--studio-border)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -1897,7 +1899,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--text-primary)',
+              color: 'var(--studio-ink)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -1914,13 +1916,13 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
           <div style={{
             width: '1px',
             height: '30px',
-            background: 'var(--border-color)'
+            background: 'var(--studio-border)'
           }} />
           <h1 style={{
             fontSize: '1.5rem',
             fontWeight: '700',
             margin: 0,
-            background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+            background: 'linear-gradient(135deg, var(--studio-accent), var(--studio-accent))',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent'
           }}>
@@ -1943,7 +1945,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
           <div style={{
             display: 'inline-flex',
             padding: '12px',
-            background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+            background: 'linear-gradient(135deg, var(--studio-accent), var(--studio-accent))',
             borderRadius: '16px',
             marginBottom: '24px'
           }}>
@@ -1958,7 +1960,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
           </h2>
           <p style={{
             fontSize: '1.2rem',
-            color: 'var(--text-secondary)',
+            color: 'var(--studio-muted)',
             maxWidth: '700px',
             margin: '0 auto',
             lineHeight: '1.6'
@@ -1991,8 +1993,8 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
                 }}
                 style={{
                   padding: '32px',
-                  background: 'var(--color-bg-elevated)',
-                  border: '1px solid var(--border-color)',
+                  background: 'var(--studio-surface)',
+                  border: '1px solid var(--studio-border)',
                   borderRadius: '24px',
                   cursor: 'pointer',
                   transition: 'all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1)',
@@ -2010,7 +2012,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
                   right: '-30px',
                   width: '120px',
                   height: '120px',
-                  background: `radial-gradient(circle, ${resource.color}15 0%, transparent 70%)`,
+                  background: `radial-gradient(circle, color-mix(in srgb, ${resource.color} 8%, transparent) 0%, transparent 70%)`,
                   pointerEvents: 'none'
                 }} />
 
@@ -2023,17 +2025,17 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
                     width: '60px',
                     height: '60px',
                     borderRadius: '16px',
-                    background: `${resource.color}20`,
+                    background: `color-mix(in srgb, ${resource.color} 13%, transparent)`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: `0 8px 16px ${resource.color}10`
+                    boxShadow: `0 8px 16px color-mix(in srgb, ${resource.color} 6%, transparent)`
                   }}>
                     <Icon size={30} style={{ color: resource.color }} />
                   </div>
                   <div style={{
                     padding: '6px 12px',
-                    background: `${resource.color}20`,
+                    background: `color-mix(in srgb, ${resource.color} 13%, transparent)`,
                     color: resource.color,
                     borderRadius: '8px',
                     fontSize: '0.7rem',
@@ -2061,14 +2063,14 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
                     fontWeight: '800',
                     marginBottom: '12px',
                     lineHeight: '1.3',
-                    color: 'var(--text-primary)',
+                    color: 'var(--studio-ink)',
                     letterSpacing: '-0.3px'
                   }}>
                     {resource.title}
                   </h4>
                   <p style={{
                     fontSize: '1rem',
-                    color: 'var(--text-secondary)',
+                    color: 'var(--studio-muted)',
                     lineHeight: '1.6',
                     marginBottom: '20px',
                     display: '-webkit-box',
@@ -2086,14 +2088,14 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   paddingTop: '20px',
-                  borderTop: '1px solid var(--border-color)'
+                  borderTop: '1px solid var(--studio-border)'
                 }}>
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',
                     fontSize: '0.85rem',
-                    color: 'var(--text-secondary)',
+                    color: 'var(--studio-muted)',
                     fontWeight: '600'
                   }}>
                     <span style={{ color: resource.color }}>{resource.type}</span>
@@ -2101,7 +2103,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
                       width: '4px',
                       height: '4px',
                       borderRadius: '50%',
-                      background: 'var(--border-color)'
+                      background: 'var(--studio-border)'
                     }} />
                     <span>{resource.sections.length} Chapters</span>
                   </div>
@@ -2125,12 +2127,12 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
         <div style={{
           marginTop: '64px',
           padding: '40px',
-          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.1))',
+          background: 'linear-gradient(135deg, color-mix(in srgb, var(--studio-accent) 10%, transparent), color-mix(in srgb, var(--studio-accent) 10%, transparent))',
           borderRadius: '20px',
-          border: '1px solid var(--border-color)',
+          border: '1px solid var(--studio-border)',
           textAlign: 'center'
         }}>
-          <BookOpen size={48} style={{ color: '#8b5cf6', marginBottom: '20px' }} />
+          <BookOpen size={48} style={{ color: 'var(--studio-accent)', marginBottom: '20px' }} />
           <h3 style={{
             fontSize: '1.75rem',
             fontWeight: '700',
@@ -2140,7 +2142,7 @@ Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo
           </h3>
           <p style={{
             fontSize: '1.1rem',
-            color: 'var(--text-secondary)',
+            color: 'var(--studio-muted)',
             marginBottom: '24px',
             maxWidth: '600px',
             margin: '0 auto 24px'

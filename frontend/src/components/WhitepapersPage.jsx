@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { AGENT_WHITEPAPER, DEFAULT_WHITEPAPER } from '../data/agentWhitepapers';
 
-const FormattedContent = ({ content, accentColor = '#8b5cf6' }) => {
+const FormattedContent = ({ content, accentColor = 'var(--studio-accent)' }) => {
   if (!content) return null;
 
   const lines = content.split('\n');
@@ -23,7 +23,7 @@ const FormattedContent = ({ content, accentColor = '#8b5cf6' }) => {
             <h4 key={idx} style={{ 
               fontSize: '1.25rem', 
               fontWeight: '700', 
-              color: 'var(--text-primary)',
+              color: 'var(--studio-ink)',
               marginTop: '12px',
               marginBottom: '4px',
               display: 'flex',
@@ -44,14 +44,14 @@ const FormattedContent = ({ content, accentColor = '#8b5cf6' }) => {
               gap: '12px', 
               alignItems: 'flex-start',
               paddingLeft: '8px',
-              color: 'var(--text-secondary)'
+              color: 'var(--studio-muted)'
             }}>
               <div style={{ marginTop: '6px' }}>
                 <CheckCircle size={14} style={{ color: accentColor }} />
               </div>
               <span style={{ fontSize: '1.05rem', lineHeight: '1.6' }}>
                 {trimmed.slice(1).trim().split('**').map((part, i) => 
-                  i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{part}</strong> : part
+                  i % 2 === 1 ? <strong key={i} style={{ color: 'var(--studio-ink)', fontWeight: '600' }}>{part}</strong> : part
                 )}
               </span>
             </div>
@@ -66,17 +66,17 @@ const FormattedContent = ({ content, accentColor = '#8b5cf6' }) => {
               gap: '12px', 
               alignItems: 'flex-start',
               padding: '12px 16px',
-              background: 'rgba(239, 68, 68, 0.05)',
-              borderLeft: '4px solid #ef4444',
+              background: 'color-mix(in srgb, var(--studio-accent) 5%, transparent)',
+              borderLeft: '4px solid var(--studio-accent)',
               borderRadius: '4px',
-              color: 'var(--text-secondary)'
+              color: 'var(--studio-muted)'
             }}>
               <div style={{ marginTop: '2px' }}>
-                <AlertTriangle size={16} style={{ color: '#ef4444' }} />
+                <AlertTriangle size={16} style={{ color: 'var(--studio-accent)' }} />
               </div>
               <span style={{ fontSize: '1rem', lineHeight: '1.5' }}>
                 {trimmed.slice(2).trim().split('**').map((part, i) => 
-                  i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)' }}>{part}</strong> : part
+                  i % 2 === 1 ? <strong key={i} style={{ color: 'var(--studio-ink)' }}>{part}</strong> : part
                 )}
               </span>
             </div>
@@ -88,11 +88,11 @@ const FormattedContent = ({ content, accentColor = '#8b5cf6' }) => {
           <p key={idx} style={{ 
             fontSize: '1.1rem', 
             lineHeight: '1.7', 
-            color: 'var(--text-secondary)',
+            color: 'var(--studio-muted)',
             margin: 0
           }}>
             {trimmed.split('**').map((part, i) => 
-              i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{part}</strong> : part
+              i % 2 === 1 ? <strong key={i} style={{ color: 'var(--studio-ink)', fontWeight: '600' }}>{part}</strong> : part
             )}
           </p>
         );
@@ -110,7 +110,7 @@ const WhitepapersPage = ({ onBack, onSelectAgent: _onSelectAgent, agents }) => {
       title: 'Studio Agents: The Complete Platform',
       category: 'Platform Overview',
       icon: Book,
-      color: '#8b5cf6',
+      color: 'var(--studio-accent)',
       readTime: '15 min',
       summary: 'A comprehensive guide to understanding the Studio Agents ecosystem and how it revolutionizes creative workflows.',
       sections: [
@@ -217,7 +217,7 @@ Our revenue model is transparent: we profit when you succeed, not from churning 
       title: 'AI & Music Rights: What You Need to Know',
       category: 'Legal & Ethics',
       icon: Lightbulb,
-      color: '#06b6d4',
+      color: 'var(--studio-sage)',
       readTime: '12 min',
       summary: 'Navigate the evolving legal landscape of AI-assisted music creation with confidence.',
       sections: [
@@ -381,7 +381,7 @@ These resources are educational, not legal advice, attorney services, or a guara
         title: sharedData.fullName || agent.name,
         category: 'Agent Documentation',
         icon: agent.icon,
-        color: agent.tier === 'free' ? '#22c55e' : agent.tier === 'monthly' ? '#fbbf24' : '#a855f7',
+        color: agent.tier === 'free' ? 'var(--studio-sage)' : agent.tier === 'monthly' ? 'var(--studio-accent)' : 'var(--studio-accent)',
         readTime: `${Math.max(5, sections.length)} min`,
         summary: sharedData.tagline || agent.description || agent.desc,
         sections
@@ -394,7 +394,7 @@ These resources are educational, not legal advice, attorney services, or a guara
       title: `${agent.name}: Technical Deep Dive`,
       category: 'Agent Documentation',
       icon: agent.icon,
-      color: agent.tier === 'free' ? '#22c55e' : agent.tier === 'monthly' ? '#fbbf24' : '#a855f7',
+      color: agent.tier === 'free' ? 'var(--studio-sage)' : agent.tier === 'monthly' ? 'var(--studio-accent)' : 'var(--studio-accent)',
       readTime: '8 min',
       summary: agent.description || agent.desc,
       sections: [
@@ -539,7 +539,8 @@ ${agent.name} gets smarter over time:
     return (
       <div className="whitepapers-page" style={{
         minHeight: '100vh',
-        background: 'var(--color-bg-primary)',
+        background: 'var(--studio-bg)',
+        color: 'var(--studio-ink)',
         paddingTop: '80px'
       }}>
         {/* Header */}
@@ -549,8 +550,8 @@ ${agent.name} gets smarter over time:
           left: 0,
           right: 0,
           height: '80px',
-          background: 'var(--color-bg-elevated)',
-          borderBottom: '1px solid var(--border-color)',
+          background: 'var(--studio-surface)',
+          borderBottom: '1px solid var(--studio-border)',
           display: 'flex',
           alignItems: 'center',
           padding: '0 24px',
@@ -562,7 +563,7 @@ ${agent.name} gets smarter over time:
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--text-primary)',
+              color: 'var(--studio-ink)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -589,14 +590,14 @@ ${agent.name} gets smarter over time:
           <div style={{
             marginBottom: '48px',
             paddingBottom: '32px',
-            borderBottom: '1px solid var(--border-color)'
+            borderBottom: '1px solid var(--studio-border)'
           }}>
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
               padding: '6px 14px',
-              background: `${selectedWhitepaper.color}15`,
+              background: `color-mix(in srgb, ${selectedWhitepaper.color} 8%, transparent)`,
               color: selectedWhitepaper.color,
               borderRadius: '20px',
               fontSize: '0.75rem',
@@ -613,7 +614,7 @@ ${agent.name} gets smarter over time:
               fontWeight: '700',
               marginBottom: '16px',
               lineHeight: '1.1',
-              background: 'linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))',
+              background: 'linear-gradient(135deg, var(--studio-accent), var(--studio-sage))',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
@@ -622,7 +623,7 @@ ${agent.name} gets smarter over time:
             </h1>
             <p style={{
               fontSize: '1.1rem',
-              color: 'var(--text-secondary)',
+              color: 'var(--studio-muted)',
               lineHeight: '1.6',
               marginBottom: '20px'
             }}>
@@ -633,7 +634,7 @@ ${agent.name} gets smarter over time:
               alignItems: 'center',
               gap: '16px',
               fontSize: '0.85rem',
-              color: 'var(--text-secondary)'
+              color: 'var(--studio-muted)'
             }}>
               <span>⏱️{selectedWhitepaper.readTime} read</span>
               <span>•</span>
@@ -646,9 +647,9 @@ ${agent.name} gets smarter over time:
             <div key={idx} style={{
               marginBottom: '64px',
               padding: '32px',
-              background: 'rgba(255, 255, 255, 0.02)',
+              background: 'var(--studio-surface)',
               borderRadius: '24px',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--studio-border)',
               position: 'relative',
               overflow: 'hidden'
             }}>
@@ -659,7 +660,7 @@ ${agent.name} gets smarter over time:
                 right: '-10%',
                 width: '300px',
                 height: '300px',
-                background: `radial-gradient(circle, ${selectedWhitepaper.color}05 0%, transparent 70%)`,
+                background: `radial-gradient(circle, color-mix(in srgb, ${selectedWhitepaper.color} 2%, transparent) 0%, transparent 70%)`,
                 pointerEvents: 'none'
               }} />
 
@@ -667,7 +668,7 @@ ${agent.name} gets smarter over time:
                 fontSize: '2rem',
                 fontWeight: '800',
                 marginBottom: '28px',
-                color: 'var(--text-primary)',
+                color: 'var(--studio-ink)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '16px',
@@ -677,14 +678,14 @@ ${agent.name} gets smarter over time:
                   width: '40px',
                   height: '40px',
                   borderRadius: '12px',
-                  background: `linear-gradient(135deg, ${selectedWhitepaper.color}, ${selectedWhitepaper.color}dd)`,
-                  color: 'white',
+                  background: selectedWhitepaper.color,
+                  color: 'var(--studio-on-accent)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '1.1rem',
                   fontWeight: '800',
-                  boxShadow: `0 8px 20px ${selectedWhitepaper.color}30`
+                  boxShadow: `0 8px 20px color-mix(in srgb, ${selectedWhitepaper.color} 19%, transparent)`
                 }}>
                   {idx + 1}
                 </span>
@@ -702,9 +703,9 @@ ${agent.name} gets smarter over time:
           <div style={{
             marginTop: '64px',
             padding: '32px',
-            background: 'var(--color-bg-elevated)',
+            background: 'var(--studio-surface)',
             borderRadius: '16px',
-            border: '1px solid var(--border-color)',
+            border: '1px solid var(--studio-border)',
             textAlign: 'center'
           }}>
             <h3 style={{
@@ -716,7 +717,7 @@ ${agent.name} gets smarter over time:
             </h3>
             <p style={{
               fontSize: '1rem',
-              color: 'var(--text-secondary)',
+              color: 'var(--studio-muted)',
               marginBottom: '24px'
             }}>
               Explore more resources or start creating with Studio Agents today.
@@ -742,7 +743,8 @@ ${agent.name} gets smarter over time:
   return (
     <div className="whitepapers-page" style={{
       minHeight: '100vh',
-      background: 'var(--color-bg-primary)',
+      background: 'var(--studio-bg)',
+      color: 'var(--studio-ink)',
       paddingTop: '80px'
     }}>
       {/* Header */}
@@ -752,8 +754,8 @@ ${agent.name} gets smarter over time:
         left: 0,
         right: 0,
         height: '80px',
-        background: 'var(--color-bg-elevated)',
-        borderBottom: '1px solid var(--border-color)',
+        background: 'var(--studio-surface)',
+        borderBottom: '1px solid var(--studio-border)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -767,7 +769,7 @@ ${agent.name} gets smarter over time:
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--text-primary)',
+              color: 'var(--studio-ink)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -784,13 +786,13 @@ ${agent.name} gets smarter over time:
           <div style={{
             width: '1px',
             height: '30px',
-            background: 'var(--border-color)'
+            background: 'var(--studio-border)'
           }} />
           <h1 style={{
             fontSize: '1.5rem',
             fontWeight: '700',
             margin: 0,
-            background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)',
+            background: 'linear-gradient(135deg, var(--studio-sage), var(--studio-accent))',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent'
           }}>
@@ -813,7 +815,7 @@ ${agent.name} gets smarter over time:
           <div style={{
             display: 'inline-flex',
             padding: '12px',
-            background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)',
+            background: 'linear-gradient(135deg, var(--studio-sage), var(--studio-accent))',
             borderRadius: '16px',
             marginBottom: '24px'
           }}>
@@ -828,7 +830,7 @@ ${agent.name} gets smarter over time:
           </h2>
           <p style={{
             fontSize: '1.2rem',
-            color: 'var(--text-secondary)',
+            color: 'var(--studio-muted)',
             maxWidth: '700px',
             margin: '0 auto',
             lineHeight: '1.6'
@@ -847,12 +849,12 @@ ${agent.name} gets smarter over time:
             alignItems: 'center',
             gap: '12px'
           }}>
-            <Book size={24} style={{ color: '#8b5cf6' }} />
+            <Book size={24} style={{ color: 'var(--studio-accent)' }} />
             Platform Documentation
           </h3>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 350px), 1fr))',
             gap: '24px'
           }}>
             {platformWhitepapers.map((paper) => {
@@ -864,8 +866,8 @@ ${agent.name} gets smarter over time:
                   onClick={() => setSelectedWhitepaper(paper)}
                   style={{
                     padding: '28px',
-                    background: 'var(--color-bg-elevated)',
-                    border: '1px solid var(--border-color)',
+                    background: 'var(--studio-surface)',
+                    border: '1px solid var(--studio-border)',
                     borderRadius: '16px',
                     cursor: 'pointer',
                     transition: 'all 0.3s ease',
@@ -878,7 +880,7 @@ ${agent.name} gets smarter over time:
                     top: '16px',
                     right: '16px',
                     padding: '4px 10px',
-                    background: `${paper.color}20`,
+                    background: `color-mix(in srgb, ${paper.color} 13%, transparent)`,
                     color: paper.color,
                     borderRadius: '6px',
                     fontSize: '0.7rem',
@@ -891,7 +893,7 @@ ${agent.name} gets smarter over time:
                     width: '56px',
                     height: '56px',
                     borderRadius: '14px',
-                    background: `${paper.color}20`,
+                    background: `color-mix(in srgb, ${paper.color} 13%, transparent)`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -919,7 +921,7 @@ ${agent.name} gets smarter over time:
                   </h4>
                   <p style={{
                     fontSize: '0.95rem',
-                    color: 'var(--text-secondary)',
+                    color: 'var(--studio-muted)',
                     lineHeight: '1.6',
                     marginBottom: '20px'
                   }}>
@@ -952,17 +954,17 @@ ${agent.name} gets smarter over time:
             alignItems: 'center',
             gap: '12px'
           }}>
-            <Zap size={24} style={{ color: '#fbbf24' }} />
+            <Zap size={24} style={{ color: 'var(--studio-accent)' }} />
             Agent Documentation
           </h3>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
             gap: '20px'
           }}>
             {Array.isArray(agents) && agents.map((agent) => {
               const Icon = agent.icon;
-              const tierColor = agent.tier === 'free' ? '#22c55e' : agent.tier === 'monthly' ? '#fbbf24' : '#a855f7';
+              const tierColor = agent.tier === 'free' ? 'var(--studio-sage)' : agent.tier === 'monthly' ? 'var(--studio-accent)' : 'var(--studio-accent)';
               return (
                 <div
                   key={agent.id}
@@ -970,8 +972,8 @@ ${agent.name} gets smarter over time:
                   onClick={() => setSelectedWhitepaper(getAgentWhitepaperData(agent))}
                   style={{
                     padding: '24px',
-                    background: 'var(--color-bg-elevated)',
-                    border: '1px solid var(--border-color)',
+                    background: 'var(--studio-surface)',
+                    border: '1px solid var(--studio-border)',
                     borderRadius: '14px',
                     cursor: 'pointer',
                     transition: 'all 0.3s ease',
@@ -983,7 +985,7 @@ ${agent.name} gets smarter over time:
                     top: '12px',
                     right: '12px',
                     padding: '3px 8px',
-                    background: `${tierColor}20`,
+                    background: `color-mix(in srgb, ${tierColor} 13%, transparent)`,
                     color: tierColor,
                     borderRadius: '6px',
                     fontSize: '0.65rem',
@@ -996,7 +998,7 @@ ${agent.name} gets smarter over time:
                     width: '48px',
                     height: '48px',
                     borderRadius: '12px',
-                    background: `${tierColor}20`,
+                    background: `color-mix(in srgb, ${tierColor} 13%, transparent)`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1013,7 +1015,7 @@ ${agent.name} gets smarter over time:
                   </h4>
                   <p style={{
                     fontSize: '0.85rem',
-                    color: 'var(--text-secondary)',
+                    color: 'var(--studio-muted)',
                     lineHeight: '1.5',
                     marginBottom: '16px'
                   }}>
@@ -1023,7 +1025,7 @@ ${agent.name} gets smarter over time:
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    color: '#06b6d4',
+                    color: 'var(--studio-sage)',
                     fontSize: '0.85rem',
                     fontWeight: '600'
                   }}>

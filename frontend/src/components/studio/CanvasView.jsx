@@ -131,10 +131,10 @@ export default function CanvasView({
   const musicianJourney = useMemo(() => {
     const stageByKey = new Map(pipelineStatus.map(stage => [stage.key, stage]));
     return [
-      { key: 'brief', label: 'Brief', helper: 'Idea & lyrics', stages: ['idea', 'lyrics'], color: '#a855f7', icon: FileText },
-      { key: 'sound', label: 'Sound', helper: 'Beat & vocals', stages: ['beat', 'vocals'], color: '#06b6d4', icon: Music },
-      { key: 'look', label: 'Look', helper: 'Artwork & video', stages: ['artwork', 'video'], color: '#ec4899', icon: ImageIcon },
-      { key: 'release', label: 'Release', helper: 'Master & share', stages: ['master'], color: '#f59e0b', icon: Share2 }
+      { key: 'brief', label: 'Brief', helper: 'Idea & lyrics', stages: ['idea', 'lyrics'], color: 'var(--studio-accent)', icon: FileText },
+      { key: 'sound', label: 'Sound', helper: 'Beat & vocals', stages: ['beat', 'vocals'], color: 'var(--studio-sage)', icon: Music },
+      { key: 'look', label: 'Look', helper: 'Artwork & video', stages: ['artwork', 'video'], color: 'var(--studio-accent)', icon: ImageIcon },
+      { key: 'release', label: 'Release', helper: 'Master & share', stages: ['master'], color: 'var(--studio-warning)', icon: Share2 }
     ].map(step => {
       const completedStages = step.stages.filter(key => stageByKey.get(key)?.status === 'complete');
       const assetCount = step.stages.reduce((total, key) => total + (stageByKey.get(key)?.count || 0), 0);
@@ -507,13 +507,13 @@ export default function CanvasView({
   // ═══════════════════════════════════════════════════════════════════════════════
   return (
     <SectionErrorBoundary name="Project Canvas">
-    <div className="project-canvas-view animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
+    <div className="project-canvas-view animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', position: 'relative', color: 'var(--studio-ink)', background: 'var(--studio-bg)' }}>
 
       {/* ═══════════ SECTION A: COMPACT PROJECT HEADER ═══════════ */}
       <div className="project-canvas-header" style={{
         display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? 'auto minmax(0, 1fr)' : undefined,
         alignItems: 'center', gap: '16px', padding: isMobile ? '16px' : '20px 24px',
-        borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)',
+        borderBottom: '1px solid rgba(var(--studio-ink-rgb),0.06)', background: 'rgba(var(--studio-ink-rgb),0.02)',
         flexWrap: 'wrap'
       }}>
         <button onClick={() => setActiveTab('hub')} className="btn-icon-circle back-btn" style={{ flexShrink: 0 }}>
@@ -540,8 +540,8 @@ export default function CanvasView({
                 if (e.key === 'Escape') { setEditingProjectName(false); }
               }}
               style={{
-                background: 'rgba(255,255,255,0.1)', border: '1px solid var(--color-purple)',
-                borderRadius: '8px', padding: '6px 12px', color: 'white', fontSize: '1.3rem',
+                background: 'rgba(var(--studio-ink-rgb),0.1)', border: '1px solid var(--studio-accent)',
+                borderRadius: '8px', padding: '6px 12px', color: 'var(--studio-ink)', fontSize: '1.3rem',
                 fontWeight: '700', width: '100%', minWidth: 0, boxSizing: 'border-box', outline: 'none'
               }}
             />
@@ -562,13 +562,13 @@ export default function CanvasView({
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
             <span className="badge" style={{ fontSize: '0.7rem' }}>{selectedProject.category || 'General'}</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{selectedProject.date || 'Just now'}</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--studio-muted)' }}>{selectedProject.date || 'Just now'}</span>
             <span style={{
               fontSize: '0.7rem', padding: '2px 10px', borderRadius: '20px',
               background: canvasCompletionPercent === 100
-                ? 'rgba(16, 185, 129, 0.2)'
-                : 'rgba(168, 85, 247, 0.15)',
-              color: canvasCompletionPercent === 100 ? '#10b981' : 'var(--color-purple)',
+                ? 'rgba(86, 105, 84, 0.2)'
+                : 'rgba(163, 66, 41, 0.15)',
+              color: canvasCompletionPercent === 100 ? 'var(--studio-sage)' : 'var(--studio-accent)',
               fontWeight: '600'
             }}>
               {canvasCompletionPercent}% complete
@@ -585,7 +585,7 @@ export default function CanvasView({
             onClick={() => setShowCanvasSidebar(true)}
             className="btn-icon-circle glass"
             title="Project Details"
-            style={{ background: showCanvasSidebar ? 'rgba(168,85,247,0.3)' : undefined }}
+            style={{ background: showCanvasSidebar ? 'rgba(163, 66, 41,0.3)' : undefined }}
           >
             <Layers size={18} />
           </button>
@@ -610,19 +610,19 @@ export default function CanvasView({
       {/* ═══════════ SECTION B: PRODUCTION JOURNEY PIPELINE ═══════════ */}
       <section style={{
         padding: isMobile ? '14px 12px' : '18px 24px',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        background: 'linear-gradient(90deg, rgba(168,85,247,0.07), rgba(6,182,212,0.035))'
+        borderBottom: '1px solid rgba(var(--studio-ink-rgb),0.06)',
+        background: 'linear-gradient(90deg, rgba(163, 66, 41,0.07), rgba(86, 105, 84,0.035))'
       }}>
         <div style={{
           display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between',
           gap: '14px', flexDirection: isMobile ? 'column' : 'row', marginBottom: '12px'
         }}>
           <div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Your next move</div>
-            <div style={{ color: 'white', fontSize: isMobile ? '1rem' : '1.12rem', fontWeight: 750, marginTop: '3px' }}>
+            <div style={{ color: 'var(--studio-muted)', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Your next move</div>
+            <div style={{ color: 'var(--studio-ink)', fontSize: isMobile ? '1rem' : '1.12rem', fontWeight: 750, marginTop: '3px' }}>
               {nextJourneyStep.complete ? 'Your release package is ready to review.' : `Build the ${nextJourneyStep.label.toLowerCase()} of this release.`}
             </div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: '3px' }}>{nextJourneyStep.helper}</div>
+            <div style={{ color: 'var(--studio-muted)', fontSize: '0.78rem', marginTop: '3px' }}>{nextJourneyStep.helper}</div>
           </div>
           <button className="btn-pill primary" onClick={() => { focusJourneyStep(nextJourneyStep); setShowOrchestrator(true); }} style={{ alignSelf: isMobile ? 'flex-start' : 'center', whiteSpace: 'nowrap' }}>
             <Sparkles size={14} /> Continue creating
@@ -639,25 +639,25 @@ export default function CanvasView({
                 aria-pressed={isFocused}
                 style={{
                   textAlign: 'left', padding: isMobile ? '10px' : '12px', borderRadius: '12px', cursor: 'pointer',
-                  border: `1px solid ${isFocused ? step.color : step.complete ? `${step.color}66` : 'rgba(255,255,255,0.09)'}`,
-                  background: isFocused ? `${step.color}22` : step.complete ? `${step.color}12` : 'rgba(255,255,255,0.025)',
-                  color: 'white', minHeight: isMobile ? '74px' : '82px', transition: 'all 0.18s ease'
+                  border: `1px solid ${isFocused ? step.color : step.complete ? `color-mix(in srgb, ${step.color} 40%, transparent)` : 'rgba(var(--studio-ink-rgb),0.09)'}`,
+                  background: isFocused ? `color-mix(in srgb, ${step.color} 13%, transparent)` : step.complete ? `color-mix(in srgb, ${step.color} 7%, transparent)` : 'rgba(32,39,36,0.025)',
+                  color: 'var(--studio-ink)', minHeight: isMobile ? '74px' : '82px', transition: 'all 0.18s ease'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                   <StepIcon size={16} style={{ color: step.color }} />
-                  <span style={{ color: step.complete ? '#86efac' : 'var(--text-secondary)', fontSize: '0.67rem', fontWeight: 700 }}>
+                  <span style={{ color: step.complete ? 'var(--studio-sage)' : 'var(--studio-muted)', fontSize: '0.67rem', fontWeight: 700 }}>
                     {step.complete ? 'Done' : step.assetCount ? `${step.assetCount} saved` : 'Next'}
                   </span>
                 </div>
                 <div style={{ fontWeight: 750, fontSize: '0.87rem', marginTop: '10px' }}>{step.label}</div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.68rem', marginTop: '2px' }}>{step.helper}</div>
+                <div style={{ color: 'var(--studio-muted)', fontSize: '0.68rem', marginTop: '2px' }}>{step.helper}</div>
               </button>
             );
           })}
         </div>
         {pipelineFilter && (
-          <button onClick={() => setPipelineFilter(null)} style={{ marginTop: '10px', background: 'none', border: 0, padding: 0, color: 'var(--text-secondary)', fontSize: '0.72rem', cursor: 'pointer' }}>
+          <button onClick={() => setPipelineFilter(null)} style={{ marginTop: '10px', background: 'none', border: 0, padding: 0, color: 'var(--studio-muted)', fontSize: '0.72rem', cursor: 'pointer' }}>
             Viewing one stage — show every asset
           </button>
         )}
@@ -669,8 +669,8 @@ export default function CanvasView({
       <div style={{
         padding: isMobile ? '16px 12px' : '20px 24px',
         overflowX: 'auto', overflowY: 'hidden',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        background: 'rgba(0,0,0,0.15)',
+        borderBottom: '1px solid rgba(var(--studio-ink-rgb),0.06)',
+        background: 'var(--studio-surface-alt)',
         WebkitOverflowScrolling: 'touch'
       }}>
         <div style={{
@@ -688,7 +688,7 @@ export default function CanvasView({
                     width: isMobile ? '24px' : '48px', height: '2px',
                     background: pipelineStatus[idx - 1].status === 'complete' && isComplete
                       ? `linear-gradient(90deg, ${pipelineStatus[idx - 1].color}, ${stage.color})`
-                      : 'rgba(255,255,255,0.1)',
+                      : 'rgba(var(--studio-ink-rgb),0.1)',
                     transition: 'background 0.4s ease',
                     flexShrink: 0
                   }} />
@@ -708,20 +708,20 @@ export default function CanvasView({
                     borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: isComplete
                       ? `rgba(${stage.colorRgb}, 0.2)`
-                      : 'rgba(255,255,255,0.05)',
+                      : 'rgba(var(--studio-ink-rgb),0.05)',
                     border: isActive
                       ? `2px solid ${stage.color}`
                       : isComplete
                         ? `1.5px solid rgba(${stage.colorRgb}, 0.5)`
-                        : '1.5px solid rgba(255,255,255,0.1)',
-                    boxShadow: isComplete ? `0 0 16px rgba(${stage.colorRgb}, 0.3)` : 'none',
+                        : '1.5px solid rgba(var(--studio-ink-rgb),0.1)',
+                    boxShadow: isComplete ? 'var(--studio-shadow)' : 'none',
                     transition: 'all 0.3s ease'
                   }}>
-                    <StageIcon size={isMobile ? 16 : 20} style={{ color: isComplete ? stage.color : 'rgba(255,255,255,0.3)' }} />
+                    <StageIcon size={isMobile ? 16 : 20} style={{ color: isComplete ? stage.color : 'rgba(var(--studio-ink-rgb),0.3)' }} />
                   </div>
                   <span style={{
                     fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.05em',
-                    color: isActive ? stage.color : isComplete ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)',
+                    color: isActive ? stage.color : isComplete ? 'rgba(var(--studio-ink-rgb),0.7)' : 'rgba(var(--studio-ink-rgb),0.3)',
                     transition: 'color 0.3s ease'
                   }}>
                     {stage.label}
@@ -729,7 +729,7 @@ export default function CanvasView({
                   {stage.count > 0 && stage.key !== 'idea' && (
                     <span style={{
                       position: 'absolute', top: '-4px', right: '-2px',
-                      background: stage.color, color: 'white', fontSize: '0.55rem',
+                      background: stage.color, color: 'var(--studio-on-accent)', fontSize: '0.55rem',
                       fontWeight: '700', width: '16px', height: '16px', borderRadius: '50%',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       boxShadow: `0 0 8px rgba(${stage.colorRgb}, 0.5)`
@@ -747,7 +747,7 @@ export default function CanvasView({
             <button
               onClick={() => setPipelineFilter(null)}
               style={{
-                background: 'none', border: 'none', color: 'var(--text-secondary)',
+                background: 'none', border: 'none', color: 'var(--studio-muted)',
                 fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline'
               }}
             >
@@ -769,8 +769,8 @@ export default function CanvasView({
         <div style={{
           display: 'flex', alignItems: 'center', gap: '8px',
           padding: isMobile ? '10px 12px' : '14px 24px',
-          overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.05)',
-          background: 'rgba(255,255,255,0.02)',
+          overflowX: 'auto', borderBottom: '1px solid rgba(var(--studio-ink-rgb),0.05)',
+          background: 'rgba(var(--studio-ink-rgb),0.02)',
           flexWrap: isMobile ? 'wrap' : 'nowrap'
         }}>
           {[
@@ -788,9 +788,9 @@ export default function CanvasView({
                   padding: isMobile ? '6px 12px' : '6px 16px', borderRadius: '20px', fontSize: '0.78rem',
                   fontWeight: assetFilter === tab.key && !pipelineFilter ? '600' : '500',
                   background: assetFilter === tab.key && !pipelineFilter
-                    ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)',
+                    ? 'rgba(163, 66, 41, 0.2)' : 'rgba(var(--studio-ink-rgb),0.05)',
                   color: assetFilter === tab.key && !pipelineFilter
-                    ? 'var(--color-purple)' : 'var(--text-secondary)',
+                    ? 'var(--studio-accent)' : 'var(--studio-muted)',
                   border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
                   transition: 'all 0.2s ease',
                   minHeight: '36px'
@@ -809,7 +809,7 @@ export default function CanvasView({
               </button>
               <label style={{
                 padding: '6px 14px', borderRadius: '20px', fontSize: '0.78rem',
-                background: 'rgba(6, 182, 212, 0.15)', color: 'var(--color-cyan)',
+                background: 'rgba(86, 105, 84, 0.15)', color: 'var(--studio-sage)',
                 cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
                 fontWeight: '500'
               }}>
@@ -844,16 +844,16 @@ export default function CanvasView({
               </label>
               {/* View Mode Toggle */}
               <div style={{
-                display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '20px',
-                border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden'
+                display: 'flex', background: 'rgba(var(--studio-ink-rgb),0.05)', borderRadius: '20px',
+                border: '1px solid rgba(var(--studio-ink-rgb),0.08)', overflow: 'hidden'
               }}>
                 <button
                   onClick={() => setViewMode('carousel')}
                   title="Carousel view"
                   style={{
                     padding: '6px 10px', border: 'none', cursor: 'pointer',
-                    background: viewMode === 'carousel' ? 'rgba(168, 85, 247, 0.25)' : 'transparent',
-                    color: viewMode === 'carousel' ? 'var(--color-purple)' : 'var(--text-secondary)',
+                    background: viewMode === 'carousel' ? 'rgba(163, 66, 41, 0.25)' : 'transparent',
+                    color: viewMode === 'carousel' ? 'var(--studio-accent)' : 'var(--studio-muted)',
                     display: 'flex', alignItems: 'center', transition: 'all 0.2s'
                   }}
                 >
@@ -864,8 +864,8 @@ export default function CanvasView({
                   title="Grid view"
                   style={{
                     padding: '6px 10px', border: 'none', cursor: 'pointer',
-                    background: viewMode === 'grid' ? 'rgba(168, 85, 247, 0.25)' : 'transparent',
-                    color: viewMode === 'grid' ? 'var(--color-purple)' : 'var(--text-secondary)',
+                    background: viewMode === 'grid' ? 'rgba(163, 66, 41, 0.25)' : 'transparent',
+                    color: viewMode === 'grid' ? 'var(--studio-accent)' : 'var(--studio-muted)',
                     display: 'flex', alignItems: 'center', transition: 'all 0.2s'
                   }}
                 >
@@ -882,8 +882,8 @@ export default function CanvasView({
               style={{
                 display: 'flex', gap: '6px', padding: isMobile ? '8px 12px' : '10px 24px',
                 overflowX: 'auto', overflowY: 'hidden',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
-                background: 'rgba(0,0,0,0.1)',
+                borderBottom: '1px solid rgba(var(--studio-ink-rgb),0.05)',
+                background: 'var(--studio-surface-alt)',
                 scrollbarWidth: 'thin',
                 msOverflowStyle: 'none'
               }}
@@ -892,7 +892,7 @@ export default function CanvasView({
                 const isActive = idx === canvasCarouselIndex;
                 const TypeIcon = getAssetTypeIcon(asset);
                 const aObj = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.name === asset.agent || a.id === asset.agent) : null;
-                const ac = aObj ? getAgentHex(aObj) : 'var(--color-purple)';
+                const ac = aObj ? getAgentHex(aObj) : 'var(--studio-accent)';
                 return (
                   <button
                     key={asset.id || idx}
@@ -904,21 +904,21 @@ export default function CanvasView({
                       height: isMobile ? '52px' : '60px',
                       borderRadius: '10px',
                       border: isActive ? `2px solid ${ac}` : '2px solid transparent',
-                      background: isActive ? `rgba(168, 85, 247, 0.15)` : 'rgba(255,255,255,0.04)',
+                      background: isActive ? `rgba(163, 66, 41, 0.15)` : 'rgba(var(--studio-ink-rgb),0.04)',
                       cursor: 'pointer',
                       overflow: 'hidden',
                       position: 'relative',
                       transition: 'all 0.2s ease',
                       padding: 0,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: isActive ? `0 0 12px rgba(168, 85, 247, 0.3)` : 'none',
+                      boxShadow: isActive ? 'var(--studio-shadow)' : 'none',
                       opacity: isActive ? 1 : 0.7
                     }}
                   >
                     {asset.imageUrl ? (
                       <img src={formatImageSrc(asset.imageUrl)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : asset.videoUrl ? (
-                      <div style={{ width: '100%', height: '100%', background: 'rgba(168, 85, 247, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: '100%', height: '100%', background: 'rgba(163, 66, 41, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <VideoIcon size={18} style={{ color: ac }} />
                       </div>
                     ) : (
@@ -928,7 +928,7 @@ export default function CanvasView({
                     <span style={{
                       position: 'absolute', bottom: '2px', right: '2px',
                       fontSize: '0.5rem', fontWeight: '700',
-                      background: 'rgba(0,0,0,0.7)', color: 'white',
+                      background: 'rgba(32,39,36,0.85)', color: 'var(--studio-inverse)',
                       borderRadius: '4px', padding: '1px 3px',
                       lineHeight: 1
                     }}>{idx + 1}</span>
@@ -950,14 +950,14 @@ export default function CanvasView({
               {filteredCanvasAssets.length > 0 ? filteredCanvasAssets.map((asset, idx) => {
                 const TypeIcon = getAssetTypeIcon(asset);
                 const aObj = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.name === asset.agent || a.id === asset.agent) : null;
-                const ac = aObj ? getAgentHex(aObj) : 'var(--color-purple)';
+                const ac = aObj ? getAgentHex(aObj) : 'var(--studio-accent)';
                 return (
                   <button
                     key={asset.id || idx}
                     onClick={() => { setCanvasCarouselIndex(idx); setViewMode('carousel'); }}
                     style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: 'rgba(var(--studio-ink-rgb),0.04)',
+                      border: '1px solid rgba(var(--studio-ink-rgb),0.08)',
                       borderRadius: '14px',
                       padding: 0,
                       cursor: 'pointer',
@@ -965,14 +965,14 @@ export default function CanvasView({
                       display: 'flex', flexDirection: 'column',
                       transition: 'all 0.2s ease',
                       textAlign: 'left',
-                      color: 'white'
+                      color: 'var(--studio-ink)'
                     }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = ac; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'none'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(var(--studio-ink-rgb),0.08)'; e.currentTarget.style.transform = 'none'; }}
                   >
                     {/* Thumbnail area */}
                     <div style={{
-                      width: '100%', aspectRatio: '1', background: '#0a0a14',
+                      width: '100%', aspectRatio: '1', background: 'var(--studio-surface-alt)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       overflow: 'hidden', position: 'relative'
                     }}>
@@ -989,7 +989,7 @@ export default function CanvasView({
                           <TypeIcon size={28} style={{ color: ac, opacity: 0.8 }} />
                           {(asset.content || asset.snippet) && (
                             <div style={{
-                              fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)',
+                              fontSize: '0.6rem', color: 'rgba(var(--studio-ink-rgb),0.5)',
                               padding: '0 8px', textAlign: 'center',
                               overflow: 'hidden', display: '-webkit-box',
                               WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
@@ -1014,14 +1014,14 @@ export default function CanvasView({
                     {/* Info bar */}
                     <div style={{ padding: '10px', borderTop: `1px solid ${ac}22` }}>
                       <div style={{
-                        fontSize: '0.8rem', fontWeight: '600', color: 'white',
+                        fontSize: '0.8rem', fontWeight: '600', color: 'var(--studio-ink)',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         marginBottom: '3px'
                       }}>
                         {asset.title || 'Untitled'}
                       </div>
                       <div style={{
-                        fontSize: '0.65rem', color: 'var(--text-secondary)',
+                        fontSize: '0.65rem', color: 'var(--studio-muted)',
                         display: 'flex', alignItems: 'center', gap: '4px'
                       }}>
                         <div style={{ width: 5, height: 5, borderRadius: '50%', background: ac, flexShrink: 0 }} />
@@ -1035,10 +1035,10 @@ export default function CanvasView({
                   gridColumn: '1 / -1', padding: '48px', textAlign: 'center'
                 }}>
                   <Layers size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                  <h3 style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  <h3 style={{ color: 'var(--studio-muted)', marginBottom: '8px' }}>
                     {pipelineFilter || assetFilter !== 'all' ? 'No matching assets' : 'No generations yet'}
                   </h3>
-                  <p style={{ color: 'var(--text-secondary)', opacity: 0.7, marginBottom: '24px' }}>
+                  <p style={{ color: 'var(--studio-muted)', opacity: 0.7, marginBottom: '24px' }}>
                     {pipelineFilter || assetFilter !== 'all'
                       ? 'Try a different filter or generate new assets.'
                       : 'Start by opening the Studio Orchestrator.'}
@@ -1057,7 +1057,7 @@ export default function CanvasView({
               const currentAsset = filteredCanvasAssets[canvasCarouselIndex] || filteredCanvasAssets[0];
               if (!currentAsset) return null;
               const agentObj = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.name === currentAsset.agent || a.id === currentAsset.agent) : null;
-              const agentColor = agentObj?.color || 'var(--color-purple)';
+              const agentColor = agentObj?.color || 'var(--studio-accent)';
               const isTextAsset = ['text', 'lyrics', 'script'].includes((currentAsset.type || '').toLowerCase());
 
               return (
@@ -1066,7 +1066,7 @@ export default function CanvasView({
                   <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: isMobile ? '8px 12px' : '10px 24px',
-                    background: 'rgba(0,0,0,0.15)', borderBottom: '1px solid rgba(255,255,255,0.05)'
+                    background: 'var(--studio-surface-alt)', borderBottom: '1px solid rgba(var(--studio-ink-rgb),0.05)'
                   }}>
                     <button
                       onClick={() => setCanvasCarouselIndex(i => Math.max(0, i - 1))}
@@ -1077,10 +1077,10 @@ export default function CanvasView({
                       <ChevronLeft size={18} />
                     </button>
                     <div style={{ textAlign: 'center', minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '600', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--studio-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {currentAsset.title || 'Untitled'}
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--studio-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                         <div style={{ width: 6, height: 6, borderRadius: '50%', background: agentColor }} />
                         {currentAsset.agent} &bull; {canvasCarouselIndex + 1} / {filteredCanvasAssets.length}
                       </div>
@@ -1101,12 +1101,12 @@ export default function CanvasView({
                     onTouchStart={handleCarouselTouchStart}
                     onTouchEnd={handleCarouselTouchEnd}
                   >
-                    {/* Media Display */}
-                    <div style={{
+                    {/* Media Display: intentionally dark, unlike the surrounding work surface. */}
+                    <div className="studio-media-stage" style={{
                       minHeight: isMobile ? '200px' : '340px',
                       maxHeight: isTextAsset ? (isMobile ? '55vh' : '60vh') : (isMobile ? '50vh' : '60vh'),
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: '#000', position: 'relative', overflow: 'hidden'
+                      background: '#202724', position: 'relative', overflow: 'hidden'
                     }}>
                       {/* Video */}
                       {currentAsset.videoUrl && (
@@ -1134,7 +1134,7 @@ export default function CanvasView({
                       {!currentAsset.videoUrl && !currentAsset.imageUrl && (
                         <div style={{
                           width: '100%', padding: isMobile ? '16px' : '32px', display: 'flex', flexDirection: 'column',
-                          background: 'linear-gradient(180deg, rgba(6, 182, 212, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%)',
+                          background: 'linear-gradient(180deg, rgba(86, 105, 84, 0.05) 0%, rgba(163, 66, 41, 0.05) 100%)',
                           minHeight: '200px', maxHeight: isMobile ? '55vh' : '60vh', overflow: 'hidden'
                         }}>
                           {currentAsset.audioUrl && (
@@ -1151,7 +1151,7 @@ export default function CanvasView({
                                   <div style={{ fontWeight: '600', fontSize: '0.9rem', color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {currentAsset.title || 'Untitled Track'}
                                   </div>
-                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                  <div style={{ fontSize: '0.7rem', color: '#c7cdc3', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                                     {currentAsset.agent && <span>{currentAsset.agent}</span>}
                                     {currentAsset.bpm && <span> &bull; {currentAsset.bpm} BPM</span>}
                                   </div>
@@ -1197,7 +1197,7 @@ export default function CanvasView({
                                     if (/^\[.*\]$/.test(line.trim())) {
                                       return (
                                         <div key={i} style={{
-                                          color: 'var(--color-purple)',
+                                          color: '#e5aa8a',
                                           fontWeight: '700',
                                           fontSize: isMobile ? '0.85rem' : '0.95rem',
                                           textTransform: 'uppercase',
@@ -1220,7 +1220,7 @@ export default function CanvasView({
                             </div>
                           )}
                           {!currentAsset.audioUrl && !(currentAsset.content || currentAsset.snippet) && (
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c7cdc3', fontStyle: 'italic' }}>
                               No preview content available.
                             </div>
                           )}
@@ -1249,10 +1249,10 @@ export default function CanvasView({
                         { label: 'Created', value: currentAsset.date || 'Unknown' }
                       ].map(meta => (
                         <div key={meta.label} style={{
-                          background: 'rgba(255,255,255,0.03)', padding: '8px', borderRadius: '10px', textAlign: 'center'
+                          background: 'rgba(var(--studio-ink-rgb),0.03)', padding: '8px', borderRadius: '10px', textAlign: 'center'
                         }}>
-                          <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{meta.label}</div>
-                          <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'white' }}>{meta.value}</div>
+                          <div style={{ fontSize: '0.6rem', color: 'var(--studio-muted)', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{meta.label}</div>
+                          <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--studio-ink)' }}>{meta.value}</div>
                         </div>
                       ))}
                     </div>
@@ -1279,18 +1279,18 @@ export default function CanvasView({
                                 width: isActive ? '24px' : '10px',
                                 height: isActive ? '24px' : '10px',
                                 borderRadius: isActive ? '12px' : '5px',
-                                background: isActive ? 'var(--color-purple)' : 'rgba(255,255,255,0.15)',
+                                background: isActive ? 'var(--studio-accent)' : 'rgba(var(--studio-ink-rgb),0.15)',
                                 border: 'none', cursor: 'pointer',
                                 transition: 'all 0.2s ease', padding: 0,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
                               }}
                             >
-                              {isActive && <TypeIcon size={12} style={{ color: 'white' }} />}
+                              {isActive && <TypeIcon size={12} style={{ color: 'var(--studio-ink)' }} />}
                             </button>
                           );
                         })}
                         {filteredCanvasAssets.length > 20 && (
-                          <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', alignSelf: 'center' }}>+{filteredCanvasAssets.length - 20}</span>
+                          <span style={{ fontSize: '0.6rem', color: 'var(--studio-muted)', alignSelf: 'center' }}>+{filteredCanvasAssets.length - 20}</span>
                         )}
                       </div>
                     )}
@@ -1299,8 +1299,8 @@ export default function CanvasView({
                   {/* Action Buttons — sticky at bottom */}
                   <div style={{
                     padding: '12px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap',
-                    borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0,
-                    background: 'rgba(0,0,0,0.15)',
+                    borderTop: '1px solid rgba(var(--studio-ink-rgb),0.06)', flexShrink: 0,
+                    background: 'var(--studio-surface-alt)',
                     ...(isMobile ? { paddingBottom: 'max(12px, env(safe-area-inset-bottom))' } : {})
                   }}>
                     <button
@@ -1406,18 +1406,18 @@ export default function CanvasView({
                                   }
                                   toast.success('Asset deleted');
                                 }}
-                                style={{ padding: '6px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                                style={{ padding: '6px 16px', background: 'var(--studio-danger)', color: 'var(--studio-on-accent)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
                               >Delete</button>
                               <button
                                 onClick={() => toast.dismiss(t.id)}
-                                style={{ padding: '6px 16px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', cursor: 'pointer' }}
+                                style={{ padding: '6px 16px', background: 'rgba(var(--studio-ink-rgb),0.1)', color: 'var(--studio-ink)', border: '1px solid rgba(var(--studio-ink-rgb),0.2)', borderRadius: '8px', cursor: 'pointer' }}
                               >Cancel</button>
                             </div>
                           </div>
-                        ), { duration: 10000, style: { background: '#1a1a2e', color: 'white', borderRadius: '12px' } });
+                        ), { duration: 10000, style: { background: 'var(--studio-surface)', color: 'var(--studio-ink)', borderRadius: '12px' } });
                       }}
                       className="btn-pill"
-                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', color: '#ef4444' }}
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', color: 'var(--studio-danger)' }}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -1427,8 +1427,8 @@ export default function CanvasView({
                   <div style={{
                     padding: isMobile ? '8px 12px' : '8px 24px',
                     display: 'flex', gap: '8px', flexWrap: 'wrap',
-                    borderTop: '1px solid rgba(255,255,255,0.06)',
-                    background: 'rgba(168, 85, 247, 0.03)'
+                    borderTop: '1px solid rgba(var(--studio-ink-rgb),0.06)',
+                    background: 'rgba(163, 66, 41, 0.03)'
                   }}>
                     {/* Regenerate — creates new version */}
                     <button
@@ -1437,8 +1437,8 @@ export default function CanvasView({
                       className="btn-pill"
                       style={{
                         flex: 1, justifyContent: 'center', fontSize: '0.8rem',
-                        background: 'rgba(168, 85, 247, 0.15)', color: 'var(--color-purple)',
-                        border: '1px solid rgba(168, 85, 247, 0.25)',
+                        background: 'rgba(163, 66, 41, 0.15)', color: 'var(--studio-accent)',
+                        border: '1px solid rgba(163, 66, 41, 0.25)',
                         opacity: regeneratingAssetId ? 0.6 : 1,
                         cursor: regeneratingAssetId ? 'not-allowed' : 'pointer'
                       }}
@@ -1464,9 +1464,9 @@ export default function CanvasView({
                         className="btn-pill"
                         style={{
                           flex: 1, justifyContent: 'center', fontSize: '0.8rem',
-                          background: editingAssetId === currentAsset.id ? 'rgba(34, 197, 94, 0.15)' : 'rgba(6, 182, 212, 0.12)',
-                          color: editingAssetId === currentAsset.id ? '#22c55e' : 'var(--color-cyan)',
-                          border: editingAssetId === currentAsset.id ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(6, 182, 212, 0.2)'
+                          background: editingAssetId === currentAsset.id ? 'rgba(86, 105, 84, 0.15)' : 'rgba(86, 105, 84, 0.12)',
+                          color: editingAssetId === currentAsset.id ? 'var(--studio-sage)' : 'var(--studio-sage)',
+                          border: editingAssetId === currentAsset.id ? '1px solid rgba(86, 105, 84, 0.3)' : '1px solid rgba(86, 105, 84, 0.2)'
                         }}
                       >
                         {editingAssetId === currentAsset.id ? <><X size={14} /> Cancel Edit</> : <><Edit3 size={14} /> Edit</>}
@@ -1478,8 +1478,8 @@ export default function CanvasView({
                         className="btn-pill"
                         style={{
                           flex: 1, justifyContent: 'center', fontSize: '0.8rem',
-                          background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e',
-                          border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: '700'
+                          background: 'rgba(86, 105, 84, 0.2)', color: 'var(--studio-sage)',
+                          border: '1px solid rgba(86, 105, 84, 0.3)', fontWeight: '700'
                         }}
                       >
                         <Check size={14} /> Save Changes
@@ -1491,16 +1491,16 @@ export default function CanvasView({
                   {editingAssetId === currentAsset.id && isTextAsset && (
                     <div style={{
                       padding: isMobile ? '12px' : '12px 24px',
-                      borderTop: '1px solid rgba(34, 197, 94, 0.2)',
-                      background: 'rgba(34, 197, 94, 0.03)'
+                      borderTop: '1px solid rgba(86, 105, 84, 0.2)',
+                      background: 'rgba(86, 105, 84, 0.03)'
                     }}>
                       <textarea
                         value={editDraft}
                         onChange={(e) => setEditDraft(e.target.value)}
                         style={{
                           width: '100%', minHeight: '200px', maxHeight: '50vh',
-                          background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(34, 197, 94, 0.3)',
-                          borderRadius: '12px', padding: '16px', color: 'white',
+                          background: 'var(--studio-surface-alt)', border: '1px solid rgba(86, 105, 84, 0.3)',
+                          borderRadius: '12px', padding: '16px', color: 'var(--studio-ink)',
                           fontSize: '0.95rem', lineHeight: '1.8', resize: 'vertical',
                           fontFamily: "'Georgia', serif", outline: 'none'
                         }}
@@ -1514,7 +1514,7 @@ export default function CanvasView({
                   <div style={{
                     padding: isMobile ? '8px 12px' : '8px 24px',
                     display: 'flex', gap: '8px', flexWrap: 'wrap',
-                    borderTop: '1px solid rgba(255,255,255,0.04)'
+                    borderTop: '1px solid rgba(var(--studio-ink-rgb),0.04)'
                   }}>
                     {/* If viewing lyrics/text → offer to generate beat or vocals inline */}
                     {isTextAsset && (
@@ -1523,7 +1523,7 @@ export default function CanvasView({
                           onClick={() => handleRegenerateAsset({ ...currentAsset, type: 'audio', agent: 'Beat Lab', title: 'Beat', id: `audio-stub-${Date.now()}` })}
                           disabled={!!regeneratingAssetId}
                           className="btn-pill"
-                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(6, 182, 212, 0.12)', color: 'var(--color-cyan)' }}
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(86, 105, 84, 0.12)', color: 'var(--studio-sage)' }}
                         >
                           {regeneratingAssetId?.startsWith?.('audio') ? <Loader2 size={13} className="spin" /> : <Music size={13} />} Generate Beat
                         </button>
@@ -1531,7 +1531,7 @@ export default function CanvasView({
                           onClick={() => handleRegenerateAsset({ ...currentAsset, type: 'vocal', agent: 'Vocal Architect', title: 'Vocals', id: `vocal-stub-${Date.now()}`, content: currentAsset.content })}
                           disabled={!!regeneratingAssetId}
                           className="btn-pill"
-                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(236, 72, 153, 0.12)', color: '#ec4899' }}
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(154, 89, 63, 0.12)', color: 'var(--studio-accent)' }}
                         >
                           {regeneratingAssetId?.startsWith?.('vocal') ? <Loader2 size={13} className="spin" /> : <Mic size={13} />} Add Vocals
                         </button>
@@ -1544,7 +1544,7 @@ export default function CanvasView({
                           onClick={() => handleRegenerateAsset({ type: 'vocal', agent: 'Vocal Architect', title: 'Vocals', id: `vocal-stub-${Date.now()}` })}
                           disabled={!!regeneratingAssetId}
                           className="btn-pill"
-                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(236, 72, 153, 0.12)', color: '#ec4899' }}
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(154, 89, 63, 0.12)', color: 'var(--studio-accent)' }}
                         >
                           <Mic size={13} /> Add Vocals
                         </button>
@@ -1552,14 +1552,14 @@ export default function CanvasView({
                           onClick={() => handleRegenerateAsset({ type: 'image', agent: 'Album Architect', title: 'Artwork', id: `image-stub-${Date.now()}` })}
                           disabled={!!regeneratingAssetId}
                           className="btn-pill"
-                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(168, 85, 247, 0.12)', color: 'var(--color-purple)' }}
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(163, 66, 41, 0.12)', color: 'var(--studio-accent)' }}
                         >
                           <Palette size={13} /> Create Artwork
                         </button>
                         <button
                           onClick={() => setShowStudioSession(true)}
                           className="btn-pill"
-                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e' }}
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(86, 105, 84, 0.12)', color: 'var(--studio-sage)' }}
                         >
                           <LayoutGrid size={13} /> Open Mixer
                         </button>
@@ -1571,7 +1571,7 @@ export default function CanvasView({
                         <button
                           onClick={() => setShowStudioSession(true)}
                           className="btn-pill"
-                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e' }}
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(86, 105, 84, 0.12)', color: 'var(--studio-sage)' }}
                         >
                           <LayoutGrid size={13} /> Open Mixer
                         </button>
@@ -1579,7 +1579,7 @@ export default function CanvasView({
                           onClick={() => handleRegenerateAsset({ type: 'video', agent: 'Video Creator', title: 'Video', id: `video-stub-${Date.now()}` })}
                           disabled={!!regeneratingAssetId}
                           className="btn-pill"
-                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(168, 85, 247, 0.12)', color: 'var(--color-purple)' }}
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(163, 66, 41, 0.12)', color: 'var(--studio-accent)' }}
                         >
                           <Film size={13} /> Create Video
                         </button>
@@ -1591,7 +1591,7 @@ export default function CanvasView({
                         onClick={() => handleRegenerateAsset({ type: 'video', agent: 'Video Creator', title: 'Video', id: `video-stub-${Date.now()}` })}
                         disabled={!!regeneratingAssetId}
                         className="btn-pill"
-                        style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(168, 85, 247, 0.12)', color: 'var(--color-purple)' }}
+                        style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(163, 66, 41, 0.12)', color: 'var(--studio-accent)' }}
                       >
                         <Film size={13} /> Animate to Video
                       </button>
@@ -1601,7 +1601,7 @@ export default function CanvasView({
                       <button
                         onClick={() => setShowStudioSession(true)}
                         className="btn-pill"
-                        style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e' }}
+                        style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(86, 105, 84, 0.12)', color: 'var(--studio-sage)' }}
                       >
                         <LayoutGrid size={13} /> Open Mixer
                       </button>
@@ -1610,7 +1610,7 @@ export default function CanvasView({
                     <button
                       onClick={() => setShowOrchestrator(true)}
                       className="btn-pill"
-                      style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)' }}
+                      style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(var(--studio-ink-rgb),0.05)', color: 'var(--studio-muted)' }}
                     >
                       <Sparkles size={13} /> Full Orchestrator
                     </button>
@@ -1623,15 +1623,15 @@ export default function CanvasView({
                 padding: isMobile ? '24px 16px' : '32px', textAlign: 'center'
               }}>
                 <div style={{
-                  background: 'rgba(255,255,255,0.02)', borderRadius: '16px',
-                  border: '2px dashed rgba(255,255,255,0.05)', padding: isMobile ? '32px 16px' : '40px',
+                  background: 'rgba(var(--studio-ink-rgb),0.02)', borderRadius: '16px',
+                  border: '2px dashed rgba(var(--studio-ink-rgb),0.05)', padding: isMobile ? '32px 16px' : '40px',
                   maxWidth: '500px'
                 }}>
                   <Layers size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                  <h3 style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  <h3 style={{ color: 'var(--studio-muted)', marginBottom: '8px' }}>
                     {pipelineFilter || assetFilter !== 'all' ? 'No matching assets' : 'No generations yet'}
                   </h3>
-                  <p style={{ color: 'var(--text-secondary)', opacity: 0.7, maxWidth: '400px', margin: '0 auto 24px auto' }}>
+                  <p style={{ color: 'var(--studio-muted)', opacity: 0.7, maxWidth: '400px', margin: '0 auto 24px auto' }}>
                     {pipelineFilter || assetFilter !== 'all'
                       ? 'Try a different filter or generate new assets with the Orchestrator.'
                       : 'Start by opening the Studio Orchestrator or uploading your own files.'}
@@ -1659,8 +1659,8 @@ export default function CanvasView({
           <div style={{
             position: 'fixed', top: 0, right: 0, bottom: 0,
             width: isMobile ? '85vw' : '380px', maxWidth: '420px',
-            background: 'var(--color-bg-secondary, #12121a)',
-            borderLeft: '1px solid rgba(255,255,255,0.08)',
+            background: 'var(--studio-surface)',
+            borderLeft: '1px solid rgba(var(--studio-ink-rgb),0.08)',
             zIndex: 91, overflowY: 'auto',
             padding: '24px',
             paddingTop: 'calc(24px + env(safe-area-inset-top, 0px))',
@@ -1694,7 +1694,7 @@ export default function CanvasView({
                         className="haptic-press"
                         onClick={() => setSelectedAgent(agent)}
                         style={{
-                          padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px',
+                          padding: '10px', background: 'rgba(var(--studio-ink-rgb),0.05)', borderRadius: '10px',
                           display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer',
                           border: '1px solid transparent', borderLeft: `3px solid ${ac}`,
                           transition: 'all 0.2s ease'
@@ -1717,7 +1717,7 @@ export default function CanvasView({
                             )}
                           </div>
                           {agent.capabilities && agent.capabilities.length > 0 && (
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--studio-muted)', marginTop: '2px' }}>
                               {agent.capabilities.slice(0, 2).join(' · ')}
                             </div>
                           )}
@@ -1726,13 +1726,13 @@ export default function CanvasView({
                     );
                   })
                 ) : (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>No agents selected</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--studio-muted)' }}>No agents selected</div>
                 )}
                 <button
                   onClick={() => setShowAddAgentModal(true)}
                   style={{
-                    width: '100%', padding: '10px', border: '1px dashed var(--text-secondary)',
-                    borderRadius: '10px', color: 'var(--text-secondary)', background: 'transparent',
+                    width: '100%', padding: '10px', border: '1px dashed var(--studio-muted)',
+                    borderRadius: '10px', color: 'var(--studio-muted)', background: 'transparent',
                     cursor: 'pointer', fontSize: '0.85rem'
                   }}
                 >
@@ -1757,9 +1757,9 @@ export default function CanvasView({
                 className="narrative-textarea"
                 placeholder="Describe your project vision here..."
                 style={{
-                  width: '100%', minHeight: '120px', background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px',
-                  padding: '12px', color: 'white', fontSize: '0.85rem', resize: 'vertical'
+                  width: '100%', minHeight: '120px', background: 'rgba(var(--studio-ink-rgb),0.05)',
+                  border: '1px solid rgba(var(--studio-ink-rgb),0.1)', borderRadius: '10px',
+                  padding: '12px', color: 'var(--studio-ink)', fontSize: '0.85rem', resize: 'vertical'
                 }}
               />
             </div>
@@ -1772,20 +1772,20 @@ export default function CanvasView({
 
               {selectedProject.socialHandle && (
                 <div style={{
-                  background: 'rgba(6, 182, 212, 0.1)', borderRadius: '10px', padding: '14px',
-                  marginBottom: '12px', border: '1px solid rgba(6, 182, 212, 0.2)'
+                  background: 'rgba(86, 105, 84, 0.1)', borderRadius: '10px', padding: '14px',
+                  marginBottom: '12px', border: '1px solid rgba(86, 105, 84, 0.2)'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                     <Share2 size={16} className="text-cyan" />
                     <div>
                       <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{selectedProject.socialHandle}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--studio-muted)', textTransform: 'capitalize' }}>
                         {selectedProject.socialPlatform} &bull; {selectedProject.category}
                       </div>
                     </div>
                   </div>
                   {selectedProject.socialBio && (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--studio-muted)', fontStyle: 'italic', padding: '8px', background: 'var(--studio-surface-alt)', borderRadius: '8px' }}>
                       &ldquo;{selectedProject.socialBio}&rdquo;
                     </div>
                   )}
@@ -1795,16 +1795,16 @@ export default function CanvasView({
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <div style={{
                   padding: '6px 12px', borderRadius: '20px', fontSize: '0.78rem',
-                  background: socialConnections.twitter ? 'rgba(29, 161, 242, 0.2)' : 'rgba(255,255,255,0.1)',
-                  color: socialConnections.twitter ? '#1DA1F2' : 'var(--text-secondary)',
+                  background: socialConnections.twitter ? 'rgba(29, 161, 242, 0.2)' : 'rgba(var(--studio-ink-rgb),0.1)',
+                  color: socialConnections.twitter ? '#1DA1F2' : 'var(--studio-muted)',
                   display: 'flex', alignItems: 'center', gap: '6px'
                 }}>
                   <Twitter size={13} /> {socialConnections.twitter ? 'Connected' : 'Link X'}
                 </div>
                 <div style={{
                   padding: '6px 12px', borderRadius: '20px', fontSize: '0.78rem',
-                  background: socialConnections.instagram ? 'rgba(225, 48, 108, 0.2)' : 'rgba(255,255,255,0.1)',
-                  color: socialConnections.instagram ? '#E1306C' : 'var(--text-secondary)',
+                  background: socialConnections.instagram ? 'rgba(225, 48, 108, 0.2)' : 'rgba(var(--studio-ink-rgb),0.1)',
+                  color: socialConnections.instagram ? '#E1306C' : 'var(--studio-muted)',
                   display: 'flex', alignItems: 'center', gap: '6px'
                 }}>
                   <Instagram size={13} /> {socialConnections.instagram ? 'Connected' : 'Link IG'}
@@ -1814,13 +1814,13 @@ export default function CanvasView({
 
             {/* Orchestrator Quick-Launch */}
             <div style={{
-              padding: '16px', background: 'rgba(168, 85, 247, 0.05)',
-              borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.2)', marginTop: 'auto'
+              padding: '16px', background: 'rgba(163, 66, 41, 0.05)',
+              borderRadius: '12px', border: '1px solid rgba(163, 66, 41, 0.2)', marginTop: 'auto'
             }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '0.95rem', color: 'var(--color-purple)' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '0.95rem', color: 'var(--studio-accent)' }}>
                 <Zap size={16} /> Studio Orchestrator
               </h3>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+              <p style={{ fontSize: '0.78rem', color: 'var(--studio-muted)', marginBottom: '12px' }}>
                 Generate lyrics, beats, visuals & more with one click.
               </p>
               <button

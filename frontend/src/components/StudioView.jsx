@@ -5,6 +5,7 @@ import {
   Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderOpen, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, Database as DatabaseIcon, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio as FileMusic, Activity, Film, FileText, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers, Link2
 } from 'lucide-react';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
+import { useStudioTheme } from '../hooks/useStudioTheme';
 import DOMPurify from 'dompurify';
 import toast from 'react-hot-toast';
 import { 
@@ -88,13 +89,13 @@ import AchievementBadges, { useBadgeTracker } from './AchievementBadges';
 // PRODUCTION PIPELINE STAGES - Journey from idea to master
 // -------------------------------------------------------------------------------
 const PRODUCTION_STAGES = [
-  { key: 'idea',    label: 'IDEA',    icon: Sparkles,  color: '#a855f7', colorRgb: '168,85,247', assetTypes: [] },
-  { key: 'lyrics',  label: 'LYRICS',  icon: FileText,  color: '#8b5cf6', colorRgb: '139,92,246', assetTypes: ['lyrics', 'text'] },
-  { key: 'beat',    label: 'BEAT',    icon: Music,     color: '#06b6d4', colorRgb: '6,182,212',  assetTypes: ['audio'] },
-  { key: 'vocals',  label: 'VOCALS',  icon: Mic,       color: '#fbbf24', colorRgb: '251,191,36',  assetTypes: ['vocal', 'lyricsVocal'] },
-  { key: 'artwork', label: 'ARTWORK', icon: ImageIcon,  color: '#ec4899', colorRgb: '236,72,153', assetTypes: ['image', 'visual'] },
-  { key: 'video',   label: 'VIDEO',   icon: VideoIcon,  color: '#f59e0b', colorRgb: '245,158,11',  assetTypes: ['video'] },
-  { key: 'master',  label: 'MASTER',  icon: Crown,     color: '#f59e0b', colorRgb: '245,158,11', assetTypes: ['pro'] },
+  { key: 'idea',    label: 'IDEA',    icon: Sparkles,  color: "var(--studio-accent)", colorRgb: '168,85,247', assetTypes: [] },
+  { key: 'lyrics',  label: 'LYRICS',  icon: FileText,  color: "var(--studio-accent)", colorRgb: '139,92,246', assetTypes: ['lyrics', 'text'] },
+  { key: 'beat',    label: 'BEAT',    icon: Music,     color: "var(--studio-blue)", colorRgb: '6,182,212',  assetTypes: ['audio'] },
+  { key: 'vocals',  label: 'VOCALS',  icon: Mic,       color: "var(--studio-warning)", colorRgb: '251,191,36',  assetTypes: ['vocal', 'lyricsVocal'] },
+  { key: 'artwork', label: 'ARTWORK', icon: ImageIcon,  color: "var(--studio-accent)", colorRgb: '236,72,153', assetTypes: ['image', 'visual'] },
+  { key: 'video',   label: 'VIDEO',   icon: VideoIcon,  color: "var(--studio-warning)", colorRgb: '245,158,11',  assetTypes: ['video'] },
+  { key: 'master',  label: 'MASTER',  icon: Crown,     color: "var(--studio-warning)", colorRgb: '245,158,11', assetTypes: ['pro'] },
 ];
 
 // -------------------------------------------------------------------------------
@@ -165,8 +166,8 @@ const LazyFallback = () => (
     <div style={{
       width: '24px',
       height: '24px',
-      border: '2px solid rgba(168,85,247,0.2)',
-      borderTopColor: '#a855f7',
+      border: "2px solid rgba(163,66,41, 0.2)",
+      borderTopColor: "var(--studio-accent)",
       borderRadius: '50%',
       animation: 'spin 1s linear infinite',
       marginRight: '12px'
@@ -353,7 +354,7 @@ const MORE_MENU_ITEMS = [
   { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-yellow)' },
   { id: 'media_library', icon: Layers, label: 'Media Library', desc: 'Voices, audio, images & video', color: 'var(--color-pink)' },
   { id: 'dna', icon: Layers, label: 'DNA System', desc: 'Visual, audio & lyrics DNA', color: 'var(--color-emerald)', external: true },
-  { id: 'vocals', icon: Mic, label: 'Vocal Lab', desc: '20+ voices & voice cloning', color: '#fbbf24', external: true },
+  { id: 'vocals', icon: Mic, label: 'Vocal Lab', desc: '20+ voices & voice cloning', color: "var(--studio-warning)", external: true },
   { id: 'billboard', icon: Award, label: 'Billboard Blueprint', desc: 'Make a hit record start to finish', color: 'var(--color-yellow)', external: true },
   { id: 'campaign', icon: Share2, label: 'Content Engine', desc: '1 track → 7-day campaign', color: 'var(--color-cyan)', external: true },
 ];
@@ -458,7 +459,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     const lastTab = localStorage.getItem(`studio_tab_${uid}`);
     return (lastTab && VALID_TABS.includes(lastTab)) ? lastTab : 'mystudio';
   });
-  const [theme, setTheme] = useState(() => localStorage.getItem('studio_theme') || 'dark');
+  const [theme, setTheme] = useStudioTheme();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [selectedAgent, setSelectedAgent] = useState(() => {
     const hash = window.location.hash;
@@ -825,10 +826,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   );
   
   // Persistence Effects
-  useEffect(() => {
-    localStorage.setItem('studio_theme', theme);
-  }, [theme]);
-
   useEffect(() => {
     const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
     if (selectedAgent?.id) {
@@ -3837,7 +3834,6 @@ const fetchUserCredits = useCallback(async (uid) => {
       if (transcript.includes('switch theme') || transcript.includes('toggle theme') || transcript.includes('light mode') || transcript.includes('dark mode')) {
         const newTheme = theme === 'dark' ? 'light' : 'dark';
         setTheme(newTheme);
-        localStorage.setItem('studio_theme', newTheme);
         toast.success(`(art) ${newTheme === 'dark' ? 'Dark' : 'Light'} mode`);
         handleTextToVoice(`Switching to ${newTheme} mode.`);
         return;
@@ -6590,7 +6586,7 @@ ABSOLUTE RULES (violating any = failure):
           <button 
             className="back-to-grid" 
             onClick={() => setSelectedAgent(null)}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', marginBottom: '2rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', color: "var(--studio-muted)", cursor: 'pointer', marginBottom: '2rem' }}
           >
             <ArrowLeft size={20} />
             <span>{activeTab === 'project_canvas' ? 'Back to Project' : 'Back to Agents'}</span>
@@ -6604,12 +6600,12 @@ ABSOLUTE RULES (violating any = failure):
                 </div>
                 <div className="agent-hero-info">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                    <span className="agent-badge" style={{ background: 'linear-gradient(90deg, var(--color-purple), var(--color-cyan))', color: 'white', fontWeight: '800' }}>{selectedAgent.category}</span>
-                    <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.3)' }} />
-                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '1.5px', fontWeight: '800', textTransform: 'uppercase' }}>High-Fidelity Engine</span>
+                    <span className="agent-badge" style={{ background: 'linear-gradient(90deg, var(--color-purple), var(--color-cyan))', color: "var(--studio-on-accent)", fontWeight: '800' }}>{selectedAgent.category}</span>
+                    <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: "rgba(var(--studio-ink-rgb), 0.16)" }} />
+                    <span style={{ fontSize: '0.65rem', color: "var(--studio-muted)", letterSpacing: '1.5px', fontWeight: '800', textTransform: 'uppercase' }}>High-Fidelity Engine</span>
                   </div>
-                  <h2 style={{ fontSize: '2.4rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '8px', background: 'linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.7) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{selectedAgent.name}</h2>
-                  <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.6)', maxWidth: '600px', lineHeight: '1.6' }}>{selectedAgent.description || selectedAgent.desc}</p>
+                  <h2 style={{ fontSize: '2.4rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '8px', color: 'var(--studio-ink)' }}>{selectedAgent.name}</h2>
+                  <p style={{ fontSize: '1rem', color: "var(--studio-muted)", maxWidth: '600px', lineHeight: '1.6' }}>{selectedAgent.description || selectedAgent.desc}</p>
                 </div>
               </div>
 
@@ -6627,11 +6623,11 @@ ABSOLUTE RULES (violating any = failure):
                             flex: 1,
                             padding: '8px 12px',
                             borderRadius: '10px',
-                            border: creatorMode === mode.id ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.1)',
+                            border: creatorMode === mode.id ? "2px solid var(--studio-accent)" : "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                             background: creatorMode === mode.id
-                              ? 'linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.15))'
-                              : 'rgba(255,255,255,0.04)',
-                            color: creatorMode === mode.id ? 'white' : 'rgba(255,255,255,0.5)',
+                              ? "linear-gradient(135deg, rgba(163,66,41, 0.25), rgba(61,100,114, 0.15))"
+                              : "rgba(var(--studio-ink-rgb), 0.04)",
+                            color: creatorMode === mode.id ? "var(--studio-ink)" : "var(--studio-muted)",
                             cursor: 'pointer',
                             fontSize: '0.8rem',
                             fontWeight: creatorMode === mode.id ? '700' : '500',
@@ -6749,69 +6745,69 @@ ABSOLUTE RULES (violating any = failure):
                         
                         {showVoiceHelp && (
                           <div className="voice-settings-dropdown animate-fadeInUp" style={{ width: isMobile ? '92vw' : '380px', right: isMobile ? '0' : '40px', maxHeight: '70vh', overflowY: 'auto', padding: '16px' }}>
-                            <div style={{ marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: '700', color: 'white', fontFamily: 'Georgia, serif' }}>Vocal Creation Guide</h4>
-                              <p style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>Everything you can do with AI vocals</p>
+                            <div style={{ marginBottom: '12px', paddingBottom: '10px', borderBottom: "1px solid rgba(var(--studio-ink-rgb), 0.08)" }}>
+                              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: '700', color: "var(--studio-ink)", fontFamily: 'Georgia, serif' }}>Vocal Creation Guide</h4>
+                              <p style={{ margin: 0, fontSize: '0.7rem', color: "var(--studio-muted)" }}>Everything you can do with AI vocals</p>
                             </div>
 
-                            <div className="settings-group" style={{ background: 'rgba(168,85,247,0.06)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+                            <div className="settings-group" style={{ background: "rgba(163,66,41, 0.06)", padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
                               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
-                                <Mic size={14} style={{ color: '#a855f7' }} /> AI Rapper Voices
+                                <Mic size={14} style={{ color: "var(--studio-accent)" }} /> AI Rapper Voices
                               </label>
                               <p className="help-text small" style={{ marginTop: '4px' }}>Male & female rappers with 8 delivery styles: Aggressive, Melodic, Trap, Drill, Boom-Bap, Fast Flow, Chill, and Hype.</p>
-                              <div style={{ marginTop: '6px', padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+                              <div style={{ marginTop: '6px', padding: '6px 8px', background: "var(--studio-surface-alt)", borderRadius: '6px', fontSize: '0.7rem', color: "var(--studio-muted)", fontStyle: 'italic' }}>
                                 Try: "Spit a 16-bar verse about making it from nothing, aggressive trap flow"
                               </div>
                             </div>
 
-                            <div className="settings-group" style={{ background: 'rgba(6,182,212,0.06)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+                            <div className="settings-group" style={{ background: "rgba(61,100,114, 0.06)", padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
                               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
-                                <Music size={14} style={{ color: '#06b6d4' }} /> AI Singer Voices
+                                <Music size={14} style={{ color: "var(--studio-blue)" }} /> AI Singer Voices
                               </label>
                               <p className="help-text small" style={{ marginTop: '4px' }}>Male & female singers across R&B/Soul, Pop, Hip-Hop, Country, Rock, and Jazz genres.</p>
-                              <div style={{ marginTop: '6px', padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+                              <div style={{ marginTop: '6px', padding: '6px 8px', background: "var(--studio-surface-alt)", borderRadius: '6px', fontSize: '0.7rem', color: "var(--studio-muted)", fontStyle: 'italic' }}>
                                 Try: "Sing a soulful R&B hook about summer nights in the city"
                               </div>
                             </div>
 
                             <div className="settings-group" style={{ background: 'rgba(251,191,36,0.06)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
                               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
-                                <Mic size={14} style={{ color: '#fbbf24' }} /> Voice Cloning
+                                <Mic size={14} style={{ color: "var(--studio-warning)" }} /> Voice Cloning
                               </label>
                               <p className="help-text small" style={{ marginTop: '4px' }}>Upload a clear 5-10 second audio clip (.wav/.mp3) and the AI will learn your voice. Use it for every generation after.</p>
-                              <div style={{ marginTop: '6px', padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+                              <div style={{ marginTop: '6px', padding: '6px 8px', background: "var(--studio-surface-alt)", borderRadius: '6px', fontSize: '0.7rem', color: "var(--studio-muted)", fontStyle: 'italic' }}>
                                 Tip: Record in a quiet room, speak naturally, avoid background music
                               </div>
                             </div>
 
-                            <div className="settings-group" style={{ background: 'rgba(236,72,153,0.06)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+                            <div className="settings-group" style={{ background: "rgba(163,66,41, 0.06)", padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
                               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
-                                <Sparkles size={14} style={{ color: '#ec4899' }} /> Premium ElevenLabs
+                                <Sparkles size={14} style={{ color: "var(--studio-accent)" }} /> Premium ElevenLabs
                               </label>
                               <p className="help-text small" style={{ marginTop: '4px' }}>Select from premium AI voices with ultra-realistic tone and emotion. Available for Vocal Lab, Vocal Architect, Ghostwriter, Voiceover & Podcast agents.</p>
                             </div>
 
-                            <div className="settings-group" style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+                            <div className="settings-group" style={{ background: "rgba(var(--studio-ink-rgb), 0.03)", padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
                               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
-                                <Volume2 size={14} style={{ color: '#10b981' }} /> Narrator & Spoken Word
+                                <Volume2 size={14} style={{ color: "var(--studio-sage)" }} /> Narrator & Spoken Word
                               </label>
                               <p className="help-text small" style={{ marginTop: '4px' }}>Deep narrator voice for intros/outros, or spoken word style for poetry and storytelling.</p>
                             </div>
 
-                            <div style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '8px' }}>
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', fontSize: '0.8rem', color: 'rgba(255,255,255,0.9)' }}>
+                            <div style={{ padding: '10px', background: "rgba(var(--studio-ink-rgb), 0.03)", borderRadius: '8px', marginBottom: '8px' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', fontSize: '0.8rem', color: "var(--studio-ink)" }}>
                                 <Settings size={14} /> Quick Settings
                               </label>
                               <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                                 {['15s', '30s', '1min', '2min', '3min'].map(d => (
-                                  <span key={d} style={{ padding: '2px 8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)' }}>{d}</span>
+                                  <span key={d} style={{ padding: '2px 8px', background: "rgba(var(--studio-ink-rgb), 0.06)", borderRadius: '4px', fontSize: '0.65rem', color: "var(--studio-muted)" }}>{d}</span>
                                 ))}
                               </div>
                               <p className="help-text small" style={{ marginTop: '6px' }}>9 languages supported: English, Spanish, French, German, Italian, Portuguese, Japanese, Korean, Chinese</p>
                             </div>
 
-                            <div style={{ padding: '8px', background: 'linear-gradient(135deg, rgba(168,85,247,0.1), rgba(6,182,212,0.1))', borderRadius: '8px', textAlign: 'center' }}>
-                              <p style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)' }}>Set voice type & style in <strong style={{ color: 'white' }}>Settings</strong>, then type your lyrics and hit <strong style={{ color: '#a855f7' }}>Generate</strong></p>
+                            <div style={{ padding: '8px', background: "linear-gradient(135deg, rgba(163,66,41, 0.1), rgba(61,100,114, 0.1))", borderRadius: '8px', textAlign: 'center' }}>
+                              <p style={{ margin: 0, fontSize: '0.7rem', color: "var(--studio-muted)" }}>Set voice type & style in <strong style={{ color: "var(--studio-ink)" }}>Settings</strong>, then type your lyrics and hit <strong style={{ color: "var(--studio-accent)" }}>Generate</strong></p>
                             </div>
                           </div>
                         )}
@@ -6859,10 +6855,10 @@ ABSOLUTE RULES (violating any = failure):
                             {/* Voice Cloning / Upload Section */}
                             <div className="settings-group" style={{ 
                               padding: '10px', 
-                              background: 'rgba(255,255,255,0.03)', 
+                              background: "rgba(var(--studio-ink-rgb), 0.03)",
                               borderRadius: '8px',
                               marginTop: '8px',
-                              border: '1px dashed rgba(255,255,255,0.1)'
+                              border: "1px dashed rgba(var(--studio-ink-rgb), 0.1)"
                             }}>
                               <label style={{ fontSize: '0.75rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <Cloud size={14} className="text-cyan" /> 
@@ -6894,13 +6890,13 @@ ABSOLUTE RULES (violating any = failure):
                                     padding: '12px', 
                                     textAlign: 'center', 
                                     cursor: 'pointer',
-                                    border: '1px dashed rgba(255,255,255,0.2)',
+                                    border: "1px dashed rgba(var(--studio-ink-rgb), 0.16)",
                                     borderRadius: '6px',
                                     fontSize: '0.75rem',
                                     color: 'var(--text-secondary)',
                                     transition: 'all 0.2s'
                                   }}
-                                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                  onMouseOver={(e) => e.currentTarget.style.background = "rgba(var(--studio-ink-rgb), 0.05)"}
                                   onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                                 >
                                   <Upload size={16} style={{ marginBottom: '4px' }} />
@@ -7066,7 +7062,7 @@ ABSOLUTE RULES (violating any = failure):
                     padding: '12px',
                     background: 'var(--color-bg-secondary)',
                     borderRadius: '12px',
-                    border: '1px solid rgba(255, 255, 255, 0.06)'
+                    border: "1px solid rgba(var(--studio-ink-rgb), 0.06)"
                   }}>
                     <div style={{ 
                       display: 'flex', 
@@ -7079,7 +7075,7 @@ ABSOLUTE RULES (violating any = failure):
                           width: '36px',
                           height: '36px',
                           borderRadius: '10px',
-                          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(6, 182, 212, 0.2))',
+                          background: "linear-gradient(135deg, rgba(163,66,41, 0.2), rgba(61,100,114, 0.2))",
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
@@ -7088,7 +7084,7 @@ ABSOLUTE RULES (violating any = failure):
                         </div>
                         <div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>AI Model</div>
-                          <div style={{ fontSize: '0.9rem', fontWeight: '600', color: 'white' }}>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '600', color: "var(--studio-ink)" }}>
                             {AI_MODELS.find(m => m.id === selectedModel)?.name || 'Gemini Flash'}
                           </div>
                         </div>
@@ -7099,8 +7095,8 @@ ABSOLUTE RULES (violating any = failure):
                         onChange={(e) => setSelectedModel(e.target.value)}
                         style={{
                           padding: '8px 32px 8px 12px',
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          background: "rgba(var(--studio-ink-rgb), 0.05)",
+                          border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                           borderRadius: '8px',
                           color: 'var(--text-secondary)',
                           fontSize: '0.75rem',
@@ -7136,14 +7132,14 @@ ABSOLUTE RULES (violating any = failure):
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <DatabaseIcon size={16} color="var(--color-purple)" />
-                      <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'rgba(255,255,255,0.8)' }}>Studio DNA Vault</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '600', color: "var(--studio-ink)" }}>Studio DNA Vault</span>
                     </div>
                     <button 
                       onClick={() => setShowDnaVault(!showDnaVault)}
                       style={{
                         padding: '4px 8px',
-                        background: 'rgba(168, 85, 247, 0.1)',
-                        border: '1px solid rgba(168, 85, 247, 0.2)',
+                        background: "rgba(163,66,41, 0.1)",
+                        border: "1px solid rgba(163,66,41, 0.2)",
                         borderRadius: '6px',
                         fontSize: '0.7rem',
                         color: 'var(--color-purple)',
@@ -7170,77 +7166,77 @@ ABSOLUTE RULES (violating any = failure):
                     {/* Educational Section for DNA */}
                     <div style={{
                       padding: '14px',
-                      background: 'rgba(168, 85, 247, 0.05)',
+                      background: "rgba(163,66,41, 0.05)",
                       borderRadius: '10px',
-                      border: '1px solid rgba(168, 85, 247, 0.1)',
+                      border: "1px solid rgba(163,66,41, 0.1)",
                       marginBottom: '10px'
                     }}>
-                      <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: '#a855f7', fontWeight: 'bold', fontFamily: 'Georgia, serif' }}>What is DNA?</h4>
-                      <p style={{ margin: '0 0 10px 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.5', fontFamily: 'Georgia, serif' }}>
+                      <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: "var(--studio-accent)", fontWeight: 'bold', fontFamily: 'Georgia, serif' }}>What is DNA?</h4>
+                      <p style={{ margin: '0 0 10px 0', fontSize: '0.75rem', color: "var(--studio-muted)", lineHeight: '1.5', fontFamily: 'Georgia, serif' }}>
                         Studio DNA captures your artistic identity. Upload references so the AI "inherits" your style — every generation feels like <em>your</em> creation.
                       </p>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: 'rgba(236,72,153,0.06)', borderRadius: '6px' }}>
-                          <ImageIcon size={14} color="#ec4899" style={{ marginTop: '2px', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: "rgba(163,66,41, 0.06)", borderRadius: '6px' }}>
+                          <ImageIcon size={14} color="var(--studio-accent)" style={{ marginTop: '2px', flexShrink: 0 }} />
                           <div>
-                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#ec4899' }}>Visual DNA</div>
-                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Upload mood boards, album art refs, or screenshots. AI matches your aesthetic for covers, videos, and visuals.</div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: "var(--studio-accent)" }}>Visual DNA</div>
+                            <div style={{ fontSize: '0.68rem', color: "var(--studio-muted)", lineHeight: '1.4' }}>Upload mood boards, album art refs, or screenshots. AI matches your aesthetic for covers, videos, and visuals.</div>
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: 'rgba(6,182,212,0.06)', borderRadius: '6px' }}>
-                          <Music size={14} color="#06b6d4" style={{ marginTop: '2px', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: "rgba(61,100,114, 0.06)", borderRadius: '6px' }}>
+                          <Music size={14} color="var(--studio-blue)" style={{ marginTop: '2px', flexShrink: 0 }} />
                           <div>
-                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#06b6d4' }}>Audio DNA</div>
-                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Reference beats, samples, or backing tracks. The AI inherits tempo, key & vibe for new beats or vocal mixing.</div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: "var(--studio-blue)" }}>Audio DNA</div>
+                            <div style={{ fontSize: '0.68rem', color: "var(--studio-muted)", lineHeight: '1.4' }}>Reference beats, samples, or backing tracks. The AI inherits tempo, key & vibe for new beats or vocal mixing.</div>
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: 'rgba(168,85,247,0.06)', borderRadius: '6px' }}>
-                          <FileText size={14} color="#a855f7" style={{ marginTop: '2px', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: "rgba(163,66,41, 0.06)", borderRadius: '6px' }}>
+                          <FileText size={14} color="var(--studio-accent)" style={{ marginTop: '2px', flexShrink: 0 }} />
                           <div>
-                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#a855f7' }}>Lyrics DNA</div>
-                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Upload reference lyrics, poetry, or text files. AI learns your writing style, wordplay, and themes.</div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: "var(--studio-accent)" }}>Lyrics DNA</div>
+                            <div style={{ fontSize: '0.68rem', color: "var(--studio-muted)", lineHeight: '1.4' }}>Upload reference lyrics, poetry, or text files. AI learns your writing style, wordplay, and themes.</div>
                           </div>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: 'rgba(251,191,36,0.06)', borderRadius: '6px' }}>
-                          <Mic size={14} color="#fbbf24" style={{ marginTop: '2px', flexShrink: 0 }} />
+                          <Mic size={14} color="var(--studio-warning)" style={{ marginTop: '2px', flexShrink: 0 }} />
                           <div>
-                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#fbbf24' }}>Voice Clone</div>
-                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Upload a clean 15-30s voice clip and confirm ownership. Vocal Lab will lock future runs to that personal voice.</div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: "var(--studio-warning)" }}>Voice Clone</div>
+                            <div style={{ fontSize: '0.68rem', color: "var(--studio-muted)", lineHeight: '1.4' }}>Upload a clean 15-30s voice clip and confirm ownership. Vocal Lab will lock future runs to that personal voice.</div>
                           </div>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: 'rgba(239,68,68,0.06)', borderRadius: '6px' }}>
-                          <VideoIcon size={14} color="#ef4444" style={{ marginTop: '2px', flexShrink: 0 }} />
+                          <VideoIcon size={14} color="var(--studio-danger)" style={{ marginTop: '2px', flexShrink: 0 }} />
                           <div>
-                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#ef4444' }}>Seed DNA</div>
-                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Upload a scene, character, or still frame. AI uses it as a starting point for video generation.</div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: "var(--studio-danger)" }}>Seed DNA</div>
+                            <div style={{ fontSize: '0.68rem', color: "var(--studio-muted)", lineHeight: '1.4' }}>Upload a scene, character, or still frame. AI uses it as a starting point for video generation.</div>
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
-                          <Hash size={14} color="#06b6d4" style={{ marginTop: '2px', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: "rgba(var(--studio-ink-rgb), 0.03)", borderRadius: '6px' }}>
+                          <Hash size={14} color="var(--studio-blue)" style={{ marginTop: '2px', flexShrink: 0 }} />
                           <div>
-                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'rgba(255,255,255,0.7)' }}>Audio / Visual IDs</div>
-                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Paste an Asset ID from your project to reference existing tracks or visuals across agents.</div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: "var(--studio-muted)" }}>Audio / Visual IDs</div>
+                            <div style={{ fontSize: '0.68rem', color: "var(--studio-muted)", lineHeight: '1.4' }}>Paste an Asset ID from your project to reference existing tracks or visuals across agents.</div>
                           </div>
                         </div>
                       </div>
 
-                      <div style={{ marginTop: '10px', padding: '8px', background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(6,182,212,0.08))', borderRadius: '6px', textAlign: 'center' }}>
-                        <p style={{ margin: 0, fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)' }}>Upload any combo of DNA slots, then describe what you want — the AI blends them into your generation.</p>
+                      <div style={{ marginTop: '10px', padding: '8px', background: "linear-gradient(135deg, rgba(163,66,41, 0.08), rgba(61,100,114, 0.08))", borderRadius: '6px', textAlign: 'center' }}>
+                        <p style={{ margin: 0, fontSize: '0.68rem', color: "var(--studio-muted)" }}>Upload any combo of DNA slots, then describe what you want — the AI blends them into your generation.</p>
                       </div>
                     </div>
 
                     {/* Visual DNA Upload */}
                     <div className="reference-upload-card" style={{
                       padding: '10px 12px',
-                      background: 'rgba(255, 255, 255, 0.03)',
+                      background: "rgba(var(--studio-ink-rgb), 0.03)",
                       borderRadius: '10px',
-                      border: (selectedAgent?.id === 'album' || selectedAgent?.id === 'video-creator') ? '1px dashed #ec489950' : '1px dashed rgba(255, 255, 255, 0.1)',
+                      border: (selectedAgent?.id === 'album' || selectedAgent?.id === 'video-creator') ? '1px dashed #ec489950' : "1px dashed rgba(var(--studio-ink-rgb), 0.1)",
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -7250,25 +7246,25 @@ ABSOLUTE RULES (violating any = failure):
                           width: '32px',
                           height: '32px',
                           borderRadius: '8px',
-                          background: 'rgba(236, 72, 153, 0.1)',
+                          background: "rgba(163,66,41, 0.1)",
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          <ImageIcon size={16} color="#ec4899" />
+                          <ImageIcon size={16} color="var(--studio-accent)" />
                         </div>
                         <div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Visual DNA</div>
-                          <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '0.8rem', color: "var(--studio-ink)", fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {visualDnaUrl ? 'Image Attached' : 'Reference Image...'}
                           </div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         {visualDnaUrl && (
-                          <button onClick={() => setVisualDnaUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                          <button onClick={() => setVisualDnaUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: "var(--studio-muted)", cursor: 'pointer' }}><X size={14} /></button>
                         )}
-                        <label style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: 'white' }}>
+                        <label style={{ padding: '5px 10px', background: "rgba(var(--studio-ink-rgb), 0.05)", borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: "var(--studio-ink)" }}>
                           <input id="visual-dna-input" type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleUploadDna('visual', e)} />
                           {isUploadingDna.visual ? <Loader2 size={12} className="spin" /> : 'Upload'}
                         </label>
@@ -7278,9 +7274,9 @@ ABSOLUTE RULES (violating any = failure):
                     {/* Audio DNA Upload */}
                     <div className="reference-upload-card" style={{
                       padding: '10px 12px',
-                      background: 'rgba(255, 255, 255, 0.03)',
+                      background: "rgba(var(--studio-ink-rgb), 0.03)",
                       borderRadius: '10px',
-                      border: (selectedAgent?.id === 'beat' || selectedAgent?.id === 'sample' || selectedAgent?.id === 'video-creator') ? '1px dashed var(--color-cyan-semi)' : '1px dashed rgba(255, 255, 255, 0.1)',
+                      border: (selectedAgent?.id === 'beat' || selectedAgent?.id === 'sample' || selectedAgent?.id === 'video-creator') ? '1px dashed var(--color-cyan-semi)' : "1px dashed rgba(var(--studio-ink-rgb), 0.1)",
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -7290,7 +7286,7 @@ ABSOLUTE RULES (violating any = failure):
                           width: '32px',
                           height: '32px',
                           borderRadius: '8px',
-                          background: 'rgba(6, 182, 212, 0.1)',
+                          background: "rgba(61,100,114, 0.1)",
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
@@ -7299,16 +7295,16 @@ ABSOLUTE RULES (violating any = failure):
                         </div>
                         <div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Audio DNA</div>
-                          <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '0.8rem', color: "var(--studio-ink)", fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {audioDnaUrl ? 'Sound Attached' : backingTrack ? backingTrack.title : 'Reference Audio...'}
                           </div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         {(audioDnaUrl || backingTrack) && (
-                          <button onClick={() => { setAudioDnaUrl(null); setBackingTrack(null); }} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                          <button onClick={() => { setAudioDnaUrl(null); setBackingTrack(null); }} style={{ padding: '6px', background: 'none', border: 'none', color: "var(--studio-muted)", cursor: 'pointer' }}><X size={14} /></button>
                         )}
-                        <label style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: 'white' }}>
+                        <label style={{ padding: '5px 10px', background: "rgba(var(--studio-ink-rgb), 0.05)", borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: "var(--studio-ink)" }}>
                           <input id="audio-dna-input" type="file" accept="audio/*" style={{ display: 'none' }} onChange={(e) => handleUploadDna('audio', e)} />
                           {isUploadingDna.audio ? <Loader2 size={12} className="spin" /> : 'Upload'}
                         </label>
@@ -7318,9 +7314,9 @@ ABSOLUTE RULES (violating any = failure):
                     {/* Lyrics DNA Upload */}
                     <div className="reference-upload-card" style={{
                       padding: '10px 12px',
-                      background: 'rgba(255, 255, 255, 0.03)',
+                      background: "rgba(var(--studio-ink-rgb), 0.03)",
                       borderRadius: '10px',
-                      border: (selectedAgent?.id === 'ghost' || selectedAgent?.id === 'ghost-1') ? '1px dashed #a855f750' : '1px dashed rgba(255, 255, 255, 0.1)',
+                      border: (selectedAgent?.id === 'ghost' || selectedAgent?.id === 'ghost-1') ? '1px dashed #a855f750' : "1px dashed rgba(var(--studio-ink-rgb), 0.1)",
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -7330,25 +7326,25 @@ ABSOLUTE RULES (violating any = failure):
                           width: '32px',
                           height: '32px',
                           borderRadius: '8px',
-                          background: 'rgba(168, 85, 247, 0.1)',
+                          background: "rgba(163,66,41, 0.1)",
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          <FileText size={16} color="#a855f7" />
+                          <FileText size={16} color="var(--studio-accent)" />
                         </div>
                         <div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lyrics DNA</div>
-                          <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '0.8rem', color: "var(--studio-ink)", fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {lyricsDnaUrl ? 'Context Attached' : 'Reference Text/File...'}
                           </div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         {lyricsDnaUrl && (
-                          <button onClick={() => setLyricsDnaUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                          <button onClick={() => setLyricsDnaUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: "var(--studio-muted)", cursor: 'pointer' }}><X size={14} /></button>
                         )}
-                        <label style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: 'white' }}>
+                        <label style={{ padding: '5px 10px', background: "rgba(var(--studio-ink-rgb), 0.05)", borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: "var(--studio-ink)" }}>
                           <input id="lyrics-dna-input" type="file" accept=".txt,.doc,.docx,.pdf" style={{ display: 'none' }} onChange={(e) => handleUploadDna('lyrics', e)} />
                           {isUploadingDna.lyrics ? <Loader2 size={12} className="spin" /> : 'Upload'}
                         </label>
@@ -7358,9 +7354,9 @@ ABSOLUTE RULES (violating any = failure):
                     {/* Audio ID Reference - FOR USER REQUEST: "can you use DNA and or Audio_ID?" */}
                     <div className="reference-upload-card" style={{
                       padding: '10px 12px',
-                      background: 'rgba(255, 255, 255, 0.03)',
+                      background: "rgba(var(--studio-ink-rgb), 0.03)",
                       borderRadius: '10px',
-                      border: referencedAudioId ? '1px solid var(--color-cyan)' : '1px solid rgba(255, 255, 255, 0.1)',
+                      border: referencedAudioId ? '1px solid var(--color-cyan)' : "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '8px'
@@ -7371,7 +7367,7 @@ ABSOLUTE RULES (violating any = failure):
                             width: '32px',
                             height: '32px',
                             borderRadius: '8px',
-                            background: 'rgba(6, 182, 212, 0.1)',
+                            background: "rgba(61,100,114, 0.1)",
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
@@ -7380,11 +7376,11 @@ ABSOLUTE RULES (violating any = failure):
                           </div>
                           <div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Audio ID</div>
-                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>Reference a project track</div>
+                            <div style={{ fontSize: '0.65rem', color: "var(--studio-muted)" }}>Reference a project track</div>
                           </div>
                         </div>
                         {referencedAudioId && (
-                           <button onClick={() => setReferencedAudioId('')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                           <button onClick={() => setReferencedAudioId('')} style={{ background: 'none', border: 'none', color: "var(--studio-muted)", cursor: 'pointer' }}><X size={14} /></button>
                         )}
                       </div>
                       <input 
@@ -7394,12 +7390,12 @@ ABSOLUTE RULES (violating any = failure):
                         onChange={(e) => setReferencedAudioId(e.target.value)}
                         style={{
                           width: '100%',
-                          background: 'rgba(0,0,0,0.2)',
-                          border: '1px solid rgba(255,255,255,0.2)',
+                          background: "var(--studio-surface-alt)",
+                          border: "1px solid rgba(var(--studio-ink-rgb), 0.16)",
                           borderRadius: '6px',
                           padding: '8px 10px',
                           fontSize: '0.75rem',
-                          color: 'white',
+                          color: "var(--studio-ink)",
                           outline: 'none',
                           fontFamily: 'monospace'
                         }}
@@ -7409,9 +7405,9 @@ ABSOLUTE RULES (violating any = failure):
                     {/* Visual ID Reference */}
                     <div className="reference-upload-card" style={{
                       padding: '10px 12px',
-                      background: 'rgba(255, 255, 255, 0.03)',
+                      background: "rgba(var(--studio-ink-rgb), 0.03)",
                       borderRadius: '10px',
-                      border: referencedVisualId ? '1px solid #ec4899' : '1px solid rgba(255, 255, 255, 0.1)',
+                      border: referencedVisualId ? "1px solid var(--studio-accent)" : "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '8px'
@@ -7422,20 +7418,20 @@ ABSOLUTE RULES (violating any = failure):
                             width: '32px',
                             height: '32px',
                             borderRadius: '8px',
-                            background: 'rgba(236, 72, 153, 0.1)',
+                            background: "rgba(163,66,41, 0.1)",
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <Hash size={16} color="#ec4899" />
+                            <Hash size={16} color="var(--studio-accent)" />
                           </div>
                           <div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Visual ID</div>
-                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>Reference a style guide</div>
+                            <div style={{ fontSize: '0.65rem', color: "var(--studio-muted)" }}>Reference a style guide</div>
                           </div>
                         </div>
                         {referencedVisualId && (
-                           <button onClick={() => setReferencedVisualId('')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                           <button onClick={() => setReferencedVisualId('')} style={{ background: 'none', border: 'none', color: "var(--studio-muted)", cursor: 'pointer' }}><X size={14} /></button>
                         )}
                       </div>
                       <input 
@@ -7445,12 +7441,12 @@ ABSOLUTE RULES (violating any = failure):
                         onChange={(e) => setReferencedVisualId(e.target.value)}
                         style={{
                           width: '100%',
-                          background: 'rgba(0,0,0,0.2)',
-                          border: '1px solid rgba(255,255,255,0.2)',
+                          background: "var(--studio-surface-alt)",
+                          border: "1px solid rgba(var(--studio-ink-rgb), 0.16)",
                           borderRadius: '6px',
                           padding: '8px 10px',
                           fontSize: '0.75rem',
-                          color: 'white',
+                          color: "var(--studio-ink)",
                           outline: 'none',
                           fontFamily: 'monospace'
                         }}
@@ -7460,9 +7456,9 @@ ABSOLUTE RULES (violating any = failure):
                     {/* Voice Sample Upload */}
                     <div className="reference-upload-card" style={{
                       padding: '10px 12px',
-                      background: 'rgba(255, 255, 255, 0.03)',
+                      background: "rgba(var(--studio-ink-rgb), 0.03)",
                       borderRadius: '10px',
-                      border: (selectedAgent?.id === 'podcast' || selectedAgent?.id === 'voiceover' || selectedAgent?.id === 'vocal-arch' || selectedAgent?.id === 'vocal-lab') ? '1px dashed #fbbf2450' : '1px dashed rgba(255, 255, 255, 0.1)',
+                      border: (selectedAgent?.id === 'podcast' || selectedAgent?.id === 'voiceover' || selectedAgent?.id === 'vocal-arch' || selectedAgent?.id === 'vocal-lab') ? '1px dashed #fbbf2450' : "1px dashed rgba(var(--studio-ink-rgb), 0.1)",
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -7477,20 +7473,20 @@ ABSOLUTE RULES (violating any = failure):
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          <Mic size={16} color="#fbbf24" />
+                          <Mic size={16} color="var(--studio-warning)" />
                         </div>
                         <div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Voice Clone</div>
-                          <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '0.8rem', color: "var(--studio-ink)", fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {elevenLabsVoiceId ? (elVoices.find(v => v.voice_id === elevenLabsVoiceId)?.name || 'Custom Voice') : (voiceSampleUrl ? 'Voice Profile Active' : 'Sample to Clone...')}
                           </div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         {(voiceSampleUrl || elevenLabsVoiceId) && (
-                          <button onClick={() => { setVoiceSampleUrl(null); setElevenLabsVoiceId(''); }} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                          <button onClick={() => { setVoiceSampleUrl(null); setElevenLabsVoiceId(''); }} style={{ padding: '6px', background: 'none', border: 'none', color: "var(--studio-muted)", cursor: 'pointer' }}><X size={14} /></button>
                         )}
-                        <label style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: 'white' }}>
+                        <label style={{ padding: '5px 10px', background: "rgba(var(--studio-ink-rgb), 0.05)", borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: "var(--studio-ink)" }}>
                           <input id="voice-dna-input" type="file" accept="audio/*" style={{ display: 'none' }} onChange={handleUploadVoiceSample} />
                           {isUploadingSample ? <Loader2 size={12} className="spin" /> : 'Clone'}
                         </label>
@@ -7520,27 +7516,27 @@ ABSOLUTE RULES (violating any = failure):
                             width: '100%',
                             padding: '10px 14px',
                             borderRadius: '12px',
-                            background: elevenLabsVoiceId ? 'rgba(251, 191, 36, 0.1)' : 'rgba(0,0,0,0.3)',
-                            border: elevenLabsVoiceId ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)',
-                            color: elevenLabsVoiceId ? '#fbbf24' : 'rgba(255,255,255,0.7)',
+                            background: elevenLabsVoiceId ? 'rgba(251, 191, 36, 0.1)' : "var(--studio-surface-alt)",
+                            border: elevenLabsVoiceId ? "1px solid var(--studio-warning)" : "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+                            color: elevenLabsVoiceId ? "var(--studio-warning)" : "var(--studio-muted)",
                             fontSize: '0.8rem',
                             fontWeight: '600',
                             outline: 'none',
                             cursor: 'pointer'
                           }}
                         >
-                          <option value="" style={{ background: '#111', color: '#888' }}>
+                          <option value="" style={{ background: "var(--studio-surface-alt)", color: '#888' }}>
                             -- Select Premium Voice --
                           </option>
                           {elVoices.map(v => (
-                            <option key={v.voice_id} value={v.voice_id} style={{ background: '#111', color: 'white' }}>
+                            <option key={v.voice_id} value={v.voice_id} style={{ background: "var(--studio-surface-alt)", color: "var(--studio-ink)" }}>
                               {v.name} ({v.category})
                             </option>
                           ))}
                         </select>
                         <div style={{ 
                           fontSize: '0.65rem', 
-                          color: '#fbbf24', 
+                          color: "var(--studio-warning)",
                           opacity: 0.8, 
                           marginTop: '6px',
                           display: 'flex',
@@ -7556,9 +7552,9 @@ ABSOLUTE RULES (violating any = failure):
                     {/* Reference Song Upload — Style/Tone/Vibe Matching */}
                     <div className="reference-upload-card" style={{
                       padding: '10px 12px',
-                      background: referenceSongUrl ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.03)',
+                      background: referenceSongUrl ? "rgba(86,105,84, 0.05)" : "rgba(var(--studio-ink-rgb), 0.03)",
                       borderRadius: '10px',
-                      border: referenceSongUrl ? '1px solid rgba(16, 185, 129, 0.4)' : ((selectedAgent?.id === 'vocal' || selectedAgent?.id === 'vocal-arch' || selectedAgent?.id === 'vocal-lab') ? '1px dashed rgba(16, 185, 129, 0.4)' : '1px dashed rgba(255, 255, 255, 0.1)'),
+                      border: referenceSongUrl ? "1px solid rgba(86,105,84, 0.4)" : ((selectedAgent?.id === 'vocal' || selectedAgent?.id === 'vocal-arch' || selectedAgent?.id === 'vocal-lab') ? "1px dashed rgba(86,105,84, 0.4)" : "1px dashed rgba(var(--studio-ink-rgb), 0.1)"),
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -7568,25 +7564,25 @@ ABSOLUTE RULES (violating any = failure):
                           width: '32px',
                           height: '32px',
                           borderRadius: '8px',
-                          background: referenceSongUrl ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+                          background: referenceSongUrl ? "rgba(86,105,84, 0.2)" : "rgba(86,105,84, 0.1)",
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          <Disc size={16} color="#10b981" />
+                          <Disc size={16} color="var(--studio-sage)" />
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.7rem', color: referenceSongUrl ? '#10b981' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: referenceSongUrl ? '600' : '400' }}>Reference Song</div>
-                          <div style={{ fontSize: '0.75rem', color: referenceSongUrl ? '#10b981' : 'rgba(255,255,255,0.5)', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '0.7rem', color: referenceSongUrl ? "var(--studio-sage)" : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: referenceSongUrl ? '600' : '400' }}>Reference Song</div>
+                          <div style={{ fontSize: '0.75rem', color: referenceSongUrl ? "var(--studio-sage)" : "var(--studio-muted)", fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {referenceSongUrl ? 'Tone & Vibe Locked ?' : 'Match tone, warmth, depth...'}
                           </div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         {referenceSongUrl && (
-                          <button onClick={() => setReferenceSongUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                          <button onClick={() => setReferenceSongUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: "var(--studio-muted)", cursor: 'pointer' }}><X size={14} /></button>
                         )}
-                        <label style={{ padding: '5px 10px', background: referenceSongUrl ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: referenceSongUrl ? '#10b981' : 'white', fontWeight: referenceSongUrl ? '600' : '400' }}>
+                        <label style={{ padding: '5px 10px', background: referenceSongUrl ? "rgba(86,105,84, 0.15)" : "rgba(var(--studio-ink-rgb), 0.05)", borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: referenceSongUrl ? "var(--studio-sage)" : "var(--studio-ink)", fontWeight: referenceSongUrl ? '600' : '400' }}>
                           <input type="file" accept="audio/*" style={{ display: 'none' }} onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file || isUploadingReferenceSong) return;
@@ -7627,9 +7623,9 @@ ABSOLUTE RULES (violating any = failure):
                     {/* Seed DNA (Video/Image Reference for Video Creation) */}
                     <div className="reference-upload-card" style={{
                       padding: '10px 12px',
-                      background: 'rgba(255, 255, 255, 0.03)',
+                      background: "rgba(var(--studio-ink-rgb), 0.03)",
                       borderRadius: '10px',
-                      border: (selectedAgent?.id === 'video-creator') ? '1px dashed #ef444450' : '1px dashed rgba(255, 255, 255, 0.1)',
+                      border: (selectedAgent?.id === 'video-creator') ? '1px dashed #ef444450' : "1px dashed rgba(var(--studio-ink-rgb), 0.1)",
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -7644,20 +7640,20 @@ ABSOLUTE RULES (violating any = failure):
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          <VideoIcon size={16} color="#ef4444" />
+                          <VideoIcon size={16} color="var(--studio-danger)" />
                         </div>
                         <div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Seed DNA</div>
-                          <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '0.8rem', color: "var(--studio-ink)", fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {videoDnaUrl ? 'Video Reference Ready' : 'Scene or Character...'}
                           </div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         {videoDnaUrl && (
-                          <button onClick={() => setVideoDnaUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                          <button onClick={() => setVideoDnaUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: "var(--studio-muted)", cursor: 'pointer' }}><X size={14} /></button>
                         )}
-                        <label style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: 'white' }}>
+                        <label style={{ padding: '5px 10px', background: "rgba(var(--studio-ink-rgb), 0.05)", borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: "var(--studio-ink)" }}>
                           <input type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => handleUploadDna('video', e)} />
                           {isUploadingDna.video ? <Loader2 size={12} className="spin" /> : 'Upload'}
                         </label>
@@ -7668,12 +7664,12 @@ ABSOLUTE RULES (violating any = failure):
                   {/* Auto-show Relevant DNA as active badges if Vault is closed */}
                   {!showDnaVault && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-                      {(visualDnaUrl || referencedVisualId) && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#ec489920', color: '#ec4899', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ec489940' }}><ImageIcon size={10} /> {referencedVisualId ? `Visual ID: ${referencedVisualId}` : 'Visual DNA Active'}</div>}
-                      {(audioDnaUrl || referencedAudioId) && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#06b6d420', color: '#06b6d4', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #06b6d440' }}><Music size={10} /> {referencedAudioId ? `Audio ID: ${referencedAudioId}` : 'Audio DNA Active'}</div>}
-                      {lyricsDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#a855f720', color: '#a855f7', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #a855f740' }}><FileText size={10} /> Lyrics DNA Active</div>}
-                      {voiceSampleUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#fbbf2420', color: '#fbbf24', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #fbbf2440' }}><Mic size={10} /> Voice Ready</div>}
-                      {videoDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#ef444420', color: '#ef4444', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ef444440' }}><VideoIcon size={10} /> Seed DNA Ready</div>}
-                      {backingTrack && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#a855f720', color: '#a855f7', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #a855f740', cursor: 'pointer' }} onClick={() => setBackingTrack(null)} title="Click to remove"><Music size={10} /> ?? Synced: {backingTrack.title}{backingTrack.bpm ? ` (${backingTrack.bpm} BPM)` : ''} ?</div>}
+                      {(visualDnaUrl || referencedVisualId) && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#ec489920', color: "var(--studio-accent)", borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ec489940' }}><ImageIcon size={10} /> {referencedVisualId ? `Visual ID: ${referencedVisualId}` : 'Visual DNA Active'}</div>}
+                      {(audioDnaUrl || referencedAudioId) && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#06b6d420', color: "var(--studio-blue)", borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #06b6d440' }}><Music size={10} /> {referencedAudioId ? `Audio ID: ${referencedAudioId}` : 'Audio DNA Active'}</div>}
+                      {lyricsDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#a855f720', color: "var(--studio-accent)", borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #a855f740' }}><FileText size={10} /> Lyrics DNA Active</div>}
+                      {voiceSampleUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#fbbf2420', color: "var(--studio-warning)", borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #fbbf2440' }}><Mic size={10} /> Voice Ready</div>}
+                      {videoDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#ef444420', color: "var(--studio-danger)", borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ef444440' }}><VideoIcon size={10} /> Seed DNA Ready</div>}
+                      {backingTrack && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#a855f720', color: "var(--studio-accent)", borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #a855f740', cursor: 'pointer' }} onClick={() => setBackingTrack(null)} title="Click to remove"><Music size={10} /> ?? Synced: {backingTrack.title}{backingTrack.bpm ? ` (${backingTrack.bpm} BPM)` : ''} ?</div>}
                     </div>
                   )}
 
@@ -7681,21 +7677,21 @@ ABSOLUTE RULES (violating any = failure):
                   {backingTrack && (selectedAgent?.id === 'vocal' || selectedAgent?.id === 'video-creator' || selectedAgent?.id === 'voice' || selectedAgent?.category?.toLowerCase().includes('vocal') || selectedAgent?.category?.toLowerCase().includes('video')) && (
                     <div style={{
                       padding: '10px 14px', marginBottom: '12px',
-                      background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(6, 182, 212, 0.15))',
+                      background: "linear-gradient(135deg, rgba(163,66,41, 0.15), rgba(61,100,114, 0.15))",
                       borderRadius: '12px',
-                      border: '1px solid rgba(168, 85, 247, 0.3)',
+                      border: "1px solid rgba(163,66,41, 0.3)",
                       display: 'flex', alignItems: 'center', gap: '12px',
                       fontSize: '0.8rem'
                     }}>
                       <div style={{
                         width: '32px', height: '32px', borderRadius: '8px',
-                        background: 'rgba(168, 85, 247, 0.2)',
+                        background: "rgba(163,66,41, 0.2)",
                         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                       }}>
                         <Music size={16} color="var(--color-purple)" />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: '600', color: 'white', marginBottom: '2px' }}>
+                        <div style={{ fontWeight: '600', color: "var(--studio-ink)", marginBottom: '2px' }}>
                           ?? Synced to: {backingTrack.title}
                         </div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
@@ -7705,7 +7701,7 @@ ABSOLUTE RULES (violating any = failure):
                       </div>
                       <button
                         onClick={() => setBackingTrack(null)}
-                        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: '4px' }}
+                        style={{ background: 'none', border: 'none', color: "var(--studio-muted)", cursor: 'pointer', padding: '4px' }}
                       >
                         <X size={14} />
                       </button>
@@ -7769,7 +7765,7 @@ ABSOLUTE RULES (violating any = failure):
                     if (!currentPreview) return null;
                     
                     return (
-                    <div className="agent-preview-mini animate-fadeIn" style={{ marginTop: '16px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div className="agent-preview-mini animate-fadeIn" style={{ marginTop: '16px', padding: '12px', background: "var(--studio-surface-alt)", borderRadius: '8px', border: "1px solid rgba(var(--studio-ink-rgb), 0.1)" }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '600' }}>Last Generated</span>
                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -7783,12 +7779,12 @@ ABSOLUTE RULES (violating any = failure):
                         <img 
                           src={formatImageSrc(currentPreview.imageUrl)} 
                           alt="Preview" 
-                          style={{ width: '100%', height: '220px', objectFit: 'cover', borderRadius: '12px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }} 
+                          style={{ width: '100%', height: '220px', objectFit: 'cover', borderRadius: '12px', cursor: 'pointer', border: "1px solid rgba(var(--studio-ink-rgb), 0.1)", boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
                           onClick={() => safeOpenGenerationPreview(currentPreview)} 
                           onError={(e) => { e.target.style.display = 'none'; }}
                         />
                       ) : currentPreview.type === 'video' && currentPreview.videoUrl ? (
-                        <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
+                        <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: "1px solid rgba(var(--studio-ink-rgb), 0.1)", boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
                           <video src={formatVideoSrc(currentPreview.videoUrl)} style={{ width: '100%', height: '220px', objectFit: 'cover', cursor: 'pointer' }} onClick={() => safeOpenGenerationPreview(currentPreview)} onError={(e) => { e.target.style.display = 'none'; }} />
                           {currentPreview.audioUrl && (
                             <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.7rem', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800' }}>
@@ -7797,7 +7793,7 @@ ABSOLUTE RULES (violating any = failure):
                           )}
                         </div>
                       ) : (currentPreview.type === 'audio' || currentPreview.type === 'vocal') && currentPreview.audioUrl ? (
-                        <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '20px', display: 'flex', gap: '20px', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <div style={{ background: "rgba(var(--studio-ink-rgb), 0.03)", borderRadius: '12px', padding: '20px', display: 'flex', gap: '20px', alignItems: 'center', border: "1px solid rgba(var(--studio-ink-rgb), 0.05)" }}>
                            {currentPreview.imageUrl && (
                              <div style={{
                                width: '80px',
@@ -7806,7 +7802,7 @@ ABSOLUTE RULES (violating any = failure):
                                background: `url(${formatImageSrc(currentPreview.imageUrl)}) center/cover`,
                                flexShrink: 0,
                                boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
-                               border: '1px solid rgba(255,255,255,0.1)'
+                               border: "1px solid rgba(var(--studio-ink-rgb), 0.1)"
                              }} />
                            )}
                            <div style={{ flex: 1, minWidth: 0 }}>
@@ -7844,7 +7840,7 @@ ABSOLUTE RULES (violating any = failure):
                              ) : (
                                <audio controls src={formatAudioSrc(currentPreview.audioUrl)} style={{ width: '100%', height: '36px', marginBottom: '8px' }} onError={(e) => { devWarn('[Audio] Failed to load:', e.target.src); e.target.style.opacity = '0.4'; }} />
                              )}
-                             <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                             <div style={{ fontSize: '0.85rem', color: "var(--studio-muted)", fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                "{currentPreview.snippet?.substring(0, 80)}..."
                              </div>
                            </div>
@@ -7853,13 +7849,13 @@ ABSOLUTE RULES (violating any = failure):
                         <div className="flavorful-text-output" style={{ 
                           fontSize: '1rem', 
                           lineHeight: '1.8',
-                          color: 'rgba(255,255,255,0.95)', 
+                          color: "var(--studio-ink)",
                           padding: '24px', 
-                          background: 'rgba(0,0,0,0.3)', 
+                          background: "var(--studio-surface-alt)",
                           borderRadius: '12px', 
                           maxHeight: '400px', 
                           overflowY: 'auto',
-                          border: '1px solid rgba(255,255,255,0.05)',
+                          border: "1px solid rgba(var(--studio-ink-rgb), 0.05)",
                           fontFamily: "'Georgia', serif",
                           whiteSpace: 'pre-wrap'
                         }}>
@@ -7936,14 +7932,14 @@ ABSOLUTE RULES (violating any = failure):
                     gap: '10px',
                     margin: 0,
                     fontSize: '1.1rem',
-                    color: 'white'
+                    color: "var(--studio-ink)"
                   }}>
                     <Folder size={18} style={{ color: 'var(--color-purple)' }} />
                     {selectedAgent.name} Inventory
                     <span style={{
                       fontSize: '0.7rem',
                       padding: '3px 8px',
-                      background: 'rgba(139, 92, 246, 0.2)',
+                      background: "rgba(163,66,41, 0.2)",
                       borderRadius: '10px',
                       color: 'var(--color-purple)',
                       fontWeight: '600'
@@ -7958,8 +7954,8 @@ ABSOLUTE RULES (violating any = failure):
                       alignItems: 'center',
                       gap: '6px',
                       padding: '8px 14px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      background: "rgba(var(--studio-ink-rgb), 0.05)",
+                      border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                       borderRadius: '10px',
                       color: 'var(--text-secondary)',
                       fontSize: '0.8rem',
@@ -7995,20 +7991,20 @@ ABSOLUTE RULES (violating any = failure):
                             alignItems: 'center',
                             gap: '14px',
                             padding: '14px 16px',
-                            background: 'rgba(255, 255, 255, 0.03)',
+                            background: "rgba(var(--studio-ink-rgb), 0.03)",
                             borderRadius: '14px',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            border: "1px solid rgba(var(--studio-ink-rgb), 0.08)",
                             transition: 'all 0.2s ease',
                             cursor: 'pointer'
                           }}
                           onClick={() => safeOpenGenerationPreview(item)}
                           onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)';
-                            e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                            e.currentTarget.style.background = "rgba(163,66,41, 0.1)";
+                            e.currentTarget.style.borderColor = "rgba(163,66,41, 0.3)";
                           }}
                           onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                            e.currentTarget.style.background = "rgba(var(--studio-ink-rgb), 0.03)";
+                            e.currentTarget.style.borderColor = "rgba(var(--studio-ink-rgb), 0.08)";
                           }}
                         >
                           {/* Preview Thumbnail */}
@@ -8028,8 +8024,8 @@ ABSOLUTE RULES (violating any = failure):
                             position: 'relative',
                             overflow: 'hidden'
                           }}>
-                            {!item.imageUrl && !item.audioUrl && <FileText size={20} style={{ color: 'white' }} />}
-                            {item.audioUrl && !item.imageUrl && <Volume2 size={20} style={{ color: 'white' }} />}
+                            {!item.imageUrl && !item.audioUrl && <FileText size={20} style={{ color: "var(--studio-ink)" }} />}
+                            {item.audioUrl && !item.imageUrl && <Volume2 size={20} style={{ color: "var(--studio-ink)" }} />}
                             {item.imageUrl && item.audioUrl && (
                               <div style={{
                                 position: 'absolute',
@@ -8039,7 +8035,7 @@ ABSOLUTE RULES (violating any = failure):
                                 padding: '2px',
                                 borderTopLeftRadius: '6px'
                               }}>
-                                <Music size={12} color="white" />
+                                <Music size={12} color="var(--studio-ink)" />
                               </div>
                             )}
                           </div>
@@ -8049,7 +8045,7 @@ ABSOLUTE RULES (violating any = failure):
                             <div style={{ 
                               fontSize: '0.9rem', 
                               fontWeight: '600', 
-                              color: 'white',
+                              color: "var(--studio-ink)",
                               marginBottom: '4px',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
@@ -8101,13 +8097,13 @@ ABSOLUTE RULES (violating any = failure):
                                 width: '32px',
                                 height: '32px',
                                 borderRadius: '8px',
-                                background: 'rgba(255, 255, 255, 0.1)',
-                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                background: "rgba(var(--studio-ink-rgb), 0.1)",
+                                border: "1px solid rgba(var(--studio-ink-rgb), 0.16)",
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 cursor: 'pointer',
-                                color: 'white'
+                                color: "var(--studio-ink)"
                               }}
                             >
                               <Eye size={14} />
@@ -8121,7 +8117,7 @@ ABSOLUTE RULES (violating any = failure):
                           padding: '32px', 
                           textAlign: 'center', 
                           color: 'var(--text-secondary)',
-                          background: 'rgba(255,255,255,0.02)',
+                          background: "rgba(var(--studio-ink-rgb), 0.02)",
                           borderRadius: '12px'
                         }}>
                           <Sparkles size={24} style={{ opacity: 0.3, marginBottom: '8px' }} />
@@ -8138,9 +8134,9 @@ ABSOLUTE RULES (violating any = failure):
                   <div style={{ 
                     marginTop: '16px',
                     padding: '14px 16px',
-                    background: 'rgba(139, 92, 246, 0.08)',
+                    background: "rgba(163,66,41, 0.08)",
                     borderRadius: '12px',
-                    border: '1px solid rgba(139, 92, 246, 0.15)'
+                    border: "1px solid rgba(163,66,41, 0.15)"
                   }}>
                     <div style={{ 
                       display: 'flex', 
@@ -8151,7 +8147,7 @@ ABSOLUTE RULES (violating any = failure):
                       <span style={{ 
                         fontSize: '0.8rem', 
                         fontWeight: '600', 
-                        color: 'white',
+                        color: "var(--studio-ink)",
                         display: 'flex',
                         alignItems: 'center',
                         gap: '6px'
@@ -8183,8 +8179,8 @@ ABSOLUTE RULES (violating any = failure):
                             }}
                             style={{
                               padding: '6px 12px',
-                              background: 'rgba(255, 255, 255, 0.05)',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              background: "rgba(var(--studio-ink-rgb), 0.05)",
+                              border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                               borderRadius: '8px',
                               color: 'var(--text-secondary)',
                               fontSize: '0.7rem',
@@ -8196,13 +8192,13 @@ ABSOLUTE RULES (violating any = failure):
                               transition: 'all 0.2s ease'
                             }}
                             onMouseOver={(e) => {
-                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
-                              e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.4)';
-                              e.currentTarget.style.color = 'white';
+                              e.currentTarget.style.background = "rgba(163,66,41, 0.2)";
+                              e.currentTarget.style.borderColor = "rgba(163,66,41, 0.4)";
+                              e.currentTarget.style.color = "var(--studio-ink)";
                             }}
                             onMouseOut={(e) => {
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                              e.currentTarget.style.background = "rgba(var(--studio-ink-rgb), 0.05)";
+                              e.currentTarget.style.borderColor = "rgba(var(--studio-ink-rgb), 0.1)";
                               e.currentTarget.style.color = 'var(--text-secondary)';
                             }}
                             title={item.snippet}
@@ -8362,12 +8358,12 @@ ABSOLUTE RULES (violating any = failure):
                     </div>
                     <div className="agent-hero-info">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                        <span className="agent-badge" style={{ background: 'linear-gradient(90deg, var(--color-purple), var(--color-cyan))', color: 'white', fontWeight: '800' }}>{selectedAgent.category}</span>
-                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.3)' }} />
-                        <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '1.5px', fontWeight: '800', textTransform: 'uppercase' }}>High-Fidelity Engine</span>
+                        <span className="agent-badge" style={{ background: 'linear-gradient(90deg, var(--color-purple), var(--color-cyan))', color: "var(--studio-on-accent)", fontWeight: '800' }}>{selectedAgent.category}</span>
+                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: "rgba(var(--studio-ink-rgb), 0.16)" }} />
+                        <span style={{ fontSize: '0.65rem', color: "var(--studio-muted)", letterSpacing: '1.5px', fontWeight: '800', textTransform: 'uppercase' }}>High-Fidelity Engine</span>
                       </div>
-                      <h2 style={{ fontSize: '2.4rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '8px', background: 'linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.7) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{selectedAgent.name}</h2>
-                      <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.6)', maxWidth: '600px', lineHeight: '1.6' }}>{selectedAgent.description || selectedAgent.desc}</p>
+                      <h2 style={{ fontSize: '2.4rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '8px', color: 'var(--studio-ink)' }}>{selectedAgent.name}</h2>
+                      <p style={{ fontSize: '1rem', color: "var(--studio-muted)", maxWidth: '600px', lineHeight: '1.6' }}>{selectedAgent.description || selectedAgent.desc}</p>
                     </div>
                   </div>
 
@@ -8509,10 +8505,10 @@ ABSOLUTE RULES (violating any = failure):
 
                                 <div className="settings-group" style={{
                                   padding: '10px',
-                                  background: 'rgba(255,255,255,0.03)',
+                                  background: "rgba(var(--studio-ink-rgb), 0.03)",
                                   borderRadius: '8px',
                                   marginTop: '8px',
-                                  border: '1px dashed rgba(255,255,255,0.1)'
+                                  border: "1px dashed rgba(var(--studio-ink-rgb), 0.1)"
                                 }}>
                                   <label style={{ fontSize: '0.75rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     <Cloud size={14} className="text-cyan" />
@@ -8546,7 +8542,7 @@ ABSOLUTE RULES (violating any = failure):
                                         padding: '12px',
                                         textAlign: 'center',
                                         cursor: 'pointer',
-                                        border: '1px dashed rgba(255,255,255,0.2)',
+                                        border: "1px dashed rgba(var(--studio-ink-rgb), 0.16)",
                                         borderRadius: '6px',
                                         fontSize: '0.75rem',
                                         color: 'var(--text-secondary)'
@@ -8751,20 +8747,20 @@ ABSOLUTE RULES (violating any = failure):
                                 alignItems: 'center',
                                 gap: '12px',
                                 padding: '10px 12px',
-                                background: 'rgba(255, 255, 255, 0.03)',
+                                background: "rgba(var(--studio-ink-rgb), 0.03)",
                                 borderRadius: '10px',
                                 cursor: 'pointer',
-                                border: '1px solid rgba(255,255,255,0.05)',
+                                border: "1px solid rgba(var(--studio-ink-rgb), 0.05)",
                                 transition: 'all 0.2s ease'
                               }}
                               onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--color-purple)'}
-                              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'}
+                              onMouseLeave={(e) => e.currentTarget.style.borderColor = "rgba(var(--studio-ink-rgb), 0.05)"}
                             >
                               <div style={{
                                 width: '36px',
                                 height: '36px',
                                 borderRadius: '8px',
-                                background: item.imageUrl ? `url(${formatImageSrc(item.imageUrl)}) center/cover` : 'rgba(139, 92, 246, 0.2)',
+                                background: item.imageUrl ? `url(${formatImageSrc(item.imageUrl)}) center/cover` : "rgba(163,66,41, 0.2)",
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -8802,21 +8798,21 @@ ABSOLUTE RULES (violating any = failure):
                 <div className="agent-side-panel">
                   {selectedProject && (
                     <div className="side-info-card" style={{ 
-                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
-                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                      background: "linear-gradient(135deg, rgba(163,66,41, 0.1) 0%, rgba(61,100,114, 0.1) 100%)",
+                      border: "1px solid rgba(163,66,41, 0.3)",
                       boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                         <Folder size={18} className="text-purple" />
                         <h3 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-purple)' }}>Project Context</h3>
                       </div>
-                      <div style={{ fontWeight: '800', fontSize: '1.2rem', color: 'white', marginBottom: '4px' }}>{selectedProject.name}</div>
+                      <div style={{ fontWeight: '800', fontSize: '1.2rem', color: "var(--studio-ink)", marginBottom: '4px' }}>{selectedProject.name}</div>
                       <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                         Organizing {selectedProject.assets?.length || 0} assets in this project.
                       </p>
                       <button 
                          className="btn-pill glass" 
-                         style={{ width: '100%', fontSize: '0.8rem', padding: '8px', background: 'rgba(255,255,255,0.05)' }}
+                         style={{ width: '100%', fontSize: '0.8rem', padding: '8px', background: "rgba(var(--studio-ink-rgb), 0.05)" }}
                          onClick={() => setPendingProjectNav(true)}
                        >
                          <LayoutGrid size={14} /> View Project Canvas
@@ -8876,15 +8872,15 @@ ABSOLUTE RULES (violating any = failure):
               <div className="agents-sidebar-list">
                 {/* FREE TIER Agents */}
                 <div className="agents-sidebar-section" style={{
-                  background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.1) 0%, transparent 100%)',
+                  background: "linear-gradient(90deg, rgba(86,105,84, 0.1) 0%, transparent 100%)",
                   padding: '8px 12px',
                   marginBottom: '4px',
                   borderRadius: '8px',
-                  borderLeft: '3px solid rgba(34, 197, 94, 0.6)'
+                  borderLeft: "3px solid rgba(86,105,84, 0.6)"
                 }}>
-                  <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#22c55e', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: "var(--studio-sage)", fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
                     <Sparkles size={12} /> Free Tier
-                    <span style={{ marginLeft: 'auto', background: 'rgba(34, 197, 94, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
+                    <span style={{ marginLeft: 'auto', background: "rgba(86,105,84, 0.2)", padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
                       {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'free').length} agents
                     </span>
                   </h5>
@@ -8923,16 +8919,16 @@ ABSOLUTE RULES (violating any = failure):
 
                 {/* MONTHLY TIER Agents */}
                 <div className="agents-sidebar-section" style={{
-                  background: 'linear-gradient(90deg, rgba(139, 92, 246, 0.1) 0%, transparent 100%)',
+                  background: "linear-gradient(90deg, rgba(163,66,41, 0.1) 0%, transparent 100%)",
                   padding: '8px 12px',
                   marginBottom: '4px',
                   marginTop: '12px',
                   borderRadius: '8px',
-                  borderLeft: '3px solid rgba(139, 92, 246, 0.6)'
+                  borderLeft: "3px solid rgba(163,66,41, 0.6)"
                 }}>
-                  <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a855f7', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: "var(--studio-accent)", fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
                     <Zap size={12} /> Creator · $4.99/mo
-                    <span style={{ marginLeft: 'auto', background: 'rgba(139, 92, 246, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
+                    <span style={{ marginLeft: 'auto', background: "rgba(163,66,41, 0.2)", padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
                       {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'monthly').length} agents
                     </span>
                   </h5>
@@ -8962,7 +8958,7 @@ ABSOLUTE RULES (violating any = failure):
                         }
                       }}
                     >
-                      <div className={`agent-sidebar-icon ${agent.colorClass}`} style={isLocked ? { background: 'rgba(255,255,255,0.05)' } : {}}>
+                      <div className={`agent-sidebar-icon ${agent.colorClass}`} style={isLocked ? { background: "rgba(var(--studio-ink-rgb), 0.05)" } : {}}>
                         <Icon size={18} style={isLocked ? { opacity: 0.5 } : {}} />
                       </div>
                     </button>
@@ -8978,7 +8974,7 @@ ABSOLUTE RULES (violating any = failure):
                   borderRadius: '8px',
                   borderLeft: '3px solid rgba(234, 179, 8, 0.6)'
                 }}>
-                  <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#eab308', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: "var(--studio-warning)", fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
                     <Award size={12} /> Studio Pro · $14.99/mo
                     <span style={{ marginLeft: 'auto', background: 'rgba(234, 179, 8, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
                       {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'pro').length} agents
@@ -9010,7 +9006,7 @@ ABSOLUTE RULES (violating any = failure):
                         }
                       }}
                     >
-                      <div className={`agent-sidebar-icon ${agent.colorClass}`} style={isLocked ? { background: 'rgba(255,255,255,0.05)' } : {}}>
+                      <div className={`agent-sidebar-icon ${agent.colorClass}`} style={isLocked ? { background: "rgba(var(--studio-ink-rgb), 0.05)" } : {}}>
                         <Icon size={18} style={isLocked ? { opacity: 0.5 } : {}} />
                       </div>
                     </button>
@@ -9053,9 +9049,9 @@ ABSOLUTE RULES (violating any = failure):
                           alignItems: 'center', 
                           gap: '8px',
                           padding: '10px 20px',
-                          background: 'rgba(6, 182, 212, 0.1)',
-                          border: '1px solid rgba(6, 182, 212, 0.3)',
-                          color: '#06b6d4'
+                          background: "rgba(61,100,114, 0.1)",
+                          border: "1px solid rgba(61,100,114, 0.3)",
+                          color: "var(--studio-blue)"
                         }}
                       >
                         <FileText size={16} />
@@ -9069,9 +9065,9 @@ ABSOLUTE RULES (violating any = failure):
                           alignItems: 'center', 
                           gap: '8px',
                           padding: '10px 20px',
-                          background: 'rgba(139, 92, 246, 0.1)',
-                          border: '1px solid rgba(139, 92, 246, 0.3)',
-                          color: '#a855f7'
+                          background: "rgba(163,66,41, 0.1)",
+                          border: "1px solid rgba(163,66,41, 0.3)",
+                          color: "var(--studio-accent)"
                         }}
                       >
                         <Shield size={16} />
@@ -9083,8 +9079,8 @@ ABSOLUTE RULES (violating any = failure):
                   {/* Free generation banner */}
                   {!isLoggedIn && (
                     <div style={{
-                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
-                      border: '1px solid rgba(139, 92, 246, 0.2)',
+                      background: "linear-gradient(135deg, rgba(163,66,41, 0.1) 0%, rgba(61,100,114, 0.1) 100%)",
+                      border: "1px solid rgba(163,66,41, 0.2)",
                       borderRadius: '12px',
                       padding: '16px 20px',
                       marginBottom: '24px',
@@ -9120,11 +9116,11 @@ ABSOLUTE RULES (violating any = failure):
                       alignItems: 'center', 
                       gap: '12px',
                       padding: '10px 4px',
-                      background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.1) 0%, transparent 100%)',
+                      background: "linear-gradient(90deg, rgba(86,105,84, 0.1) 0%, transparent 100%)",
                       borderRadius: '12px'
                     }}>
-                      <Sparkles size={16} style={{ color: '#22c55e' }} />
-                      <span style={{ fontWeight: '700', color: '#22c55e', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                      <Sparkles size={16} style={{ color: "var(--studio-sage)" }} />
+                      <span style={{ fontWeight: '700', color: "var(--studio-sage)", fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
                         Free Tier
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -9137,7 +9133,7 @@ ABSOLUTE RULES (violating any = failure):
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
                       const ac = getAgentHex(agent);
-                      const tierStyle = { bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)', text: '#22c55e', label: 'Free' };
+                      const tierStyle = { bg: 'rgba(34, 197, 94, 0.1)', border: "rgba(86,105,84, 0.3)", text: '#22c55e', label: 'Free' };
                       return (
                         <div
                           key={agent.id}
@@ -9153,7 +9149,7 @@ ABSOLUTE RULES (violating any = failure):
                           }}
                           style={{
                             padding: isMobile ? '23px' : '32px',
-                            background: 'rgba(0,0,0,0.4)',
+                            background: "var(--studio-surface-alt)",
                             border: `1px solid ${ac}22`,
                             borderRadius: '20px',
                             minHeight: isMobile ? '200px' : '274px',
@@ -9171,7 +9167,7 @@ ABSOLUTE RULES (violating any = failure):
                           {/* Tier badge */}
                           <div style={{ position: 'absolute', top: '12px', right: '12px', padding: '4px 10px', borderRadius: '10px', background: tierStyle.bg, border: `1px solid ${tierStyle.border}`, fontSize: '0.65rem', fontWeight: '700', color: tierStyle.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{tierStyle.label}</div>
                           {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '14px', right: '70px', opacity: 0.5 }} />}
-                          {agent.isBeta && <span style={{ position: 'absolute', top: '14px', right: isLocked ? '90px' : '70px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
+                          {agent.isBeta && <span style={{ position: 'absolute', top: '14px', right: isLocked ? '90px' : '70px', background: 'rgba(245,158,11,0.2)', color: "var(--studio-warning)", padding: '2px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
                           <div style={{
                             width: isMobile ? '40px' : '52px',
                             height: isMobile ? '40px' : '52px',
@@ -9185,9 +9181,9 @@ ABSOLUTE RULES (violating any = failure):
                           }}>
                             <Icon size={isMobile ? 20 : 26} style={{ color: ac }} />
                           </div>
-                          <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.15rem', fontWeight: '700', marginBottom: '6px', color: 'white' }}>{agent.name}</h3>
+                          <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.15rem', fontWeight: '700', marginBottom: '6px', color: "var(--studio-ink)" }}>{agent.name}</h3>
                           <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
-                          <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.6' }}>
+                          <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: "var(--studio-muted)", lineHeight: '1.6' }}>
                             {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
                           </p>
                           {agent.capabilities && agent.capabilities.length > 0 && (
@@ -9211,8 +9207,8 @@ ABSOLUTE RULES (violating any = failure):
                       background: 'linear-gradient(90deg, rgba(251, 191, 36, 0.1) 0%, transparent 100%)',
                       borderRadius: '12px'
                     }}>
-                      <Zap size={16} style={{ color: '#fbbf24' }} />
-                      <span style={{ fontWeight: '700', color: '#fbbf24', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                      <Zap size={16} style={{ color: "var(--studio-warning)" }} />
+                      <span style={{ fontWeight: '700', color: "var(--studio-warning)", fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
                         Creator · $4.99/mo
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -9225,7 +9221,7 @@ ABSOLUTE RULES (violating any = failure):
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
                       const ac = getAgentHex(agent);
-                      const tierStyle = { bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)', text: '#a855f7', label: 'Creator' };
+                      const tierStyle = { bg: 'rgba(168, 85, 247, 0.1)', border: "rgba(163,66,41, 0.3)", text: '#a855f7', label: 'Creator' };
                       return (
                         <div
                           key={agent.id}
@@ -9241,7 +9237,7 @@ ABSOLUTE RULES (violating any = failure):
                           }}
                           style={{
                             padding: isMobile ? '23px' : '32px',
-                            background: 'rgba(0,0,0,0.4)',
+                            background: "var(--studio-surface-alt)",
                             border: `1px solid ${ac}22`,
                             borderRadius: '20px',
                             minHeight: isMobile ? '200px' : '274px',
@@ -9259,7 +9255,7 @@ ABSOLUTE RULES (violating any = failure):
                           {/* Tier badge */}
                           <div style={{ position: 'absolute', top: '12px', right: '12px', padding: '4px 10px', borderRadius: '10px', background: tierStyle.bg, border: `1px solid ${tierStyle.border}`, fontSize: '0.65rem', fontWeight: '700', color: tierStyle.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{tierStyle.label}</div>
                           {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '14px', right: '80px', opacity: 0.5 }} />}
-                          {agent.isBeta && <span style={{ position: 'absolute', top: '14px', right: isLocked ? '100px' : '80px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
+                          {agent.isBeta && <span style={{ position: 'absolute', top: '14px', right: isLocked ? '100px' : '80px', background: 'rgba(245,158,11,0.2)', color: "var(--studio-warning)", padding: '2px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
                           <div style={{
                             width: isMobile ? '40px' : '52px',
                             height: isMobile ? '40px' : '52px',
@@ -9273,9 +9269,9 @@ ABSOLUTE RULES (violating any = failure):
                           }}>
                             <Icon size={isMobile ? 20 : 26} style={{ color: ac }} />
                           </div>
-                          <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.15rem', fontWeight: '700', marginBottom: '6px', color: 'white' }}>{agent.name}</h3>
+                          <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.15rem', fontWeight: '700', marginBottom: '6px', color: "var(--studio-ink)" }}>{agent.name}</h3>
                           <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
-                          <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.6' }}>
+                          <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: "var(--studio-muted)", lineHeight: '1.6' }}>
                             {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
                           </p>
                           {agent.capabilities && agent.capabilities.length > 0 && (
@@ -9297,11 +9293,11 @@ ABSOLUTE RULES (violating any = failure):
                       alignItems: 'center', 
                       gap: '12px',
                       padding: '10px 4px',
-                      background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.1) 0%, transparent 100%)',
+                      background: "linear-gradient(90deg, rgba(163,66,41, 0.1) 0%, transparent 100%)",
                       borderRadius: '12px'
                     }}>
-                      <Award size={16} style={{ color: '#a855f7' }} />
-                      <span style={{ fontWeight: '700', color: '#a855f7', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                      <Award size={16} style={{ color: "var(--studio-accent)" }} />
+                      <span style={{ fontWeight: '700', color: "var(--studio-accent)", fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
                         Studio Pro · $14.99/mo
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -9330,7 +9326,7 @@ ABSOLUTE RULES (violating any = failure):
                           }}
                           style={{
                             padding: isMobile ? '23px' : '32px',
-                            background: 'rgba(0,0,0,0.4)',
+                            background: "var(--studio-surface-alt)",
                             border: `1px solid ${ac}22`,
                             borderRadius: '20px',
                             minHeight: isMobile ? '200px' : '274px',
@@ -9348,7 +9344,7 @@ ABSOLUTE RULES (violating any = failure):
                           {/* Tier badge */}
                           <div style={{ position: 'absolute', top: '12px', right: '12px', padding: '4px 10px', borderRadius: '10px', background: tierStyle.bg, border: `1px solid ${tierStyle.border}`, fontSize: '0.65rem', fontWeight: '700', color: tierStyle.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{tierStyle.label}</div>
                           {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '14px', right: '60px', opacity: 0.5 }} />}
-                          {agent.isBeta && <span style={{ position: 'absolute', top: '14px', right: isLocked ? '80px' : '60px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
+                          {agent.isBeta && <span style={{ position: 'absolute', top: '14px', right: isLocked ? '80px' : '60px', background: 'rgba(245,158,11,0.2)', color: "var(--studio-warning)", padding: '2px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
                           <div style={{
                             width: isMobile ? '40px' : '52px',
                             height: isMobile ? '40px' : '52px',
@@ -9362,9 +9358,9 @@ ABSOLUTE RULES (violating any = failure):
                           }}>
                             <Icon size={isMobile ? 20 : 26} style={{ color: ac }} />
                           </div>
-                          <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.15rem', fontWeight: '700', marginBottom: '6px', color: 'white' }}>{agent.name}</h3>
+                          <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.15rem', fontWeight: '700', marginBottom: '6px', color: "var(--studio-ink)" }}>{agent.name}</h3>
                           <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
-                          <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.6' }}>
+                          <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: "var(--studio-muted)", lineHeight: '1.6' }}>
                             {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
                           </p>
                           {agent.capabilities && agent.capabilities.length > 0 && (
@@ -9553,10 +9549,11 @@ ABSOLUTE RULES (violating any = failure):
                     }}
                     role="button"
                     tabIndex={0}
-                    className="haptic-press"
+                    className="studio-resource-card haptic-press"
                     style={{
-                      background: 'var(--card-bg)',
+                      background: `linear-gradient(135deg, color-mix(in srgb, ${item.color} 7%, var(--studio-surface)), var(--studio-surface))`,
                       border: '1px solid var(--border-color)',
+                      borderTop: `3px solid color-mix(in srgb, ${item.color} 70%, var(--studio-border))`,
                       borderRadius: '20px',
                       padding: isMobile ? '14px 10px' : '28px 20px',
                       cursor: 'pointer',
@@ -9571,7 +9568,7 @@ ABSOLUTE RULES (violating any = failure):
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = item.color;
                       e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = `0 8px 24px ${item.color}20`;
+                      e.currentTarget.style.boxShadow = 'var(--studio-shadow)';
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.borderColor = 'var(--border-color)';
@@ -9583,7 +9580,7 @@ ABSOLUTE RULES (violating any = failure):
                       width: isMobile ? '44px' : '70px',
                       height: isMobile ? '44px' : '70px',
                       borderRadius: isMobile ? '12px' : '18px',
-                      background: `${item.color}15`,
+                      background: `color-mix(in srgb, ${item.color} 13%, transparent)`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
@@ -9608,7 +9605,7 @@ ABSOLUTE RULES (violating any = failure):
             <div className="marketing-hero" style={{ 
               textAlign: 'center', 
               padding: '60px 20px', 
-              background: 'linear-gradient(180deg, rgba(124, 58, 237, 0.1) 0%, rgba(0,0,0,0) 100%)',
+              background: "linear-gradient(180deg, rgba(124, 58, 237, 0.1) 0%, var(--studio-surface-alt) 100%)",
               marginBottom: '40px'
             }}>
               <div className="hero-badge" style={{ 
@@ -9618,7 +9615,7 @@ ABSOLUTE RULES (violating any = failure):
                 padding: '6px 12px', 
                 background: 'rgba(124, 58, 237, 0.2)', 
                 borderRadius: '20px', 
-                color: '#a78bfa', 
+                color: "var(--studio-accent)",
                 fontSize: '0.85rem', 
                 marginBottom: '20px',
                 border: '1px solid rgba(124, 58, 237, 0.3)'
@@ -9632,7 +9629,7 @@ ABSOLUTE RULES (violating any = failure):
               <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto 16px' }}>
                 The world's first AI Record Label in your pocket.
               </p>
-              <p style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.5)', maxWidth: '500px', margin: '0 auto' }}>
+              <p style={{ fontSize: '0.95rem', color: "var(--studio-muted)", maxWidth: '500px', margin: '0 auto' }}>
                 16 Expert Agents. One Full-Suite Studio. Zero Gatekeepers.
               </p>
             </div>
@@ -9665,7 +9662,7 @@ ABSOLUTE RULES (violating any = failure):
                   right: '-50px', 
                   width: '200px', 
                   height: '200px', 
-                  background: 'radial-gradient(circle, rgba(124, 58, 237, 0.15) 0%, rgba(0,0,0,0) 70%)', 
+                  background: "radial-gradient(circle, rgba(124, 58, 237, 0.15) 0%, var(--studio-surface-alt) 70%)",
                   borderRadius: '50%' 
                 }}></div>
               </div>
@@ -9686,8 +9683,8 @@ ABSOLUTE RULES (violating any = failure):
                 {(AGENTS || []).slice(0, 8).map(agent => {
                   const Icon = agent.icon || Sparkles;
                   const tierColors = {
-                    free: { bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)', text: '#22c55e', label: 'Free' },
-                    monthly: { bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)', text: '#a855f7', label: 'Creator' },
+                    free: { bg: 'rgba(34, 197, 94, 0.1)', border: "rgba(86,105,84, 0.3)", text: '#22c55e', label: 'Free' },
+                    monthly: { bg: 'rgba(168, 85, 247, 0.1)', border: "rgba(163,66,41, 0.3)", text: '#a855f7', label: 'Creator' },
                     pro: { bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.3)', text: '#eab308', label: 'Pro' }
                   };
                   const tier = tierColors[agent.tier] || tierColors.free;
@@ -9741,7 +9738,7 @@ ABSOLUTE RULES (violating any = failure):
                       </div>
 
                       {/* Description */}
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.5' }}>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: "var(--studio-muted)", lineHeight: '1.5' }}>
                         {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music production agent'}
                       </p>
 
@@ -9754,8 +9751,8 @@ ABSOLUTE RULES (violating any = failure):
                         style={{
                           alignSelf: 'flex-start',
                           padding: '5px 12px', borderRadius: '10px',
-                          background: 'rgba(139, 92, 246, 0.12)', border: '1px solid rgba(139, 92, 246, 0.3)',
-                          color: '#a855f7', fontSize: '0.7rem', fontWeight: '600',
+                          background: "rgba(163,66,41, 0.12)", border: "1px solid rgba(163,66,41, 0.3)",
+                          color: "var(--studio-accent)", fontSize: '0.7rem', fontWeight: '600',
                           cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px'
                         }}
                       >
@@ -9771,7 +9768,7 @@ ABSOLUTE RULES (violating any = failure):
             <section className="marketing-section" style={{ padding: '0 20px 60px' }}>
               <div className="grid-2-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
                 <div className="vision-card" style={{ 
-                  background: 'linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%)', 
+                  background: "linear-gradient(135deg, var(--studio-surface) 0%, var(--studio-surface) 100%)",
                   padding: '30px', 
                   borderRadius: '24px', 
                   border: '1px solid var(--border-color)' 
@@ -9779,7 +9776,7 @@ ABSOLUTE RULES (violating any = failure):
                   <div className="icon-box" style={{ 
                     width: '50px', 
                     height: '50px', 
-                    background: 'rgba(59, 130, 246, 0.2)', 
+                    background: "rgba(61,100,114, 0.2)",
                     borderRadius: '12px', 
                     display: 'flex', 
                     alignItems: 'center', 
@@ -9794,7 +9791,7 @@ ABSOLUTE RULES (violating any = failure):
                   </p>
                 </div>
                 <div className="vision-card" style={{ 
-                  background: 'linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%)', 
+                  background: "linear-gradient(135deg, var(--studio-surface) 0%, var(--studio-surface) 100%)",
                   padding: '30px', 
                   borderRadius: '24px', 
                   border: '1px solid var(--border-color)' 
@@ -9802,7 +9799,7 @@ ABSOLUTE RULES (violating any = failure):
                   <div className="icon-box" style={{ 
                     width: '50px', 
                     height: '50px', 
-                    background: 'rgba(236, 72, 153, 0.2)', 
+                    background: "rgba(163,66,41, 0.2)",
                     borderRadius: '12px', 
                     display: 'flex', 
                     alignItems: 'center', 
@@ -9833,7 +9830,7 @@ ABSOLUTE RULES (violating any = failure):
                   { value: '100%', label: 'Royalty Free', color: 'var(--color-orange)' }
                 ].map((stat, i) => (
                   <div key={i} className="stat-card" style={{ 
-                    background: 'rgba(255,255,255,0.03)', 
+                    background: "rgba(var(--studio-ink-rgb), 0.03)",
                     padding: '20px', 
                     borderRadius: '16px', 
                     textAlign: 'center' 
@@ -9862,34 +9859,34 @@ ABSOLUTE RULES (violating any = failure):
           { id: 'instagram', name: 'Instagram', icon: '📸', color: '#E1306C', desc: 'Photos & Stories' },
           { id: 'twitter', name: 'X / Twitter', icon: '🐦', color: '#1DA1F2', desc: 'Posts & threads' },
           { id: 'facebook', name: 'Facebook', icon: '👥', color: '#1877F2', desc: 'Pages & groups' },
-          { id: 'threads', name: 'Threads', icon: '🧵', color: '#000000', desc: 'Text-based social' }
+          { id: 'threads', name: 'Threads', icon: '🧵', color: "var(--studio-ink)", desc: 'Text-based social' }
         ];
         const socialSubTab = activitySection || 'connections';
         return (
           <div className="music-hub-view animate-fadeInUp">
             {/* Social Media Hub Header */}
             <div className="orchestrator-header" style={{
-              background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(6, 182, 212, 0.15) 50%, rgba(236, 72, 153, 0.15) 100%)',
+              background: "linear-gradient(135deg, rgba(163,66,41, 0.15) 0%, rgba(61,100,114, 0.15) 50%, rgba(163,66,41, 0.15) 100%)",
               borderRadius: '24px',
               padding: '32px',
               marginBottom: '24px',
-              border: '1px solid rgba(255,255,255,0.1)',
+              border: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
               position: 'relative',
               overflow: 'hidden'
             }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.2) 0%, transparent 50%)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: "radial-gradient(circle at 20% 50%, rgba(163,66,41, 0.2) 0%, transparent 50%)", pointerEvents: 'none' }} />
               <div style={{ position: 'relative', zIndex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
                   <div style={{
                     width: '56px', height: '56px', borderRadius: '16px',
                     background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 8px 32px rgba(168, 85, 247, 0.4)'
+                    boxShadow: "0 8px 32px rgba(163,66,41, 0.4)"
                   }}>
-                    <Share2 size={28} color="white" />
+                    <Share2 size={28} color="var(--studio-ink)" />
                   </div>
                   <div>
-                    <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '700', background: 'linear-gradient(90deg, white, rgba(255,255,255,0.8))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '700', color: 'var(--studio-ink)' }}>
                       Social Media Hub
                     </h1>
                     <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
@@ -9916,8 +9913,8 @@ ABSOLUTE RULES (violating any = failure):
                         padding: '10px 20px', borderRadius: '12px', border: 'none',
                         background: socialSubTab === tab.id
                           ? 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))'
-                          : 'rgba(255,255,255,0.08)',
-                        color: 'white', fontSize: '0.9rem', fontWeight: '600',
+                          : "rgba(var(--studio-ink-rgb), 0.08)",
+                        color: "var(--studio-ink)", fontSize: '0.9rem', fontWeight: '600',
                         cursor: 'pointer', transition: 'all 0.2s ease'
                       }}
                     >
@@ -9937,15 +9934,15 @@ ABSOLUTE RULES (violating any = failure):
                     const connected = socialConnections[p.id];
                     return (
                       <div key={p.id} style={{
-                        background: connected ? `${p.color}10` : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${connected ? p.color + '40' : 'rgba(255,255,255,0.08)'}`,
+                        background: connected ? `${p.color}10` : "rgba(var(--studio-ink-rgb), 0.03)",
+                        border: `1px solid ${connected ? p.color + '40' : "rgba(var(--studio-ink-rgb), 0.08)"}`,
                         borderRadius: '16px', padding: '20px',
                         display: 'flex', alignItems: 'center', gap: '16px',
                         transition: 'all 0.3s ease'
                       }}>
                         <div style={{
                           width: '48px', height: '48px', borderRadius: '14px',
-                          background: connected ? p.color : 'rgba(255,255,255,0.08)',
+                          background: connected ? p.color : "rgba(var(--studio-ink-rgb), 0.08)",
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: '1.4rem', flexShrink: 0,
                           boxShadow: connected ? `0 4px 16px ${p.color}40` : 'none'
@@ -9953,7 +9950,7 @@ ABSOLUTE RULES (violating any = failure):
                           {p.icon}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: '600', color: 'white', marginBottom: '2px' }}>{p.name}</div>
+                          <div style={{ fontWeight: '600', color: "var(--studio-ink)", marginBottom: '2px' }}>{p.name}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{p.desc}</div>
                           {connected && <div style={{ fontSize: '0.75rem', color: p.color, marginTop: '4px', fontWeight: '600' }}>? Connected</div>}
                         </div>
@@ -9970,8 +9967,8 @@ ABSOLUTE RULES (violating any = failure):
                           }}
                           style={{
                             padding: '8px 16px', borderRadius: '10px', border: 'none',
-                            background: connected ? 'rgba(255,255,255,0.08)' : `${p.color}`,
-                            color: connected ? 'var(--text-secondary)' : 'white',
+                            background: connected ? "rgba(var(--studio-ink-rgb), 0.08)" : `${p.color}`,
+                            color: connected ? 'var(--text-secondary)' : "var(--studio-ink)",
                             fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
                             transition: 'all 0.2s ease', whiteSpace: 'nowrap'
                           }}
@@ -9985,8 +9982,8 @@ ABSOLUTE RULES (violating any = failure):
                 
                 {/* Connection stats */}
                 <div style={{
-                  background: 'rgba(255,255,255,0.03)', borderRadius: '16px',
-                  padding: '24px', border: '1px solid rgba(255,255,255,0.06)',
+                  background: "rgba(var(--studio-ink-rgb), 0.03)", borderRadius: '16px',
+                  padding: '24px', border: "1px solid rgba(var(--studio-ink-rgb), 0.06)",
                   display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: '16px'
                 }}>
                   {[
@@ -10022,7 +10019,7 @@ ABSOLUTE RULES (violating any = failure):
                       style={{
                         display: 'flex', alignItems: 'center', gap: '6px',
                         padding: '8px 14px', borderRadius: '10px', border: 'none',
-                        background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)',
+                        background: "rgba(var(--studio-ink-rgb), 0.06)", color: 'var(--text-secondary)',
                         fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
                         transition: 'all 0.2s ease'
                       }}
@@ -10036,7 +10033,7 @@ ABSOLUTE RULES (violating any = failure):
                 {/* Loading State */}
                 {isLoadingActivity && activityFeed.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
-                    <div style={{ width: '32px', height: '32px', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--color-purple)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+                    <div style={{ width: '32px', height: '32px', border: "3px solid rgba(var(--studio-ink-rgb), 0.1)", borderTopColor: 'var(--color-purple)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
                     <p style={{ fontSize: '0.9rem' }}>Loading content feed...</p>
                   </div>
                 )}
@@ -10045,7 +10042,7 @@ ABSOLUTE RULES (violating any = failure):
                 {!isLoadingActivity && activityFeed.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
                     <GlobeIcon size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
-                    <p style={{ fontSize: '1rem', fontWeight: '600', color: 'white', marginBottom: '8px' }}>No content yet</p>
+                    <p style={{ fontSize: '1rem', fontWeight: '600', color: "var(--studio-ink)", marginBottom: '8px' }}>No content yet</p>
                     <p style={{ fontSize: '0.85rem', marginBottom: '20px' }}>Music news, trending tracks, and community content will appear here.</p>
                     <button
                       onClick={() => fetchActivity(1, 'all')}
@@ -10071,9 +10068,9 @@ ABSOLUTE RULES (violating any = failure):
                   key={`${item.id}-${idx}`} 
                   className="music-hub-card"
                   style={{
-                    background: 'rgba(255,255,255,0.03)',
+                    background: "rgba(var(--studio-ink-rgb), 0.03)",
                     borderRadius: '16px',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    border: "1px solid rgba(var(--studio-ink-rgb), 0.08)",
                     overflow: 'hidden',
                     transition: 'all 0.3s ease',
                     cursor: 'pointer'
@@ -10082,11 +10079,11 @@ ABSOLUTE RULES (violating any = failure):
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-4px)';
                     e.currentTarget.style.borderColor = 'var(--color-purple)';
-                    e.currentTarget.style.boxShadow = '0 12px 40px rgba(168, 85, 247, 0.2)';
+                    e.currentTarget.style.boxShadow = "0 12px 40px rgba(163,66,41, 0.2)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                    e.currentTarget.style.borderColor = "rgba(var(--studio-ink-rgb), 0.08)";
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
@@ -10144,7 +10141,7 @@ ABSOLUTE RULES (violating any = failure):
                           justifyContent: 'center',
                           backdropFilter: 'blur(4px)'
                         }}>
-                          <PlayCircle size={28} color="white" />
+                          <PlayCircle size={28} color="var(--studio-ink)" />
                         </div>
                       )}
                       
@@ -10160,7 +10157,7 @@ ABSOLUTE RULES (violating any = failure):
                                    item.source === 'soundcloud' ? '#ff3300' :
                                    item.source === 'news' ? 'rgba(0, 120, 215, 0.9)' :
                                    'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
-                        color: 'white',
+                        color: "var(--studio-ink)",
                         fontSize: '0.7rem',
                         fontWeight: '700',
                         textTransform: 'uppercase',
@@ -10203,7 +10200,7 @@ ABSOLUTE RULES (violating any = failure):
                       margin: '0 0 8px 0',
                       fontSize: '1rem',
                       fontWeight: '600',
-                      color: 'white',
+                      color: "var(--studio-ink)",
                       lineHeight: '1.4',
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
@@ -10233,7 +10230,7 @@ ABSOLUTE RULES (violating any = failure):
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       paddingTop: '12px',
-                      borderTop: '1px solid rgba(255,255,255,0.05)'
+                      borderTop: "1px solid rgba(var(--studio-ink-rgb), 0.05)"
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         {item.likes !== undefined && (
@@ -10274,14 +10271,14 @@ ABSOLUTE RULES (violating any = failure):
                         alignItems: 'center',
                         gap: '16px',
                         padding: '16px',
-                        background: 'rgba(255,255,255,0.03)',
+                        background: "rgba(var(--studio-ink-rgb), 0.03)",
                         borderRadius: '12px',
-                        border: '1px solid rgba(255,255,255,0.06)',
+                        border: "1px solid rgba(var(--studio-ink-rgb), 0.06)",
                         cursor: 'pointer',
                         transition: 'all 0.2s ease'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                      onMouseEnter={(e) => e.currentTarget.style.background = "rgba(var(--studio-ink-rgb), 0.06)"}
+                      onMouseLeave={(e) => e.currentTarget.style.background = "rgba(var(--studio-ink-rgb), 0.03)"}
                     >
                       <div style={{
                         width: '48px',
@@ -10289,16 +10286,16 @@ ABSOLUTE RULES (violating any = failure):
                         borderRadius: '12px',
                         background: item.daysUntil === 0 ? 'linear-gradient(135deg, var(--color-emerald), var(--color-cyan))' :
                                    item.daysUntil > 0 ? 'linear-gradient(135deg, var(--color-purple), var(--color-pink))' :
-                                   'rgba(255,255,255,0.1)',
+                                   "rgba(var(--studio-ink-rgb), 0.1)",
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         flexShrink: 0
                       }}>
-                        <Calendar size={22} color="white" />
+                        <Calendar size={22} color="var(--studio-ink)" />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: '600', color: 'white', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ fontWeight: '600', color: "var(--studio-ink)", marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {item.title}
                         </div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -10309,9 +10306,9 @@ ABSOLUTE RULES (violating any = failure):
                         padding: '6px 12px',
                         borderRadius: '8px',
                         background: item.daysUntil === 0 ? 'var(--color-emerald)' :
-                                   item.daysUntil > 0 ? 'rgba(168, 85, 247, 0.2)' :
-                                   'rgba(255,255,255,0.1)',
-                        color: item.daysUntil === 0 ? 'black' : 'white',
+                                   item.daysUntil > 0 ? "rgba(163,66,41, 0.2)" :
+                                   "rgba(var(--studio-ink-rgb), 0.1)",
+                        color: item.daysUntil === 0 ? "var(--studio-ink)" : "var(--studio-ink)",
                         fontSize: '0.75rem',
                         fontWeight: '700',
                         whiteSpace: 'nowrap'
@@ -10326,7 +10323,7 @@ ABSOLUTE RULES (violating any = failure):
 
             {isLoadingActivity && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '40px', color: 'var(--text-secondary)' }}>
-                <div className="spinner" style={{ width: '24px', height: '24px', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--color-purple)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                <div className="spinner" style={{ width: '24px', height: '24px', border: "3px solid rgba(var(--studio-ink-rgb), 0.1)", borderTopColor: 'var(--color-purple)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
                 <span>Loading music content...</span>
               </div>
             )}
@@ -10340,9 +10337,9 @@ ABSOLUTE RULES (violating any = failure):
                 justifyContent: 'center', 
                 padding: '60px 24px', 
                 textAlign: 'center',
-                background: 'rgba(255,255,255,0.02)',
+                background: "rgba(var(--studio-ink-rgb), 0.02)",
                 borderRadius: '16px',
-                border: '1px solid rgba(255,255,255,0.05)'
+                border: "1px solid rgba(var(--studio-ink-rgb), 0.05)"
               }}>
                 <Music size={48} style={{ color: 'var(--color-purple)', marginBottom: '16px', opacity: 0.6 }} />
                 <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', color: 'var(--text-primary)' }}>No Music Content Available</h3>
@@ -10356,7 +10353,7 @@ ABSOLUTE RULES (violating any = failure):
                     borderRadius: '10px',
                     border: 'none',
                     background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
-                    color: 'white',
+                    color: "var(--studio-on-accent)",
                     fontSize: '0.95rem',
                     fontWeight: '600',
                     cursor: 'pointer',
@@ -10387,7 +10384,7 @@ ABSOLUTE RULES (violating any = failure):
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'var(--color-purple)';
-                    e.currentTarget.style.color = 'white';
+                    e.currentTarget.style.color = "var(--studio-ink)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'transparent';
@@ -10412,10 +10409,10 @@ ABSOLUTE RULES (violating any = failure):
               <div>
                 {/* Share Content Section */}
                 <div style={{
-                  background: 'rgba(255,255,255,0.03)', borderRadius: '20px',
-                  border: '1px solid rgba(255,255,255,0.08)', padding: '32px', marginBottom: '24px'
+                  background: "rgba(var(--studio-ink-rgb), 0.03)", borderRadius: '20px',
+                  border: "1px solid rgba(var(--studio-ink-rgb), 0.08)", padding: '32px', marginBottom: '24px'
                 }}>
-                  <h3 style={{ margin: '0 0 8px 0', fontSize: '1.3rem', fontWeight: '700', color: 'white' }}>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '1.3rem', fontWeight: '700', color: "var(--studio-ink)" }}>
                     Share Your Creations
                   </h3>
                   <p style={{ margin: '0 0 24px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
@@ -10427,7 +10424,7 @@ ABSOLUTE RULES (violating any = failure):
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>Content</label>
                       {shareSelectedPlatforms.twitter && (
-                        <span style={{ fontSize: '0.75rem', color: sharePostText.length > 280 ? '#ef4444' : 'var(--text-secondary)' }}>
+                        <span style={{ fontSize: '0.75rem', color: sharePostText.length > 280 ? "var(--studio-danger)" : 'var(--text-secondary)' }}>
                           {sharePostText.length}/280 for X/Twitter
                         </span>
                       )}
@@ -10437,9 +10434,9 @@ ABSOLUTE RULES (violating any = failure):
                       onChange={(e) => setSharePostText(e.target.value)}
                       placeholder="Write your post caption, or paste text from your AI generations..."
                       style={{
-                        width: '100%', minHeight: '120px', background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px',
-                        padding: '16px', color: 'white', fontSize: '0.95rem', resize: 'vertical',
+                        width: '100%', minHeight: '120px', background: "rgba(var(--studio-ink-rgb), 0.05)",
+                        border: "1px solid rgba(var(--studio-ink-rgb), 0.1)", borderRadius: '12px',
+                        padding: '16px', color: "var(--studio-ink)", fontSize: '0.95rem', resize: 'vertical',
                         outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box'
                       }}
                     />
@@ -10462,9 +10459,9 @@ ABSOLUTE RULES (violating any = failure):
                             style={{
                               display: 'flex', alignItems: 'center', gap: '8px',
                               padding: '10px 18px', borderRadius: '10px',
-                              background: selected ? `${p.color}30` : 'rgba(255,255,255,0.05)',
-                              border: selected ? `2px solid ${p.color}` : '1px solid rgba(255,255,255,0.1)',
-                              fontSize: '0.85rem', color: connected ? 'white' : 'rgba(255,255,255,0.3)',
+                              background: selected ? `${p.color}30` : "rgba(var(--studio-ink-rgb), 0.05)",
+                              border: selected ? `2px solid ${p.color}` : "1px solid rgba(var(--studio-ink-rgb), 0.1)",
+                              fontSize: '0.85rem', color: connected ? "var(--studio-ink)" : "var(--studio-muted)",
                               cursor: connected ? 'pointer' : 'not-allowed', transition: 'all 0.2s ease',
                               opacity: connected ? 1 : 0.5
                             }}
@@ -10490,9 +10487,9 @@ ABSOLUTE RULES (violating any = failure):
                     style={{
                       width: '100%', padding: '14px 24px', borderRadius: '12px', border: 'none',
                       background: isPostingToSocial || !sharePostText.trim() || Object.values(shareSelectedPlatforms).filter(Boolean).length === 0
-                        ? 'rgba(255,255,255,0.1)'
+                        ? "rgba(var(--studio-ink-rgb), 0.1)"
                         : 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
-                      color: 'white', fontSize: '1rem', fontWeight: '700',
+                      color: "var(--studio-ink)", fontSize: '1rem', fontWeight: '700',
                       cursor: isPostingToSocial || !sharePostText.trim() ? 'not-allowed' : 'pointer',
                       transition: 'all 0.2s ease', display: 'flex', alignItems: 'center',
                       justifyContent: 'center', gap: '8px'
@@ -10500,7 +10497,7 @@ ABSOLUTE RULES (violating any = failure):
                   >
                     {isPostingToSocial ? (
                       <>
-                        <div style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                        <div style={{ width: '18px', height: '18px', border: "2px solid rgba(var(--studio-ink-rgb), 0.16)", borderTopColor: "var(--studio-ink)", borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                         Posting...
                       </>
                     ) : (
@@ -10514,10 +10511,10 @@ ABSOLUTE RULES (violating any = failure):
 
                 {/* Recent Projects to Share */}
                 <div style={{
-                  background: 'rgba(255,255,255,0.03)', borderRadius: '20px',
-                  border: '1px solid rgba(255,255,255,0.08)', padding: '32px'
+                  background: "rgba(var(--studio-ink-rgb), 0.03)", borderRadius: '20px',
+                  border: "1px solid rgba(var(--studio-ink-rgb), 0.08)", padding: '32px'
                 }}>
-                  <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: '700', color: 'white' }}>
+                  <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: '700', color: "var(--studio-ink)" }}>
                     Recent Creations
                   </h3>
                   {projects.length > 0 ? (
@@ -10526,11 +10523,11 @@ ABSOLUTE RULES (violating any = failure):
                         <div key={proj.id} style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                           padding: '12px 16px', borderRadius: '12px',
-                          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
+                          background: "rgba(var(--studio-ink-rgb), 0.04)", border: "1px solid rgba(var(--studio-ink-rgb), 0.06)",
                           cursor: 'pointer', transition: 'all 0.2s ease'
                         }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ color: 'white', fontSize: '0.9rem', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <div style={{ color: "var(--studio-ink)", fontSize: '0.9rem', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {proj.name || proj.title || 'Untitled'}
                             </div>
                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '2px' }}>
@@ -10544,8 +10541,8 @@ ABSOLUTE RULES (violating any = failure):
                               toast.success('Added to post!');
                             }}
                             style={{
-                              padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)',
-                              background: 'rgba(255,255,255,0.08)', color: 'white', fontSize: '0.8rem',
+                              padding: '6px 14px', borderRadius: '8px', border: "1px solid rgba(var(--studio-ink-rgb), 0.15)",
+                              background: "rgba(var(--studio-ink-rgb), 0.08)", color: "var(--studio-ink)", fontSize: '0.8rem',
                               fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap'
                             }}
                           >
@@ -10599,15 +10596,15 @@ ABSOLUTE RULES (violating any = failure):
             <div className="profile-header" style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '32px' }}>
               <div className="profile-avatar-large" style={{ width: '100px', height: '100px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--color-purple)', position: 'relative' }}>
                 {user?.photoURL ? <img src={user.photoURL} alt="User" loading="lazy" style={{ width: '100%', height: '100%' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>{user?.displayName?.charAt(0) || 'U'}</div>}
-                <button style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white', fontSize: '0.7rem', padding: '4px', cursor: 'pointer' }}>Edit</button>
+                <button style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', border: 'none', color: "var(--studio-ink)", fontSize: '0.7rem', padding: '4px', cursor: 'pointer' }}>Edit</button>
               </div>
               <div>
                 <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>{userProfile.stageName || user?.displayName || 'Guest Creator'}</h1>
                 <p style={{ color: 'var(--text-secondary)' }}>{user?.email || 'No email linked'}</p>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-                  <span className="badge" style={{ background: 'var(--color-purple)', color: 'white', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>{userProfile.plan} Plan</span>
-                  <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>Member since {userProfile.memberSince}</span>
-                  <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--color-cyan)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>{userProfile.credits} Credits</span>
+                  <span className="badge" style={{ background: 'var(--color-purple)', color: "var(--studio-on-accent)", padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>{userProfile.plan} Plan</span>
+                  <span className="badge" style={{ background: "rgba(var(--studio-ink-rgb), 0.1)", color: 'var(--text-secondary)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>Member since {userProfile.memberSince}</span>
+                  <span className="badge" style={{ background: "rgba(var(--studio-ink-rgb), 0.1)", color: 'var(--color-cyan)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>{userProfile.credits} Credits</span>
                 </div>
               </div>
             </div>
@@ -10707,7 +10704,7 @@ ABSOLUTE RULES (violating any = failure):
                   { id: 'spotify', label: 'Spotify for Artists', icon: Music, color: '#1DB954' },
                   { id: 'tiktok', label: 'TikTok', icon: VideoIcon, color: '#00f2ea' }
                 ].map(social => (
-                  <div key={social.id} className="social-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                  <div key={social.id} className="social-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: "rgba(var(--studio-ink-rgb), 0.05)", borderRadius: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <social.icon size={20} color={social.color} />
                       <span>{social.label}</span>
@@ -10720,9 +10717,9 @@ ABSOLUTE RULES (violating any = failure):
                         return newState;
                       })}
                       style={{ 
-                        background: socialConnections[social.id] ? 'rgba(16, 185, 129, 0.2)' : 'transparent', 
-                        border: `1px solid ${socialConnections[social.id] ? '#10b981' : 'var(--border-color)'}`, 
-                        color: socialConnections[social.id] ? '#10b981' : 'white', 
+                        background: socialConnections[social.id] ? "rgba(86,105,84, 0.2)" : 'transparent',
+                        border: `1px solid ${socialConnections[social.id] ? "var(--studio-sage)" : 'var(--border-color)'}`,
+                        color: socialConnections[social.id] ? "var(--studio-sage)" : "var(--studio-ink)",
                         padding: '6px 12px', 
                         borderRadius: '6px', 
                         cursor: 'pointer',
@@ -10739,7 +10736,7 @@ ABSOLUTE RULES (violating any = failure):
             <div className="profile-section" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '24px', marginBottom: '24px', border: '1px solid var(--border-color)' }}>
               <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={20} /> Preferences</h3>
               <div className="preferences-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div className="preference-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                <div className="preference-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: "rgba(var(--studio-ink-rgb), 0.05)", borderRadius: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     {theme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}
                     <div>
@@ -10955,7 +10952,7 @@ ABSOLUTE RULES (violating any = failure):
             </div>
 
             <div className="contact-support-section" style={{ marginTop: '40px', padding: '32px', background: 'var(--card-bg)', borderRadius: '24px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-              <div className="icon-box" style={{ width: '64px', height: '64px', margin: '0 auto 16px', background: 'rgba(168, 85, 247, 0.1)', color: 'var(--color-purple)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="icon-box" style={{ width: '64px', height: '64px', margin: '0 auto 16px', background: "rgba(163,66,41, 0.1)", color: 'var(--color-purple)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <MessageSquare size={32} />
               </div>
               <h2>Still need help?</h2>
@@ -11031,7 +11028,7 @@ ABSOLUTE RULES (violating any = failure):
                       width: isMobile ? '36px' : '48px',
                       height: isMobile ? '36px' : '48px',
                       borderRadius: isMobile ? '10px' : '12px',
-                      background: `${item.color}20`,
+                      background: `color-mix(in srgb, ${item.color} 13%, transparent)`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -11065,8 +11062,8 @@ ABSOLUTE RULES (violating any = failure):
                     alignItems: 'center',
                     gap: '12px',
                     padding: '14px 16px',
-                    background: 'rgba(168, 85, 247, 0.1)',
-                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    background: "rgba(163,66,41, 0.1)",
+                    border: "1px solid rgba(163,66,41, 0.3)",
                     borderRadius: '12px',
                     color: 'var(--color-purple)',
                     cursor: 'pointer',
@@ -11086,8 +11083,8 @@ ABSOLUTE RULES (violating any = failure):
                       alignItems: 'center',
                       gap: '12px',
                       padding: '14px 16px',
-                      background: 'rgba(6, 182, 212, 0.1)',
-                      border: '1px solid rgba(6, 182, 212, 0.3)',
+                      background: "rgba(61,100,114, 0.1)",
+                      border: "1px solid rgba(61,100,114, 0.3)",
                       borderRadius: '12px',
                       color: 'var(--color-cyan)',
                       cursor: 'pointer',
@@ -11154,7 +11151,7 @@ ABSOLUTE RULES (violating any = failure):
                   width: '22px',
                   height: '22px',
                   borderRadius: '50%',
-                  background: 'white',
+                  background: "var(--studio-surface)",
                   position: 'absolute',
                   top: '3px',
                   left: theme === 'dark' ? '25px' : '3px',
@@ -11189,11 +11186,6 @@ ABSOLUTE RULES (violating any = failure):
         return null;
     }
   };
-
-  // Persist theme
-  useEffect(() => {
-    localStorage.setItem('studio_theme', theme);
-  }, [theme]);
 
   const handleScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -11282,8 +11274,8 @@ ABSOLUTE RULES (violating any = failure):
           <div style={{
             width: '40px',
             height: '40px',
-            border: '3px solid rgba(168, 85, 247, 0.2)',
-            borderTopColor: '#a855f7',
+            border: "3px solid rgba(163,66,41, 0.2)",
+            borderTopColor: "var(--studio-accent)",
             borderRadius: '50%',
             animation: 'spin 1s linear infinite',
             margin: '0 auto 16px'
@@ -11310,9 +11302,9 @@ ABSOLUTE RULES (violating any = failure):
           padding: '40px',
           background: 'var(--bg-secondary)',
           borderRadius: '16px',
-          border: '1px solid rgba(139, 92, 246, 0.2)'
+          border: "1px solid rgba(163,66,41, 0.2)"
         }}>
-          <Sparkles size={48} style={{ color: '#a855f7', marginBottom: '16px' }} />
+          <Sparkles size={48} style={{ color: "var(--studio-accent)", marginBottom: '16px' }} />
           <h2 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--text-primary)' }}>
             Welcome to Studio Agents V3.5
             <span style={{ fontSize: '0.8rem', color: 'var(--color-purple)', display: 'block', marginTop: '4px', fontWeight: 'bold', letterSpacing: '2px' }}>PRO EDITION</span>
@@ -11334,7 +11326,7 @@ ABSOLUTE RULES (violating any = failure):
                 padding: '12px 16px',
                 marginBottom: '12px',
                 borderRadius: '8px',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
+                border: "1px solid rgba(163,66,41, 0.3)",
                 background: 'var(--bg-primary)',
                 color: 'var(--text-primary)',
                 fontSize: '1rem',
@@ -11354,7 +11346,7 @@ ABSOLUTE RULES (violating any = failure):
                 padding: '12px 16px',
                 marginBottom: '12px',
                 borderRadius: '8px',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
+                border: "1px solid rgba(163,66,41, 0.3)",
                 background: 'var(--bg-primary)',
                 color: 'var(--text-primary)',
                 fontSize: '1rem',
@@ -11387,7 +11379,7 @@ ABSOLUTE RULES (violating any = failure):
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: '#a855f7',
+                  color: "var(--studio-accent)",
                   cursor: 'pointer',
                   fontSize: '0.85rem'
                 }}
@@ -11419,9 +11411,9 @@ ABSOLUTE RULES (violating any = failure):
             margin: '16px 0',
             gap: '12px'
           }}>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(139, 92, 246, 0.2)' }} />
+            <div style={{ flex: 1, height: '1px', background: "rgba(163,66,41, 0.2)" }} />
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>or</span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(139, 92, 246, 0.2)' }} />
+            <div style={{ flex: 1, height: '1px', background: "rgba(163,66,41, 0.2)" }} />
           </div>
           
           {/* Google Sign In */}
@@ -11439,7 +11431,7 @@ ABSOLUTE RULES (violating any = failure):
               justifyContent: 'center', 
               gap: '10px',
               background: 'transparent',
-              border: '1px solid rgba(139, 92, 246, 0.3)',
+              border: "1px solid rgba(163,66,41, 0.3)",
               color: 'var(--text-primary)'
             }}
           >
@@ -11466,12 +11458,12 @@ ABSOLUTE RULES (violating any = failure):
               alignItems: 'center', 
               justifyContent: 'center', 
               gap: '10px',
-              background: '#000',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              color: '#fff'
+              background: "var(--studio-surface-alt)",
+              border: "1px solid rgba(var(--studio-ink-rgb), 0.16)",
+              color: "var(--studio-ink)"
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--studio-ink)"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
             {authLoading ? 'Signing in...' : 'Continue with Apple'}
           </button>
           
@@ -11485,7 +11477,7 @@ ABSOLUTE RULES (violating any = failure):
               width: '100%', 
               marginBottom: '16px',
               background: 'transparent',
-              border: '1px solid rgba(139, 92, 246, 0.15)',
+              border: "1px solid rgba(163,66,41, 0.15)",
               color: 'var(--text-secondary)'
             }}
           >
@@ -11529,7 +11521,7 @@ ABSOLUTE RULES (violating any = failure):
       <aside className="studio-nav studio-sidebar">
         <div className="studio-nav-logo" onClick={() => onBack?.()}>
           <div className="logo-box studio-logo">
-            <Sparkles size={20} color="white" />
+            <Sparkles size={20} color="var(--studio-ink)" />
           </div>
           <div className="logo-text">
             <span className="studio-name">STUDIO AGENTS <span style={{ color: 'var(--color-purple)', fontSize: '0.6em', verticalAlign: 'middle', marginLeft: '8px', border: '1px solid var(--color-purple)', padding: '2px 6px', borderRadius: '4px' }}>V3.5</span></span>
@@ -11666,8 +11658,8 @@ ABSOLUTE RULES (violating any = failure):
                   borderRadius: '12px',
                   fontSize: '0.75rem',
                   fontWeight: '500',
-                  background: saveStatus === 'saving' ? 'rgba(168, 85, 247, 0.15)' 
-                    : saveStatus === 'saved' ? 'rgba(34, 197, 94, 0.15)' 
+                  background: saveStatus === 'saving' ? "rgba(163,66,41, 0.15)"
+                    : saveStatus === 'saved' ? "rgba(86,105,84, 0.15)"
                     : 'rgba(239, 68, 68, 0.15)',
                   color: saveStatus === 'saving' ? 'var(--color-purple)' 
                     : saveStatus === 'saved' ? 'var(--color-green)' 
@@ -11687,6 +11679,15 @@ ABSOLUTE RULES (violating any = failure):
             )}
           </div>
           <div className="studio-header-actions">
+            <button
+              type="button"
+              className="action-button secondary studio-theme-toggle"
+              aria-label={theme === 'dark' ? 'Use paper theme' : 'Use charcoal theme'}
+              title={theme === 'dark' ? 'Use paper theme' : 'Use charcoal theme'}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             <button 
               data-tour="header-home"
               className="action-button secondary haptic-press"
@@ -11725,9 +11726,9 @@ ABSOLUTE RULES (violating any = failure):
                 <span style={{
                   position: 'absolute', top: '-2px', right: '-2px',
                   minWidth: '16px', height: '16px', borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #f59e0b, #a855f7)',
+                  background: "linear-gradient(135deg, var(--studio-warning), var(--studio-accent))",
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.6rem', fontWeight: 800, color: '#fff',
+                  fontSize: '0.6rem', fontWeight: 800, color: "var(--studio-on-accent)",
                   padding: '0 4px', border: '1px solid var(--card-bg)',
                 }}>{badgeTracker.totalEarned}</span>
               )}
@@ -11893,7 +11894,7 @@ ABSOLUTE RULES (violating any = failure):
                           alt={playingItem.title} 
                           className="player-video" 
                           loading="lazy"
-                          style={{ objectFit: 'contain', background: '#000' }}
+                          style={{ objectFit: 'contain', background: "var(--studio-surface-alt)" }}
                         />
                       ) : playingItem.audioUrl ? (
                         <div className="audio-visualizer-placeholder">
@@ -11910,7 +11911,7 @@ ABSOLUTE RULES (violating any = failure):
                           height: '100%',
                           minHeight: '200px',
                           padding: '2rem',
-                          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.05))',
+                          background: "linear-gradient(135deg, rgba(163,66,41, 0.1), rgba(163,66,41, 0.05))",
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -11968,7 +11969,7 @@ ABSOLUTE RULES (violating any = failure):
                         <button
                           className="player-btn primary"
                           onClick={() => handleDownload(playingItem, 'wav')}
-                          style={{ background: 'rgba(139, 92, 246, 0.2)', borderColor: 'rgba(139, 92, 246, 0.4)' }}
+                          style={{ background: "rgba(163,66,41, 0.2)", borderColor: "rgba(163,66,41, 0.4)" }}
                         >
                           <Download size={18} />
                           <span>WAV</span>
@@ -12010,8 +12011,8 @@ ABSOLUTE RULES (violating any = failure):
                           }
                         }}
                         style={{
-                          background: (backingTrack && backingTrack.audioUrl === playingItem.audioUrl) ? 'rgba(168, 85, 247, 0.3)' : undefined,
-                          borderColor: (backingTrack && backingTrack.audioUrl === playingItem.audioUrl) ? 'rgba(168, 85, 247, 0.5)' : undefined
+                          background: (backingTrack && backingTrack.audioUrl === playingItem.audioUrl) ? "rgba(163,66,41, 0.3)" : undefined,
+                          borderColor: (backingTrack && backingTrack.audioUrl === playingItem.audioUrl) ? "rgba(163,66,41, 0.5)" : undefined
                         }}
                       >
                         <Music size={18} />
@@ -12050,7 +12051,7 @@ ABSOLUTE RULES (violating any = failure):
 
         {/* Producer Canvas — multi-lane musician-first production workspace */}
         {showStudioSession && (
-          <Suspense fallback={<div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: '#0b0d12', display: 'grid', placeItems: 'center' }}><StudioInlineState label="Opening Producer Canvas" detail="Restoring your session and studio assets" /></div>}>
+          <Suspense fallback={<div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: "var(--studio-surface)", display: 'grid', placeItems: 'center' }}><StudioInlineState label="Opening Producer Canvas" detail="Restoring your session and studio assets" /></div>}>
             <ProducerCanvas
               project={selectedProject}
               projects={projects}
@@ -12072,19 +12073,19 @@ ABSOLUTE RULES (violating any = failure):
 
         {/* Retained for one release as a rollback path while saved sessions migrate. */}
         {showStudioSession && LEGACY_SESSION_MIXER && (
-          <div className="studio-session-overlay animate-fadeIn" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(180deg, #0a0a0f, #111118)', zIndex: 10000, display: 'flex', flexDirection: 'column' }}>
+          <div className="studio-session-overlay animate-fadeIn" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, var(--studio-bg), var(--studio-surface))", zIndex: 10000, display: 'flex', flexDirection: 'column' }}>
             
             {/* ── TOP BAR: Transport + Title ── */}
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: isMobile ? '10px 14px' : '12px 20px',
-              background: 'rgba(0,0,0,0.5)', borderBottom: '1px solid rgba(255,255,255,0.06)',
+              background: 'rgba(0,0,0,0.5)', borderBottom: "1px solid rgba(var(--studio-ink-rgb), 0.06)",
               gap: '12px', flexShrink: 0
             }}>
               {/* Left: Logo + Title */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <LayoutGrid size={16} color="white" />
+                  <LayoutGrid size={16} color="var(--studio-ink)" />
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <h2 style={{ margin: 0, fontSize: isMobile ? '0.95rem' : '1.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Session Mixer</h2>
@@ -12095,7 +12096,7 @@ ABSOLUTE RULES (violating any = failure):
               {/* Center: Transport Controls */}
               <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '8px' }}>
                 <button onClick={handleUndo} disabled={historyIndex <= 0}
-                  style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', border: 'none', color: historyIndex > 0 ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.15)', cursor: historyIndex > 0 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ width: '32px', height: '32px', borderRadius: '8px', background: "rgba(var(--studio-ink-rgb), 0.06)", border: 'none', color: historyIndex > 0 ? "var(--studio-muted)" : "var(--studio-muted)", cursor: historyIndex > 0 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   title="Undo"><Undo size={16} /></button>
 
                 <button
@@ -12104,19 +12105,19 @@ ABSOLUTE RULES (violating any = failure):
                     width: isMobile ? '48px' : '52px', height: isMobile ? '48px' : '52px',
                     borderRadius: '50%',
                     background: sessionPlaying ? 'rgba(239,68,68,0.25)' : 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
-                    border: sessionPlaying ? '2px solid rgba(239,68,68,0.5)' : '2px solid rgba(168,85,247,0.5)',
-                    color: 'white', cursor: 'pointer',
+                    border: sessionPlaying ? '2px solid rgba(239,68,68,0.5)' : "2px solid rgba(163,66,41, 0.5)",
+                    color: "var(--studio-ink)", cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: sessionPlaying ? '0 0 20px rgba(239,68,68,0.3)' : '0 0 20px rgba(168,85,247,0.3)',
+                    boxShadow: sessionPlaying ? '0 0 20px rgba(239,68,68,0.3)' : "0 0 20px rgba(163,66,41, 0.3)",
                     transition: 'all 0.2s'
                   }}
                   aria-label={sessionPlaying ? "Pause" : "Play"}
                 >
-                  {sessionPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" style={{ marginLeft: '2px' }} />}
+                  {sessionPlaying ? <Pause size={22} fill="var(--studio-ink)" /> : <Play size={22} fill="var(--studio-ink)" style={{ marginLeft: '2px' }} />}
                 </button>
 
                 <button onClick={handleRedo} disabled={historyIndex >= sessionHistory.length - 1}
-                  style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', border: 'none', color: historyIndex < sessionHistory.length - 1 ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.15)', cursor: historyIndex < sessionHistory.length - 1 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ width: '32px', height: '32px', borderRadius: '8px', background: "rgba(var(--studio-ink-rgb), 0.06)", border: 'none', color: historyIndex < sessionHistory.length - 1 ? "var(--studio-muted)" : "var(--studio-muted)", cursor: historyIndex < sessionHistory.length - 1 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   title="Redo"><Redo size={16} /></button>
               </div>
 
@@ -12124,10 +12125,10 @@ ABSOLUTE RULES (violating any = failure):
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {/* Render dots */}
                 <div style={{ display: 'flex', gap: '3px', marginRight: '4px' }}>
-                  {[1,2,3].map(n => <div key={n} style={{ width: '7px', height: '7px', borderRadius: '50%', background: n <= (sessionTracks.renderCount || 0) ? 'var(--color-purple)' : 'rgba(255,255,255,0.15)' }} />)}
+                  {[1,2,3].map(n => <div key={n} style={{ width: '7px', height: '7px', borderRadius: '50%', background: n <= (sessionTracks.renderCount || 0) ? 'var(--color-purple)' : "rgba(var(--studio-ink-rgb), 0.15)" }} />)}
                 </div>
                 <button onClick={() => { setShowStudioSession(false); setSessionPlaying(false); }}
-                  style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ width: '36px', height: '36px', borderRadius: '8px', background: "rgba(var(--studio-ink-rgb), 0.06)", border: 'none', color: "var(--studio-muted)", cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   title="Close session"><X size={20} /></button>
               </div>
             </div>
@@ -12136,11 +12137,11 @@ ABSOLUTE RULES (violating any = failure):
             <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden' }}>
               
               {/* ── LEFT: Visual Preview + Settings ── */}
-              <div style={{ flex: isMobile ? 'none' : '1 1 45%', display: 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ flex: isMobile ? 'none' : '1 1 45%', display: 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : "1px solid rgba(var(--studio-ink-rgb), 0.06)" }}>
                 
                 {/* Visual Preview */}
                 <div style={{
-                  flex: 1, background: '#000', position: 'relative',
+                  flex: 1, background: "var(--studio-surface-alt)", position: 'relative',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   minHeight: isMobile ? '200px' : '280px',
                   maxHeight: isMobile ? '240px' : 'none'
@@ -12151,13 +12152,13 @@ ABSOLUTE RULES (violating any = failure):
                     ) : sessionTracks.visual.imageUrl ? (
                       <img src={sessionTracks.visual.imageUrl} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Visual preview" />
                     ) : (
-                      <div style={{ color: 'rgba(255,255,255,0.2)', textAlign: 'center' }}>
+                      <div style={{ color: "var(--studio-muted)", textAlign: 'center' }}>
                         <ImageIcon size={40} />
                         <p style={{ fontSize: '0.8rem', marginTop: '8px' }}>No visual loaded</p>
                       </div>
                     )
                   ) : (
-                    <div style={{ color: 'rgba(255,255,255,0.15)', textAlign: 'center' }}>
+                    <div style={{ color: "var(--studio-muted)", textAlign: 'center' }}>
                       <ImageIcon size={40} />
                       <p style={{ fontSize: '0.8rem', marginTop: '8px' }}>Add a visual from Track 3</p>
                     </div>
@@ -12170,8 +12171,8 @@ ABSOLUTE RULES (violating any = failure):
                   {/* Live indicator */}
                   {sessionPlaying && (
                     <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(0,0,0,0.6)', borderRadius: '12px', padding: '4px 10px' }}>
-                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', animation: 'pulse 1s infinite' }} />
-                      <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#ef4444', letterSpacing: '0.1em' }}>REC</span>
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: "var(--studio-danger)", animation: 'pulse 1s infinite' }} />
+                      <span style={{ fontSize: '0.65rem', fontWeight: 800, color: "var(--studio-danger)", letterSpacing: '0.1em' }}>REC</span>
                     </div>
                   )}
                 </div>
@@ -12180,23 +12181,23 @@ ABSOLUTE RULES (violating any = failure):
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '12px',
                   padding: isMobile ? '8px 12px' : '10px 16px',
-                  background: 'rgba(0,0,0,0.4)', borderTop: '1px solid rgba(255,255,255,0.04)',
+                  background: "var(--studio-surface-alt)", borderTop: "1px solid rgba(var(--studio-ink-rgb), 0.04)",
                   flexWrap: 'wrap', flexShrink: 0
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>BPM</span>
+                    <span style={{ fontSize: '0.68rem', color: "var(--studio-muted)", fontWeight: 600 }}>BPM</span>
                     <input type="number" value={sessionTracks.bpm || 120}
                       onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, bpm: parseInt(e.target.value) || 120 }))}
-                      style={{ width: '44px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '5px', padding: '3px 6px', color: '#22d3ee', fontSize: '0.8rem', fontWeight: 700, textAlign: 'center' }} />
+                      style={{ width: '44px', background: "rgba(var(--studio-ink-rgb), 0.08)", border: "1px solid rgba(var(--studio-ink-rgb), 0.08)", borderRadius: '5px', padding: '3px 6px', color: "var(--studio-blue)", fontSize: '0.8rem', fontWeight: 700, textAlign: 'center' }} />
                   </div>
                   <select value={sessionTracks.frameRate || 30}
                     onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, frameRate: parseInt(e.target.value) }))}
-                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '5px', padding: '3px 8px', color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', cursor: 'pointer' }}>
+                    style={{ background: "rgba(var(--studio-ink-rgb), 0.08)", border: "1px solid rgba(var(--studio-ink-rgb), 0.08)", borderRadius: '5px', padding: '3px 8px', color: "var(--studio-muted)", fontSize: '0.72rem', cursor: 'pointer' }}>
                     <option value="24">24fps</option><option value="30">30fps</option><option value="60">60fps</option>
                   </select>
                   <select value={sessionTracks.aspectRatio || '16:9'}
                     onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, aspectRatio: e.target.value }))}
-                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '5px', padding: '3px 8px', color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', cursor: 'pointer' }}>
+                    style={{ background: "rgba(var(--studio-ink-rgb), 0.08)", border: "1px solid rgba(var(--studio-ink-rgb), 0.08)", borderRadius: '5px', padding: '3px 8px', color: "var(--studio-muted)", fontSize: '0.72rem', cursor: 'pointer' }}>
                     <option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option>
                   </select>
                   <div style={{ flex: 1 }} />
@@ -12205,10 +12206,10 @@ ABSOLUTE RULES (violating any = failure):
                     onClick={() => updateSessionWithHistory(prev => ({ ...prev, generateRealAssets: !prev.generateRealAssets }))}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '6px',
-                      background: sessionTracks.generateRealAssets ? 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(236,72,153,0.3))' : 'rgba(255,255,255,0.06)',
-                      border: sessionTracks.generateRealAssets ? '1px solid rgba(168,85,247,0.4)' : '1px solid rgba(255,255,255,0.08)',
+                      background: sessionTracks.generateRealAssets ? "linear-gradient(135deg, rgba(163,66,41, 0.3), rgba(163,66,41, 0.3))" : "rgba(var(--studio-ink-rgb), 0.06)",
+                      border: sessionTracks.generateRealAssets ? "1px solid rgba(163,66,41, 0.4)" : "1px solid rgba(var(--studio-ink-rgb), 0.08)",
                       borderRadius: '16px', padding: '4px 10px', cursor: 'pointer',
-                      fontSize: '0.7rem', fontWeight: 700, color: sessionTracks.generateRealAssets ? '#c084fc' : 'rgba(255,255,255,0.4)',
+                      fontSize: '0.7rem', fontWeight: 700, color: sessionTracks.generateRealAssets ? "var(--studio-accent)" : "var(--studio-muted)",
                       transition: 'all 0.2s'
                     }}>
                     {sessionTracks.generateRealAssets ? '⚡ Real' : '📝 Text'}
@@ -12229,22 +12230,22 @@ ABSOLUTE RULES (violating any = failure):
                   const isActive = !!sessionTracks.audio;
                   return (
                     <div style={{
-                      background: isActive ? 'rgba(6,182,212,0.04)' : 'rgba(255,255,255,0.02)',
+                      background: isActive ? "rgba(61,100,114, 0.04)" : "rgba(var(--studio-ink-rgb), 0.02)",
                       borderRadius: '12px', overflow: 'hidden',
-                      border: isActive ? '1px solid rgba(6,182,212,0.2)' : '1px solid rgba(255,255,255,0.06)'
+                      border: isActive ? "1px solid rgba(61,100,114, 0.2)" : "1px solid rgba(var(--studio-ink-rgb), 0.06)"
                     }}>
                       {/* Track Header */}
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: '10px',
                         padding: isMobile ? '10px 12px' : '10px 14px',
-                        background: 'rgba(0,0,0,0.2)'
+                        background: "var(--studio-surface-alt)"
                       }}>
-                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: isActive ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${isActive ? 'rgba(6,182,212,0.3)' : 'rgba(255,255,255,0.06)'}` }}>
-                          <Disc size={14} color={isActive ? '#22d3ee' : 'rgba(255,255,255,0.2)'} />
+                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: isActive ? "rgba(61,100,114, 0.15)" : "rgba(var(--studio-ink-rgb), 0.04)", display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${isActive ? "rgba(61,100,114, 0.3)" : "rgba(var(--studio-ink-rgb), 0.06)"}` }}>
+                          <Disc size={14} color={isActive ? "var(--studio-blue)" : "var(--studio-muted)"} />
                         </div>
-                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isActive ? '#22d3ee' : 'rgba(255,255,255,0.35)', flex: 1 }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isActive ? "var(--studio-blue)" : "var(--studio-muted)", flex: 1 }}>
                           BEAT
-                          {sessionTracks.audio && <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.3)', marginLeft: '8px', fontSize: '0.7rem' }}>{sessionTracks.audio.title || sessionTracks.audio.agent || ''}</span>}
+                          {sessionTracks.audio && <span style={{ fontWeight: 400, color: "var(--studio-muted)", marginLeft: '8px', fontSize: '0.7rem' }}>{sessionTracks.audio.title || sessionTracks.audio.agent || ''}</span>}
                         </span>
 
                         {/* Volume + Controls */}
@@ -12252,14 +12253,14 @@ ABSOLUTE RULES (violating any = failure):
                           <input type="range" min="0" max="1" step="0.05" value={sessionTracks.audioVolume || 0.8}
                             onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, audioVolume: parseFloat(e.target.value) }))}
                             style={{ width: isMobile ? '60px' : '80px', accentColor: '#22d3ee', height: '4px' }} />
-                          <span style={{ fontSize: '0.68rem', fontFamily: 'monospace', color: '#22d3ee', minWidth: '26px', textAlign: 'right' }}>{Math.round((sessionTracks.audioVolume || 0.8) * 100)}</span>
+                          <span style={{ fontSize: '0.68rem', fontFamily: 'monospace', color: "var(--studio-blue)", minWidth: '26px', textAlign: 'right' }}>{Math.round((sessionTracks.audioVolume || 0.8) * 100)}</span>
                           <button onClick={() => updateSessionWithHistory(prev => ({ ...prev, audioMuted: !prev.audioMuted }))}
-                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: sessionTracks.audioMuted ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.06)', color: sessionTracks.audioMuted ? '#ef4444' : 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: sessionTracks.audioMuted ? 'rgba(239,68,68,0.25)' : "rgba(var(--studio-ink-rgb), 0.06)", color: sessionTracks.audioMuted ? "var(--studio-danger)" : "var(--studio-muted)", display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
                             title={sessionTracks.audioMuted ? 'Unmute' : 'Mute'}>
                             {sessionTracks.audioMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
                           </button>
                           <button onClick={() => updateSessionWithHistory(prev => ({ ...prev, audioLoop: !(prev.audioLoop !== false) }))}
-                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: sessionTracks.audioLoop !== false ? 'rgba(6,182,212,0.2)' : 'rgba(255,255,255,0.06)', color: sessionTracks.audioLoop !== false ? '#22d3ee' : 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: sessionTracks.audioLoop !== false ? "rgba(61,100,114, 0.2)" : "rgba(var(--studio-ink-rgb), 0.06)", color: sessionTracks.audioLoop !== false ? "var(--studio-blue)" : "var(--studio-muted)", display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
                             title={sessionTracks.audioLoop !== false ? 'Loop on' : 'Loop off'}>
                             <RefreshCw size={12} />
                           </button>
@@ -12270,7 +12271,7 @@ ABSOLUTE RULES (violating any = failure):
                       <div style={{ padding: isMobile ? '8px' : '8px 12px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                         <div style={{ display: 'flex', gap: '6px', minWidth: 'max-content' }}>
                           {audioAssets.length === 0 ? (
-                            <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.1)', fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', textAlign: 'center', width: '100%' }}>
+                            <div style={{ padding: '12px 16px', background: "rgba(var(--studio-ink-rgb), 0.03)", borderRadius: '8px', border: "1px dashed rgba(var(--studio-ink-rgb), 0.1)", fontSize: '0.75rem', color: "var(--studio-muted)", textAlign: 'center', width: '100%' }}>
                               No audio assets. Create a beat first.
                             </div>
                           ) : audioAssets.map(a => {
@@ -12281,10 +12282,10 @@ ABSOLUTE RULES (violating any = failure):
                                 style={{
                                   display: 'flex', alignItems: 'center', gap: '8px',
                                   padding: isMobile ? '10px 14px' : '8px 14px',
-                                  background: selected ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.03)',
-                                  border: selected ? '1.5px solid rgba(6,182,212,0.5)' : '1px solid rgba(255,255,255,0.06)',
+                                  background: selected ? "rgba(61,100,114, 0.15)" : "rgba(var(--studio-ink-rgb), 0.03)",
+                                  border: selected ? "1.5px solid rgba(61,100,114, 0.5)" : "1px solid rgba(var(--studio-ink-rgb), 0.06)",
                                   borderRadius: '8px', cursor: 'pointer',
-                                  color: selected ? '#22d3ee' : 'rgba(255,255,255,0.5)',
+                                  color: selected ? "var(--studio-blue)" : "var(--studio-muted)",
                                   fontSize: '0.75rem', fontWeight: selected ? 700 : 500,
                                   whiteSpace: 'nowrap', transition: 'all 0.15s',
                                   flexShrink: 0
@@ -12300,9 +12301,9 @@ ABSOLUTE RULES (violating any = failure):
                       {/* Waveform */}
                       {sessionTracks.audio && (
                         <div style={{ padding: '0 12px 8px', overflow: 'hidden' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1px', height: '32px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '0 4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1px', height: '32px', background: "var(--studio-surface-alt)", borderRadius: '6px', padding: '0 4px' }}>
                             {[...Array(isMobile ? 40 : 60)].map((_, i) => {
-                              return <div key={i} style={{ flex: 1, background: 'linear-gradient(to top, #22d3ee, rgba(6,182,212,0.2))', borderRadius: '1px', height: `${15 + Math.sin(i*0.5)*30 + ((i*7+13)%25)}%`, opacity: sessionPlaying ? (0.4 + Math.sin(i*0.4 + Date.now()/200)*0.3) : 0.35, transition: 'height 0.1s' }} />;
+                              return <div key={i} style={{ flex: 1, background: "linear-gradient(to top, var(--studio-blue), rgba(61,100,114, 0.2))", borderRadius: '1px', height: `${15 + Math.sin(i*0.5)*30 + ((i*7+13)%25)}%`, opacity: sessionPlaying ? (0.4 + Math.sin(i*0.4 + Date.now()/200)*0.3) : 0.35, transition: 'height 0.1s' }} />;
                             })}
                           </div>
                         </div>
@@ -12317,34 +12318,34 @@ ABSOLUTE RULES (violating any = failure):
                   const isActive = !!sessionTracks.vocal;
                   return (
                     <div style={{
-                      background: isActive ? 'rgba(168,85,247,0.04)' : 'rgba(255,255,255,0.02)',
+                      background: isActive ? "rgba(163,66,41, 0.04)" : "rgba(var(--studio-ink-rgb), 0.02)",
                       borderRadius: '12px', overflow: 'hidden',
-                      border: isActive ? '1px solid rgba(168,85,247,0.2)' : '1px solid rgba(255,255,255,0.06)'
+                      border: isActive ? "1px solid rgba(163,66,41, 0.2)" : "1px solid rgba(var(--studio-ink-rgb), 0.06)"
                     }}>
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: '10px',
                         padding: isMobile ? '10px 12px' : '10px 14px',
-                        background: 'rgba(0,0,0,0.2)'
+                        background: "var(--studio-surface-alt)"
                       }}>
-                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: isActive ? 'rgba(168,85,247,0.15)' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${isActive ? 'rgba(168,85,247,0.3)' : 'rgba(255,255,255,0.06)'}` }}>
-                          <Mic size={14} color={isActive ? '#a78bfa' : 'rgba(255,255,255,0.2)'} />
+                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: isActive ? "rgba(163,66,41, 0.15)" : "rgba(var(--studio-ink-rgb), 0.04)", display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${isActive ? "rgba(163,66,41, 0.3)" : "rgba(var(--studio-ink-rgb), 0.06)"}` }}>
+                          <Mic size={14} color={isActive ? "var(--studio-accent)" : "var(--studio-muted)"} />
                         </div>
-                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isActive ? '#a78bfa' : 'rgba(255,255,255,0.35)', flex: 1 }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isActive ? "var(--studio-accent)" : "var(--studio-muted)", flex: 1 }}>
                           VOCALS
-                          {sessionTracks.vocal && <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.3)', marginLeft: '8px', fontSize: '0.7rem' }}>{sessionTracks.vocal.title || sessionTracks.vocal.agent || ''}</span>}
+                          {sessionTracks.vocal && <span style={{ fontWeight: 400, color: "var(--studio-muted)", marginLeft: '8px', fontSize: '0.7rem' }}>{sessionTracks.vocal.title || sessionTracks.vocal.agent || ''}</span>}
                         </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <input type="range" min="0" max="1" step="0.05" value={sessionTracks.vocalVolume || 1.0}
                             onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, vocalVolume: parseFloat(e.target.value) }))}
                             style={{ width: isMobile ? '60px' : '80px', accentColor: '#a78bfa', height: '4px' }} />
-                          <span style={{ fontSize: '0.68rem', fontFamily: 'monospace', color: '#a78bfa', minWidth: '26px', textAlign: 'right' }}>{Math.round((sessionTracks.vocalVolume || 1.0) * 100)}</span>
+                          <span style={{ fontSize: '0.68rem', fontFamily: 'monospace', color: "var(--studio-accent)", minWidth: '26px', textAlign: 'right' }}>{Math.round((sessionTracks.vocalVolume || 1.0) * 100)}</span>
                           <button onClick={() => updateSessionWithHistory(prev => ({ ...prev, vocalMuted: !prev.vocalMuted }))}
-                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: sessionTracks.vocalMuted ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.06)', color: sessionTracks.vocalMuted ? '#ef4444' : 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: sessionTracks.vocalMuted ? 'rgba(239,68,68,0.25)' : "rgba(var(--studio-ink-rgb), 0.06)", color: sessionTracks.vocalMuted ? "var(--studio-danger)" : "var(--studio-muted)", display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
                             title={sessionTracks.vocalMuted ? 'Unmute' : 'Mute'}>
                             {sessionTracks.vocalMuted ? <VolumeX size={13} /> : <Mic size={13} />}
                           </button>
                           <button onClick={() => updateSessionWithHistory(prev => ({ ...prev, vocalLoop: !(prev.vocalLoop !== false) }))}
-                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: sessionTracks.vocalLoop !== false ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.06)', color: sessionTracks.vocalLoop !== false ? '#a78bfa' : 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: sessionTracks.vocalLoop !== false ? "rgba(163,66,41, 0.2)" : "rgba(var(--studio-ink-rgb), 0.06)", color: sessionTracks.vocalLoop !== false ? "var(--studio-accent)" : "var(--studio-muted)", display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
                             title={sessionTracks.vocalLoop !== false ? 'Loop on' : 'Loop off'}>
                             <RefreshCw size={12} />
                           </button>
@@ -12354,7 +12355,7 @@ ABSOLUTE RULES (violating any = failure):
                       <div style={{ padding: isMobile ? '8px' : '8px 12px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                         <div style={{ display: 'flex', gap: '6px', minWidth: 'max-content' }}>
                           {vocalAssets.length === 0 ? (
-                            <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.1)', fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', textAlign: 'center', width: '100%' }}>
+                            <div style={{ padding: '12px 16px', background: "rgba(var(--studio-ink-rgb), 0.03)", borderRadius: '8px', border: "1px dashed rgba(var(--studio-ink-rgb), 0.1)", fontSize: '0.75rem', color: "var(--studio-muted)", textAlign: 'center', width: '100%' }}>
                               No vocal assets. Write lyrics or generate vocals first.
                             </div>
                           ) : vocalAssets.map(a => {
@@ -12365,10 +12366,10 @@ ABSOLUTE RULES (violating any = failure):
                                 style={{
                                   display: 'flex', alignItems: 'center', gap: '8px',
                                   padding: isMobile ? '10px 14px' : '8px 14px',
-                                  background: selected ? 'rgba(168,85,247,0.15)' : 'rgba(255,255,255,0.03)',
-                                  border: selected ? '1.5px solid rgba(168,85,247,0.5)' : '1px solid rgba(255,255,255,0.06)',
+                                  background: selected ? "rgba(163,66,41, 0.15)" : "rgba(var(--studio-ink-rgb), 0.03)",
+                                  border: selected ? "1.5px solid rgba(163,66,41, 0.5)" : "1px solid rgba(var(--studio-ink-rgb), 0.06)",
                                   borderRadius: '8px', cursor: 'pointer',
-                                  color: selected ? '#a78bfa' : 'rgba(255,255,255,0.5)',
+                                  color: selected ? "var(--studio-accent)" : "var(--studio-muted)",
                                   fontSize: '0.75rem', fontWeight: selected ? 700 : 500,
                                   whiteSpace: 'nowrap', transition: 'all 0.15s', flexShrink: 0
                                 }}>
@@ -12382,9 +12383,9 @@ ABSOLUTE RULES (violating any = failure):
 
                       {sessionTracks.vocal && (
                         <div style={{ padding: '0 12px 8px', overflow: 'hidden' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1px', height: '32px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '0 4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1px', height: '32px', background: "var(--studio-surface-alt)", borderRadius: '6px', padding: '0 4px' }}>
                             {[...Array(isMobile ? 40 : 60)].map((_, i) => {
-                              return <div key={i} style={{ flex: 1, background: 'linear-gradient(to top, #a78bfa, rgba(168,85,247,0.2))', borderRadius: '1px', height: `${10 + Math.cos(i*0.4)*25 + ((i*11+7)%20)}%`, opacity: sessionPlaying ? (0.35 + Math.cos(i*0.3 + Date.now()/180)*0.3) : 0.3, transition: 'height 0.1s' }} />;
+                              return <div key={i} style={{ flex: 1, background: "linear-gradient(to top, var(--studio-accent), rgba(163,66,41, 0.2))", borderRadius: '1px', height: `${10 + Math.cos(i*0.4)*25 + ((i*11+7)%20)}%`, opacity: sessionPlaying ? (0.35 + Math.cos(i*0.3 + Date.now()/180)*0.3) : 0.3, transition: 'height 0.1s' }} />;
                             })}
                           </div>
                         </div>
@@ -12399,21 +12400,21 @@ ABSOLUTE RULES (violating any = failure):
                   const isActive = !!sessionTracks.visual;
                   return (
                     <div style={{
-                      background: isActive ? 'rgba(236,72,153,0.04)' : 'rgba(255,255,255,0.02)',
+                      background: isActive ? "rgba(163,66,41, 0.04)" : "rgba(var(--studio-ink-rgb), 0.02)",
                       borderRadius: '12px', overflow: 'hidden',
-                      border: isActive ? '1px solid rgba(236,72,153,0.2)' : '1px solid rgba(255,255,255,0.06)'
+                      border: isActive ? "1px solid rgba(163,66,41, 0.2)" : "1px solid rgba(var(--studio-ink-rgb), 0.06)"
                     }}>
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: '10px',
                         padding: isMobile ? '10px 12px' : '10px 14px',
-                        background: 'rgba(0,0,0,0.2)'
+                        background: "var(--studio-surface-alt)"
                       }}>
-                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: isActive ? 'rgba(236,72,153,0.15)' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${isActive ? 'rgba(236,72,153,0.3)' : 'rgba(255,255,255,0.06)'}` }}>
-                          <VideoIcon size={14} color={isActive ? '#ec4899' : 'rgba(255,255,255,0.2)'} />
+                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: isActive ? "rgba(163,66,41, 0.15)" : "rgba(var(--studio-ink-rgb), 0.04)", display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${isActive ? "rgba(163,66,41, 0.3)" : "rgba(var(--studio-ink-rgb), 0.06)"}` }}>
+                          <VideoIcon size={14} color={isActive ? "var(--studio-accent)" : "var(--studio-muted)"} />
                         </div>
-                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isActive ? '#ec4899' : 'rgba(255,255,255,0.35)', flex: 1 }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isActive ? "var(--studio-accent)" : "var(--studio-muted)", flex: 1 }}>
                           VISUAL
-                          {sessionTracks.visual && <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.3)', marginLeft: '8px', fontSize: '0.7rem' }}>{sessionTracks.visual.title || sessionTracks.visual.agent || ''}</span>}
+                          {sessionTracks.visual && <span style={{ fontWeight: 400, color: "var(--studio-muted)", marginLeft: '8px', fontSize: '0.7rem' }}>{sessionTracks.visual.title || sessionTracks.visual.agent || ''}</span>}
                         </span>
 
                         {/* Sync controls - simplified */}
@@ -12421,7 +12422,7 @@ ABSOLUTE RULES (violating any = failure):
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <select value={sessionTracks.syncMode || 'auto'}
                               onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, syncMode: e.target.value }))}
-                              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '5px', padding: '2px 6px', color: '#ec4899', fontSize: '0.68rem', cursor: 'pointer' }}>
+                              style={{ background: "var(--studio-surface-alt)", border: "1px solid rgba(var(--studio-ink-rgb), 0.08)", borderRadius: '5px', padding: '2px 6px', color: "var(--studio-accent)", fontSize: '0.68rem', cursor: 'pointer' }}>
                               <option value="auto">Auto Sync</option>
                               <option value="beat">Beat Sync</option>
                               <option value="vocal">Vocal Sync</option>
@@ -12431,8 +12432,8 @@ ABSOLUTE RULES (violating any = failure):
                               <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                                 <input type="number" min="-10" max="30" step="0.5" value={sessionTracks.visualOffset || 0}
                                   onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualOffset: parseFloat(e.target.value) || 0 }))}
-                                  style={{ width: '40px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', padding: '2px 4px', color: '#ec4899', fontSize: '0.7rem', fontWeight: 600, textAlign: 'center' }} />
-                                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)' }}>s</span>
+                                  style={{ width: '40px', background: "var(--studio-surface-alt)", border: "1px solid rgba(var(--studio-ink-rgb), 0.08)", borderRadius: '4px', padding: '2px 4px', color: "var(--studio-accent)", fontSize: '0.7rem', fontWeight: 600, textAlign: 'center' }} />
+                                <span style={{ fontSize: '0.6rem', color: "var(--studio-muted)" }}>s</span>
                               </div>
                             )}
                           </div>
@@ -12443,7 +12444,7 @@ ABSOLUTE RULES (violating any = failure):
                       <div style={{ padding: isMobile ? '8px' : '8px 12px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                         <div style={{ display: 'flex', gap: '6px', minWidth: 'max-content' }}>
                           {visualAssets.length === 0 ? (
-                            <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.1)', fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', textAlign: 'center', width: '100%' }}>
+                            <div style={{ padding: '12px 16px', background: "rgba(var(--studio-ink-rgb), 0.03)", borderRadius: '8px', border: "1px dashed rgba(var(--studio-ink-rgb), 0.1)", fontSize: '0.75rem', color: "var(--studio-muted)", textAlign: 'center', width: '100%' }}>
                               No visual assets. Generate an image or video first.
                             </div>
                           ) : visualAssets.map(a => {
@@ -12455,23 +12456,23 @@ ABSOLUTE RULES (violating any = failure):
                                 style={{
                                   display: 'flex', alignItems: 'center', gap: '8px',
                                   padding: '4px',
-                                  background: selected ? 'rgba(236,72,153,0.15)' : 'rgba(255,255,255,0.03)',
-                                  border: selected ? '1.5px solid rgba(236,72,153,0.5)' : '1px solid rgba(255,255,255,0.06)',
+                                  background: selected ? "rgba(163,66,41, 0.15)" : "rgba(var(--studio-ink-rgb), 0.03)",
+                                  border: selected ? "1.5px solid rgba(163,66,41, 0.5)" : "1px solid rgba(var(--studio-ink-rgb), 0.06)",
                                   borderRadius: '8px', cursor: 'pointer',
                                   transition: 'all 0.15s', flexShrink: 0
                                 }}>
                                 {thumb && (a.imageUrl ? (
                                   <img src={a.imageUrl} alt="" loading="lazy" style={{ width: isMobile ? '40px' : '48px', height: isMobile ? '40px' : '48px', borderRadius: '6px', objectFit: 'cover' }} />
                                 ) : (
-                                  <div style={{ width: isMobile ? '40px' : '48px', height: isMobile ? '40px' : '48px', borderRadius: '6px', background: 'rgba(236,72,153,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <VideoIcon size={16} color="#ec4899" />
+                                  <div style={{ width: isMobile ? '40px' : '48px', height: isMobile ? '40px' : '48px', borderRadius: '6px', background: "rgba(163,66,41, 0.2)", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <VideoIcon size={16} color="var(--studio-accent)" />
                                   </div>
                                 ))}
                                 <div style={{ paddingRight: '8px' }}>
-                                  <div style={{ fontSize: '0.72rem', fontWeight: selected ? 700 : 500, color: selected ? '#ec4899' : 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>
+                                  <div style={{ fontSize: '0.72rem', fontWeight: selected ? 700 : 500, color: selected ? "var(--studio-accent)" : "var(--studio-muted)", whiteSpace: 'nowrap' }}>
                                     {a.title || a.agent || 'Visual'}
                                   </div>
-                                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.2)' }}>
+                                  <div style={{ fontSize: '0.6rem', color: "var(--studio-muted)" }}>
                                     {a.videoUrl ? '🎬 Video' : '🖼️ Image'}
                                   </div>
                                 </div>
@@ -12486,8 +12487,8 @@ ABSOLUTE RULES (violating any = failure):
 
                 {/* Agent Insight */}
                 {sessionHelpEnabled && (sessionTracks.audio || sessionTracks.vocal) && (
-                  <div style={{ padding: '10px 14px', background: 'rgba(168,85,247,0.06)', borderRadius: '10px', borderLeft: '3px solid rgba(168,85,247,0.3)', fontSize: '0.78rem', display: 'flex', gap: '10px', alignItems: 'center', color: 'rgba(255,255,255,0.6)' }}>
-                    <Sparkles size={15} color="#a78bfa" style={{ flexShrink: 0 }} />
+                  <div style={{ padding: '10px 14px', background: "rgba(163,66,41, 0.06)", borderRadius: '10px', borderLeft: "3px solid rgba(163,66,41, 0.3)", fontSize: '0.78rem', display: 'flex', gap: '10px', alignItems: 'center', color: "var(--studio-muted)" }}>
+                    <Sparkles size={15} color="var(--studio-accent)" style={{ flexShrink: 0 }} />
                     {sessionTracks.audio?.agent === 'Beat Architect' ? "Strong transients — keep vocals dry to cut through." :
                      sessionTracks.vocal?.agent === 'Ghostwriter' ? "Dense lyrics — give the beat room for the flow." :
                      "Combine assets from different agents for a unique sound."}
@@ -12501,7 +12502,7 @@ ABSOLUTE RULES (violating any = failure):
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: isMobile ? '10px 14px' : '12px 20px',
-              background: 'rgba(0,0,0,0.5)', borderTop: '1px solid rgba(255,255,255,0.06)',
+              background: 'rgba(0,0,0,0.5)', borderTop: "1px solid rgba(var(--studio-ink-rgb), 0.06)",
               gap: '8px', flexShrink: 0, flexWrap: isMobile ? 'wrap' : 'nowrap'
             }}>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -12518,7 +12519,7 @@ ABSOLUTE RULES (violating any = failure):
                   <Save size={16} /> Save
                 </button>
                 <button className="btn-pill secondary" onClick={() => setShowExternalSaveModal(true)}
-                  style={{ padding: isMobile ? '8px 14px' : '8px 16px', fontSize: '0.8rem', background: 'rgba(6,182,212,0.12)', borderColor: 'rgba(6,182,212,0.25)' }}>
+                  style={{ padding: isMobile ? '8px 14px' : '8px 16px', fontSize: '0.8rem', background: "rgba(61,100,114, 0.12)", borderColor: "rgba(61,100,114, 0.25)" }}>
                   <Cloud size={16} /> Cloud
                 </button>
                 <button className="btn-pill secondary"
@@ -12531,7 +12532,7 @@ ABSOLUTE RULES (violating any = failure):
                     _setActiveTab('activity');
                     setShowStudioSession(false); setSessionPlaying(false);
                   }}
-                  style={{ padding: isMobile ? '8px 14px' : '8px 16px', fontSize: '0.8rem', background: 'rgba(168,85,247,0.12)', borderColor: 'rgba(168,85,247,0.25)' }}>
+                  style={{ padding: isMobile ? '8px 14px' : '8px 16px', fontSize: '0.8rem', background: "rgba(163,66,41, 0.12)", borderColor: "rgba(163,66,41, 0.25)" }}>
                   <Share2 size={16} /> Share
                 </button>
               </div>
@@ -12680,7 +12681,7 @@ ABSOLUTE RULES (violating any = failure):
               <button className="modal-close" onClick={() => setShowExternalSaveModal(false)}><X size={20} /></button>
               <div className="modal-header">
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
-                  <Cloud size={24} color="white" />
+                  <Cloud size={24} color="var(--studio-ink)" />
                 </div>
                 <h2>Save to Cloud</h2>
                 <p>Sync your projects to the Studio Agents cloud or connect external storage.</p>
@@ -12767,15 +12768,15 @@ ABSOLUTE RULES (violating any = failure):
         {/* ═══ Interactive Session Guide ═══ */}
         {showSessionGuide && (() => {
           const SESSION_GUIDE_STEPS = [
-            { icon: '🎛️', title: 'Welcome to the Session Mixer', desc: 'This is your multi-track production workspace. Combine beats, vocals, and visuals into a mastered track — like a DAW, but powered by AI agents.', color: '#a78bfa' },
-            { icon: '🎵', title: 'Track 1 — Beat / Audio', desc: 'Select a beat or audio asset from your project. Adjust volume, toggle loop, or mute the track. Switch between Waveform, File, Stems, and MIDI views.', color: '#06b6d4' },
-            { icon: '🎤', title: 'Track 2 — Vocals', desc: 'Select lyrics or vocal audio. View as waveform, file info, lyrics text, or adlib tags. Mute vocals for an instrumental-only preview.', color: '#a855f7' },
-            { icon: '🎬', title: 'Track 3 — Visual', desc: 'Choose video, image, animation, or thumbnail output. Set sync mode (auto, beat, vocal, or manual) and control offset, duration, and transitions.', color: '#ec4899' },
-            { icon: '⚡', title: 'Real Assets vs Text Mode', desc: 'Toggle Real Assets ON to generate actual audio, images & video using Imagen 4, Veo 3, and MusicGen. Text Mode creates descriptions only (faster, no credits).', color: '#f59e0b' },
-            { icon: '🎚️', title: 'Pro Settings Bar', desc: 'Set BPM for beat-synced cuts. Choose frame rate (24/30/60fps) and aspect ratio (16:9 for YouTube, 9:16 for TikTok, 1:1 for Instagram).', color: '#22d3ee' },
-            { icon: '▶️', title: 'Preview & Play', desc: 'Press the Play button to preview all tracks in sync. The visual preview area shows your video/image while audio plays. Use the overlay or footer play button.', color: '#a78bfa' },
-            { icon: '💾', title: 'Save, Cloud & Share', desc: 'Save — stores session state locally. Cloud — syncs to Studio Agents cloud. Share — opens Social Hub with your master pre-loaded for posting.', color: '#22c55e' },
-            { icon: '⚡', title: 'Render Master', desc: 'Combines all tracks into a mastered production (3 renders max). Real audio gets mixed via AI. The master is saved as an asset in your Project Hub.', color: '#8b5cf6' }
+            { icon: '🎛️', title: 'Welcome to the Session Mixer', desc: 'This is your multi-track production workspace. Combine beats, vocals, and visuals into a mastered track — like a DAW, but powered by AI agents.', color: "var(--studio-accent)" },
+            { icon: '🎵', title: 'Track 1 — Beat / Audio', desc: 'Select a beat or audio asset from your project. Adjust volume, toggle loop, or mute the track. Switch between Waveform, File, Stems, and MIDI views.', color: "var(--studio-blue)" },
+            { icon: '🎤', title: 'Track 2 — Vocals', desc: 'Select lyrics or vocal audio. View as waveform, file info, lyrics text, or adlib tags. Mute vocals for an instrumental-only preview.', color: "var(--studio-accent)" },
+            { icon: '🎬', title: 'Track 3 — Visual', desc: 'Choose video, image, animation, or thumbnail output. Set sync mode (auto, beat, vocal, or manual) and control offset, duration, and transitions.', color: "var(--studio-accent)" },
+            { icon: '⚡', title: 'Real Assets vs Text Mode', desc: 'Toggle Real Assets ON to generate actual audio, images & video using Imagen 4, Veo 3, and MusicGen. Text Mode creates descriptions only (faster, no credits).', color: "var(--studio-warning)" },
+            { icon: '🎚️', title: 'Pro Settings Bar', desc: 'Set BPM for beat-synced cuts. Choose frame rate (24/30/60fps) and aspect ratio (16:9 for YouTube, 9:16 for TikTok, 1:1 for Instagram).', color: "var(--studio-blue)" },
+            { icon: '▶️', title: 'Preview & Play', desc: 'Press the Play button to preview all tracks in sync. The visual preview area shows your video/image while audio plays. Use the overlay or footer play button.', color: "var(--studio-accent)" },
+            { icon: '💾', title: 'Save, Cloud & Share', desc: 'Save — stores session state locally. Cloud — syncs to Studio Agents cloud. Share — opens Social Hub with your master pre-loaded for posting.', color: "var(--studio-sage)" },
+            { icon: '⚡', title: 'Render Master', desc: 'Combines all tracks into a mastered production (3 renders max). Real audio gets mixed via AI. The master is saved as an asset in your Project Hub.', color: "var(--studio-accent)" }
           ];
           const step = SESSION_GUIDE_STEPS[sessionGuideStep];
           const total = SESSION_GUIDE_STEPS.length;
@@ -12787,7 +12788,7 @@ ABSOLUTE RULES (violating any = failure):
               <div
                 onClick={(e) => e.stopPropagation()}
                 style={{
-                  background: 'linear-gradient(135deg, rgba(15,15,30,0.98), rgba(25,25,45,0.98))',
+                  background: "linear-gradient(135deg, var(--studio-surface), var(--studio-surface))",
                   borderRadius: '20px',
                   border: `1px solid ${step.color}40`,
                   boxShadow: `0 20px 60px rgba(0,0,0,0.6), 0 0 40px ${step.color}15`,
@@ -12808,7 +12809,7 @@ ABSOLUTE RULES (violating any = failure):
                   </span>
                   <button
                     onClick={() => setShowSessionGuide(false)}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: '4px' }}
+                    style={{ background: 'none', border: 'none', color: "var(--studio-muted)", cursor: 'pointer', padding: '4px' }}
                   >
                     <X size={18} />
                   </button>
@@ -12825,10 +12826,10 @@ ABSOLUTE RULES (violating any = failure):
                 </div>
 
                 {/* Title */}
-                <h3 style={{ margin: '0 0 10px', fontSize: '1.2rem', fontWeight: 700, color: 'white' }}>{step.title}</h3>
+                <h3 style={{ margin: '0 0 10px', fontSize: '1.2rem', fontWeight: 700, color: "var(--studio-ink)" }}>{step.title}</h3>
 
                 {/* Description */}
-                <p style={{ margin: '0 0 24px', fontSize: '0.9rem', lineHeight: 1.7, color: 'rgba(255,255,255,0.75)' }}>{step.desc}</p>
+                <p style={{ margin: '0 0 24px', fontSize: '0.9rem', lineHeight: 1.7, color: "var(--studio-muted)" }}>{step.desc}</p>
 
                 {/* Progress dots */}
                 <div style={{ display: 'flex', gap: '5px', marginBottom: '20px', justifyContent: 'center' }}>
@@ -12840,7 +12841,7 @@ ABSOLUTE RULES (violating any = failure):
                         width: i === sessionGuideStep ? '20px' : '7px',
                         height: '7px',
                         borderRadius: '4px',
-                        background: i === sessionGuideStep ? step.color : i < sessionGuideStep ? `${step.color}60` : 'rgba(255,255,255,0.15)',
+                        background: i === sessionGuideStep ? step.color : i < sessionGuideStep ? `${step.color}60` : "rgba(var(--studio-ink-rgb), 0.15)",
                         cursor: 'pointer',
                         transition: 'all 0.3s ease'
                       }}
@@ -12855,8 +12856,8 @@ ABSOLUTE RULES (violating any = failure):
                       onClick={() => setSessionGuideStep(s => s - 1)}
                       style={{
                         flex: 1, padding: '12px', borderRadius: '12px',
-                        background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
-                        color: 'white', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer'
+                        background: "rgba(var(--studio-ink-rgb), 0.08)", border: "1px solid rgba(var(--studio-ink-rgb), 0.15)",
+                        color: "var(--studio-ink)", fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer'
                       }}
                     >
                       Back
@@ -12874,7 +12875,7 @@ ABSOLUTE RULES (violating any = failure):
                     style={{
                       flex: 1, padding: '12px', borderRadius: '12px',
                       background: sessionGuideStep === total - 1 ? `linear-gradient(135deg, ${step.color}, ${step.color}cc)` : step.color,
-                      border: 'none', color: 'white', fontWeight: 700, fontSize: '0.85rem',
+                      border: 'none', color: "var(--studio-ink)", fontWeight: 700, fontSize: '0.85rem',
                       cursor: 'pointer', boxShadow: `0 4px 16px ${step.color}40`
                     }}
                   >
@@ -12899,7 +12900,7 @@ ABSOLUTE RULES (violating any = failure):
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   margin: '0 auto 16px'
                 }}>
-                  <FolderPlus size={28} color="white" />
+                  <FolderPlus size={28} color="var(--studio-ink)" />
                 </div>
                 <h2 style={{ textAlign: 'center', marginBottom: '8px' }}>Save to Hub</h2>
                 <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
@@ -12926,7 +12927,7 @@ ABSOLUTE RULES (violating any = failure):
                         background: 'var(--color-bg-tertiary)',
                         border: '1px solid var(--border-color)',
                         borderRadius: '10px',
-                        color: 'white',
+                        color: "var(--studio-ink)",
                         fontSize: '0.95rem'
                       }}
                     />
@@ -12970,7 +12971,7 @@ ABSOLUTE RULES (violating any = failure):
                             background: 'var(--color-bg-tertiary)',
                             border: '1px solid var(--border-color)',
                             borderRadius: '10px',
-                            color: 'white',
+                            color: "var(--studio-ink)",
                             cursor: 'pointer',
                             textAlign: 'left',
                             transition: 'all 0.2s ease'
@@ -13046,15 +13047,15 @@ ABSOLUTE RULES (violating any = failure):
                     top: '-0.5rem', 
                     right: '-0.5rem', 
                     zIndex: 9999,
-                    background: 'rgba(255, 255, 255, 0.1)',
+                    background: "rgba(var(--studio-ink-rgb), 0.1)",
                     backdropFilter: 'blur(5px)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)'
+                    border: "1px solid rgba(var(--studio-ink-rgb), 0.16)"
                   }}
                 >
                   <X size={20} />
                 </button>
-                <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem', background: previewItem.isExistingAsset ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)' : 'linear-gradient(135deg, #10b981, #059669)' }}>
-                  <Eye size={24} color="white" />
+                <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem', background: previewItem.isExistingAsset ? "linear-gradient(135deg, var(--studio-accent), var(--studio-sage))" : "linear-gradient(135deg, var(--studio-sage), var(--studio-sage))" }}>
+                  <Eye size={24} color="var(--studio-ink)" />
                 </div>
                 <h2>{previewItem.isExistingAsset ? 'View Asset' : 'Preview Your Creation'}</h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
@@ -13100,7 +13101,7 @@ ABSOLUTE RULES (violating any = failure):
                         padding: '16px',
                         borderRadius: '12px',
                         border: '2px solid var(--border-color)',
-                        background: 'rgba(16, 185, 129, 0.1)',
+                        background: "rgba(86,105,84, 0.1)",
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -13116,12 +13117,12 @@ ABSOLUTE RULES (violating any = failure):
                         width: '40px', 
                         height: '40px', 
                         borderRadius: '10px',
-                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        background: "linear-gradient(135deg, var(--studio-sage), var(--studio-sage))",
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
                       }}>
-                        <Cloud size={20} color="white" />
+                        <Cloud size={20} color="var(--studio-ink)" />
                       </div>
                       <div>
                         <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Save to Hub Only</div>
@@ -13141,12 +13142,12 @@ ABSOLUTE RULES (violating any = failure):
                           width: '40px', 
                           height: '40px', 
                           borderRadius: '10px',
-                          background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+                          background: "linear-gradient(135deg, var(--studio-accent), var(--studio-sage))",
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          <Plus size={20} color="white" />
+                          <Plus size={20} color="var(--studio-ink)" />
                         </div>
                         <div>
                           <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Create New Project</div>
@@ -13233,7 +13234,7 @@ ABSOLUTE RULES (violating any = failure):
                                 justifyContent: 'space-between',
                                 transition: 'all 0.2s'
                               }}
-                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.15)'}
+                              onMouseOver={(e) => e.currentTarget.style.background = "rgba(163,66,41, 0.15)"}
                               onMouseOut={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
                             >
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -13268,21 +13269,21 @@ ABSOLUTE RULES (violating any = failure):
                   gap: '0.5rem', 
                   marginBottom: '1rem',
                   padding: '0.75rem',
-                  background: 'rgba(0,0,0,0.2)',
+                  background: "var(--studio-surface-alt)",
                   borderRadius: '12px',
                   border: '1px solid var(--border-color)'
                 }}>
                   {/* Type Badge */}
                   <span style={{ 
-                    background: previewItem.type === 'image' ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)' : 
-                                (previewItem.type === 'audio' || previewItem.type === 'vocal') ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
-                                previewItem.type === 'video' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
-                                'linear-gradient(135deg, #3b82f6, #2563eb)',
+                    background: previewItem.type === 'image' ? "linear-gradient(135deg, var(--studio-accent), var(--studio-sage))" :
+                                (previewItem.type === 'audio' || previewItem.type === 'vocal') ? "linear-gradient(135deg, var(--studio-warning), #d97706)" :
+                                previewItem.type === 'video' ? "linear-gradient(135deg, var(--studio-danger), var(--studio-danger))" :
+                                "linear-gradient(135deg, var(--studio-blue), #2563eb)",
                     padding: '0.25rem 0.75rem', 
                     borderRadius: '9999px', 
                     fontSize: '0.75rem', 
                     fontWeight: '600',
-                    color: 'white',
+                    color: "var(--studio-ink)",
                     textTransform: 'uppercase'
                   }}>
                     {previewItem.type || 'Text'}
@@ -13294,7 +13295,7 @@ ABSOLUTE RULES (violating any = failure):
                     alignItems: 'center', 
                     gap: '4px',
                     padding: '0.25rem 0.75rem',
-                    background: 'rgba(139, 92, 246, 0.15)',
+                    background: "rgba(163,66,41, 0.15)",
                     borderRadius: '9999px',
                     fontSize: '0.75rem',
                     color: 'var(--color-purple)'
@@ -13310,7 +13311,7 @@ ABSOLUTE RULES (violating any = failure):
                       alignItems: 'center', 
                       gap: '4px',
                       padding: '0.25rem 0.75rem',
-                      background: 'rgba(6, 182, 212, 0.15)',
+                      background: "rgba(61,100,114, 0.15)",
                       borderRadius: '9999px',
                       fontSize: '0.75rem',
                       color: 'var(--color-cyan)'
@@ -13326,7 +13327,7 @@ ABSOLUTE RULES (violating any = failure):
                     alignItems: 'center', 
                     gap: '4px',
                     padding: '0.25rem 0.75rem',
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: "rgba(var(--studio-ink-rgb), 0.05)",
                     borderRadius: '9999px',
                     fontSize: '0.75rem',
                     color: 'var(--text-secondary)'
@@ -13351,7 +13352,7 @@ ABSOLUTE RULES (violating any = failure):
                         alignItems: 'center', 
                         gap: '4px',
                         padding: '0.25rem 0.75rem',
-                        background: 'rgba(16, 185, 129, 0.15)',
+                        background: "rgba(86,105,84, 0.15)",
                         borderRadius: '9999px',
                         fontSize: '0.75rem',
                         color: 'var(--color-emerald)'
@@ -13376,7 +13377,7 @@ ABSOLUTE RULES (violating any = failure):
                         alignItems: 'center', 
                         gap: '4px',
                         padding: '0.25rem 0.75rem',
-                        background: 'rgba(236, 72, 153, 0.15)',
+                        background: "rgba(163,66,41, 0.15)",
                         borderRadius: '9999px',
                         fontSize: '0.75rem',
                         color: 'var(--color-pink)'
@@ -13392,7 +13393,7 @@ ABSOLUTE RULES (violating any = failure):
                   <div style={{ 
                     marginBottom: '1rem',
                     padding: '0.5rem 0.75rem',
-                    background: 'rgba(255,255,255,0.03)',
+                    background: "rgba(var(--studio-ink-rgb), 0.03)",
                     borderRadius: '8px',
                     borderLeft: '3px solid var(--color-purple)'
                   }}>
@@ -13426,7 +13427,7 @@ ABSOLUTE RULES (violating any = failure):
                       flexDirection: 'column', 
                       alignItems: 'center', 
                       justifyContent: 'center', 
-                      background: 'rgba(0,0,0,0.4)', 
+                      background: "var(--studio-surface-alt)",
                       zIndex: 10,
                       borderRadius: '12px'
                     }}>
@@ -13513,7 +13514,7 @@ ABSOLUTE RULES (violating any = failure):
                             width: '80px',
                             height: '80px',
                             borderRadius: '50%',
-                            background: isPreviewPlaying ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255,255,255,0.05)',
+                            background: isPreviewPlaying ? "linear-gradient(135deg, var(--studio-warning), #d97706)" : "rgba(var(--studio-ink-rgb), 0.05)",
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -13521,7 +13522,7 @@ ABSOLUTE RULES (violating any = failure):
                             boxShadow: isPreviewPlaying ? '0 0 30px rgba(245, 158, 11, 0.3)' : 'none',
                             transition: 'all 0.3s ease'
                           }}>
-                            <Music size={40} color={isPreviewPlaying ? 'white' : 'var(--text-secondary)'} />
+                            <Music size={40} color={isPreviewPlaying ? "var(--studio-ink)" : 'var(--text-secondary)'} />
                           </div>
                           <audio
                             controls
@@ -13565,7 +13566,7 @@ ABSOLUTE RULES (violating any = failure):
                             controls 
                             muted={!!previewItem.audioUrl} // Mute video if we have a separate high-quality audio track
                             src={formatVideoSrc(previewItem.videoUrl)} 
-                            style={{ width: '100%', borderRadius: '8px', background: '#000', opacity: isPreviewMediaLoading ? 0 : 1 }}
+                            style={{ width: '100%', borderRadius: '8px', background: "var(--studio-surface-alt)", opacity: isPreviewMediaLoading ? 0 : 1 }}
                             onLoadedData={() => setIsPreviewMediaLoading(false)}
                             onCanPlay={() => setIsPreviewMediaLoading(false)}
                             onPlay={(e) => {
@@ -13614,7 +13615,7 @@ ABSOLUTE RULES (violating any = failure):
                         <video 
                           controls 
                           src={formatVideoSrc(previewItem.videoUrl)} 
-                          style={{ width: '100%', borderRadius: '8px', background: '#000', opacity: isPreviewMediaLoading ? 0 : 1 }}
+                          style={{ width: '100%', borderRadius: '8px', background: "var(--studio-surface-alt)", opacity: isPreviewMediaLoading ? 0 : 1 }}
                           onLoadedData={() => setIsPreviewMediaLoading(false)}
                           onCanPlay={() => setIsPreviewMediaLoading(false)}
                           onPlay={() => setIsPreviewPlaying(true)}
@@ -13638,29 +13639,29 @@ ABSOLUTE RULES (violating any = failure):
                       {/* Show audio player if vocal has been created (consolidated view) */}
                       {previewItem.audioUrl && (
                         <div style={{ 
-                          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.1))', 
+                          background: "linear-gradient(135deg, rgba(163,66,41, 0.1), rgba(163,66,41, 0.1))",
                           borderRadius: '12px', 
                           padding: '24px', // More padding for consolidated view
-                          border: '1px solid rgba(139, 92, 246, 0.2)',
+                          border: "1px solid rgba(163,66,41, 0.2)",
                           width: '100%',
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
                           gap: '16px',
-                          boxShadow: isPreviewPlaying ? '0 0 20px rgba(139, 92, 246, 0.2)' : 'none',
+                          boxShadow: isPreviewPlaying ? "0 0 20px rgba(163,66,41, 0.2)" : 'none',
                           transition: 'all 0.3s ease'
                         }}>
                           <div style={{ 
                             width: '64px',
                             height: '64px',
                             borderRadius: '50%',
-                            background: isPreviewPlaying ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.05)',
+                            background: isPreviewPlaying ? "linear-gradient(135deg, var(--studio-accent), var(--studio-accent))" : "rgba(var(--studio-ink-rgb), 0.05)",
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             animation: isPreviewPlaying ? 'pulse 2s infinite' : 'none'
                           }}>
-                            <Mic size={32} color={isPreviewPlaying ? 'white' : 'var(--text-secondary)'} />
+                            <Mic size={32} color={isPreviewPlaying ? "var(--studio-ink)" : 'var(--text-secondary)'} />
                           </div>
                           <div style={{ fontSize: '0.85rem', color: isPreviewPlaying ? 'var(--color-pink)' : 'var(--text-secondary)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             {isPreviewPlaying ? 'Playing audio…' : previewItem.type === 'Master' ? 'Rendered mix ready' : 'Audio ready'}
@@ -13679,7 +13680,7 @@ ABSOLUTE RULES (violating any = failure):
                       
                       {/* Toggle between Lyrics and Prompt */}
                       {previewPrompt && (
-                        <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '4px' }}>
+                        <div style={{ display: 'flex', gap: '4px', background: "var(--studio-surface-alt)", borderRadius: '8px', padding: '4px' }}>
                           <button
                             onClick={() => setPreviewView('lyrics')}
                             style={{
@@ -13687,8 +13688,8 @@ ABSOLUTE RULES (violating any = failure):
                               padding: '8px 12px',
                               borderRadius: '6px',
                               border: 'none',
-                              background: previewView === 'lyrics' ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)' : 'transparent',
-                              color: previewView === 'lyrics' ? 'white' : 'var(--text-secondary)',
+                              background: previewView === 'lyrics' ? "linear-gradient(135deg, var(--studio-accent), var(--studio-sage))" : 'transparent',
+                              color: previewView === 'lyrics' ? "var(--studio-ink)" : 'var(--text-secondary)',
                               fontSize: '0.8rem',
                               fontWeight: '600',
                               cursor: 'pointer',
@@ -13708,8 +13709,8 @@ ABSOLUTE RULES (violating any = failure):
                               padding: '8px 12px',
                               borderRadius: '6px',
                               border: 'none',
-                              background: previewView === 'prompt' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'transparent',
-                              color: previewView === 'prompt' ? 'white' : 'var(--text-secondary)',
+                              background: previewView === 'prompt' ? "linear-gradient(135deg, var(--studio-blue), #2563eb)" : 'transparent',
+                              color: previewView === 'prompt' ? "var(--studio-ink)" : 'var(--text-secondary)',
                               fontSize: '0.8rem',
                               fontWeight: '600',
                               cursor: 'pointer',
@@ -13730,8 +13731,8 @@ ABSOLUTE RULES (violating any = failure):
                         whiteSpace: 'pre-wrap', 
                         lineHeight: '1.8', 
                         color: 'var(--text-primary)',
-                        background: previewView === 'lyrics' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                        border: previewView === 'lyrics' ? '1px solid rgba(139, 92, 246, 0.2)' : '1px solid rgba(59, 130, 246, 0.2)',
+                        background: previewView === 'lyrics' ? "rgba(163,66,41, 0.1)" : "rgba(61,100,114, 0.1)",
+                        border: previewView === 'lyrics' ? "1px solid rgba(163,66,41, 0.2)" : "1px solid rgba(61,100,114, 0.2)",
                         padding: '1.25rem',
                         borderRadius: '12px',
                         maxHeight: '50vh',
@@ -13764,7 +13765,7 @@ ABSOLUTE RULES (violating any = failure):
                     borderRadius: '12px',
                     background: 'rgba(251,191,36,0.08)',
                     border: '1px solid rgba(251,191,36,0.25)',
-                    color: '#fbbf24',
+                    color: "var(--studio-warning)",
                     fontWeight: 700,
                     cursor: 'pointer'
                   }}
@@ -13778,21 +13779,21 @@ ABSOLUTE RULES (violating any = failure):
                   margin: '0 1.5rem 0.75rem',
                   padding: '1rem 1.25rem',
                   borderRadius: '14px',
-                  background: isGrading ? 'rgba(255,255,255,0.03)' : 
+                  background: isGrading ? "rgba(var(--studio-ink-rgb), 0.03)" :
                     arGrade?.overallScore >= 4.5 ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(255, 165, 0, 0.05))' :
-                    arGrade?.overallScore >= 3.5 ? 'rgba(16, 185, 129, 0.06)' :
-                    arGrade?.overallScore >= 2.5 ? 'rgba(59, 130, 246, 0.06)' :
+                    arGrade?.overallScore >= 3.5 ? "rgba(86,105,84, 0.06)" :
+                    arGrade?.overallScore >= 2.5 ? "rgba(61,100,114, 0.06)" :
                     'rgba(239, 68, 68, 0.06)',
-                  border: isGrading ? '1px solid rgba(255,255,255,0.08)' :
+                  border: isGrading ? "1px solid rgba(var(--studio-ink-rgb), 0.08)" :
                     arGrade?.overallScore >= 4.5 ? '1px solid rgba(255, 215, 0, 0.3)' :
-                    arGrade?.overallScore >= 3.5 ? '1px solid rgba(16, 185, 129, 0.2)' :
-                    arGrade?.overallScore >= 2.5 ? '1px solid rgba(59, 130, 246, 0.2)' :
+                    arGrade?.overallScore >= 3.5 ? "1px solid rgba(86,105,84, 0.2)" :
+                    arGrade?.overallScore >= 2.5 ? "1px solid rgba(61,100,114, 0.2)" :
                     '1px solid rgba(239, 68, 68, 0.2)',
                   flexShrink: 0
                 }}>
                   {isGrading ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center', padding: '8px 0' }}>
-                      <div className="animate-pulse" style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }} />
+                      <div className="animate-pulse" style={{ width: '20px', height: '20px', borderRadius: '50%', background: "linear-gradient(135deg, var(--studio-warning), var(--studio-warning))" }} />
                       <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>A&R is reviewing your track...</span>
                     </div>
                   ) : arGrade && (
@@ -13809,9 +13810,9 @@ ABSOLUTE RULES (violating any = failure):
                             <div style={{ 
                               fontSize: '0.95rem', 
                               fontWeight: '800',
-                              color: arGrade.overallScore >= 4.5 ? '#fbbf24' :
-                                arGrade.overallScore >= 3.5 ? '#10b981' :
-                                arGrade.overallScore >= 2.5 ? '#3b82f6' : '#ef4444',
+                              color: arGrade.overallScore >= 4.5 ? "var(--studio-warning)" :
+                                arGrade.overallScore >= 3.5 ? "var(--studio-sage)" :
+                                arGrade.overallScore >= 2.5 ? "var(--studio-blue)" : "var(--studio-danger)",
                               letterSpacing: '-0.3px'
                             }}>
                               {arGrade.verdict || 'Reviewed'}
@@ -13824,10 +13825,10 @@ ABSOLUTE RULES (violating any = failure):
                             fontSize: '2rem', 
                             fontWeight: '900',
                             background: arGrade.overallScore >= 4.5 
-                              ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' 
+                              ? "linear-gradient(135deg, var(--studio-warning), var(--studio-warning))"
                               : arGrade.overallScore >= 3.5 
-                              ? 'linear-gradient(135deg, #10b981, #059669)'
-                              : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                              ? "linear-gradient(135deg, var(--studio-sage), var(--studio-sage))"
+                              : "linear-gradient(135deg, var(--studio-blue), #2563eb)",
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent'
                           }}>{arGrade.overallScore}</span>
@@ -13847,20 +13848,20 @@ ABSOLUTE RULES (violating any = failure):
                           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontSize: '0.7rem', width: '14px', textAlign: 'center' }}>{icon}</span>
                             <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', width: '68px', fontWeight: '600' }}>{label}</span>
-                            <div style={{ flex: 1, height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                            <div style={{ flex: 1, height: '6px', borderRadius: '3px', background: "rgba(var(--studio-ink-rgb), 0.06)", overflow: 'hidden' }}>
                               <div style={{
                                 width: `${(score / 5) * 100}%`,
                                 height: '100%',
                                 borderRadius: '3px',
-                                background: score >= 4.5 ? 'linear-gradient(90deg, #fbbf24, #f59e0b)' :
-                                  score >= 3.5 ? 'linear-gradient(90deg, #10b981, #059669)' :
-                                  score >= 2.5 ? 'linear-gradient(90deg, #3b82f6, #2563eb)' :
-                                  'linear-gradient(90deg, #ef4444, #dc2626)',
+                                background: score >= 4.5 ? "linear-gradient(90deg, var(--studio-warning), var(--studio-warning))" :
+                                  score >= 3.5 ? "linear-gradient(90deg, var(--studio-sage), var(--studio-sage))" :
+                                  score >= 2.5 ? "linear-gradient(90deg, var(--studio-blue), #2563eb)" :
+                                  "linear-gradient(90deg, var(--studio-danger), var(--studio-danger))",
                                 transition: 'width 0.8s ease'
                               }} />
                             </div>
                             <span style={{ fontSize: '0.72rem', fontWeight: '700', width: '18px', textAlign: 'right', 
-                              color: score >= 4 ? '#10b981' : score >= 3 ? '#3b82f6' : '#ef4444' 
+                              color: score >= 4 ? "var(--studio-sage)" : score >= 3 ? "var(--studio-blue)" : "var(--studio-danger)"
                             }}>{score}</span>
                           </div>
                         ))}
@@ -13871,7 +13872,7 @@ ABSOLUTE RULES (violating any = failure):
                         fontSize: '0.8rem', 
                         color: 'var(--text-secondary)', 
                         lineHeight: '1.5',
-                        background: 'rgba(0,0,0,0.15)',
+                        background: "var(--studio-surface-alt)",
                         padding: '10px 12px',
                         borderRadius: '10px'
                       }}>
@@ -13879,12 +13880,12 @@ ABSOLUTE RULES (violating any = failure):
                           {arGrade.feedback}
                         </div>
                         {arGrade.highlights && (
-                          <div style={{ color: '#10b981', fontSize: '0.75rem' }}>
+                          <div style={{ color: "var(--studio-sage)", fontSize: '0.75rem' }}>
                             <strong>Strength:</strong> {arGrade.highlights}
                           </div>
                         )}
                         {arGrade.suggestion && (
-                          <div style={{ color: '#f59e0b', fontSize: '0.75rem', marginTop: '3px' }}>
+                          <div style={{ color: "var(--studio-warning)", fontSize: '0.75rem', marginTop: '3px' }}>
                             <strong>Level Up:</strong> {arGrade.suggestion}
                           </div>
                         )}
@@ -13898,24 +13899,24 @@ ABSOLUTE RULES (violating any = failure):
                         gap: '6px',
                         padding: '6px 10px',
                         borderRadius: '8px',
-                        background: arGrade.overallScore >= 5 ? 'rgba(255, 215, 0, 0.1)' : 'rgba(255,255,255,0.03)'
+                        background: arGrade.overallScore >= 5 ? 'rgba(255, 215, 0, 0.1)' : "rgba(var(--studio-ink-rgb), 0.03)"
                       }}>
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '600' }}>AI CREATIVE FEEDBACK · NOT RELEASE CERTIFICATION</span>
-                        <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                        <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: "rgba(var(--studio-ink-rgb), 0.06)", overflow: 'hidden' }}>
                           <div style={{
                             width: `${(arGrade.overallScore / 5) * 100}%`,
                             height: '100%',
                             borderRadius: '2px',
                             background: arGrade.overallScore >= 4.5 
-                              ? 'linear-gradient(90deg, #fbbf24, #f59e0b)' 
-                              : 'linear-gradient(90deg, #8b5cf6, #6d28d9)',
+                              ? "linear-gradient(90deg, var(--studio-warning), var(--studio-warning))"
+                              : "linear-gradient(90deg, var(--studio-accent), var(--studio-sage))",
                             transition: 'width 1s ease'
                           }} />
                         </div>
                         <span style={{ 
                           fontSize: '0.7rem', 
                           fontWeight: '800',
-                          color: arGrade.overallScore >= 4.5 ? '#fbbf24' : 'var(--text-secondary)'
+                          color: arGrade.overallScore >= 4.5 ? "var(--studio-warning)" : 'var(--text-secondary)'
                         }}>
                           {`${arGrade.overallScore}/5`}
                         </span>
@@ -13998,8 +13999,8 @@ ABSOLUTE RULES (violating any = failure):
                       flex: 1, 
                       padding: '0.75rem', 
                       borderRadius: '8px', 
-                      border: '1px solid rgba(236, 72, 153, 0.3)',
-                      background: isCreatingVocal ? 'rgba(236, 72, 153, 0.3)' : 'rgba(236, 72, 153, 0.1)',
+                      border: "1px solid rgba(163,66,41, 0.3)",
+                      background: isCreatingVocal ? "rgba(163,66,41, 0.3)" : "rgba(163,66,41, 0.1)",
                       color: 'var(--color-pink)',
                       cursor: isCreatingVocal ? 'not-allowed' : 'pointer',
                       opacity: isCreatingVocal ? 0.7 : 1,
@@ -14051,8 +14052,8 @@ ABSOLUTE RULES (violating any = failure):
                         padding: '0.75rem', 
                         borderRadius: '8px', 
                         border: 'none',
-                        background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
-                        color: 'white',
+                        background: "linear-gradient(135deg, var(--studio-accent), var(--studio-sage))",
+                        color: "var(--studio-on-accent)",
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -14115,7 +14116,7 @@ ABSOLUTE RULES (violating any = failure):
                         padding: '0.75rem', 
                         borderRadius: '8px', 
                         border: '1px solid var(--border-color)',
-                        background: isSaving ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.1)',
+                        background: isSaving ? "rgba(163,66,41, 0.2)" : "rgba(163,66,41, 0.1)",
                         color: 'var(--color-purple)',
                         cursor: isSaving ? 'not-allowed' : 'pointer',
                         opacity: isSaving ? 0.7 : 1,
@@ -14215,7 +14216,7 @@ ABSOLUTE RULES (violating any = failure):
               <button className="modal-close" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); setAuthMode('login'); }}><X size={20} /></button>
               <div className="modal-header">
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
-                  <Sparkles size={24} color="white" />
+                  <Sparkles size={24} color="var(--studio-ink)" />
                 </div>
                 <h2>{authMode === 'reset' ? 'Reset Password' : authMode === 'signup' ? 'Create Account' : selectedPlan ? 'Complete Your Subscription' : 'Welcome Back'}</h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
@@ -14243,11 +14244,11 @@ ABSOLUTE RULES (violating any = failure):
                 {/* Apple Sign In Button */}
                 {authMode !== 'reset' && (
                   <button 
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', background: "var(--studio-surface-alt)", color: "var(--studio-ink)", border: "1px solid rgba(var(--studio-ink-rgb), 0.16)", borderRadius: '12px', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
                     onClick={handleAppleLogin}
                     disabled={authLoading}
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--studio-ink)"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
                     {authLoading ? 'Signing in...' : 'Continue with Apple'}
                   </button>
                 )}
@@ -14404,7 +14405,7 @@ ABSOLUTE RULES (violating any = failure):
             >
               <div className="modal-header" style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '1rem', flexShrink: 0 }}>
                 <div className="modal-title-group">
-                  <div className="agent-mini-icon" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white' }}>
+                  <div className="agent-mini-icon" style={{ background: "linear-gradient(135deg, var(--studio-blue), var(--studio-accent))", color: "var(--studio-on-accent)" }}>
                     <CreditCard size={20} />
                   </div>
                   <h2 style={{ margin: 0 }}>{editingPayment ? 'Edit Payment Method' : 'Payment Methods'}</h2>
@@ -14438,12 +14439,12 @@ ABSOLUTE RULES (violating any = failure):
                               height: '32px', 
                               background: card.brand === 'visa' ? 'linear-gradient(135deg, #1a1f71, #00579f)' : 
                                          card.brand === 'mastercard' ? 'linear-gradient(135deg, #eb001b, #f79e1b)' : 
-                                         'linear-gradient(135deg, #333, #555)',
+                                         "linear-gradient(135deg, var(--studio-surface-alt), #555)",
                               borderRadius: '6px',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              color: 'white',
+                              color: "var(--studio-ink)",
                               fontSize: '0.6rem',
                               fontWeight: 'bold',
                               textTransform: 'uppercase'
@@ -14483,7 +14484,7 @@ ABSOLUTE RULES (violating any = failure):
                                 background: 'transparent',
                                 border: '1px solid rgba(239, 68, 68, 0.3)',
                                 borderRadius: '6px',
-                                color: '#ef4444',
+                                color: "var(--studio-danger)",
                                 cursor: 'pointer',
                                 fontSize: '0.8rem',
                                 display: 'flex',
@@ -14523,12 +14524,12 @@ ABSOLUTE RULES (violating any = failure):
                             <div style={{ 
                               width: '48px', 
                               height: '32px', 
-                              background: 'linear-gradient(135deg, #10b981, #059669)',
+                              background: "linear-gradient(135deg, var(--studio-sage), var(--studio-sage))",
                               borderRadius: '6px',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              color: 'white'
+                              color: "var(--studio-on-accent)"
                             }}>
                               <Landmark size={16} />
                             </div>
@@ -14565,7 +14566,7 @@ ABSOLUTE RULES (violating any = failure):
                                 background: 'transparent',
                                 border: '1px solid rgba(239, 68, 68, 0.3)',
                                 borderRadius: '6px',
-                                color: '#ef4444',
+                                color: "var(--studio-danger)",
                                 cursor: 'pointer',
                                 fontSize: '0.8rem',
                                 display: 'flex',
@@ -14790,11 +14791,11 @@ ABSOLUTE RULES (violating any = failure):
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 16px rgba(124, 58, 237, 0.5)',
+              boxShadow: 'var(--studio-shadow)',
               marginTop: '-20px',
               border: '3px solid var(--color-bg-primary)'
             }}>
-              <Plus size={26} color="white" />
+              <Plus size={26} color="var(--studio-on-accent)" />
             </div>
           </div>
 
@@ -14855,7 +14856,7 @@ ABSOLUTE RULES (violating any = failure):
               The Studio is currently undergoing critical updates or experiencing connectivity issues. 
               <br/>Please check back in a few minutes.
             </p>
-            <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', fontSize: '0.85rem', fontFamily: 'monospace' }}>
+            <div style={{ padding: '1rem', background: "var(--studio-surface-alt)", borderRadius: '8px', fontSize: '0.85rem', fontFamily: 'monospace' }}>
               Status: {systemStatus.details || 'Backend Unreachable'}
             </div>
             <button 
@@ -14886,12 +14887,12 @@ ABSOLUTE RULES (violating any = failure):
           >
             <div className="modal-header" style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '1rem', flexShrink: 0 }}>
               <div className="modal-title-group">
-                <div className="agent-mini-icon" style={{ background: 'linear-gradient(135deg, #facc15, #f59e0b)', color: '#000' }}>
+                <div className="agent-mini-icon" style={{ background: "linear-gradient(135deg, var(--studio-warning), var(--studio-warning))", color: "var(--studio-ink)" }}>
                   <Zap size={20} fill="currentColor" />
                 </div>
                 <div>
                   <h2 style={{ margin: 0 }}>Studio Credits</h2>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Balance: <strong style={{ color: '#facc15' }}>{isAdmin ? 'Unlimited' : `${userCredits} credits`}</strong></p>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Balance: <strong style={{ color: "var(--studio-warning)" }}>{isAdmin ? 'Unlimited' : `${userCredits} credits`}</strong></p>
                 </div>
               </div>
               <button className="modal-close" onClick={() => setShowCreditsModal(false)}>
@@ -14931,7 +14932,7 @@ ABSOLUTE RULES (violating any = failure):
                       className="credit-pack-btn"
                     >
                       <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>{label}</span>
-                      <span style={{ fontWeight: '800', fontSize: '1.25rem', color: '#facc15' }}>{amount}</span>
+                      <span style={{ fontWeight: '800', fontSize: '1.25rem', color: "var(--studio-warning)" }}>{amount}</span>
                       <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{price}</span>
                     </button>
                   ))}
@@ -14964,7 +14965,7 @@ ABSOLUTE RULES (violating any = failure):
                         <ActionIcon size={16} style={{ color: 'var(--text-secondary)' }} />
                         <span style={{ fontSize: '0.9rem' }}>{action}</span>
                       </div>
-                      <span style={{ fontWeight: '600', color: '#facc15', fontSize: '0.9rem' }}>{cost} credits</span>
+                      <span style={{ fontWeight: '600', color: "var(--studio-warning)", fontSize: '0.9rem' }}>{cost} credits</span>
                     </div>
                   ))}
                 </div>
@@ -14980,7 +14981,7 @@ ABSOLUTE RULES (violating any = failure):
                 alignItems: 'flex-start',
                 gap: '0.75rem'
               }}>
-                <Sparkles size={18} style={{ color: '#facc15', flexShrink: 0, marginTop: '2px' }} />
+                <Sparkles size={18} style={{ color: "var(--studio-warning)", flexShrink: 0, marginTop: '2px' }} />
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                   <strong style={{ color: 'var(--text-primary)' }}>Pro Tip:</strong> Credits are used when you create projects or generate content with any agent.
                 </div>
@@ -15130,7 +15131,7 @@ ABSOLUTE RULES (violating any = failure):
                           borderRadius: '10px',
                           background: 'var(--color-bg-tertiary)',
                           border: '1px solid var(--border-color)',
-                          color: 'white',
+                          color: "var(--studio-ink)",
                           fontSize: '0.9rem'
                         }}
                       >
@@ -15150,7 +15151,7 @@ ABSOLUTE RULES (violating any = failure):
                           borderRadius: '10px',
                           background: 'var(--color-bg-tertiary)',
                           border: '1px solid var(--border-color)',
-                          color: 'white',
+                          color: "var(--studio-ink)",
                           fontSize: '0.9rem'
                         }}
                       >
@@ -15170,7 +15171,7 @@ ABSOLUTE RULES (violating any = failure):
                           borderRadius: '10px',
                           background: 'var(--color-bg-tertiary)',
                           border: '1px solid var(--border-color)',
-                          color: 'white',
+                          color: "var(--studio-ink)",
                           fontSize: '0.9rem'
                         }}
                       >
@@ -15192,7 +15193,7 @@ ABSOLUTE RULES (violating any = failure):
                           onClick={() => setNewProjectData({...newProjectData, category: cat.id})}
                           style={{
                             padding: '12px',
-                            background: newProjectData.category === cat.id ? 'rgba(168, 85, 247, 0.1)' : 'var(--color-bg-tertiary)',
+                            background: newProjectData.category === cat.id ? "rgba(163,66,41, 0.1)" : 'var(--color-bg-tertiary)',
                             border: newProjectData.category === cat.id ? '1px solid var(--color-purple)' : '1px solid transparent',
                             borderRadius: '12px',
                             cursor: 'pointer',
@@ -15211,7 +15212,7 @@ ABSOLUTE RULES (violating any = failure):
                   </div>
 
                   {newProjectData.category === 'social' && (
-                    <div className="social-inputs animate-fadeIn" style={{ marginBottom: '24px', padding: '16px', background: 'rgba(6, 182, 212, 0.05)', borderRadius: '12px', border: '1px solid rgba(6, 182, 212, 0.2)' }}>
+                    <div className="social-inputs animate-fadeIn" style={{ marginBottom: '24px', padding: '16px', background: "rgba(61,100,114, 0.05)", borderRadius: '12px', border: "1px solid rgba(61,100,114, 0.2)" }}>
                       <h4 style={{ marginBottom: '12px', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Share2 size={16} /> Social Profile Setup
                       </h4>
@@ -15229,7 +15230,7 @@ ABSOLUTE RULES (violating any = failure):
                                 padding: '8px',
                                 borderRadius: '8px',
                                 border: newProjectData.socialPlatform === platform ? '1px solid var(--color-cyan)' : '1px solid var(--border-color)',
-                                background: newProjectData.socialPlatform === platform ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
+                                background: newProjectData.socialPlatform === platform ? "rgba(61,100,114, 0.1)" : 'transparent',
                                 color: newProjectData.socialPlatform === platform ? 'var(--color-cyan)' : 'var(--text-secondary)',
                                 textTransform: 'capitalize',
                                 fontSize: '0.85rem',
@@ -15289,7 +15290,7 @@ ABSOLUTE RULES (violating any = failure):
                       })}
                       style={{
                         padding: '16px',
-                        background: newProjectData.workflow === 'full_song' ? 'rgba(168, 85, 247, 0.15)' : 'var(--color-bg-tertiary)',
+                        background: newProjectData.workflow === 'full_song' ? "rgba(163,66,41, 0.15)" : 'var(--color-bg-tertiary)',
                         border: newProjectData.workflow === 'full_song' ? '1px solid var(--color-purple)' : '1px solid transparent',
                         borderRadius: '12px',
                         cursor: 'pointer',
@@ -15298,7 +15299,7 @@ ABSOLUTE RULES (violating any = failure):
                         gap: '16px'
                       }}
                     >
-                      <div style={{ background: 'var(--color-purple)', padding: '10px', borderRadius: '50%', color: 'white' }}>
+                      <div style={{ background: 'var(--color-purple)', padding: '10px', borderRadius: '50%', color: "var(--studio-on-accent)" }}>
                         <Music size={20} />
                       </div>
                       <div style={{ flex: 1 }}>
@@ -15318,7 +15319,7 @@ ABSOLUTE RULES (violating any = failure):
                       })}
                       style={{
                         padding: '16px',
-                        background: newProjectData.workflow === 'social_promo' ? 'rgba(6, 182, 212, 0.15)' : 'var(--color-bg-tertiary)',
+                        background: newProjectData.workflow === 'social_promo' ? "rgba(61,100,114, 0.15)" : 'var(--color-bg-tertiary)',
                         border: newProjectData.workflow === 'social_promo' ? '1px solid var(--color-cyan)' : '1px solid transparent',
                         borderRadius: '12px',
                         cursor: 'pointer',
@@ -15327,7 +15328,7 @@ ABSOLUTE RULES (violating any = failure):
                         gap: '16px'
                       }}
                     >
-                      <div style={{ background: 'var(--color-cyan)', padding: '10px', borderRadius: '50%', color: 'white' }}>
+                      <div style={{ background: 'var(--color-cyan)', padding: '10px', borderRadius: '50%', color: "var(--studio-on-accent)" }}>
                         <Share2 size={20} />
                       </div>
                       <div style={{ flex: 1 }}>
@@ -15347,7 +15348,7 @@ ABSOLUTE RULES (violating any = failure):
                       })}
                       style={{
                         padding: '16px',
-                        background: newProjectData.workflow === 'custom' ? 'rgba(255, 255, 255, 0.1)' : 'var(--color-bg-tertiary)',
+                        background: newProjectData.workflow === 'custom' ? "rgba(var(--studio-ink-rgb), 0.1)" : 'var(--color-bg-tertiary)',
                         border: newProjectData.workflow === 'custom' ? '1px solid var(--text-secondary)' : '1px solid transparent',
                         borderRadius: '12px',
                         cursor: 'pointer',
@@ -15386,7 +15387,7 @@ ABSOLUTE RULES (violating any = failure):
                           }}
                           style={{
                             padding: '12px',
-                            background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'var(--color-bg-tertiary)',
+                            background: isSelected ? "rgba(163,66,41, 0.15)" : 'var(--color-bg-tertiary)',
                             border: isSelected ? '1px solid var(--color-purple)' : '1px solid transparent',
                             borderRadius: '12px',
                             cursor: 'pointer',
@@ -15407,7 +15408,7 @@ ABSOLUTE RULES (violating any = failure):
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: isSelected ? 'white' : 'var(--text-secondary)'
+                            color: isSelected ? "var(--studio-on-accent)" : 'var(--text-secondary)'
                           }}>
                             {typeof agent.icon === 'function' ? <agent.icon size={16} /> : <Sparkles size={16} />}
                           </div>
@@ -15534,8 +15535,8 @@ ABSOLUTE RULES (violating any = failure):
                 position: 'absolute',
                 top: '16px',
                 right: '16px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                background: "rgba(var(--studio-ink-rgb), 0.1)",
+                border: "1px solid rgba(var(--studio-ink-rgb), 0.16)",
                 borderRadius: '50%',
                 width: '36px',
                 height: '36px',
@@ -15543,7 +15544,7 @@ ABSOLUTE RULES (violating any = failure):
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: 'white',
+                color: "var(--studio-ink)",
                 padding: 0,
                 zIndex: 10
               }}
@@ -15569,8 +15570,8 @@ ABSOLUTE RULES (violating any = failure):
                   alignItems: 'flex-start',
                   gap: '16px',
                   padding: '20px',
-                  background: 'rgba(168, 85, 247, 0.1)',
-                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  background: "rgba(163,66,41, 0.1)",
+                  border: "1px solid rgba(163,66,41, 0.3)",
                   borderRadius: '16px',
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -15583,7 +15584,7 @@ ABSOLUTE RULES (violating any = failure):
                   background: 'var(--color-purple)', 
                   padding: '12px', 
                   borderRadius: '12px', 
-                  color: 'white',
+                  color: "var(--studio-on-accent)",
                   flexShrink: 0
                 }}>
                   <FolderPlus size={24} />
@@ -15607,8 +15608,8 @@ ABSOLUTE RULES (violating any = failure):
                   alignItems: 'flex-start',
                   gap: '16px',
                   padding: '20px',
-                  background: 'rgba(6, 182, 212, 0.1)',
-                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                  background: "rgba(61,100,114, 0.1)",
+                  border: "1px solid rgba(61,100,114, 0.3)",
                   borderRadius: '16px',
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -15621,7 +15622,7 @@ ABSOLUTE RULES (violating any = failure):
                   background: 'var(--color-cyan)', 
                   padding: '12px', 
                   borderRadius: '12px', 
-                  color: 'white',
+                  color: "var(--studio-on-accent)",
                   flexShrink: 0
                 }}>
                   <Sparkles size={24} />
@@ -15646,8 +15647,8 @@ ABSOLUTE RULES (violating any = failure):
                   alignItems: 'flex-start',
                   gap: '16px',
                   padding: '20px',
-                  background: 'rgba(236, 72, 153, 0.1)',
-                  border: '1px solid rgba(236, 72, 153, 0.3)',
+                  background: "rgba(163,66,41, 0.1)",
+                  border: "1px solid rgba(163,66,41, 0.3)",
                   borderRadius: '16px',
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -15660,7 +15661,7 @@ ABSOLUTE RULES (violating any = failure):
                   background: 'var(--color-pink)', 
                   padding: '12px', 
                   borderRadius: '12px', 
-                  color: 'white',
+                  color: "var(--studio-ink)",
                   flexShrink: 0
                 }}>
                   <Layers size={24} />
@@ -15724,7 +15725,7 @@ ABSOLUTE RULES (violating any = failure):
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '10px' }}>
+                <div style={{ background: "rgba(var(--studio-ink-rgb), 0.03)", padding: '1rem', borderRadius: '10px' }}>
                   <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '0.9rem' }}>
                     <UsersIcon size={16} className="text-cyan" /> Who It's For
                   </h4>
@@ -15732,7 +15733,7 @@ ABSOLUTE RULES (violating any = failure):
                     {showAgentWhitePaper.whoFor}
                   </p>
                 </div>
-                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '10px' }}>
+                <div style={{ background: "rgba(var(--studio-ink-rgb), 0.03)", padding: '1rem', borderRadius: '10px' }}>
                   <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '0.9rem' }}>
                     <Zap size={18} className="text-orange" /> How It Works
                   </h4>
@@ -15752,12 +15753,12 @@ ABSOLUTE RULES (violating any = failure):
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                     {/* Video Preview */}
                     {agentCreations[showAgentWhitePaper.key].video && (
-                      <div style={{ background: 'rgba(236, 72, 153, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(236, 72, 153, 0.3)' }}>
-                        <p style={{ fontSize: '0.8rem', color: 'rgba(236, 72, 153, 1)', marginBottom: '8px', fontWeight: '600' }}>(video) Video</p>
+                      <div style={{ background: "rgba(163,66,41, 0.1)", padding: '12px', borderRadius: '12px', border: "1px solid rgba(163,66,41, 0.3)" }}>
+                        <p style={{ fontSize: '0.8rem', color: "rgba(163,66,41, 1)", marginBottom: '8px', fontWeight: '600' }}>(video) Video</p>
                         <video 
                           src={agentCreations[showAgentWhitePaper.key].video}
                           controls
-                          style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', background: '#000' }}
+                          style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', background: "var(--studio-surface-alt)" }}
                           controlsList="nodownload"
                         />
                         <button 
@@ -15789,8 +15790,8 @@ ABSOLUTE RULES (violating any = failure):
 
                     {/* Image Preview */}
                     {agentCreations[showAgentWhitePaper.key].image && typeof agentCreations[showAgentWhitePaper.key].image === 'string' && (
-                      <div style={{ background: 'rgba(168, 85, 247, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
-                        <p style={{ fontSize: '0.8rem', color: 'rgba(168, 85, 247, 1)', marginBottom: '8px', fontWeight: '600' }}>(art) Image</p>
+                      <div style={{ background: "rgba(163,66,41, 0.1)", padding: '12px', borderRadius: '12px', border: "1px solid rgba(163,66,41, 0.3)" }}>
+                        <p style={{ fontSize: '0.8rem', color: "rgba(163,66,41, 1)", marginBottom: '8px', fontWeight: '600' }}>(art) Image</p>
                         <img 
                           src={agentCreations[showAgentWhitePaper.key].image.startsWith?.('data:') || agentCreations[showAgentWhitePaper.key].image.startsWith?.('http') ? agentCreations[showAgentWhitePaper.key].image : `data:image/png;base64,${agentCreations[showAgentWhitePaper.key].image}`}
                           alt="Generated"
@@ -15832,8 +15833,8 @@ ABSOLUTE RULES (violating any = failure):
 
                     {/* Audio Preview */}
                     {agentCreations[showAgentWhitePaper.key].audio && (
-                      <div style={{ background: 'rgba(6, 182, 212, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(6, 182, 212, 0.3)', gridColumn: 'span 1' }}>
-                        <p style={{ fontSize: '0.8rem', color: 'rgba(6, 182, 212, 1)', marginBottom: '8px', fontWeight: '600' }}>🎵 Audio</p>
+                      <div style={{ background: "rgba(61,100,114, 0.1)", padding: '12px', borderRadius: '12px', border: "1px solid rgba(61,100,114, 0.3)", gridColumn: 'span 1' }}>
+                        <p style={{ fontSize: '0.8rem', color: "rgba(61,100,114, 1)", marginBottom: '8px', fontWeight: '600' }}>🎵 Audio</p>
                         <audio 
                           src={agentCreations[showAgentWhitePaper.key].audio}
                           controls
@@ -16040,8 +16041,8 @@ ABSOLUTE RULES (violating any = failure):
                   left: isMobile ? '8px' : '20px',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: "rgba(var(--studio-ink-rgb), 0.1)",
+                  border: "1px solid rgba(var(--studio-ink-rgb), 0.16)",
                   borderRadius: '50%',
                   width: isMobile ? '40px' : '50px',
                   height: isMobile ? '40px' : '50px',
@@ -16049,13 +16050,13 @@ ABSOLUTE RULES (violating any = failure):
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  color: 'white',
+                  color: "var(--studio-ink)",
                   backdropFilter: 'blur(8px)',
                   zIndex: 10001,
                   transition: 'all 0.2s ease'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.4)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                onMouseEnter={(e) => e.currentTarget.style.background = "rgba(163,66,41, 0.4)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "rgba(var(--studio-ink-rgb), 0.1)"}
               >
                 <ChevronLeft size={24} />
               </button>
@@ -16102,8 +16103,8 @@ ABSOLUTE RULES (violating any = failure):
                   right: isMobile ? '8px' : '20px',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: "rgba(var(--studio-ink-rgb), 0.1)",
+                  border: "1px solid rgba(var(--studio-ink-rgb), 0.16)",
                   borderRadius: '50%',
                   width: isMobile ? '40px' : '50px',
                   height: isMobile ? '40px' : '50px',
@@ -16111,13 +16112,13 @@ ABSOLUTE RULES (violating any = failure):
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  color: 'white',
+                  color: "var(--studio-ink)",
                   backdropFilter: 'blur(8px)',
                   zIndex: 10001,
                   transition: 'all 0.2s ease'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.4)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                onMouseEnter={(e) => e.currentTarget.style.background = "rgba(163,66,41, 0.4)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "rgba(var(--studio-ink-rgb), 0.1)"}
               >
                 <ChevronRight size={24} />
               </button>
@@ -16135,16 +16136,16 @@ ABSOLUTE RULES (violating any = failure):
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
-              background: 'rgba(10,10,15,0.99)',
+              background: "var(--studio-surface)",
               borderRadius: (previewMaximized || isMobile) ? '0' : '16px',
-              border: previewMaximized ? 'none' : '1px solid rgba(255,255,255,0.1)',
+              border: previewMaximized ? 'none' : "1px solid rgba(var(--studio-ink-rgb), 0.1)",
               boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
               transition: 'all 0.3s ease'
             }}
           >
             {/* Header */}
             <div className="modal-header" style={{ 
-              borderBottom: '1px solid rgba(255,255,255,0.1)', 
+              borderBottom: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
               padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem', 
               paddingTop: isMobile ? 'calc(0.75rem + env(safe-area-inset-top, 0px))' : '1rem',
               flexShrink: 0,
@@ -16157,10 +16158,10 @@ ABSOLUTE RULES (violating any = failure):
                   width: '36px',
                   height: '36px',
                   borderRadius: '10px',
-                  background: safePreview.type === 'image' ? 'rgba(236, 72, 153, 0.2)' 
-                    : safePreview.type === 'video' ? 'rgba(6, 182, 212, 0.2)' 
-                    : safePreview.type === 'audio' ? 'rgba(168, 85, 247, 0.2)'
-                    : 'rgba(34, 197, 94, 0.2)',
+                  background: safePreview.type === 'image' ? "rgba(163,66,41, 0.2)"
+                    : safePreview.type === 'video' ? "rgba(61,100,114, 0.2)"
+                    : safePreview.type === 'audio' ? "rgba(163,66,41, 0.2)"
+                    : "rgba(86,105,84, 0.2)",
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -16201,19 +16202,19 @@ ABSOLUTE RULES (violating any = failure):
                     setPreviewMaximized(prev => !prev);
                   }}
                   style={{
-                    background: 'rgba(255,255,255,0.1)',
+                    background: "rgba(var(--studio-ink-rgb), 0.1)",
                     border: 'none',
                     borderRadius: '8px',
                     padding: '8px',
                     cursor: 'pointer',
-                    color: '#fff',
+                    color: "var(--studio-ink)",
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     transition: 'all 0.2s ease'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.3)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "rgba(163,66,41, 0.3)"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "rgba(var(--studio-ink-rgb), 0.1)"}
                   title={previewMaximized ? 'Minimize' : 'Maximize'}
                 >
                   {previewMaximized ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
@@ -16264,8 +16265,8 @@ ABSOLUTE RULES (violating any = failure):
                   setShowPreview(null); 
                   setPreviewMaximized(false); 
                 }} style={{ 
-                  color: '#fff',
-                  background: 'rgba(255,255,255,0.1)',
+                  color: "var(--studio-ink)",
+                  background: "rgba(var(--studio-ink-rgb), 0.1)",
                   border: 'none',
                   borderRadius: '8px',
                   padding: '8px',
@@ -16285,7 +16286,7 @@ ABSOLUTE RULES (violating any = failure):
               flexDirection: 'column',
               alignItems: 'center', 
               justifyContent: 'center',
-              background: safePreview.type === 'image' ? 'transparent' : 'rgba(0,0,0,0.3)'
+              background: safePreview.type === 'image' ? 'transparent' : "var(--studio-surface-alt)"
             }}>
               {/* Audio / Vocal player */}
               {(safePreview.type === 'audio' || safePreview.type === 'vocal' || (safePreview.url && safePreview.asset?.audioUrl)) && (
@@ -16299,10 +16300,10 @@ ABSOLUTE RULES (violating any = failure):
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: '0 auto 24px',
-                    boxShadow: '0 0 40px rgba(168, 85, 247, 0.4)',
+                    boxShadow: "0 0 40px rgba(163,66,41, 0.4)",
                     transition: 'all 0.3s ease'
                   }}>
-                    <Music size={previewMaximized ? 48 : 36} style={{ color: 'white' }} />
+                    <Music size={previewMaximized ? 48 : 36} style={{ color: "var(--studio-ink)" }} />
                   </div>
                   <audio
                     ref={previewAudioRef}
@@ -16379,7 +16380,7 @@ ABSOLUTE RULES (violating any = failure):
                     <div className="spinner" style={{
                       width: '40px',
                       height: '40px',
-                      border: '3px solid rgba(255,255,255,0.1)',
+                      border: "3px solid rgba(var(--studio-ink-rgb), 0.1)",
                       borderTopColor: 'var(--color-purple)',
                       borderRadius: '50%',
                       animation: 'spin 1s linear infinite'
@@ -16439,7 +16440,7 @@ ABSOLUTE RULES (violating any = failure):
                     <div className="spinner" style={{
                       width: '50px',
                       height: '50px',
-                      border: '3px solid rgba(255,255,255,0.1)',
+                      border: "3px solid rgba(var(--studio-ink-rgb), 0.1)",
                       borderTopColor: 'var(--color-cyan)',
                       borderRadius: '50%',
                       animation: 'spin 1s linear infinite'
@@ -16474,7 +16475,7 @@ ABSOLUTE RULES (violating any = failure):
                       maxHeight: previewMaximized ? '90vh' : '80vh', 
                       objectFit: 'contain',
                       borderRadius: '8px',
-                      background: 'black'
+                      background: "var(--studio-surface-alt)"
                     }}
                   />
                 </div>
@@ -16487,9 +16488,9 @@ ABSOLUTE RULES (violating any = failure):
                   maxHeight: '100%',
                   overflow: 'auto',
                   padding: isMobile ? '1.5rem' : '3rem',
-                  background: 'rgba(20, 20, 30, 0.4)',
+                  background: "var(--studio-surface-alt)",
                   borderRadius: '16px',
-                  border: isMobile ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                  border: isMobile ? 'none' : "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                   boxShadow: isMobile ? 'none' : '0 10px 40px rgba(0,0,0,0.5)',
                   flex: 1
                 }}>
@@ -16523,13 +16524,13 @@ ABSOLUTE RULES (violating any = failure):
             {/* Thumbnail Strip - for navigation between assets */}
             {safePreviewAssets.length > 1 && (
               <div style={{
-                borderTop: '1px solid rgba(255,255,255,0.1)',
+                borderTop: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                 padding: '12px 16px',
                 display: 'flex',
                 gap: '8px',
                 overflowX: 'auto',
                 justifyContent: 'center',
-                background: 'rgba(0,0,0,0.3)'
+                background: "var(--studio-surface-alt)"
               }}>
                 {safePreviewAssets.map((asset, idx) => {
                   if (!asset) return null; // Safety check
@@ -16573,7 +16574,7 @@ ABSOLUTE RULES (violating any = failure):
                         : '2px solid transparent',
                       background: asset.imageUrl 
                         ? `url(${formatImageSrc(asset.imageUrl)}) center/cover`
-                        : 'rgba(255,255,255,0.1)',
+                        : "rgba(var(--studio-ink-rgb), 0.1)",
                       cursor: 'pointer',
                       flexShrink: 0,
                       display: 'flex',
@@ -16613,13 +16614,13 @@ ABSOLUTE RULES (violating any = failure):
 
             {/* Action Buttons Footer */}
             <div style={{
-              borderTop: '1px solid rgba(255,255,255,0.1)',
+              borderTop: "1px solid rgba(var(--studio-ink-rgb), 0.1)",
               padding: '12px 16px',
               display: 'flex',
               gap: '10px',
               justifyContent: 'center',
               flexWrap: 'wrap',
-              background: 'rgba(0,0,0,0.4)'
+              background: "var(--studio-surface-alt)"
             }}>
               {/* Re-run Agent Button */}
               {safePreview.asset?.agent && safePreview.asset.agent !== 'User Upload' && (
@@ -16641,7 +16642,7 @@ ABSOLUTE RULES (violating any = failure):
                     borderRadius: '8px',
                     border: 'none',
                     background: 'linear-gradient(135deg, var(--color-cyan), var(--color-purple))',
-                    color: 'white',
+                    color: "var(--studio-on-accent)",
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -16681,8 +16682,8 @@ ABSOLUTE RULES (violating any = failure):
                 style={{
                   padding: isMobile ? '8px 12px' : '10px 20px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(168, 85, 247, 0.5)',
-                  background: 'rgba(168, 85, 247, 0.2)',
+                  border: "1px solid rgba(163,66,41, 0.5)",
+                  background: "rgba(163,66,41, 0.2)",
                   color: 'var(--color-purple)',
                   cursor: 'pointer',
                   display: 'flex',
@@ -16716,9 +16717,9 @@ ABSOLUTE RULES (violating any = failure):
                   style={{
                     padding: isMobile ? '8px 12px' : '10px 20px',
                     borderRadius: '8px',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    background: 'rgba(255,255,255,0.1)',
-                    color: 'white',
+                    border: "1px solid rgba(var(--studio-ink-rgb), 0.16)",
+                    background: "rgba(var(--studio-ink-rgb), 0.1)",
+                    color: "var(--studio-ink)",
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -16770,7 +16771,7 @@ ABSOLUTE RULES (violating any = failure):
                 <p style={{ fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '16px', lineHeight: '1.6' }}>
                   {showAgentHelpModal.description}
                 </p>
-                <div style={{ padding: '16px', background: 'rgba(6, 182, 212, 0.05)', borderRadius: '12px', borderLeft: '4px solid var(--color-cyan)' }}>
+                <div style={{ padding: '16px', background: "rgba(61,100,114, 0.05)", borderRadius: '12px', borderLeft: '4px solid var(--color-cyan)' }}>
                   <h3 style={{ marginTop: 0, fontSize: '0.9rem' }}><Zap size={16} className="text-cyan" /> How to Use</h3>
                   <p style={{ margin: 0, fontSize: '0.9rem' }}>{showAgentHelpModal.howToUse}</p>
                 </div>
@@ -16784,8 +16785,8 @@ ABSOLUTE RULES (violating any = failure):
                       <div key={idx} style={{ 
                         fontSize: '0.75rem', 
                         padding: '8px 12px', 
-                        background: 'rgba(168, 85, 247, 0.05)', 
-                        border: '1px solid rgba(168, 85, 247, 0.1)',
+                        background: "rgba(163,66,41, 0.05)",
+                        border: "1px solid rgba(163,66,41, 0.1)",
                         borderRadius: '8px',
                         color: 'var(--text-primary)',
                         textAlign: 'center',
@@ -16808,8 +16809,8 @@ ABSOLUTE RULES (violating any = failure):
                         alignItems: 'center', 
                         gap: '10px', 
                         padding: '10px 14px', 
-                        background: 'rgba(255,255,255,0.02)', 
-                        border: '1px solid rgba(255,255,255,0.05)',
+                        background: "rgba(var(--studio-ink-rgb), 0.02)",
+                        border: "1px solid rgba(var(--studio-ink-rgb), 0.05)",
                         borderRadius: '10px',
                         marginBottom: '6px'
                       }}>
@@ -16822,7 +16823,7 @@ ABSOLUTE RULES (violating any = failure):
               )}
 
               {showAgentHelpModal.proTips && (
-                <div className="help-section pro-tip-box" style={{ background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1), transparent)', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
+                <div className="help-section pro-tip-box" style={{ background: "linear-gradient(135deg, rgba(163,66,41, 0.1), transparent)", border: "1px solid rgba(163,66,41, 0.2)" }}>
                   <h3 style={{ color: 'var(--color-purple)' }}><Award size={16} /> Advanced Pro Tips</h3>
                   <div className="onboarding-steps-list" style={{ gap: '8px', background: 'none', border: 'none', padding: 0 }}>
                     {showAgentHelpModal.proTips.map((tip, idx) => (
@@ -16839,11 +16840,11 @@ ABSOLUTE RULES (violating any = failure):
                      {showAgentHelpModal.examples.map((ex, idx) => (
                        <div key={idx} style={{ 
                          padding: '12px', 
-                         background: 'rgba(0,0,0,0.2)', 
+                         background: "var(--studio-surface-alt)",
                          borderRadius: '8px', 
                          fontSize: '0.85rem', 
                          color: 'var(--color-cyan)',
-                         border: '1px solid rgba(6, 182, 212, 0.1)',
+                         border: "1px solid rgba(61,100,114, 0.1)",
                          fontFamily: 'monospace'
                        }}>
                          "{ex}"
@@ -16860,8 +16861,8 @@ ABSOLUTE RULES (violating any = failure):
                     {showAgentHelpModal.capabilities.map((cap, i) => (
                       <span key={i} style={{ 
                         padding: '6px 12px', 
-                        background: 'rgba(168, 85, 247, 0.1)', 
-                        border: '1px solid rgba(168, 85, 247, 0.2)', 
+                        background: "rgba(163,66,41, 0.1)",
+                        border: "1px solid rgba(163,66,41, 0.2)",
                         borderRadius: '20px', 
                         fontSize: '0.75rem',
                         color: 'var(--color-purple)'
@@ -16878,8 +16879,8 @@ ABSOLUTE RULES (violating any = failure):
                   <h3><Rocket size={16} className="text-cyan" /> Quick Start Steps</h3>
                   <div className="onboarding-steps-list">
                     {showAgentHelpModal.onboarding.map((step, idx) => (
-                      <div key={idx} className="onboarding-step-item" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <span className="step-number" style={{ background: 'var(--color-purple)', color: 'white', borderColor: 'transparent' }}>{idx + 1}</span>
+                      <div key={idx} className="onboarding-step-item" style={{ background: "rgba(var(--studio-ink-rgb), 0.02)", border: "1px solid rgba(var(--studio-ink-rgb), 0.05)" }}>
+                        <span className="step-number" style={{ background: 'var(--color-purple)', color: "var(--studio-on-accent)", borderColor: 'transparent' }}>{idx + 1}</span>
                         <p style={{ fontSize: '0.85rem', textAlign: 'left', margin: 0 }}>{step}</p>
                       </div>
                     ))}
@@ -16888,7 +16889,7 @@ ABSOLUTE RULES (violating any = failure):
               )}
 
               {showAgentHelpModal.explanation && (
-                <div className="help-section" style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <div className="help-section" style={{ padding: '16px', background: "rgba(var(--studio-ink-rgb), 0.02)", borderRadius: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Cpu size={14} /> Technical Architecture
                   </h4>
@@ -16916,7 +16917,7 @@ ABSOLUTE RULES (violating any = failure):
 
               {showAgentHelpModal.helpTips && (
                 <div className="help-section pro-tip-box" style={{ background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.1), transparent)', border: '1px solid rgba(234, 179, 8, 0.2)' }}>
-                  <h3 style={{ color: '#eab308' }}><Crown size={16} /> Pro Tip</h3>
+                  <h3 style={{ color: "var(--studio-warning)" }}><Crown size={16} /> Pro Tip</h3>
                   <p style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>{showAgentHelpModal.helpTips}</p>
                 </div>
               )}
@@ -17008,7 +17009,7 @@ ABSOLUTE RULES (violating any = failure):
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <Check size={12} color="white" />
+                            <Check size={12} color="var(--studio-ink)" />
                           </div>
                         )}
                         <div className="agent-studio-icon">
@@ -17063,8 +17064,8 @@ ABSOLUTE RULES (violating any = failure):
                         <div 
                           key={agent.id}
                           style={{
-                            background: 'rgba(255, 255, 255, 0.02)',
-                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            background: "rgba(var(--studio-ink-rgb), 0.02)",
+                            border: "1px solid rgba(var(--studio-ink-rgb), 0.06)",
                             borderRadius: '12px',
                             padding: '12px',
                             display: 'flex',
@@ -17087,7 +17088,7 @@ ABSOLUTE RULES (violating any = failure):
                             width: '32px',
                             height: '32px',
                             borderRadius: '8px',
-                            background: 'rgba(255, 255, 255, 0.05)',
+                            background: "rgba(var(--studio-ink-rgb), 0.05)",
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -17155,13 +17156,13 @@ ABSOLUTE RULES (violating any = failure):
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '8px 12px',
-                      background: 'rgba(255,255,255,0.03)',
+                      background: "rgba(var(--studio-ink-rgb), 0.03)",
                       borderRadius: '8px',
                       marginBottom: '6px',
                       fontSize: '0.85rem'
                     }}>
                       <div>
-                        <span style={{ fontWeight: '600', color: 'white' }}>{cmd.command}</span>
+                        <span style={{ fontWeight: '600', color: "var(--studio-ink)" }}>{cmd.command}</span>
                         <span style={{ color: 'var(--text-secondary)', marginLeft: '8px', fontSize: '0.75rem' }}>{cmd.description}</span>
                       </div>
                       <span style={{ fontSize: '0.7rem', color: 'var(--color-cyan)', fontStyle: 'italic' }}>{cmd.example}</span>
@@ -17173,12 +17174,12 @@ ABSOLUTE RULES (violating any = failure):
               <div style={{ 
                 marginTop: '16px', 
                 padding: '12px', 
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(6, 182, 212, 0.1))',
+                background: "linear-gradient(135deg, rgba(163,66,41, 0.1), rgba(61,100,114, 0.1))",
                 borderRadius: '12px',
-                border: '1px solid rgba(139, 92, 246, 0.2)'
+                border: "1px solid rgba(163,66,41, 0.2)"
               }}>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  💡 <strong style={{ color: 'white' }}>Pro Tip:</strong> Say anything else and it will be added to your prompt as dictation.
+                  💡 <strong style={{ color: "var(--studio-ink)" }}>Pro Tip:</strong> Say anything else and it will be added to your prompt as dictation.
                 </p>
               </div>
             </div>
@@ -17219,11 +17220,11 @@ ABSOLUTE RULES (violating any = failure):
               background: 'rgba(0,0,0,0.9)',
               padding: '12px 20px',
               borderRadius: '12px',
-              color: 'white',
+              color: "var(--studio-ink)",
               fontSize: '0.9rem',
               maxWidth: '300px',
               textAlign: 'center',
-              border: '1px solid rgba(139, 92, 246, 0.3)'
+              border: "1px solid rgba(163,66,41, 0.3)"
             }}>
               <span style={{ color: 'var(--color-cyan)' }}>"{voiceTranscript}"</span>
             </div>
@@ -17237,7 +17238,7 @@ ABSOLUTE RULES (violating any = failure):
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
-            boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)',
+            boxShadow: "0 4px 20px rgba(163,66,41, 0.4)",
             cursor: 'pointer'
           }} onClick={handleVoiceToText}>
             {/* Animated pulse rings */}
@@ -17246,17 +17247,17 @@ ABSOLUTE RULES (violating any = failure):
                 position: 'absolute',
                 inset: 0,
                 borderRadius: '50%',
-                background: 'white',
+                background: "var(--studio-surface)",
                 animation: 'pulse 1.5s ease-in-out infinite'
               }} />
               <Mic size={24} style={{ position: 'relative', zIndex: 1, color: 'var(--color-purple)' }} />
             </div>
-            <span style={{ color: 'white', fontWeight: '600', fontSize: '0.9rem' }}>
+            <span style={{ color: "var(--studio-ink)", fontWeight: '600', fontSize: '0.9rem' }}>
               Listening...
             </span>
             <button 
               style={{
-                background: 'rgba(255,255,255,0.2)',
+                background: "rgba(var(--studio-ink-rgb), 0.16)",
                 border: 'none',
                 borderRadius: '50%',
                 width: '28px',
@@ -17265,7 +17266,7 @@ ABSOLUTE RULES (violating any = failure):
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: 'white'
+                color: "var(--studio-ink)"
               }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -17307,7 +17308,7 @@ ABSOLUTE RULES (violating any = failure):
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
-                color: 'white'
+                color: "var(--studio-ink)"
               }}>
                 <Volume2 className="text-cyan" size={24} />
                 Export for Distribution
@@ -17336,17 +17337,17 @@ ABSOLUTE RULES (violating any = failure):
                         padding: '12px',
                         background: exportPreset === preset.id 
                           ? 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))' 
-                          : 'rgba(255,255,255,0.05)',
+                          : "rgba(var(--studio-ink-rgb), 0.05)",
                         border: exportPreset === preset.id 
                           ? '1px solid var(--color-purple)' 
-                          : '1px solid rgba(255,255,255,0.1)',
+                          : "1px solid rgba(var(--studio-ink-rgb), 0.1)",
                         borderRadius: '10px',
                         cursor: 'pointer',
                         textAlign: 'left'
                       }}
                     >
-                      <div style={{ fontWeight: '600', color: 'white', fontSize: '0.9rem' }}>{preset.label}</div>
-                      <div style={{ fontSize: '0.7rem', color: exportPreset === preset.id ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)' }}>{preset.desc}</div>
+                      <div style={{ fontWeight: '600', color: "var(--studio-ink)", fontSize: '0.9rem' }}>{preset.label}</div>
+                      <div style={{ fontSize: '0.7rem', color: exportPreset === preset.id ? "var(--studio-ink)" : 'var(--text-secondary)' }}>{preset.desc}</div>
                       <div style={{ fontSize: '0.65rem', color: 'var(--color-cyan)', marginTop: '4px' }}>{preset.specs}</div>
                     </button>
                   ))}
@@ -17355,7 +17356,7 @@ ABSOLUTE RULES (violating any = failure):
 
               {/* Platform Compatibility */}
               <div style={{ 
-                background: 'rgba(255,255,255,0.03)', 
+                background: "rgba(var(--studio-ink-rgb), 0.03)",
                 borderRadius: '10px', 
                 padding: '16px', 
                 marginBottom: '20px' 
@@ -17367,10 +17368,10 @@ ABSOLUTE RULES (violating any = failure):
                   {['Apple Music', 'Spotify', 'YouTube Music', 'Amazon Music', 'Tidal', 'Deezer'].map(platform => (
                     <span key={platform} style={{
                       padding: '4px 10px',
-                      background: 'rgba(16, 185, 129, 0.2)',
+                      background: "rgba(86,105,84, 0.2)",
                       borderRadius: '12px',
                       fontSize: '0.7rem',
-                      color: '#10b981',
+                      color: "var(--studio-sage)",
                       display: 'flex',
                       alignItems: 'center',
                       gap: '4px'
@@ -17431,11 +17432,11 @@ ABSOLUTE RULES (violating any = failure):
                   width: '100%',
                   padding: '14px',
                   background: isExporting 
-                    ? 'rgba(255,255,255,0.1)' 
+                    ? "rgba(var(--studio-ink-rgb), 0.1)"
                     : 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
                   border: 'none',
                   borderRadius: '10px',
-                  color: 'white',
+                  color: "var(--studio-ink)",
                   fontWeight: '600',
                   fontSize: '0.95rem',
                   cursor: isExporting ? 'not-allowed' : 'pointer',
