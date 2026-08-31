@@ -7403,7 +7403,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                           // The provider may have succeeded while cloud save failed.
                           // Recover that take without buying another image.
                           retrySucceeded = mediaUrlsRef.current.image
-                            ? await handleSaveProject()
+                            ? await handleCreateProject()
                             : await handleGenerateImage(outputs.visual);
                         } else if (step.id === 'video') {
                           await handleGenerateVideo(outputs.video);

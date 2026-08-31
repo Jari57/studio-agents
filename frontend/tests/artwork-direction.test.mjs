@@ -6,7 +6,26 @@ import { artworkDirectionRequest } from '../src/utils/productionIntegrity.mjs';
 test('initial and redo artwork text requests both use the isolated still-image contract', () => {
   const source = readFileSync(new URL('../src/components/StudioOrchestratorV2.jsx', import.meta.url), 'utf8');
   assert.equal((source.match(/JSON.stringify\(slot === 'visual' \? artworkDirectionRequest/g) || []).length, 2);
-  assert.match(source, /retrySucceeded = mediaUrlsRef.current.image\s*\? await handleSaveProject\(\)\s*: await handleGenerateImage/);
+});
+
+test('actual image recovery branch saves an existing take and preserves a failed save result', async () => {
+  const source = readFileSync(new URL('../src/components/StudioOrchestratorV2.jsx', import.meta.url), 'utf8');
+  const statement = source.match(/retrySucceeded = mediaUrlsRef.current.image[\s\S]*?: await handleGenerateImage\(outputs.visual\);/)?.[0];
+  assert.ok(statement, 'image recovery branch must exist');
+  assert.match(source, /const handleCreateProject = async \(\) =>/);
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  const recover = new AsyncFunction('mediaUrlsRef', 'outputs', 'handleCreateProject', 'handleGenerateImage', `let retrySucceeded; ${statement} return retrySucceeded;`);
+  for (const saveResult of [true, false]) {
+    let saves = 0;
+    let generations = 0;
+    const result = await recover({current:{image:'https://media.example/existing-take.png'}}, {visual:'direction'}, async () => { saves++; return saveResult; }, async () => { generations++; return true; });
+    assert.equal(result, saveResult);
+    assert.equal(saves, 1);
+    assert.equal(generations, 0, 'saving must never repurchase a generated image');
+  }
+  let generations = 0;
+  assert.equal(await recover({current:{}}, {visual:'direction'}, async () => { throw new Error('No image to save'); }, async () => { generations++; return true; }), true);
+  assert.equal(generations, 1);
 });
 
 test('static artwork text request preserves the complete brief without injecting music settings', () => {
