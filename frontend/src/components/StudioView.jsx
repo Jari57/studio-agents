@@ -1,6 +1,6 @@
 ﻿/* eslint-disable no-use-before-define */
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { 
   Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderOpen, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, Database as DatabaseIcon, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio as FileMusic, Activity, Film, FileText, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers, Link2
 } from 'lucide-react';
@@ -38,6 +38,8 @@ import SectionErrorBoundary from './studio/SectionErrorBoundary';
 import { saveProjectChoices } from '../utils/saveProjectChoices.mjs';
 import { producerRenderSignature } from '../utils/producerSession.mjs';
 import { projectWizardHint } from '../utils/projectWizard.mjs';
+import { studioCreationCounts } from '../utils/studioCreationCounts.mjs';
+import { createProjectSaveQueue, mergeGeneratedProject, applySavedProjectRevision, replaceUploadedMedia, hasUnpersistedMedia, requireDurableSaveResult, projectSyncSignature } from '../utils/projectPersistence.mjs';
 import { shouldUseNativeIAP } from '../utils/nativePlatform';
 import { purchaseProduct, restorePurchases } from '../utils/storeKit';
 
@@ -262,13 +264,13 @@ const HELP_ITEMS = [
     icon: Zap, 
     title: 'Agent Mastery', 
     desc: 'Deep dives into each agent\'s unique capabilities.',
-    details: 'Mastering our agents requires understanding their specific strengths. Ghostwriter responds best to emotional cues and genre-specific keywords. Album Artist can interpret complex visual metaphors. Trend Hunter scans real-time social data to give you a competitive edge. Experiment with different "Intensity" settings to see how the AI\'s creativity shifts from subtle to experimental.'
+    details: 'Choose an agent for the task you want to complete. Give Ghostwriter a clear lyric brief and Album Artist a specific visual direction. Treat generated trend or strategy text as suggestions unless a current, linked source is supplied. Review each result before using it in the next step.'
   },
   { 
     icon: PlayCircle, 
     title: 'Video Tutorials', 
-    desc: 'Watch step-by-step guides on making hits.',
-    details: 'Our video library includes tutorials on: "Writing Your First Hit with Ghostwriter", "Advanced Beat Making with Beat Lab", and "Strategic Rollouts with Release Manager". Each video is under 5 minutes and designed to get you creating immediately. Pro members get access to exclusive masterclasses from industry-leading producers who use Studio Agents in their daily workflow.'
+    desc: 'Find available guidance in Resources.',
+    details: 'Resources lists the guidance currently available. Begin with a short project, review each result, and save confirmed outputs before moving on. Check the listed resource details for format and availability.'
   },
   { 
     icon: MessageSquare, 
@@ -292,7 +294,7 @@ const TROUBLESHOOTING_GUIDE = [
   {
     keywords: ['slow', 'stuck', 'loading', 'generate', 'wait'],
     issue: 'Generation is taking too long',
-    solution: 'High-quality models like Imagen 3 and Veo can take up to 30 seconds. Check your internet connection. If the progress bar is stuck, try refreshing the page; your project will be saved in the Project Hub.'
+    solution: 'Generation time varies by provider, media type, and queue load. Check the job status and any error shown. Keep this session open while a save is unconfirmed; refreshing can discard unsaved work. Download completed outputs when possible, and retry only after the current job has stopped or failed.'
   },
   {
     keywords: ['login', 'account', 'pro', 'subscription', 'access'],
@@ -307,17 +309,17 @@ const TROUBLESHOOTING_GUIDE = [
   {
     keywords: ['privacy', 'data', 'security', 'safe', 'private'],
     issue: 'Is my data and music private?',
-    solution: 'Yes. We use end-to-end encryption for your prompts and creations. We do not share your personal studio data with third parties or use it to train public models without your permission.'
+    solution: 'Prompts and reference media are processed by the services needed to generate and store your results. Do not upload confidential material without reviewing the Privacy Policy and the relevant provider terms. This app does not claim end-to-end encryption of generation inputs or outputs.'
   },
   {
     keywords: ['copyright', 'rights', 'own', 'legal', 'truth'],
     issue: 'Do I own the AI-generated music?',
-    solution: 'You own the rights to the output you generate. However, for full copyright protection, we recommend adding human elements (vocals, live instruments) to make the work uniquely yours.'
+    solution: 'Studio Agents does not verify copyright ownership or clear third-party material for you. Review the Legal Center and the generation provider terms before publishing. Obtain permission for reference recordings, samples, voices, and other material you use; seek rights advice when needed.'
   },
   {
     keywords: ['quality', 'professional', 'pro', 'industry', 'standard'],
     issue: 'How to get professional quality results?',
-    solution: 'Use high-quality reference tracks, layer AI stems with live recordings, and always perform a final manual mix. Our Mastering Lab agent can help with the final industry-standard polish.'
+    solution: 'Use references you have permission to use, audition each generated asset, and check timing, clipping, noise, and the final mix. Producer controls can help prepare a draft, but they do not certify release quality. Review and master the final recording before distribution.'
   },
   {
     keywords: ['multi', 'agent', 'chain', 'workflow', 'project', 'pro'],
@@ -493,6 +495,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       return [];
     }
   });
+
+  const projectStateRef = useRef({ projects, uid: user?.uid, selectedId: selectedProject?.id });
+  useLayoutEffect(() => {
+    projectStateRef.current = { projects, uid: user?.uid, selectedId: selectedProject?.id };
+  }, [projects, user?.uid, selectedProject?.id]);
+  const orchestratorSaveQueueRef = useRef(null);
+  if (!orchestratorSaveQueueRef.current) orchestratorSaveQueueRef.current = createProjectSaveQueue();
+  const projectCloudSaveQueueRef = useRef(null);
+  if (!projectCloudSaveQueueRef.current) projectCloudSaveQueueRef.current = createProjectSaveQueue();
 
   const [isCreatingVocal, setIsCreatingVocal] = useState(false);
   const [visualDnaUrl, setVisualDnaUrl] = useState(null);
@@ -676,21 +687,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     return localStorage.getItem(`studio_news_${uid}`) || '';
   });
 
-  // REAL STATS CALCULATION - Based on user project activity
-  const performanceStats = useMemo(() => {
-    const projectCount = projects.length || 0;
-    const assetCount = projects.reduce((acc, p) => acc + (p.assets?.length || 0), 0);
-    const audioCount = projects.reduce((acc, p) => acc + (p.assets?.filter(a => a.type === 'audio' || a.type === 'vocal')?.length || 0), 0);
-    
-    return {
-      listeners: (projectCount * 142) + (assetCount * 12),
-      streams: (audioCount * 452) + (projectCount * 85),
-      followers: (projectCount * 24) + Math.floor(assetCount / 2),
-      engagement: projectCount > 0 ? (4.2 + (assetCount % 3 === 0 ? 0.3 : 0.1)).toFixed(1) + '%' : '0%',
-      growth: projectCount > 0 ? `+${8 + (assetCount % 5)}%` : '0%',
-      streamTrend: projectCount > 0 ? `+${10 + (audioCount % 7)}%` : '0%'
-    };
-  }, [projects]);
+  const creationStats = useMemo(() => studioCreationCounts(projects), [projects]);
 
   const [twitterUsername, setTwitterUsername] = useState(() => localStorage.getItem('studio_agents_twitter_user'));
   const [metaName, setMetaName] = useState(() => localStorage.getItem('studio_agents_meta_name'));
@@ -953,6 +950,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   
   // Save a single project to Firestore via backend API
   async function saveProjectToCloud(uid, project, options = {}) {
+    if (!uid || !project?.id) return false;
+    return projectCloudSaveQueueRef.current(`${uid}:${project.id}`, async () => {
+    // Automatic sync must read the latest acknowledged snapshot when its turn
+    // actually executes, not the stale list captured by a debounce timer.
+    if (options.latest) {
+      if (projectStateRef.current.uid !== uid) return false;
+      project = projectStateRef.current.projects.find(item => item.id === project.id);
+      if (!project) return false;
+    }
     const traceId = `SAVE-${Date.now()}`;
     devLog(`[TRACE:${traceId}] saveProjectToCloud START`, {
       hasUid: !!uid,
@@ -968,6 +974,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     }
     
     try {
+      // Capture identity before uploads: never apply an old user's completion
+      // to a newly signed-in account or retrieve the new account's token.
+      const savingUser = auth?.currentUser;
+      if (!savingUser || savingUser.uid !== uid) return false;
+      const stillSameUser = () => auth?.currentUser?.uid === uid && projectStateRef.current.uid === uid;
+      const uploadedMedia = new Map();
       // --- AUTHORITATIVE MEDIA UPLOAD (V3.5.1 FIX) ---
       // Scan for base64/blob media and move to storage BEFORE Firestore hits 1MB/413 limit
       let updatedAssets = null;
@@ -998,12 +1010,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
                       const b = await fetch(val).then(r => r.blob());
                       return uploadFile(b, uid, spec.folder, `${Date.now()}.${spec.mime.split("/")[1]}`);
                     })();
+                if (!res?.url || /^(data:|blob:)/i.test(res.url)) throw new Error('Storage did not return a durable media URL');
                 newAsset[spec.key] = res.url;
                 newAsset[spec.key + "StoragePath"] = res.path;
+                uploadedMedia.set(val, res.url);
                 assetMod = true;
               } catch (upErr) {
                 devWarn("Media sync failed:", upErr);
-                toast.error(`Media upload failed for ${spec.key}. Asset saved locally only.`, { id: 'upload-error' });
+                throw new Error(`Media upload failed for ${spec.key}. Your work remains in this session; keep it open and retry.`, { cause: upErr });
               }
             }
           }
@@ -1015,15 +1029,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         }
       }
 
-      const activeProject = updatedAssets ? { ...project, assets: updatedAssets } : project;
-      
-      // Update local state if we swapped base64 for URLs to prevent redundant uploads
-      if (updatedAssets) {
-        setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === project.id ? activeProject : p) : prev);
-        if (selectedProject?.id === project.id) {
-          setSelectedProject(activeProject);
-        }
+      const activeProject = replaceUploadedMedia(updatedAssets ? { ...project, assets: updatedAssets } : project, uploadedMedia);
+      if (hasUnpersistedMedia(activeProject)) {
+        throw new Error('This project contains media that has not been uploaded. Keep it open and retry the upload before saving.');
       }
+      if (!stillSameUser()) return false;
 
       // Robust Sanitization: Deep-clone serializable fields only
       // We specifically handle the 'assets' array to ensure one bad asset doesn't break the whole project save
@@ -1057,21 +1067,18 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         }
       }
       
-      // Firestore documents have a hard 1 MiB limit. Media should already be
-      // in Storage, but older projects can still contain nested data/blob
-      // payloads. Apply the same recursive compaction used by the local cache
-      // before sending the document so one legacy asset cannot make every save
-      // fail with an opaque 500.
-      const cloudProject = pruneLargeProjectData([sanitizedProject])[0];
+      // Cache compaction is lossy, so never use it for an authoritative save.
+      // Oversized documents fail visibly with the complete session retained.
+      const cloudProject = sanitizedProject;
       devLog(`[TRACE:${traceId}] Sanitized project assets:`, cloudProject.assets?.length, cloudProject.assets?.map(a => a.id));
       
       // Use the cached Firebase token for ordinary saves. Forcing a refresh on
       // every producer action can race Firebase session renewal and incorrectly
       // reject an otherwise valid signed-in user. Refresh only after a real 401.
       let authToken = null;
-      if (auth?.currentUser) {
+      if (stillSameUser()) {
         try {
-          authToken = await auth.currentUser.getIdToken();
+          authToken = await savingUser.getIdToken();
         } catch (tokenErr) {
           devWarn(`[TRACE:${traceId}] Failed to get auth token:`, tokenErr.message);
         }
@@ -1109,12 +1116,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         body
       });
 
+      if (!stillSameUser()) return false;
       let response = await putProject(authToken);
-      if (response.status === 401 && auth?.currentUser) {
+      if (response.status === 401 && stillSameUser()) {
         devWarn(`[TRACE:${traceId}] Save token rejected; refreshing once and retrying`);
         try {
-          authToken = await auth.currentUser.getIdToken(true);
-          response = await putProject(authToken);
+          authToken = await savingUser.getIdToken(true);
+          if (stillSameUser()) response = await putProject(authToken);
         } catch (refreshErr) {
           devWarn(`[TRACE:${traceId}] Auth token refresh failed:`, refreshErr.message);
         }
@@ -1123,50 +1131,74 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         if (response.status === 409) {
-          // Conflict detected — another session modified the project
-          // Retry without lastUpdatedAt to force-save (last write wins)
-          devWarn(`[TRACE:${traceId}] Conflict detected, retrying without lock`);
-          const retryResponse = await putProject(authToken, JSON.stringify({
-              project: {
-                ...cloudProject,
-                id: String(project.id),
-                updatedAt: new Date().toISOString(),
-                syncedAt: new Date().toISOString()
-              }
-            }));
-          if (!retryResponse.ok) {
-            const retryErr = await retryResponse.json().catch(() => ({}));
-            throw new Error(retryErr.error || `HTTP ${retryResponse.status}`);
-          }
-          const retryResult = await retryResponse.json();
-          devLog(`[TRACE:${traceId}] Conflict resolved, project saved:`, project.id, retryResult);
-          return true;
+          throw new Error('Another session changed this project. Nothing was overwritten. Keep this session open, download unsaved work, then reopen the latest project before retrying.');
         }
         throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
       const result = await response.json();
+      const acknowledgedAt = requireDurableSaveResult(result);
       devLog(`[TRACE:${traceId}] Project saved via API:`, project.id, result);
+
+      if (stillSameUser()) {
+        const applyAcknowledgement = current => applySavedProjectRevision(current, project, activeProject, acknowledgedAt);
+        projectStateRef.current = {
+          ...projectStateRef.current,
+          projects: projectStateRef.current.projects.map(current => current.id === project.id ? applyAcknowledgement(current) : current)
+        };
+        setProjects(prev => auth?.currentUser?.uid === uid
+          ? prev.map(current => current.id === project.id ? applyAcknowledgement(current) : current) : prev);
+        setSelectedProject(current => auth?.currentUser?.uid === uid && current?.id === project.id ? applyAcknowledgement(current) : current);
+      }
 
       // Track project save for badges
       badgeTracker.trackProjectSave();
 
-      // Cancel pending debounced sync to prevent stale bulk sync from overwriting
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-        syncTimeoutRef.current = null;
-      }
-
       return true;
     } catch (err) {
       devWarn(`[TRACE:${traceId}] Failed to save project to cloud:`, err.message || err);
-      if (!options.silent) {
+      if (!options.silent && auth?.currentUser?.uid === uid) {
         toast.error(`Save failed: ${err.message || 'Network error'}`, { id: 'save-error' });
       }
       return false;
     }
+    });
   };
   
+  // Shared generated-project adapter: await the durable result and serialize
+  // media completions. No cloud writes or toasts belong in React updaters.
+  async function saveOrchestratorProject(project, { uid, baseline, selectedId }) {
+    if (!project?.id || !uid || auth?.currentUser?.uid !== uid) return false;
+    return orchestratorSaveQueueRef.current(`${uid}:${project.id}`, async () => {
+      if (auth?.currentUser?.uid !== uid || projectStateRef.current.uid !== uid) return false;
+      const current = projectStateRef.current.projects.find(item => item.id === project.id);
+      const merged = mergeGeneratedProject(current, project, baseline);
+      const localProject = {
+        ...merged,
+        createdAt: merged.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      const mergeIntoList = list => {
+        if (auth?.currentUser?.uid !== uid) return list;
+        const index = list.findIndex(item => item.id === project.id);
+        if (index < 0) return [localProject, ...list];
+        return list.map(item => item.id === project.id ? mergeGeneratedProject(item, localProject, current) : item);
+      };
+      projectStateRef.current = { ...projectStateRef.current, projects: mergeIntoList(projectStateRef.current.projects) };
+      setProjects(mergeIntoList);
+      // A background completion must not pull the creator out of a different
+      // project. Initial creation selects only its still-unassigned context.
+      setSelectedProject(currentSelection => {
+        if (auth?.currentUser?.uid !== uid) return currentSelection;
+        if (currentSelection?.id === project.id) return mergeGeneratedProject(currentSelection, localProject, baseline);
+        if (!currentSelection && !selectedId) return localProject;
+        return currentSelection;
+      });
+      const toSave = projectStateRef.current.projects.find(item => item.id === project.id);
+      return await saveProjectToCloud(uid, toSave);
+    });
+  }
+
   // Sync all projects to cloud via backend API (individual saves)
   async function syncProjectsToCloud(uid, projectsToSync) {
     if (!uid || !Array.isArray(projectsToSync) || projectsToSync.length === 0) return;
@@ -1186,7 +1218,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         if (!project || !project.id) continue;
         
         try {
-          const success = await saveProjectToCloud(uid, project, { silent: true });
+          const success = await saveProjectToCloud(uid, project, { silent: true, latest: true });
           if (success) successCount++;
         } catch (individualErr) {
           devWarn(`Failed to save project ${project?.id}:`, individualErr);
@@ -1209,12 +1241,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
   // Note: localStorage save is handled by the useEffect with quota handling below
   
-  // Debounced cloud sync when projects change (only if logged in AND Firebase ready)
+  const projectAutoSyncSignature = projectSyncSignature(user?.uid, projects);
+  // Debounced cloud sync when creator data changes. A server acknowledgement
+  // alone must not cancel another pending edit or schedule an endless resave.
   useEffect(() => {
     // CRITICAL: Check both user state AND auth.currentUser to ensure Firebase is ready
     // Also skip if we are currently mid-manual-save to avoid conflicts
     // AND skip if we are still loading projects from the cloud to prevent overwriting with []
     if (!user?.uid || projects.length === 0 || !auth?.currentUser || isProjectsLoading) return;
+
 
     // Skip sync if projects were just loaded from cloud (prevents re-uploading on login)
     if (skipNextSyncRef.current) {
@@ -1229,7 +1264,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     
     // Debounce sync by 3 seconds to avoid excessive writes
     syncTimeoutRef.current = setTimeout(() => {
-      syncProjectsToCloud(user?.uid, projects);
+      const latest = projectStateRef.current;
+      if (latest.uid === user.uid && auth?.currentUser?.uid === user.uid) {
+        syncProjectsToCloud(user.uid, latest.projects);
+      }
     }, 3000);
     
     return () => {
@@ -1237,7 +1275,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         clearTimeout(syncTimeoutRef.current);
       }
     };
-  }, [projects, user?.uid, auth?.currentUser]);
+  }, [projectAutoSyncSignature, user?.uid, auth?.currentUser, isProjectsLoading]);
 
   // Flush pending sync on page unload to prevent data loss
   useEffect(() => {
@@ -3575,11 +3613,12 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   };
   
-  // Set ref for TDZ-safe access from earlier useEffect
-  handleSubscribeRef.current = handleSubscribe;
-  
-  // Set ref for TDZ-safe access from login handlers
-  checkoutRedirectRef.current = handleCheckoutRedirect;
+  // Publish committed handlers before browser events can use them. Mutating
+  // these refs during render can expose an abandoned render's save context.
+  useLayoutEffect(() => {
+    handleSubscribeRef.current = handleSubscribe;
+    checkoutRedirectRef.current = handleCheckoutRedirect;
+  }, [handleSubscribe, handleCheckoutRedirect]);
 
   // --- PROFESSIONAL VOICE & TRANSLATION LOGIC (Whisperer-style) ---
   
@@ -3962,8 +4001,9 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   };
   
-  // Set ref for TDZ-safe access from earlier functions
-  handleTextToVoiceRef.current = handleTextToVoice;
+  useLayoutEffect(() => {
+    handleTextToVoiceRef.current = handleTextToVoice;
+  }, [handleTextToVoice]);
 
   // Create AI Vocal from text using Uberduck TTS API (NOT browser TTS)
   const handleCreateAIVocal = async (textContent, sourceAgent = 'Ghostwriter') => {
@@ -5382,8 +5422,9 @@ ABSOLUTE RULES (violating any = failure):
     }
   };
   
-  // Set ref for TDZ-safe access from voice recognition callback
-  handleGenerateRef.current = handleGenerate;
+  useLayoutEffect(() => {
+    handleGenerateRef.current = handleGenerate;
+  }, [handleGenerate]);
 
   // A&R GRADING — Score generations like a Billboard A&R executive
   const gradeGeneration = async (item, promptText) => {
@@ -6416,7 +6457,7 @@ ABSOLUTE RULES (violating any = failure):
             storageConnections={storageConnections}
             setStorageConnections={setStorageConnections}
             socialConnections={socialConnections}
-            performanceStats={performanceStats}
+            creationStats={creationStats}
             systemStatus={systemStatus}
             user={user}
             isLoggedIn={isLoggedIn}
@@ -14090,128 +14131,12 @@ ABSOLUTE RULES (violating any = failure):
             onSwitchProject={(project) => {
               setSelectedProject(project);
             }}
-            onSaveToProject={(project) => {
-              const traceId = `SYNC-${Date.now()}`;
-              devLog(`[TRACE:${traceId}] onSaveToProject RECEIVED (Syncing artifacts)`, {
-                projectId: project.id,
-                assetCount: project.assets?.length
-              });
-
-              setProjects(prev => {
-                const existingIndex = prev.findIndex(p => p.id === project.id);
-                if (existingIndex >= 0) {
-                  const existingProject = prev[existingIndex];
-                  const existingAssets = existingProject.assets || [];
-                  const existingFingerprints = new Set();
-                  for (const a of existingAssets) {
-                    if (a.id) existingFingerprints.add(`id:${a.id}`);
-                    if (a.audioUrl) existingFingerprints.add(`audio:${a.audioUrl}`);
-                    if (a.url) existingFingerprints.add(`url:${a.url}`);
-                    if (a.videoUrl) existingFingerprints.add(`video:${a.videoUrl}`);
-                    if (a.imageUrl) existingFingerprints.add(`img:${a.imageUrl}`);
-                    if (a.content && a.type) existingFingerprints.add(`content:${a.type}:${a.agent || ''}:${a.content.substring(0, 200)}`);
-                  }
-
-                  const newAssets = (project.assets || []).filter(a => {
-                    if (a.id && existingFingerprints.has(`id:${a.id}`)) return false;
-                    if (a.audioUrl && existingFingerprints.has(`audio:${a.audioUrl}`)) return false;
-                    if (a.url && existingFingerprints.has(`url:${a.url}`)) return false;
-                    if (a.videoUrl && existingFingerprints.has(`video:${a.videoUrl}`)) return false;
-                    if (a.imageUrl && existingFingerprints.has(`img:${a.imageUrl}`)) return false;
-                    if (a.content && a.type && existingFingerprints.has(`content:${a.type}:${a.agent || ''}:${a.content.substring(0, 200)}`)) return false;
-                    return true;
-                  });
-
-                  const finalProject = newAssets.length === 0
-                    ? { ...existingProject, ...project, assets: existingAssets, updatedAt: new Date().toISOString() }
-                    : { ...existingProject, ...project, assets: [...existingAssets, ...newAssets], updatedAt: new Date().toISOString() };
-
-                  devLog(`[TRACE:${traceId}] onSaveToProject: ${newAssets.length} new assets added`);
-                  setSelectedProject(finalProject);
-
-                  if (isLoggedIn && user) {
-                    saveProjectToCloud(user?.uid, finalProject).catch(err => {
-                      devWarn('Cloud save failed:', err);
-                      toast.error('Failed to sync to cloud. Your changes are saved locally.');
-                    });
-                  }
-
-                  const updated = [...prev];
-                  updated[existingIndex] = finalProject;
-                  return updated;
-                } else {
-                  // Project not found — treat as creation
-                  devLog(`[TRACE:${traceId}] onSaveToProject: Project not found, creating new`);
-                  const finalProject = {
-                    ...project,
-                    createdAt: project.createdAt || new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                  };
-                  setSelectedProject(finalProject);
-                  if (isLoggedIn && user) {
-                    saveProjectToCloud(user?.uid, finalProject).catch(err => {
-                      devWarn('Cloud save failed:', err);
-                    });
-                  }
-                  return [finalProject, ...prev];
-                }
-              });
-            }}
-            onCreateProject={(project) => {
-              const traceId = `CREATE-${Date.now()}`;
-              devLog(`[TRACE:${traceId}] onCreateProject RECEIVED`, {
-                projectId: project.id,
-                projectName: project.name,
-                assetCount: project.assets?.length,
-                coverImage: project.coverImage ? 'present' : 'missing'
-              });
-
-              let savedProject = null;
-
-              setProjects(prev => {
-                const existingIndex = prev.findIndex(p => p.id === project.id);
-                devLog(`[TRACE:${traceId}] Existing project index:`, existingIndex, 'current projects count:', prev.length);
-
-                if (existingIndex >= 0) {
-                  const existingProject = prev[existingIndex];
-                  const existingAssetIds = new Set((existingProject.assets || []).map(a => a.id));
-                  const newAssets = (project.assets || []).filter(a => !existingAssetIds.has(a.id));
-                  devLog(`[TRACE:${traceId}] Merging: ${newAssets.length} new assets`);
-
-                  savedProject = {
-                    ...existingProject,
-                    ...project,
-                    assets: [...(existingProject.assets || []), ...newAssets],
-                    updatedAt: new Date().toISOString()
-                  };
-
-                  const updated = [...prev];
-                  updated[existingIndex] = savedProject;
-                  return updated;
-                } else {
-                  devLog(`[TRACE:${traceId}] Creating new project:`, project.id);
-                  savedProject = {
-                    ...project,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                  };
-                  return [savedProject, ...prev];
-                }
-              });
-
-              // After state update, handle side effects
-              setTimeout(() => {
-                if (savedProject) {
-                  setSelectedProject(savedProject);
-                  if (isLoggedIn && user) {
-                    saveProjectToCloud(user?.uid, savedProject).catch(err => {
-                      devWarn(`[TRACE:${traceId}] Cloud save error:`, err);
-                    });
-                  }
-                  toast.success(`Project "${savedProject.name}" saved with ${savedProject.assets?.length || 0} assets!`);
-                }
-              }, 0);
-            }}
+            onSaveToProject={project => saveOrchestratorProject(project, {
+              uid: user?.uid, baseline: selectedProject, selectedId: selectedProject?.id
+            })}
+            onCreateProject={project => saveOrchestratorProject(project, {
+              uid: user?.uid, baseline: selectedProject, selectedId: selectedProject?.id
+            })}
             onUpdateCreations={(agentId, creations) => {
               setAgentCreations(prev => ({
                 ...prev,

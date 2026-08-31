@@ -28,7 +28,7 @@ const DashboardView = ({
   storageConnections,
   setStorageConnections,
   socialConnections,
-  performanceStats,
+  creationStats,
   systemStatus,
   // User/Auth
   user,
@@ -265,8 +265,9 @@ const DashboardView = ({
                   <div className="studio-vital-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', minWidth: '320px' }}>
                     <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
                       <Folder size={18} color="var(--color-cyan)" style={{ marginBottom: '8px' }} />
-                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)' }}>{(projects || []).length}</div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)' }}>{creationStats.projectCount}</div>
                       <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Projects</div>
+                      <div style={{ marginTop: '6px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{creationStats.assetCount} project assets</div>
                     </div>
                     <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
                       <Zap size={18} color="#facc15" fill="#facc15" style={{ marginBottom: '8px' }} />
@@ -280,6 +281,10 @@ const DashboardView = ({
                     </div>
                   </div>
                 </div>
+
+                <p style={{ margin: '16px 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Creation counts reflect this project list. Streaming and audience analytics are not connected here.
+                </p>
 
                 {/* Quick Session Indicator */}
                 {selectedProject && (

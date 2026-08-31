@@ -1,96 +1,111 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 
-/**
- * Landing Page Section Order & Navigation Tests
- * Verifies sections render in the correct order after the redesign.
- */
-
+/** Action-first homepage, opt-in demos and the complete agent directory.
+ * These acceptance checks never submit a paid or free generation. */
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
+async function documentTop(locator: Locator) {
+  await expect(locator).toBeVisible();
+  return locator.evaluate(element => element.getBoundingClientRect().top + window.scrollY);
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.goto(FRONTEND_URL, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { level: 1, name: 'Your sound. Your vision. Your studio.' })).toBeVisible();
+  const cookieConsent = page.getByRole('button', { name: 'Accept', exact: true });
+  if (await cookieConsent.isVisible()) await cookieConsent.click();
+});
+
 test.describe('Landing Section Order', () => {
-
-  test('Jump Into Studio appears before Demo sections', async ({ page }) => {
-    await page.goto(FRONTEND_URL);
-    await page.waitForTimeout(1500);
-
-    const jumpY = await page.locator('text=Jump Into the Studio').first().evaluate(el => el.getBoundingClientRect().top + window.scrollY);
-    const demoY = await page.locator('text=Try an Agent').first().evaluate(el => el.getBoundingClientRect().top + window.scrollY);
-    
-    expect(jumpY).toBeLessThan(demoY);
-  });
-
-  test('Jump Into Studio appears before Meet the Agents', async ({ page }) => {
-    await page.goto(FRONTEND_URL);
-    await page.waitForTimeout(1500);
-
-    const jumpY = await page.locator('text=Jump Into the Studio').first().evaluate(el => el.getBoundingClientRect().top + window.scrollY);
-    const agentsY = await page.locator('text=Meet the Agents').first().evaluate(el => el.getBoundingClientRect().top + window.scrollY);
-
-    expect(jumpY).toBeLessThan(agentsY);
-  });
-
-  test('Meet the Agents appears before Pricing', async ({ page }) => {
-    await page.goto(FRONTEND_URL);
-    await page.waitForTimeout(1500);
-
-    const agentsY = await page.locator('text=Meet the Agents').first().evaluate(el => el.getBoundingClientRect().top + window.scrollY);
-    const pricingY = await page.locator('text=Transparent Pricing').first().evaluate(el => el.getBoundingClientRect().top + window.scrollY);
-
-    expect(agentsY).toBeLessThan(pricingY);
+  test('starting paths precede the agent directory, optional demos and pricing', async ({ page }) => {
+    const start = page.getByRole('heading', { name: 'Where do you want to start?', exact: true });
+    const agents = page.getByRole('heading', { name: 'Meet the Agents', exact: true });
+    const demos = page.locator('summary').filter({ hasText: 'Explore the workflow & agent demos' });
+    const pricing = page.getByRole('heading', { name: /Transparent Pricing/ });
+    expect(await documentTop(start)).toBeLessThan(await documentTop(agents));
+    expect(await documentTop(agents)).toBeLessThan(await documentTop(demos));
+    expect(await documentTop(demos)).toBeLessThan(await documentTop(pricing));
+    await expect(page.getByRole('button', { name: 'Try an Agent', exact: true })).toHaveCount(0);
   });
 });
 
 test.describe('Jump Into Studio Navigation', () => {
-
-  test('four quicknav buttons are visible', async ({ page }) => {
-    await page.goto(FRONTEND_URL);
-    const jumpSection = page.locator('text=Jump Into the Studio').first();
-    await jumpSection.scrollIntoViewIfNeeded();
-    await expect(jumpSection).toBeVisible({ timeout: 10000 });
-
-    for (const label of ['AI Orchestrator', 'Agents', 'Resources', 'News & Entertainment']) {
-      await expect(page.locator(`button:has-text("${label}")`).first()).toBeVisible();
+  test('three starting paths and four secondary destinations remain visible', async ({ page }) => {
+    const start = page.getByRole('region', { name: 'Where do you want to start?' });
+    for (const label of [/Open AI Orchestrator/, /Open project canvas/, /Browse agents/]) {
+      await expect(start.getByRole('button', { name: label })).toBeVisible();
     }
+    const more = page.getByRole('navigation', { name: 'More studio destinations' });
+    for (const label of ['Your projects', 'Resources', 'News & Entertainment', 'Pricing']) {
+      await expect(more.getByRole('button', { name: label, exact: true })).toBeVisible();
+    }
+  });
+
+  test('pricing shortcut scrolls to pricing without leaving the homepage', async ({ page }) => {
+    await page.getByRole('navigation', { name: 'More studio destinations' })
+      .getByRole('button', { name: 'Pricing', exact: true }).click();
+    await expect(page.getByRole('heading', { name: /Transparent Pricing/ })).toBeInViewport();
+    await expect(page.getByRole('heading', { level: 1, name: 'Your sound. Your vision. Your studio.' })).toBeAttached();
+  });
+});
+
+test.describe('Opt-in Demo Disclosure', () => {
+  test('demos mount on open, switch one at a time and unmount on close', async ({ page }) => {
+    const disclosure = page.locator('details').filter({
+      has: page.locator('summary').filter({ hasText: 'Explore the workflow & agent demos' }),
+    });
+    const summary = disclosure.locator('summary');
+    await expect(disclosure).not.toHaveAttribute('open');
+    await expect(page.locator('.studio-home-preview')).toHaveCount(0);
+    await expect(page.getByPlaceholder('Describe your song idea...', { exact: true })).toHaveCount(0);
+
+    await summary.click();
+    await expect(disclosure).toHaveAttribute('open', '');
+    await expect(disclosure.getByText(/Illustrative demos, not a live generation/)).toBeVisible();
+    await expect(disclosure.getByRole('button', { name: 'Workflow walkthrough', exact: true })).toHaveAttribute('aria-pressed', 'true');
+
+    await disclosure.getByRole('button', { name: 'Try an Agent', exact: true }).click();
+    await expect(disclosure.getByRole('heading', { name: 'Try One Agent', exact: true })).toBeVisible();
+    await expect(disclosure.getByRole('button', { name: 'Try an Agent', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(disclosure.getByPlaceholder('Describe your song idea...', { exact: true })).toHaveCount(1);
+
+    await disclosure.getByRole('button', { name: 'Multi-agent demo', exact: true }).click();
+    await expect(disclosure.getByRole('heading', { name: 'One Idea → Four Agents', exact: true })).toBeVisible();
+    await expect(disclosure.getByRole('heading', { name: 'Try One Agent', exact: true })).toHaveCount(0);
+    await expect(disclosure.getByPlaceholder('Describe your song idea...', { exact: true })).toHaveCount(1);
+
+    await summary.click();
+    await expect(disclosure).not.toHaveAttribute('open');
+    await expect(page.locator('.studio-home-preview')).toHaveCount(0);
+    await expect(page.getByPlaceholder('Describe your song idea...', { exact: true })).toHaveCount(0);
   });
 });
 
 test.describe('Meet the Agents Grid', () => {
-
-  test('shows agent cards with tier badges', async ({ page }) => {
-    await page.goto(FRONTEND_URL);
-    const meetSection = page.locator('text=Meet the Agents').first();
-    await meetSection.scrollIntoViewIfNeeded();
-    await expect(meetSection).toBeVisible({ timeout: 10000 });
-
-    // At least 4 agent cards visible
-    const cards = page.locator('text=Whitepaper');
-    const count = await cards.count();
-    expect(count).toBeGreaterThanOrEqual(4);
+  test('four core agents are visible and twelve specialists expand and collapse', async ({ page }) => {
+    const directory = page.getByRole('region', { name: 'Meet the Agents' });
+    const specialists = directory.locator('details');
+    await expect(directory.locator('article')).toHaveCount(16);
+    await expect(directory.locator('article:visible')).toHaveCount(4);
+    await expect(directory.getByRole('button', { name: 'Read Ghostwriter whitepaper', exact: true })).toBeVisible();
+    await specialists.locator('summary').click();
+    await expect(directory.locator('article:visible')).toHaveCount(16);
+    await expect(directory.getByRole('button', { name: 'Open Vocal Lab', exact: true })).toBeVisible();
+    await expect(directory.getByRole('button', { name: 'Open Video Scorer', exact: true })).toBeVisible();
+    await specialists.locator('summary').click();
+    await expect(directory.locator('article:visible')).toHaveCount(4);
+    await expect(directory.getByRole('button', { name: 'Open Vocal Lab', exact: true })).not.toBeVisible();
   });
 
-  test('agent whitepaper buttons are clickable', async ({ page }) => {
-    await page.goto(FRONTEND_URL);
-    const meetSection = page.locator('text=Meet the Agents').first();
-    await meetSection.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
-
-    const wpBtn = page.locator('button:has-text("Whitepaper")').first();
-    await expect(wpBtn).toBeVisible();
-    await wpBtn.click();
-
-    // A modal or overlay should appear with whitepaper content
-    await page.waitForTimeout(1000);
-    const modal = page.locator('[style*="position: fixed"], [class*="modal"], [class*="overlay"], [role="dialog"]').first();
-    const isModalVisible = await modal.isVisible().catch(() => false);
-    // At minimum, no crash
-    await expect(page.locator('body')).toBeVisible();
-    if (isModalVisible) {
-      // modal appeared — verify it can be closed
-      const closeBtn = modal.locator('button').filter({ hasText: /close|×|✕/i }).first();
-      const hasClose = await closeBtn.isVisible().catch(() => false);
-      if (hasClose) {
-        await closeBtn.click();
-      }
-    }
+  test('whitepaper opens with real content and closes back to the directory', async ({ page }) => {
+    await page.getByRole('button', { name: 'Read Ghostwriter whitepaper', exact: true }).click();
+    const whitepaper = page.locator('.legal-modal').filter({
+      has: page.getByRole('heading', { name: 'Ghostwriter AI', exact: true }),
+    });
+    await expect(whitepaper).toBeVisible();
+    await expect(whitepaper.getByRole('heading', { name: 'Ghostwriter AI', exact: true })).toBeVisible();
+    await whitepaper.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(whitepaper).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Meet the Agents', exact: true })).toBeVisible();
   });
 });

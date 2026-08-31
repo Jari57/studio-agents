@@ -80,6 +80,7 @@ const userPreferencesService = require('./services/userPreferencesService');
 const { createProductionJobService } = require('./services/productionJobService');
 const { createCorsPolicy } = require('./services/corsPolicy');
 const { requestsPersonalVoice } = require('./services/voiceRequestPolicy');
+const { requireImageGenerationResult } = require('./services/imageGenerationResult');
 const { generateMusicalVocal, separateVocal } = require('./services/musicalVocalService');
 const { analyzeMusicBeats } = require('./services/beatDetectionService');
 const {
@@ -4808,7 +4809,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
                }
              }
 
-             return res.json({
+             return res.json(requireImageGenerationResult({
                 output: permanentUrl || imageUrl,
                 images: [permanentUrl || imageUrl],
                 permanentUrl: permanentUrl || null,
@@ -4817,7 +4818,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
                 source: 'replicate-flux',
                 model: 'flux-1.1-pro',
                 message: 'Image generated with Flux 1.1 Pro'
-             });
+             }));
         } else if (data.status === 'processing' || data.status === 'starting') {
            logger.warn('Flux generation timed out (async), falling back');
         }
@@ -4881,13 +4882,13 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
               }
             }
 
-            return res.json({
+            return res.json(requireImageGenerationResult({
               images: permanentUrl ? [permanentUrl] : [base64Image],
               output: permanentUrl || undefined,
               permanentUrl: permanentUrl || null,
               mimeType: part.inlineData.mimeType,
               model: 'nano-banana'
-            });
+            }));
           }
         }
         
@@ -4945,24 +4946,29 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
           }
         }
 
-        res.json({
+        res.json(requireImageGenerationResult({
           predictions: data.predictions,
           images: permanentUrl ? [permanentUrl] : [base64Image],
           output: permanentUrl || undefined,
           permanentUrl: permanentUrl || null,
           model: 'imagen-4'
-        });
+        }));
         return;
       }
     }
     
-    // If no images in expected format, return raw response
-    res.json(data);
+    // An empty provider envelope is a failed generation, never a chargeable
+    // success. The validator throws into the existing refund path below.
+    res.json(requireImageGenerationResult(data));
 
   } catch (error) {
     logger.error('Image generation error', { error: error.message });
     await refundCredits(req, 'image generation failed');
-    res.status(500).json({ error: 'Image generation failed', details: safeErrorDetail(error) });
+    res.status(error.code === 'IMAGE_GENERATION_EMPTY_RESULT' ? 502 : 500).json({
+      error: 'Image generation failed',
+      ...(error.code === 'IMAGE_GENERATION_EMPTY_RESULT' ? { code: error.code } : {}),
+      details: safeErrorDetail(error)
+    });
   }
 });
 

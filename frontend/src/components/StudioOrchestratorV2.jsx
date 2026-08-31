@@ -20,6 +20,8 @@ import {
 } from '../services/productionJobs';
 import StudioOnboarding from './StudioOnboarding';
 import { productionJobMatchesProject } from '../utils/productionRecovery.mjs';
+import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, confirmProjectSave, currentRunLyrics } from '../utils/productionIntegrity.mjs';
+import { generationFailureMessage } from '../utils/generationErrors.mjs';
 
 // Dev-only logging — tree-shaken in production
 const devLog = import.meta.env.DEV ? (...args) => console.log(...args) : () => {};
@@ -2309,6 +2311,8 @@ export default function StudioOrchestratorV2({
   const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false); // Save/clear before re-generating
   const [isSaved, setIsSaved] = useState(!!existingProject); // Existing projects start as saved
+  const [isSavingProject, setIsSavingProject] = useState(false);
+  const savingProjectRef = useRef(false);
   const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
   const [quickMode, setQuickMode] = useState(true); // Quick Create vs Advanced Mode
   const [quickGenre, setQuickGenre] = useState('Modern Hip-Hop'); // Genre for Quick Create
@@ -2629,6 +2633,7 @@ export default function StudioOrchestratorV2({
     setVideoDnaUrl(null);
     setLyricsDnaUrl(null);
     setIsSaved(!!existingProject);
+    setProjectName(existingProject?.name || '');
 
     // Restore project settings (useState initializers only run on first mount)
     setSongIdea(existingProject?.songIdea || existingProject?.name || '');
@@ -3238,6 +3243,8 @@ export default function StudioOrchestratorV2({
 
   // Clear all outputs and generate fresh
   const clearAndGenerate = useCallback(() => {
+    outputsRef.current = { lyrics: null, audio: null, visual: null, video: null };
+    mediaUrlsRef.current = { audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null };
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
     setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
     setGenerationProviders({});
@@ -3257,10 +3264,18 @@ export default function StudioOrchestratorV2({
   }, []);
 
   // Save current project then clear and generate
-  const saveAndGenerate = useCallback(() => {
+  const saveAndGenerate = async () => {
+    const saved = await handleCreateProjectRef.current?.();
+    if (!saved) return; // Never discard work after an incomplete cloud save.
+    if (!mountedRef.current) {
+      toast('Project saved. Continue the next generation from the saved project.', { id: 'orch-saved-new-project' });
+      return;
+    }
     setShowRegenerateConfirm(false);
-    handleCreateProjectRef.current?.(); // saves and sets isSaved=true
+    setShowSaveConfirm(false);
     // After saving, clear outputs for fresh generation
+    outputsRef.current = { lyrics: null, audio: null, visual: null, video: null };
+    mediaUrlsRef.current = { audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null };
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
     setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
     setGenerationProviders({});
@@ -3274,7 +3289,7 @@ export default function StudioOrchestratorV2({
     setIsSaved(false); // New content not yet saved — re-arm the save guard
     skipRegenerateGuard.current = true;
     setTimeout(() => handleGenerateRef.current?.(), 0);
-  }, []);
+  };
 
   // Main generation function
   const handleGenerate = async ({
@@ -3284,7 +3299,16 @@ export default function StudioOrchestratorV2({
     resumeJob = null
   } = {}) => {
     // PREVENT DUPLICATE CALLS
-    if (isGenerating) return;
+    if (!mountedRef.current || isGenerating || savingProjectRef.current) return;
+
+    // A fresh run clears previous media. Reject unmet prerequisites before
+    // clearing that work or purchasing a description/another media output.
+    const requestedAgents = agentSelectionOverride || selectedAgents;
+    const prerequisiteError = productionPrerequisiteError(requestedAgents, resumeJob ? mediaUrlsRef.current : {});
+    if (prerequisiteError) {
+      toast.error(prerequisiteError, { id: 'orch-prerequisite', duration: 8000 });
+      return;
+    }
 
     // Track whether we're starting fresh (state was cleared)
     let freshGeneration = false;
@@ -3305,6 +3329,8 @@ export default function StudioOrchestratorV2({
       // If already saved, silently clear old outputs before generating new
       // NOTE: Do NOT clear DNA URLs — they are persistent user reference files
       if (hasContent && isSaved) {
+        outputsRef.current = { lyrics: null, audio: null, visual: null, video: null };
+        mediaUrlsRef.current = { audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null };
         setOutputs({ lyrics: null, audio: null, visual: null, video: null });
         setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
         setMusicVideoUrl(null);
@@ -3354,6 +3380,7 @@ export default function StudioOrchestratorV2({
     const currentSelectedAgents = agentSelectionOverride || (activeSelectedCount === 0
       ? (creatorMode === 'creator' ? { lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' } : { lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-gen' })
       : selectedAgents);
+    const requestedScope = productionScope(currentSelectedAgents, includeVocals);
     
     const activeSlots = Object.entries(currentSelectedAgents).filter(([, v]) => v);
     devLog('[handleGenerate] Final activeSlots:', activeSlots);
@@ -3378,17 +3405,16 @@ export default function StudioOrchestratorV2({
       if (currentSelectedAgents.audio) steps.push({ id: 'beat-audio', label: 'Generating beat audio', status: 'pending', startTime: null, endTime: null });
       if (currentSelectedAgents.visual) steps.push({ id: 'image', label: 'Creating album artwork', status: 'pending', startTime: null, endTime: null });
       // Vocals run whenever lyrics will exist (slot selected OR lyrics already present from a prior run)
-      if (includeVocals && (currentSelectedAgents.lyrics || outputs.lyrics)) steps.push({ id: 'vocals', label: 'Recording AI vocals', status: 'pending', startTime: null, endTime: null });
+      if (requestedScope.vocals) steps.push({ id: 'vocals', label: 'Recording AI vocals', status: 'pending', startTime: null, endTime: null });
       if (currentSelectedAgents.video) steps.push({ id: 'video', label: 'Producing music video', status: 'pending', startTime: null, endTime: null });
       if (currentSelectedAgents.video && currentSelectedAgents.audio) steps.push({ id: 'mux', label: 'Syncing audio to video', status: 'pending', startTime: null, endTime: null });
-      if (includeVocals) steps.push({ id: 'final', label: 'Creating final mix', status: 'pending', startTime: null, endTime: null });
+      if (requestedScope.finalMix) steps.push({ id: 'final', label: 'Creating final mix', status: 'pending', startTime: null, endTime: null });
     }
     pipelineStepsRef.current = steps;
     setPipelineSteps(steps);
     
     try {
       const headers = await getHeaders();
-      devLog('[handleGenerate] headers:', headers);
 
       if (resumeJob?.id) {
         productionJobIdRef.current = resumeJob.id;
@@ -3579,9 +3605,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 });
             } else if (slot === 'visual') {
               updatePipelineStep('image', 'active');
-              pipelinePromises.image = handleGenerateImage(data.output)
-                .then(() => {
-                  const imageCreated = !!mediaUrlsRef.current.image;
+              pipelinePromises.image = handleGenerateImage(data.output, { brief: songIdea, lyrics: contextLyrics, video: '' })
+                .then((imageCreated) => {
                   updatePipelineStep(
                     'image',
                     imageCreated ? 'done' : 'error',
@@ -3642,7 +3667,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         } else {
           lyricsResult = await generateForSlot(lyricsSlot[0], lyricsSlot[1]);
         }
-      } else if (existingProject?.assets) {
+      } else if (!freshGeneration && existingProject?.assets) {
         // Look for existing lyrics in the project to provide context for other agents
         const lyricsAsset = existingProject.assets.find(a => 
           a.type === 'lyrics' || 
@@ -3698,8 +3723,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           updatePipelineStep('image', 'done');
         } else {
           updatePipelineStep('image', 'active');
-          pipelinePromises.image = handleGenerateImage(outputs.visual)
-            .then(() => updatePipelineStep('image', mediaUrlsRef.current.image ? 'done' : 'error'))
+          pipelinePromises.image = handleGenerateImage(outputs.visual, { brief: songIdea, lyrics: outputs.lyrics || '', video: outputs.video || '' })
+            .then((generated) => updatePipelineStep('image', generated ? 'done' : 'error'))
             .catch((error) => updatePipelineStep('image', 'error', error?.message || 'Album artwork was not created.'));
         }
       }
@@ -3752,16 +3777,16 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       // not just when the lyrics slot was explicitly selected. Pure instrumentals
       // (no lyrics anywhere) still stay instrumental. Uses mediaUrlsRef to avoid
       // reading a stale mediaUrls closure that could skip vocals incorrectly.
-      const lyricsForVocals = lyricsResult || outputsRef.current.lyrics || outputs.lyrics || '';
+      const lyricsForVocals = currentRunLyrics(freshGeneration, lyricsResult, outputsRef.current.lyrics, outputs.lyrics);
       const alreadyHasVocals = !!(mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal);
       const pipelineBeatReady = !!mediaUrlsRef.current.audio;
-      if (includeVocals && lyricsForVocals && !pipelineBeatReady) {
+      if (requestedScope.vocals && lyricsForVocals && !pipelineBeatReady) {
         // Keep dependent generation honest: an unaligned vocal take is not a
         // successful Full Package result. Preserve the lyrics/artwork and let
         // the user retry the failed beat before spending on dependent stages.
         updatePipelineStep('vocals', 'error', 'Waiting for the beat. Retry Beat Audio, then generate vocals.');
         devWarn('[Pipeline] Skipping vocals because the beat prerequisite is unavailable');
-      } else if (includeVocals && lyricsForVocals && (freshGeneration || !alreadyHasVocals)) {
+      } else if (requestedScope.vocals && lyricsForVocals && (freshGeneration || !alreadyHasVocals)) {
         devLog('[Pipeline] Starting vocal generation with beat URL for mixing');
         updatePipelineStep('vocals', 'active');
         await handleGenerateVocals(lyricsForVocals);
@@ -3781,18 +3806,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       // Only call handleCreateFinalMix if we have both tracks but no mixedAudio yet.
       const hasVocals = !!(mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal);
       const hasBeat = !!mediaUrlsRef.current.audio;
-      if (hasVocals && hasBeat && !mediaUrlsRef.current.mixedAudio) {
+      if (requestedScope.finalMix && hasVocals && hasBeat && !mediaUrlsRef.current.mixedAudio) {
         updatePipelineStep('final', 'active');
         try {
           await handleCreateFinalMix();
-          updatePipelineStep('final', 'done');
+          updatePipelineStep('final', mediaUrlsRef.current.mixedAudio ? 'done' : 'error');
           devLog('[Pipeline] Final mix (vocal+beat) created via separate endpoint');
         } catch (mixErr) {
           devWarn('[Pipeline] Final mix failed, video will use beat only:', mixErr);
           updatePipelineStep('final', 'error');
           toast.error('Final mix failed. Continuing with beat-only video.', { id: 'orch-final-mix-fail' });
         }
-      } else if (mediaUrlsRef.current.mixedAudio) {
+      } else if (requestedScope.finalMix && mediaUrlsRef.current.mixedAudio) {
         updatePipelineStep('final', 'done');
         devLog('[Pipeline] Vocals already mixed with beat during generation — skipping separate mix step');
       }
@@ -3828,17 +3853,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       // Read from ref to get latest state (closure mediaUrls may be stale after async ops)
       const muxVideoUrl = mediaUrlsRef.current.video;
       const muxAudioUrl = mediaUrlsRef.current.mixedAudio || mediaUrlsRef.current.audio;
-      if (muxVideoUrl && muxAudioUrl) {
+      if (requestedScope.mux && muxVideoUrl && muxAudioUrl) {
         updatePipelineStep('mux', 'active');
         const muxSuccess = await autoMuxVideoWithAudio(muxVideoUrl, muxAudioUrl, headers);
         updatePipelineStep('mux', muxSuccess ? 'done' : 'error');
-      } else if (muxVideoUrl) {
+      } else if (requestedScope.mux && muxVideoUrl) {
         // Video exists but no audio to mux — skip
         updatePipelineStep('mux', 'done');
       }
       
       toast.dismiss('gen-all');
-      const failedSteps = pipelineStepsRef.current.filter(step => step.status === 'error');
+      const failedSteps = unfinishedProductionSteps(pipelineStepsRef.current);
       if (failedSteps.length > 0) {
         await checkpointCurrentProduction({
           status: 'needs_attention',
@@ -4198,14 +4223,19 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             };
 
             try {
-              saveFunc({
+              await confirmProjectSave(saveFunc, {
                 ...existingProject,
                 assets: [audioAsset, ...(existingProject.assets || [])],
+                mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, { audio: finalUrl }),
                 updatedAt: new Date().toISOString()
               });
               setIsSaved(true);
             } catch (saveErr) {
               devWarn('[handleGenerateAudio] Background save failed:', saveErr);
+              setIsSaved(false);
+              lastAudioErrorRef.current = saveErr.message || 'Beat created but cloud save failed. Save the current take before retrying.';
+              toast.error(lastAudioErrorRef.current, { id: 'orch-audio-save' });
+              return false;
             }
           }
 
@@ -4499,14 +4529,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           };
           
           try {
-            saveFunc({
+            await confirmProjectSave(saveFunc, {
               ...existingProject,
               assets: [vocalAsset, ...(existingProject.assets || [])],
+              mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, { vocals: resolvedAudioUrl, lyricsVocal: resolvedAudioUrl }),
               updatedAt: new Date().toISOString()
             });
             setIsSaved(true);
           } catch (saveErr) {
             devWarn('[handleGenerateVocals] Background save failed:', saveErr);
+            setIsSaved(false);
+            mediaDurabilityRef.current.vocals = false;
+            toast.error(saveErr.message || 'Vocal created but cloud save failed.', { id: 'orch-vocal-save' });
           }
         }
 
@@ -5104,19 +5138,19 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     });
   };
 
-  const handleGenerateImage = async (directInput = null) => {
+  const handleGenerateImage = async (directInput = null, runContext = null) => {
     // PREVENT DUPLICATE CALLS
-    if (generatingMedia.image) return;
+    if (generatingMedia.image) return false;
 
     // Use directInput (only if string), outputsRef, or current outputs (fallback)
     const visualPromptText = (typeof directInput === 'string' ? directInput : null) || outputsRef.current.visual || outputs.visual;
 
     if (!visualPromptText) {
       toast.error('Generate Visual DNA first', { id: 'orch-need-visual' });
-      return;
+      return false;
     }
     setGeneratingMedia(prev => ({ ...prev, image: true }));
-    toast.loading('Generating image (~10 seconds)...', { id: 'gen-image' });
+    toast.loading('Creating artwork. This can take a minute or more…', { id: 'gen-image' });
     
     try {
       const headers = await getHeaders();
@@ -5126,8 +5160,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       const visualPrompt = cleanVisualPrompt || visualPromptText;
 
       // Build contextual prompt: incorporate video scene description + lyrics theme for visual coherence
-      const videoDesc = outputsRef.current.video || outputs.video;
-      const lyricsText = outputsRef.current.lyrics || outputs.lyrics;
+      const videoDesc = runContext ? runContext.video : outputsRef.current.video;
+      const lyricsText = runContext ? runContext.lyrics : outputsRef.current.lyrics;
       let contextHint = '';
       if (videoDesc) {
         const { content: cleanVideoDesc } = splitCreativeContent(videoDesc);
@@ -5144,9 +5178,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: creatorMode === 'creator'
-            ? `Scroll-stopping YouTube thumbnail or social media graphic, bold colors, clean typography, eye-catching composition, professional digital art: ${visualPrompt.substring(0, 600)}${contextHint}`
-            : `Iconic Billboard-standard album cover art, hyper-detailed, professional photography or elite digital art, righteous quality, award-winning composition: ${visualPrompt.substring(0, 600)}${contextHint}`,
+          prompt: artworkRequestPrompt(runContext?.brief ?? songIdea, visualPrompt, contextHint),
           referenceImage: visualDnaUrl
         }),
         signal: createTimeoutSignal(60000)
@@ -5205,35 +5237,36 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             };
             
             const updatedAssets = [...(existingProject.assets || []), imageAsset];
-            onSaveToProject?.({
+            await confirmProjectSave(onSaveToProject, {
               ...existingProject,
               assets: updatedAssets,
+              mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, { image: imageData }),
+              coverImage: formatImageSrc(imageData),
               updatedAt: new Date().toISOString()
             });
             setIsSaved(true);
             devLog('[Orchestrator] Auto-synced image to project library');
           }
+          return true;
         } else {
-          console.error('[Orchestrator] No image data in response:', data);
-          // Try video frame fallback
-          await tryVideoFrameFallback();
+          throw new Error('The image provider returned no artwork. Your previous artwork has not been replaced.');
         }
       } else {
-        const errText = await response.text();
-        console.error('[Orchestrator] Image generation failed:', response.status, errText);
-        // Try video frame fallback
-        await tryVideoFrameFallback();
+        throw new Error(generationFailureMessage(response.status, data, 'Artwork generation'));
       }
     } catch (err) {
       console.error('[Orchestrator] Image generation error:', err);
-      // Try video frame fallback
-      await tryVideoFrameFallback();
+      setIsSaved(false);
+      toast.error(err.name === 'TimeoutError' || err.name === 'AbortError'
+        ? 'Artwork has not been confirmed yet. Check the saved production before retrying; the provider may still be finishing.'
+        : err.message || 'Artwork generation failed. Your existing artwork is unchanged.', { id: 'gen-image', duration: 8000 });
+      return false;
     } finally {
       setGeneratingMedia(prev => ({ ...prev, image: false }));
     }
   };
 
-  // Fallback: Extract frame from existing video if image generation fails
+  // Explicit creative action, never a substitute for a failed artwork request.
   const tryVideoFrameFallback = async () => {
     const videoUrl = mediaUrls.video || musicVideoUrl;
     if (!videoUrl) {
@@ -5274,9 +5307,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             };
 
             const updatedAssets = [...(existingProject.assets || []), imageAsset];
-            onSaveToProject?.({
+            await confirmProjectSave(onSaveToProject, {
               ...existingProject,
               assets: updatedAssets,
+              mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, { image: frameDataUrl }),
               updatedAt: new Date().toISOString()
             });
             setIsSaved(true);
@@ -5301,9 +5335,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             };
 
             const updatedAssets = [...(existingProject.assets || []), imageAsset];
-            onSaveToProject?.({
+            await confirmProjectSave(onSaveToProject, {
               ...existingProject,
               assets: updatedAssets,
+              mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, { image: imageData }),
               updatedAt: new Date().toISOString()
             });
             setIsSaved(true);
@@ -5329,7 +5364,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     // PREVENT DUPLICATE CALLS
     if (generatingMedia.video) return;
 
-    // Show video progress immediately, including while a prerequisite beat is created.
+    // Reveal the video panel without implicitly buying unrelated audio.
     expandSection('video');
 
     // Read from ref (not closure) to get the latest state after async pipeline ops
@@ -5337,35 +5372,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     const audioSource = latestMedia.mixedAudio || latestMedia.audio;
 
     if (!audioSource) {
-      // No beat yet — try to auto-generate beat first, then come back
-      const audioPrompt = outputsRef.current.audio || outputs.audio;
-      if (audioPrompt && !generatingMedia.audio) {
-        toast.loading('Generating beat first, then video...', { id: 'gen-video', duration: 300000 });
-        try {
-          const beatCreated = await handleGenerateAudio(audioPrompt);
-          // Re-read after beat generation
-          const updatedMedia = mediaUrlsRef.current || {};
-          if (!beatCreated || (!updatedMedia.mixedAudio && !updatedMedia.audio)) {
-            const beatError = lastAudioErrorRef.current || 'Beat generation failed. Create a beat first, then retry video.';
-            toast.error(`Video paused: ${beatError}`, { id: 'gen-video', duration: 8000 });
-            return;
-          }
-        } catch (error) {
-          const beatError = lastAudioErrorRef.current || error?.message || 'Beat generation failed. Create a beat first, then retry video.';
-          toast.error(`Video paused: ${beatError}`, { id: 'gen-video', duration: 8000 });
-          return;
-        }
-      } else {
-        toast('Generate a beat first — the video needs music to sync with', {
-          icon: '\uD83C\uDFB5',
-          duration: 5000
-        });
-        return;
-      }
+      toast.error(productionPrerequisiteError({ video: true }), { id: 'gen-video', duration: 8000 });
+      return false;
     }
 
-    // Re-read audio source after potential auto-generation
-    const finalAudioSource = (mediaUrlsRef.current || mediaUrls).mixedAudio || (mediaUrlsRef.current || mediaUrls).audio || audioSource;
+    const finalAudioSource = audioSource;
 
     // Use directInput (if string), outputsRef, current outputs, or auto-synthesize from session context
     const videoPromptText = (typeof directInput === 'string' ? directInput : null)
@@ -5548,7 +5559,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     createdAt: new Date().toISOString()
                   };
                   const updatedAssets = [...(existingProject.assets || []), videoAsset];
-                  onSaveToProject?.({ ...existingProject, assets: updatedAssets, updatedAt: new Date().toISOString() });
+                  await confirmProjectSave(onSaveToProject, { ...existingProject, assets: updatedAssets, mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, { video: statusData.videoUrl }), updatedAt: new Date().toISOString() });
                   setIsSaved(true);
                 }
                 break;
@@ -5592,7 +5603,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               createdAt: new Date().toISOString()
             };
             const updatedAssets = [...(existingProject.assets || []), videoAsset];
-            onSaveToProject?.({ ...existingProject, assets: updatedAssets, updatedAt: new Date().toISOString() });
+            await confirmProjectSave(onSaveToProject, { ...existingProject, assets: updatedAssets, mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, { video: data.videoUrl }), updatedAt: new Date().toISOString() });
             setIsSaved(true);
           }
 
@@ -5804,9 +5815,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
         // Replace any existing mix asset (keep only latest master)
         const existingAssets = (existingProject.assets || []).filter(a => a.type !== 'mix');
-        saveFunc({
+        await confirmProjectSave(saveFunc, {
           ...existingProject,
           assets: [mixAsset, ...existingAssets],
+          mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, { mixedAudio: finalAudioUrl }),
           updatedAt: new Date().toISOString()
         });
         setIsSaved(true);
@@ -6452,80 +6464,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     toast.success('Saved');
   };
 
-  // Create project
-  // Build project data object (used by handleCreateProject and project switcher auto-save)
-  const buildProjectData = () => {
-    const hasContent = Object.values(outputs).some(o => o !== null);
-    const hasMedia = Object.values(mediaUrls).some(m => m !== null);
-    if (!hasContent && !hasMedia) return null;
-
-    const assets = [];
-    GENERATOR_SLOTS.forEach(slot => {
-      const outputContent = outputs[slot.key];
-      if (outputContent) {
-        const agent = AGENTS.find(a => a.id === selectedAgents[slot.key]);
-        let contentStr = typeof outputContent === 'string' ? outputContent : JSON.stringify(outputContent);
-        if (slot.key === 'lyrics') {
-          const { content: cleanLyrics } = splitCreativeContent(contentStr);
-          if (cleanLyrics) contentStr = cleanLyrics;
-        }
-        assets.push({
-          id: `${slot.key}-${crypto.randomUUID()}`,
-          title: slot.title, type: slot.key,
-          agent: agent?.name || slot.subtitle,
-          content: contentStr,
-          snippet: contentStr.substring(0, 100),
-          audioUrl: slot.key === 'audio' ? (mediaUrls.audio || null) : (slot.key === 'lyrics' ? (mediaUrls.vocals || null) : null),
-          imageUrl: slot.key === 'visual' ? (formatImageSrc(mediaUrls.image) || null) : null,
-          videoUrl: slot.key === 'video' ? (mediaUrls.video || null) : null,
-          date: new Date().toLocaleDateString(),
-          createdAt: new Date().toISOString(),
-          color: `agent-${(slot.color || '').replace('#', '')}`
-        });
-      }
-    });
-    if (musicVideoUrl) {
-      assets.push({
-        id: `mvideo-${crypto.randomUUID()}`, title: 'Professional Music Video',
-        type: 'video', agent: 'Orchestrator Sync',
-        content: `Professional synced production for "${songIdea}"`,
-        videoUrl: formatVideoSrc(musicVideoUrl),
-        date: new Date().toLocaleDateString(), createdAt: new Date().toISOString(),
-        isPremium: true, color: 'agent-ec4899'
-      });
-    }
-    const projectId = existingProject?.id || crypto.randomUUID();
-    // Deduplicate: remove existing assets whose type matches a freshly generated asset
-    const newTypes = new Set(assets.map(a => a.type));
-    const existingFiltered = (existingProject?.assets || []).filter(a => !newTypes.has(a.type));
-    return {
-      id: projectId,
-      name: projectName || songIdea || existingProject?.name || 'Untitled Project',
-      songIdea: songIdea,
-      description: `Created with Studio Orchestrator: "${songIdea}"`,
-      category: existingProject?.category || 'Music',
-      language, style, model, bpm: projectBpm, structure, duration,
-      musicalBars: bars, useBars,
-      referenceSongUrl: referenceSongUrl || null,
-      vocalQuality: vocalQuality || 'standard',
-      elevenLabsVoiceId: elevenLabsVoiceId || null,
-      date: existingProject?.date || new Date().toLocaleDateString(),
-      createdAt: existingProject?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      agents: Object.values(selectedAgents).filter(Boolean).map(id => {
-        const agent = AGENTS.find(a => a.id === id);
-        return agent?.name || id;
-      }),
-      assets: [...existingFiltered, ...assets],
-      mediaUrls: {
-        ...mediaUrls,
-        ...existingProject?.mediaUrls
-      },
-      coverImage: formatImageSrc(mediaUrls.image) || existingProject?.coverImage || null
-    };
-  };
-
-  const handleCreateProject = () => {
+  // One awaited save path serves explicit save, project switching and regeneration.
+  const handleCreateProject = async () => {
+    if (savingProjectRef.current) return false;
     devLog('[Orchestrator] handleCreateProject called');
     devLog('[Orchestrator] existingProject:', existingProject?.id);
     devLog('[Orchestrator] outputs:', JSON.stringify(outputs, null, 2));
@@ -6541,7 +6482,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     
     if (!hasContent && !hasMedia) {
       toast.error('No content to save! Generate some content first.', { id: 'orch-save-empty' });
-      return;
+      return false;
     }
     
     const assets = [];
@@ -6627,7 +6568,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     
     const project = {
       id: projectId,
-      name: projectName || songIdea || existingProject?.name || 'Untitled Project',
+      name: projectName || existingProject?.name || songIdea || 'Untitled Project',
       songIdea: songIdea, // Preserve the prompt/idea separately
       description: `Created with Studio Orchestrator: "${songIdea}"`,
       category: existingProject?.category || 'Music',
@@ -6650,10 +6591,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         return agent?.name || id;
       }),
       assets: [...filteredExisting, ...assets],
-      mediaUrls: {
-        ...mediaUrls,
-        ...existingProject?.mediaUrls // Merge to preserve any previously generated specific keys
-      },
+      mediaUrls: mergeCurrentMedia(existingProject?.mediaUrls, mediaUrls),
       coverImage: formatImageSrc(mediaUrls.image) || existingProject?.coverImage || null
     };
     
@@ -6671,25 +6609,34 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     
     if (saveCallback) {
       devLog('[Orchestrator] Calling save callback with project');
+      savingProjectRef.current = true;
+      setIsSavingProject(true);
+      toast.loading('Saving your project to cloud…', { id: 'orch-project-save' });
       try {
-        saveCallback(project);
-        toast.success(`Saved ${project.assets.length} assets to "${project.name}"!`);
+        await confirmProjectSave(saveCallback, project);
+        toast.success(`Saved ${project.assets.length} assets to "${project.name}"!`, { id: 'orch-project-save' });
+        if (!mountedRef.current) return true;
         // Mark as saved so exit check won't prompt
         setIsSaved(true);
         // Show save confirmation with option to preview
         setShowCreateProject(false);
         setShowSaveConfirm(true);
-        return; // Don't close immediately - let user choose to preview or close
+        return true; // Don't close immediately - let user choose to preview or close
       } catch (err) {
         console.error('[Orchestrator] save callback error:', err);
-        toast.error('Save failed - callback error', { id: 'orch-save-fail' });
+        setIsSaved(false);
+        toast.error(err.message || 'Cloud save failed. Your work is still open.', { id: 'orch-project-save', duration: 8000 });
+        return false;
+      } finally {
+        savingProjectRef.current = false;
+        setIsSavingProject(false);
       }
     } else {
       devWarn('[Orchestrator] No save callback (onSaveToProject/onCreateProject) provided!');
       toast.error('Save failed - no backend connection', { id: 'orch-save-fail' });
     }
     
-    setShowCreateProject(false);
+    return false;
   };
 
   // Keep ref in sync so saveAndGenerate always calls latest version
@@ -6715,6 +6662,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           : !mediaUrls.mixedAudio
             ? 'Review the takes, then create a final mix when you are happy with the performance.'
             : 'Your creative package is ready to review, export, and share.';
+  const selectedDeliverables = GENERATOR_SLOTS.filter(slot => selectedAgents[slot.key]).map(slot => slot.title);
+  const advancedJourneyMessage = selectedDeliverables.length
+    ? `Selected: ${selectedDeliverables.join(', ')}. Review your brief, create these outputs, then save the takes you want to keep.`
+    : 'Choose the generators you want to use below.';
 
   const handleJourneyAction = () => {
     if (!songIdea) {
@@ -6870,7 +6821,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         }}
       >
         <section
-          aria-label="Song creation progress"
+          aria-label="Creation progress"
           style={{
             marginBottom: '10px',
             border: '1px solid rgba(34, 211, 238, 0.24)',
@@ -6882,22 +6833,23 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
             <div>
               <div style={{ color: '#67e8f9', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Your next creative step</div>
-              <p style={{ margin: '4px 0 0', color: 'rgba(255,255,255,0.84)', fontSize: isMobile ? '0.82rem' : '0.9rem', lineHeight: 1.45 }}>{journeyMessage}</p>
+              <p style={{ margin: '4px 0 0', color: 'rgba(255,255,255,0.84)', fontSize: isMobile ? '0.82rem' : '0.9rem', lineHeight: 1.45 }}>{quickMode ? journeyMessage : advancedJourneyMessage}</p>
             </div>
             <button
               type="button"
-              onClick={handleJourneyAction}
+              disabled={isGenerating || isSavingProject}
+              onClick={quickMode ? handleJourneyAction : () => document.getElementById('studio-song-brief')?.focus()}
               style={{
                 border: '1px solid rgba(103, 232, 249, 0.45)',
                 borderRadius: '10px', background: 'rgba(8, 145, 178, 0.18)', color: '#cffafe',
                 cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', minHeight: '40px', padding: '8px 12px', whiteSpace: 'nowrap'
               }}
             >
-              {nextJourneyStage === 'brief' ? 'Write brief' : nextJourneyStage === 'write' ? 'Create draft' : nextJourneyStage === 'finish' ? 'Review package' : `Continue: ${nextJourneyStage}`}
+              {!quickMode ? 'Review brief' : nextJourneyStage === 'brief' ? 'Write brief' : nextJourneyStage === 'write' ? 'Create draft' : nextJourneyStage === 'finish' ? 'Review package' : `Continue: ${nextJourneyStage}`}
             </button>
           </div>
           <div style={{ display: 'flex', gap: '6px', marginTop: '12px', overflowX: 'auto', paddingBottom: '2px' }}>
-            {journeyStages.map((stage) => (
+            {(quickMode ? journeyStages : journeyStages.filter(stage => stage.id === 'brief' || (stage.id === 'write' && selectedAgents.lyrics) || (stage.id === 'produce' && selectedAgents.audio) || (stage.id === 'visuals' && (selectedAgents.visual || selectedAgents.video)))).map((stage) => (
               <div key={stage.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: stage.complete ? '#bbf7d0' : stage.id === nextJourneyStage ? '#cffafe' : 'rgba(255,255,255,0.42)', fontSize: '0.7rem', fontWeight: stage.id === nextJourneyStage ? 700 : 600, whiteSpace: 'nowrap' }}>
                 <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: stage.complete ? '#34d399' : stage.id === nextJourneyStage ? '#22d3ee' : 'rgba(255,255,255,0.2)' }} />
                 {stage.label}
@@ -7787,6 +7739,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   )}
                 </div>
                 <select
+                  aria-label={`${slot.title} generator`}
+                  disabled={isGenerating}
                   value={selectedAgents[slot.key] || ''}
                   onChange={(e) => setSelectedAgents(prev => ({ 
                     ...prev, 
@@ -9703,9 +9657,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               <button
                 onClick={handleCreateProject}
                 className="btn-pill primary"
+                disabled={isSavingProject}
                 style={{ flex: 1, padding: '14px', fontWeight: '700' }}
               >
-                Save Project
+                {isSavingProject ? 'Saving…' : 'Save Project'}
               </button>
             </div>
           </div>
@@ -10031,16 +9986,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 projects.filter(p => p && p.id).slice(0, 20).map(project => (
                   <button
                     key={project.id}
-                    onClick={() => {
-                      setShowProjectSwitcher(false);
+                    disabled={isGenerating || isSavingProject}
+                    onClick={async () => {
                       if (project.id === existingProject?.id) return; // Already active
                       if (hasUnsavedContent()) {
-                        // Save current work first, then switch
-                        if (onSaveToProject && existingProject) {
-                          const projectData = buildProjectData();
-                          if (projectData) onSaveToProject(projectData);
-                        }
+                        if (!await handleCreateProject()) return;
                       }
+                      setShowProjectSwitcher(false);
                       onSwitchProject?.(project);
                     }}
                     style={{
@@ -10255,11 +10207,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
               <button
                 onClick={saveAndGenerate}
+                disabled={isSavingProject}
                 className="btn-pill primary"
                 style={{ width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
                 <FolderPlus size={18} />
-                Save & Generate New
+                {isSavingProject ? 'Saving…' : 'Save & Generate New'}
               </button>
               <div style={{ display: 'flex', gap: '12px', flexDirection: isMobile ? 'column-reverse' : 'row' }}>
                 <button
@@ -10547,6 +10500,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   )}
                 </div>
 
+                {(mediaUrls.video || musicVideoUrl) && (
+                  <button type="button" onClick={tryVideoFrameFallback} disabled={generatingMedia.image || isGenerating}
+                    style={{ width: '100%', marginTop: '8px', minHeight: '40px', borderRadius: '8px', border: '1px solid rgba(139,92,246,0.4)', background: 'rgba(139,92,246,0.12)', color: '#ddd6fe', cursor: 'pointer' }}>
+                    Use a frame from my video instead
+                  </button>
+                )}
                 {/* Refine & Variation Controls */}
                 {safeMediaUrls.image && (
                   <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
