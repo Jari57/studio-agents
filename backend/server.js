@@ -4281,7 +4281,7 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
           safetySettings: GEMINI_SAFETY_SETTINGS,
         });
         text = await runWithProviderRetry(async () => {
-          const result = await model.generateContent(sanitizedPrompt);
+          const result = await model.generateContent(sanitizedPrompt, { timeout: 20_000 });
           const response = await result.response;
           const generatedText = response.text();
           if (!generatedText || generatedText.trim().length < 2) {
@@ -4291,7 +4291,7 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
           }
           return generatedText;
         }, {
-          maxAttempts: 2,
+          maxAttempts: modelIndex === 0 ? 2 : 1,
           baseDelayMs: 1000,
           onRetry: ({ attempt, delayMs, error, status }) => logger.warn(
             'Gemini text generation temporarily failed; retrying model',
@@ -4802,7 +4802,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
           generationConfig: {
             responseModalities: ['IMAGE']
           }
-        }), {
+        }, { timeout: 60_000 }), {
           maxAttempts: 2,
           baseDelayMs: 1500,
           onRetry: ({ attempt, delayMs, error, status }) => logger.warn(

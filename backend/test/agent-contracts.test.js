@@ -62,6 +62,12 @@ test('recoverable production steps identify and retain their real media', () => 
   assert.match(orchestrator, /storagePath: data\.storagePath \|\| data\.audioStoragePath \|\| null/);
 });
 
+test('Gemini generation retries remain inside the customer request deadline', () => {
+  assert.match(backend, /generateContent\(sanitizedPrompt, \{ timeout: 20_000 \}\)/);
+  assert.match(backend, /maxAttempts: modelIndex === 0 \? 2 : 1/);
+  assert.match(backend, /responseModalities: \['IMAGE'\][\s\S]*timeout: 60_000/);
+});
+
 test('stem export uses the hardened media downloader', () => {
   const exportStart = backend.indexOf("app.post('/api/export-stems-zip'");
   const exportEnd = backend.indexOf("app.post('/api/", exportStart + 30);
