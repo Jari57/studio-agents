@@ -55,7 +55,7 @@ test('actual full-run preflight blocks paid personal-vocal pipeline but allows a
 });
 
 test('unavailable saved voice offers an explicit Studio voice recovery path', () => {
-  assert.match(source, /!personalVoiceStatus\.available && \([\s\S]*?Use Studio voice/);
+  assert.match(source, /!personalVoiceStatus\.available && voiceSource === 'personal' && \([\s\S]*?Use Studio voice/);
   assert.match(source, /setVoiceSource\('studio'\);[\s\S]*?setVoiceStyle\('singer'\);[\s\S]*?setElevenLabsVoiceId\(''\);/);
 });
 

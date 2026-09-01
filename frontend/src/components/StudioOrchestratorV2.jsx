@@ -8842,7 +8842,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       style={{ border: "1px solid var(--studio-border, #d8d5c9)", borderRadius: '6px', background: 'transparent', color: "var(--studio-sage, #566954)", padding: '6px 9px', cursor: 'pointer' }}>
                       {loadingElVoices ? 'Checking voice…' : 'Recheck saved voice'}
                     </button>
-                    {!personalVoiceStatus.available && (
+                    {!personalVoiceStatus.available && voiceSource === 'personal' && (
                       <button type="button" onClick={() => {
                         setVoiceSource('studio');
                         setVoiceStyle('singer');
