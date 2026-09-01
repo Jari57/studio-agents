@@ -11852,7 +11852,7 @@ html, body, #root {
 .cookie-content p {
   margin: 0 !important;
   font-size: 0.8rem !important;
-  color: #e2e8f0 !important;
+  color: var(--studio-ink) !important;
   line-height: 1.2 !important;
   white-space: nowrap;
   overflow: hidden;
@@ -11869,8 +11869,8 @@ html, body, #root {
   border-radius: 20px !important;
   font-size: 0.75rem !important;
   font-weight: 600 !important;
-  background: var(--studio-surface) !important;
-  color: var(--studio-ink) !important;
+  background: var(--studio-accent) !important;
+  color: var(--studio-on-accent) !important;
   border: none !important;
   cursor: pointer;
   transition: transform 0.2s;
