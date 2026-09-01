@@ -25,7 +25,7 @@ function providerStatus(error) {
     if (Number.isInteger(status) && status >= 100 && status <= 599) return status;
   }
 
-  const match = String(error?.message || error || '').match(/(?:status(?:\s+code)?|http|error)?\s*[:=\[]?\s*(408|425|429|500|502|503|504)\b/i);
+  const match = String(error?.message || error || '').match(/(?:status(?:\s+code)?|http|error)?\s*[:=[]?\s*(408|425|429|500|502|503|504)\b/i);
   return match ? Number(match[1]) : null;
 }
 
