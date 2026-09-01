@@ -54,6 +54,11 @@ test('actual full-run preflight blocks paid personal-vocal pipeline but allows a
   }
 });
 
+test('unavailable saved voice offers an explicit Studio voice recovery path', () => {
+  assert.match(source, /!personalVoiceStatus\.available && \([\s\S]*?Use Studio voice/);
+  assert.match(source, /setVoiceSource\('studio'\);[\s\S]*?setVoiceStyle\('singer'\);[\s\S]*?setElevenLabsVoiceId\(''\);/);
+});
+
 test('actual clone guard requires explicit consent even when invoked outside its disabled button', async () => {
   const start = source.indexOf('    if (voiceSamples.length < 2)', source.indexOf('const handleCloneVoice'));
   const end = source.indexOf('    setIsCloningVoice(true)', start);

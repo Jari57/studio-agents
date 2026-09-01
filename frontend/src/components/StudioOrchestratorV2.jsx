@@ -8842,6 +8842,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       style={{ border: "1px solid var(--studio-border, #d8d5c9)", borderRadius: '6px', background: 'transparent', color: "var(--studio-sage, #566954)", padding: '6px 9px', cursor: 'pointer' }}>
                       {loadingElVoices ? 'Checking voice…' : 'Recheck saved voice'}
                     </button>
+                    {!personalVoiceStatus.available && (
+                      <button type="button" onClick={() => {
+                        setVoiceSource('studio');
+                        setVoiceStyle('singer');
+                        setElevenLabsVoiceId('');
+                        localStorage.removeItem('studio_elevenlabs_voice_id');
+                        toast.success('Studio voice selected. Generate All is ready.', { id: 'voice-studio-fallback' });
+                      }}
+                        style={{ marginLeft: '8px', border: 'none', borderRadius: '6px', background: "var(--studio-accent, #a34229)", color: "var(--studio-on-accent)", padding: '7px 10px', cursor: 'pointer', fontWeight: '700' }}>
+                        Use Studio voice
+                      </button>
+                    )}
                   </div>
                 )}
 
