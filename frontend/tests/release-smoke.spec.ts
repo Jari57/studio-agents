@@ -257,7 +257,7 @@ test.describe('release smoke checks', () => {
     expect(studioSource).not.toContain("'trends', 'social', 'collab', 'release'");
     expect(studioSource).toContain('(isAudioAgent || isSpeechAgent || isMasterAgent)');
     expect(studioSource).toContain('metadata: { projectId: targetProjectSnapshot?.id || null, featureType, agentId }');
-    expect(studioSource).toContain('finalBody = { ...finalBody, agentId }');
+    expect(studioSource).toContain('finalBody = { ...finalBody, agentId: finalBody.agentId || agentId }');
     expect(studioSource).toContain('requestedDuration > 30');
   });
 
