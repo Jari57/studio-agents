@@ -83,6 +83,12 @@ const { requestsPersonalVoice } = require('./services/voiceRequestPolicy');
 const { personalVoiceCatalog } = require('./services/personalVoiceCatalog');
 const { requireImageGenerationResult } = require('./services/imageGenerationResult');
 const { buildFluxArtworkInput } = require('./services/fluxArtworkInput');
+const {
+  isTransientProviderError,
+  providerStatus,
+  retryDelayMs,
+  runWithProviderRetry,
+} = require('./services/providerReliability');
 const { projectRevision, canonicalProjectSnapshot, nextProjectTimestampMs } = require('./services/projectRevision');
 const { generateMusicalVocal, separateVocal } = require('./services/musicalVocalService');
 const { analyzeMusicBeats } = require('./services/beatDetectionService');
@@ -736,16 +742,17 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
   }
 }
 
-// Retry wrapper for transient failures (5xx, network errors)
+// Retry wrapper for transient provider failures and rate limits.
 async function fetchWithRetry(url, options = {}, { timeoutMs = 30000, maxRetries = 2, baseDelay = 1000 } = {}) {
   let lastError;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const response = await fetchWithTimeout(url, options, timeoutMs);
-      // Only retry on 5xx server errors
-      if (response.status >= 500 && attempt < maxRetries) {
-        lastError = new Error(`Server error ${response.status}`);
-        const delay = baseDelay * Math.pow(2, attempt);
+      if (isTransientProviderError({ status: response.status }) && attempt < maxRetries) {
+        lastError = new Error(`Provider returned ${response.status}`);
+        lastError.status = response.status;
+        lastError.response = response;
+        const delay = retryDelayMs(lastError, attempt + 1, { baseDelayMs: baseDelay });
         logger.debug(`[fetchWithRetry] Attempt ${attempt + 1} failed with ${response.status}, retrying in ${delay}ms`);
         await new Promise(r => setTimeout(r, delay));
         continue;
@@ -755,34 +762,32 @@ async function fetchWithRetry(url, options = {}, { timeoutMs = 30000, maxRetries
       lastError = err;
       if (err.name === 'AbortError') {
         lastError = new Error(`Request timed out after ${timeoutMs}ms`);
+        lastError.code = 'ETIMEDOUT';
       }
-      if (attempt < maxRetries) {
-        const delay = baseDelay * Math.pow(2, attempt);
+      if (attempt < maxRetries && isTransientProviderError(lastError)) {
+        const delay = retryDelayMs(lastError, attempt + 1, { baseDelayMs: baseDelay });
         logger.debug(`[fetchWithRetry] Attempt ${attempt + 1} failed: ${lastError.message}, retrying in ${delay}ms`);
         await new Promise(r => setTimeout(r, delay));
+        continue;
       }
+      throw lastError;
     }
   }
   throw lastError;
 }
 
 async function runReplicateWithRateLimitRetry(replicate, model, options, operationName) {
-  const maxAttempts = 3;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      return await replicate.run(model, options);
-    } catch (error) {
-      const message = String(error?.message || '');
-      const rateLimited = error?.status === 429 || error?.response?.status === 429 || /\b429\b|rate.?limit/i.test(message);
-      if (!rateLimited || attempt === maxAttempts) throw error;
-
-      const retryMatch = message.match(/retry[_ -]?after[^0-9]*(\d+)/i);
-      const retrySeconds = Math.max(Number(retryMatch?.[1]) || 10, 1);
-      logger.warn(`Replicate rate-limited ${operationName}; retrying`, { attempt, retrySeconds });
-      await new Promise(resolve => setTimeout(resolve, retrySeconds * 1000));
+  return runWithProviderRetry(
+    () => replicate.run(model, options),
+    {
+      maxAttempts: 3,
+      baseDelayMs: 2000,
+      onRetry: ({ attempt, delayMs, error, status }) => logger.warn(
+        `Replicate temporarily failed ${operationName}; retrying`,
+        { attempt, delayMs, status, error: error?.message }
+      ),
     }
-  }
-  throw new Error(`${operationName} exhausted Replicate retries`);
+  );
 }
 
 const app = express();
@@ -4259,104 +4264,65 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
     
     let text;
     let usedModel = desiredModel;
+    const fallbackModels = [
+      desiredModel,
+      desiredModel === 'gemini-2.5-flash-lite' ? 'gemini-2.5-flash' : 'gemini-2.5-flash-lite',
+      'gemini-3.5-flash',
+    ].filter((modelName, index, models) => models.indexOf(modelName) === index);
+    let lastGenerationError;
 
-    try {
-      const model = genAI.getGenerativeModel({ 
-        model: desiredModel,
-        systemInstruction: sanitizedSystemInstruction || undefined,
-        safetySettings: GEMINI_SAFETY_SETTINGS
-      });
-
+    for (let modelIndex = 0; modelIndex < fallbackModels.length; modelIndex++) {
+      const modelName = fallbackModels[modelIndex];
       const startTime = Date.now();
-      const result = await model.generateContent(sanitizedPrompt);
-      const response = await result.response;
-      text = response.text();
-      const duration = Date.now() - startTime;
-
-      // Ensure we don't return an empty string
-      if (!text || text.trim().length < 2) {
-        throw new Error("AI returned empty output");
-      }
-
-      logger.info('Generation successful', { 
-        ip: req.ip,
-        duration: `${duration}ms`,
-        outputLength: text.length,
-        model: desiredModel,
-        requestedModel: requestedModel || 'default'
-      });
-    } catch (primaryError) {
-      // Fallback logic for 429 (Quota), 404 (Model Not Found), or 500 (Internal Error)
-      const isQuotaError = String(primaryError).includes('429');
-      const isNotFoundError = String(primaryError).includes('404') || String(primaryError).includes('not found');
-      const isFallbackCandidate = isQuotaError || isNotFoundError || String(primaryError).includes('500');
-      
-      logger.warn('Primary model failed, attempting fallback chain', { 
-        error: primaryError.message, 
-        model: desiredModel 
-      });
-
-      if (isFallbackCandidate && desiredModel !== 'gemini-2.5-flash-lite') {
-        // Try flash-lite if primary failed
-        const tryModel = (desiredModel === 'gemini-2.5-flash') ? 'gemini-2.5-flash-lite' : 'gemini-2.5-flash';
-        
-        logger.info(`🔄 Falling back to ${tryModel}...`);
-        
-        try {
-          const fallbackModel = genAI.getGenerativeModel({ 
-            model: tryModel,
-            systemInstruction: sanitizedSystemInstruction || undefined,
-            safetySettings: GEMINI_SAFETY_SETTINGS
-          });
-
-          const startTime = Date.now();
-          const result = await fallbackModel.generateContent(sanitizedPrompt);
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: sanitizedSystemInstruction || undefined,
+          safetySettings: GEMINI_SAFETY_SETTINGS,
+        });
+        text = await runWithProviderRetry(async () => {
+          const result = await model.generateContent(sanitizedPrompt);
           const response = await result.response;
-          text = response.text();
-          usedModel = tryModel;
-          
-          if (!text || text.trim().length < 2) {
-            throw new Error("Fallback model returned empty output");
+          const generatedText = response.text();
+          if (!generatedText || generatedText.trim().length < 2) {
+            const emptyError = new Error('AI returned empty output');
+            emptyError.status = 503;
+            throw emptyError;
           }
-
-          logger.info('✅ Fallback generation successful', { 
-            ip: req.ip,
-            duration: `${Date.now() - startTime}ms`,
-            model: tryModel
-          });
-        } catch (secondaryError) {
-          // Final fallback to gemini-3.5-flash if secondary attempt failed
-          if (tryModel !== 'gemini-3.5-flash') {
-            logger.warn(`❌ Secondary model ${tryModel} failed. Final fallback to gemini-3.5-flash.`);
-            
-            try {
-              const thirdModel = genAI.getGenerativeModel({ 
-                model: 'gemini-3.5-flash',
-                systemInstruction: sanitizedSystemInstruction || undefined,
-                safetySettings: GEMINI_SAFETY_SETTINGS
-              });
-              
-              const result = await thirdModel.generateContent(sanitizedPrompt);
-              const response = await result.response;
-              text = response.text();
-              usedModel = 'gemini-3.5-flash';
-              
-              if (!text || text.trim().length < 2) {
-                text = "I'm sorry, I couldn't generate a detailed response. Please try again with a more specific prompt.";
-              }
-              logger.info('✅ Final fallback successful', { model: 'gemini-3.5-flash' });
-            } catch (thirdError) {
-              logger.error('🚨 Triple model failure. Returning original error.', { error: thirdError.message });
-              throw primaryError; 
-            }
-          } else {
-            throw primaryError;
-          }
-        }
-      } else {
-        throw primaryError; 
+          return generatedText;
+        }, {
+          maxAttempts: 2,
+          baseDelayMs: 1000,
+          onRetry: ({ attempt, delayMs, error, status }) => logger.warn(
+            'Gemini text generation temporarily failed; retrying model',
+            { model: modelName, attempt, delayMs, status, error: error?.message }
+          ),
+        });
+        usedModel = modelName;
+        logger.info('Generation successful', {
+          ip: req.ip,
+          duration: `${Date.now() - startTime}ms`,
+          outputLength: text.length,
+          model: modelName,
+          requestedModel: requestedModel || 'default',
+          fallbackDepth: modelIndex,
+        });
+        break;
+      } catch (generationError) {
+        lastGenerationError = generationError;
+        const message = String(generationError?.message || generationError || '');
+        const modelUnavailable = providerStatus(generationError) === 404 || /not found|unsupported model/i.test(message);
+        const canFallback = isTransientProviderError(generationError) || modelUnavailable;
+        logger.warn('Gemini model failed', {
+          model: modelName,
+          canFallback,
+          error: message,
+        });
+        if (!canFallback || modelIndex === fallbackModels.length - 1) throw generationError;
       }
     }
+
+    if (!text) throw lastGenerationError || new Error('AI generation returned no output');
 
     // Content moderation gate — App Store compliance
     const modResult = moderateOutput(text);
@@ -4831,11 +4797,18 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
           safetySettings: GEMINI_SAFETY_SETTINGS
         });
         
-        const result = await nanoBananaModel.generateContent({
+        const result = await runWithProviderRetry(() => nanoBananaModel.generateContent({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
             responseModalities: ['IMAGE']
           }
+        }), {
+          maxAttempts: 2,
+          baseDelayMs: 1500,
+          onRetry: ({ attempt, delayMs, error, status }) => logger.warn(
+            'Nano Banana temporarily failed; retrying',
+            { attempt, delayMs, status, error: error?.message }
+          ),
         });
         
         const response = await result.response;
@@ -4885,7 +4858,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
     
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -4896,7 +4869,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
           personGeneration: 'allow_adult'
         }
       })
-    });
+    }, { timeoutMs: 60000, maxRetries: 2, baseDelay: 1500 });
 
     if (!response.ok) {
       const errorText = await response.text();

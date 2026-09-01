@@ -84,10 +84,12 @@ async function invokeImageRoute(providerPayload, providerOk = true) {
     process: { env: { GEMINI_API_KEY: 'unit-test-only' } },
     logger: { info() {}, warn() {}, error() {} },
     genAI: { getGenerativeModel: () => ({ generateContent: async () => ({ response: { candidates: [] } }) }) },
+    runWithProviderRetry: async (operation) => operation(),
     getConfiguredGenerativeModel: () => 'unit-test-model',
     GEMINI_SAFETY_SETTINGS: [],
     getStorageBucket: () => null,
     fetch: async () => ({ ok: providerOk, status: providerOk ? 200 : 503, json: async () => providerPayload, text: async () => 'provider unavailable' }),
+    fetchWithRetry: async () => ({ ok: providerOk, status: providerOk ? 200 : 503, json: async () => providerPayload, text: async () => 'provider unavailable' }),
     safeErrorDetail: (error) => error.message,
   });
   const req = { user: { uid: 'qa-user' }, body: { prompt: 'original abstract artwork' }, headers: { 'idempotency-key': 'image-qa-attempt-1' } };

@@ -75,26 +75,6 @@ if (engineOccurrences < 1) {
 }
 source = source.split(previousEngineSelection).join(providerAwareEngineSelection);
 
-const previousReplicateHelper = `async function runReplicateWithRateLimitRetry(replicate, model, options, operationName) {
-  const maxAttempts = 3;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      return await replicate.run(model, options);
-    } catch (error) {
-      const message = String(error?.message || '');
-      const rateLimited = error?.status === 429 || error?.response?.status === 429 || /\\b429\\b|rate.?limit/i.test(message);
-      if (!rateLimited || attempt === maxAttempts) throw error;
-
-      const retryMatch = message.match(/retry[_ -]?after[^0-9]*(\\d+)/i);
-      const retrySeconds = Math.max(Number(retryMatch?.[1]) || 10, 1);
-      logger.warn(\`Replicate rate-limited \${operationName}; retrying\`, { attempt, retrySeconds });
-      await new Promise(resolve => setTimeout(resolve, retrySeconds * 1000));
-    }
-  }
-  throw new Error(\`\${operationName} exhausted Replicate retries\`);
-}
-`;
-
 const boundedReplicateHelper = `async function runReplicateWithRateLimitRetry(_replicate, model, options, operationName) {
   // __studioReplicateBoundedPrediction
   // The SDK's replicate.run() can wait indefinitely and previously let one beat
@@ -229,11 +209,13 @@ const boundedReplicateHelper = `async function runReplicateWithRateLimitRetry(_r
 }
 `;
 
-if (!source.includes(previousReplicateHelper)) {
+const replicateHelperStart = source.indexOf('async function runReplicateWithRateLimitRetry(');
+const replicateHelperEnd = source.indexOf('\nconst app = express()', replicateHelperStart);
+if (replicateHelperStart === -1 || replicateHelperEnd === -1) {
   console.error('Could not find the unbounded Replicate helper.');
   process.exit(1);
 }
-source = source.replace(previousReplicateHelper, boundedReplicateHelper);
+source = source.slice(0, replicateHelperStart) + boundedReplicateHelper + source.slice(replicateHelperEnd + 1);
 
 const audioStart = source.indexOf("app.post('/api/generate-audio'");
 const audioEnd = source.indexOf("app.post('/api/mix-audio'", audioStart);
