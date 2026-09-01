@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../src/components/studio/DashboardView.jsx', import.meta.url), 'utf8');
 const studioSource = readFileSync(new URL('../src/components/StudioView.jsx', import.meta.url), 'utf8');
+const orchestratorSource = readFileSync(new URL('../src/components/StudioOrchestratorV2.jsx', import.meta.url), 'utf8');
 
 test('dashboard pipeline launchers dismiss onboarding before opening the orchestrator', () => {
   const launches = source.match(/setShowOnboarding\(false\); setShowOrchestrator\(true\);/g) || [];
@@ -15,4 +16,8 @@ test('completing or skipping Studio onboarding also completes orchestrator onboa
   const completions = studioSource.match(/localStorage\.setItem\('studio_onboarding_complete', 'true'\);/g) || [];
 
   assert.equal(completions.length, 2);
+  assert.match(
+    orchestratorSource,
+    /!localStorage\.getItem\('studio_onboarding_complete'\)[\s\S]*?&& !localStorage\.getItem\('studio_onboarding_v4'\)/,
+  );
 });

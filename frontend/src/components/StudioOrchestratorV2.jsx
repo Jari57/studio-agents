@@ -2382,7 +2382,8 @@ export default function StudioOrchestratorV2({
 
   // First-run onboarding
   const [showOnboarding, setShowOnboarding] = useState(() => {
-    return !localStorage.getItem('studio_onboarding_complete');
+    return !localStorage.getItem('studio_onboarding_complete')
+      && !localStorage.getItem('studio_onboarding_v4');
   });
 
   // Arrangement Editor state
