@@ -24,6 +24,7 @@ async function generate(body) {
   let status = 200;
   let refunds = 0;
   const models = [];
+  const modelInputs = [];
   const context = {
     app: { post: (...args) => { handler = args.at(-1); } },
     verifyFirebaseToken() {}, requireAuthOrFreeLimit() {}, generationLimiter() {},
@@ -35,8 +36,9 @@ async function generate(body) {
     Replicate: class {}, Buffer, AbortSignal,
     fetch: async () => ({ ok: true, status: 200, json: async () => ({ credits: -95 }) }),
     fetchWithRetry: async () => ({ ok: true, arrayBuffer: async () => Buffer.alloc(1000) }),
-    runReplicateWithRateLimitRetry: async (_client, model) => {
+    runReplicateWithRateLimitRetry: async (_client, model, options) => {
       models.push(model);
+      modelInputs.push(options?.input || {});
       return 'https://example.test/test-fixture.mp3';
     },
     refundCredits: async () => { refunds++; },
@@ -47,7 +49,7 @@ async function generate(body) {
     status(code) { status = code; return this; },
     json(payload) { result = payload; return this; },
   });
-  return { status, result, models, refunds };
+  return { status, result, models, modelInputs, refunds };
 }
 
 for (const duration of [30, 60, 180]) {
@@ -63,12 +65,20 @@ for (const duration of [30, 60, 180]) {
   });
 }
 
-test('unsupported premium reference conditioning is explicit, refunded and never generated', async () => {
-  const outcome = await generate({ prompt: 'Keep my reference', quality: 'premium', referenceAudio: 'https://example.test/reference.wav' });
-  assert.equal(outcome.status, 422);
-  assert.equal(outcome.refunds, 1);
-  assert.equal(outcome.models.length, 0);
-  assert.match(outcome.result.details, /does not accept reference audio/);
+test('premium reference audio generates a melody-conditioned GPTMusic beat', async () => {
+  const referenceAudio = 'https://example.test/reference.wav';
+  const outcome = await generate({
+    prompt: 'Keep the reference groove',
+    engine: 'auto',
+    quality: 'premium',
+    referenceAudio,
+  });
+  assert.equal(outcome.status, 200, JSON.stringify(outcome.result));
+  assert.equal(outcome.refunds, 0);
+  assert.match(outcome.models[0], /^facebook\/musicgen:/);
+  assert.equal(outcome.modelInputs[0].melody, referenceAudio);
+  assert.equal(outcome.modelInputs[0].model_version, 'stereo-melody-large');
+  assert.equal(outcome.result.provider, 'music-gpt');
 });
 
 function providerHarness(status = 'succeeded', configuredTimeout) {

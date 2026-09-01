@@ -35,6 +35,7 @@ import { Analytics, trackPageView } from '../utils/analytics';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '../utils/errorMonitoring';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 import { generationFailureMessage, selectedVoiceInputs } from '../utils/generationErrors.mjs';
+import { BEAT_GENERATION_ENDPOINT, beatGenerationRequest } from '../utils/beatGenerationRequest.mjs';
 import { requireGeneratedMedia, amoOutputIdentity } from '../utils/productionIntegrity.mjs';
 import SectionErrorBoundary from './studio/SectionErrorBoundary';
 import { saveProjectChoices } from '../utils/saveProjectChoices.mjs';
@@ -4964,8 +4965,8 @@ ABSOLUTE RULES (violating any = failure):
           };
         }
       } else if (isAudioAgent) {
-        finalEndpoint = '/api/generate-audio';
-        finalBody = { 
+        finalEndpoint = BEAT_GENERATION_ENDPOINT;
+        finalBody = beatGenerationRequest({
           prompt: expandedPrompt, 
           bpm: voiceSettings.bpm || 90, 
           genre: detectedGenre || heroGenre || voiceSettings.genre || (agentId === 'beat' ? 'hip-hop' : 'sample'),
@@ -4973,9 +4974,7 @@ ABSOLUTE RULES (violating any = failure):
           durationSeconds: voiceSettings.duration || 60,
           referenceAudio: audioDnaUrl,
           audioId: referencedAudioId,
-          quality: 'premium',
-          engine: 'auto'
-        };
+        });
       } else if (isSpeechAgent) {
         // VOCALS FIX: Use lyrics (from project or brain-generated), NOT the style description
         // Priority: 1) Context lyrics from project, 2) Brain-generated lyrics, 3) User prompt
@@ -5021,7 +5020,7 @@ ABSOLUTE RULES (violating any = failure):
       }
 
       if (finalBody && typeof finalBody === 'object') {
-        finalBody = { ...finalBody, agentId };
+        finalBody = { ...finalBody, agentId: finalBody.agentId || agentId };
       }
 
       // If it's a media agent, run execution phase

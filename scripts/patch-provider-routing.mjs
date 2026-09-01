@@ -9,14 +9,18 @@ let source = fs.readFileSync(serverPath, 'utf8').replace(/\r\n/g, '\n');
 let videoSource = fs.readFileSync(videoOrchestratorPath, 'utf8').replace(/\r\n/g, '\n');
 
 const previousEngineSelection = `    // Engine Selection Logic - Always prefer Stability AI for highest quality
-    let finalEngine = engine;
-    if (engine === 'auto' || !engine || engine === 'music-gpt') {
+    const requestedEngine = engine || 'auto';
+    let finalEngine = requestedEngine;
+    if (requestedEngine === 'auto') {
       if (stabilityKey) {
         finalEngine = 'stability';
       } else {
         finalEngine = 'music-gpt';
       }
     }
+    // MusicGen is the configured beat provider that accepts melody/reference
+    // conditioning. Never send a reference-backed beat to a text-only path.
+    if (referenceAudio) finalEngine = 'music-gpt';
 `;
 
 const providerAwareEngineSelection = `    // Provider-aware engine selection. A configured Stability key is not enough:
@@ -60,12 +64,16 @@ const providerAwareEngineSelection = `    // Provider-aware engine selection. A 
       }
     }
 
-    let finalEngine = engine;
-    if (engine === 'auto' || !engine || engine === 'music-gpt') {
+    const requestedEngine = engine || 'auto';
+    let finalEngine = requestedEngine;
+    if (requestedEngine === 'auto') {
       finalEngine = stabilityUsable ? 'stability' : 'music-gpt';
-    } else if (engine === 'stability' && !stabilityUsable) {
+    } else if (requestedEngine === 'stability' && !stabilityUsable) {
       finalEngine = 'music-gpt';
     }
+    // MusicGen is the configured beat provider that accepts melody/reference
+    // conditioning. Never send a reference-backed beat to a text-only path.
+    if (referenceAudio) finalEngine = 'music-gpt';
 `;
 
 const engineOccurrences = source.split(previousEngineSelection).length - 1;
@@ -247,10 +255,10 @@ audioRoute = audioRoute.replaceAll('{ timeoutMs: 60000 }', '{ timeoutMs: 45000, 
 // premium briefs: MusicGen is deliberately excluded by the quality guard, so
 // doing both leaves zero providers when Stability has no credits. The response
 // must distinguish requested duration from measured duration instead.
-const miniMaxDefaultPath = `    if (replicateKey && !audioUrl && !referenceAudio) {
+const miniMaxDefaultPath = `    if (replicateKey && !audioUrl && !referenceAudio && requestedEngine !== 'music-gpt') {
       try {
         logger.info('Using Replicate MiniMax Music 2.6 (instrumental)');`;
-const miniMaxLongFormPath = `    if (replicateKey && !audioUrl && !referenceAudio) {
+const miniMaxLongFormPath = `    if (replicateKey && !audioUrl && !referenceAudio && requestedEngine !== 'music-gpt') {
       try {
         logger.info('Using Replicate MiniMax Music 2.6 for premium instrumental generation');`;
 if (!audioRoute.includes(miniMaxDefaultPath)) {
@@ -262,7 +270,7 @@ audioRoute = audioRoute.replace(miniMaxDefaultPath, miniMaxLongFormPath);
 const legacyFallback = `    if (replicateKey && !audioUrl) {
       try {
         logger.info('Using Replicate Music GPT (stereo-large)');`;
-const qualityGuardedFallback = `    if (replicateKey && !audioUrl && !strictPremiumBeat) {
+const qualityGuardedFallback = `    if (replicateKey && !audioUrl && (referenceAudio || requestedEngine === 'music-gpt' || !strictPremiumBeat)) {
       try {
         logger.info('Using Replicate Music GPT (stereo-large)');`;
 const boundedInteractiveFallback = `    if (replicateKey && !audioUrl && (referenceAudio || durationSeconds <= 65)) {
@@ -270,7 +278,7 @@ const boundedInteractiveFallback = `    if (replicateKey && !audioUrl && (refere
         logger.info(referenceAudio
           ? 'Using bounded Replicate MusicGen for reference-audio conditioning'
           : 'Using bounded Replicate MusicGen for interactive beat generation');`;
-const qualityGuardedInteractiveFallback = `    if (replicateKey && !audioUrl && !strictPremiumBeat && (referenceAudio || durationSeconds <= 65)) {
+const qualityGuardedInteractiveFallback = `    if (replicateKey && !audioUrl && (referenceAudio || requestedEngine === 'music-gpt' || (!strictPremiumBeat && durationSeconds <= 65))) {
       try {
         logger.info(referenceAudio
           ? 'Using bounded Replicate MusicGen for reference-audio conditioning'

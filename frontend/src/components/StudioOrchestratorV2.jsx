@@ -25,7 +25,8 @@ import { productionJobMatchesProject } from '../utils/productionRecovery.mjs';
 import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, artworkDirectionRequest, confirmProjectSave as confirmCloudProjectSave, currentRunLyrics } from '../utils/productionIntegrity.mjs';
 import { restoreProductionConfig, withProductionConfig, mergeProductionAssets } from '../utils/productionProjectConfig.mjs';
 import { generationFailureMessage } from '../utils/generationErrors.mjs';
-import { personalVoiceReadiness, personalVoiceCloneLabel } from '../utils/personalVoiceReadiness.mjs';
+import { BEAT_GENERATION_ENDPOINT, beatGenerationRequest } from '../utils/beatGenerationRequest.mjs';
+import { personalVoiceReadiness, personalVoiceCloneLabel, resolvePersonalVoiceSelection } from '../utils/personalVoiceReadiness.mjs';
 
 // Dev-only logging — tree-shaken in production
 const devLog = import.meta.env.DEV ? (...args) => console.log(...args) : () => {};
@@ -2239,9 +2240,6 @@ export default function StudioOrchestratorV2({
   const [bars, setBars] = useState(existingProject?.musicalBars || 16); // musical bars
   const [useBars, setUseBars] = useState(existingProject?.useBars ?? true); // Toggle for bar-based timing
   const [model, setModel] = useState(existingProject?.model || 'Gemini 2.5 Flash');
-  // Premium routing is the safe default. Legacy MusicGen output remains
-  // available only to the backend's explicitly non-premium fallback path.
-  const [musicEngine, setMusicEngine] = useState(existingProject?.musicEngine || 'auto');
   const [mood, setMood] = useState(existingProject?.mood || 'Energetic'); // Beatoven-inspired
   const [structure, setStructure] = useState(existingProject?.structure || 'Full Song'); // Structure control
 
@@ -2815,6 +2813,27 @@ export default function StudioOrchestratorV2({
     return () => { cancelled = true; };
   }, [isOpen, voiceCatalogRefresh]);
 
+  useEffect(() => {
+    const selection = resolvePersonalVoiceSelection({ voiceSource, voiceStyle, readiness: personalVoiceStatus });
+    if (!selection.recovered) return;
+
+    setVoiceSource(selection.voiceSource);
+    setVoiceStyle(selection.voiceStyle);
+    setClonedVoiceId(null);
+    setElevenLabsVoiceId('');
+    localStorage.removeItem('studio_elevenlabs_voice_id');
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      updateDoc(doc(db, 'users', currentUser.uid), { clonedVoiceId: null }).catch(() => {
+        devWarn('[Orchestrator] Could not clear stale personal voice selection from profile');
+      });
+    }
+    toast('Saved voice is unavailable. Studio voice selected so generation can continue.', {
+      id: 'voice-studio-auto-recovery',
+      duration: 5000,
+    });
+  }, [personalVoiceStatus.state, voiceSource, voiceStyle]);
+
   // Delete a voice from ElevenLabs
   const handleDeleteVoice = async (voiceId) => {
     if (!voiceId) return;
@@ -3375,8 +3394,11 @@ export default function StudioOrchestratorV2({
     const requestedVoiceStatus = personalVoiceReadiness({
       voiceId: clonedVoiceId, voices: elVoices, ...voiceCatalogCheck, currentUid: auth.currentUser?.uid,
     });
+    const requestedVoiceSelection = resolvePersonalVoiceSelection({
+      voiceSource, voiceStyle, readiness: requestedVoiceStatus,
+    });
     if ((voiceSource === 'personal' || voiceStyle === 'cloned') && productionScope(requestedAgents, includeVocals).vocals
-      && !(resumeJob && mediaUrlsRef.current.vocals) && !requestedVoiceStatus.available) {
+      && !(resumeJob && mediaUrlsRef.current.vocals) && requestedVoiceSelection.blocked) {
       setShowAssets(true);
       toast.error(requestedVoiceStatus.detail, { id: 'orch-voice-required' });
       return;
@@ -3595,7 +3617,7 @@ REQUIREMENTS:
 - Match the flow and delivery style of current chart-topping ${style} artists
 - FORBIDDEN: Do NOT write any intro text, title lines, genre labels, commentary, descriptions, or explanations. Output ONLY singable/rappable lyrics with [Section] labels.` : ''}
         ${slot === 'audio' ? `BEAT DNA AGENT INSTRUCTIONS:
-Describe a cohesive, release-focused instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}, BPM: ${projectBpm}).
+      Describe a cohesive, release-focused beat concept (${useBars ? bars + ' bars' : duration + ' seconds'}, BPM: ${projectBpm}).
 REQUIREMENTS:
 - Reference specific production techniques: drum patterns, bass type, synth textures, FX
 - Name the sonic palette: what instruments, what key, what mood progression
@@ -4061,7 +4083,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             : `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} song about: "${songIdea}". Be creative and fresh.
           ${(slot !== 'lyrics' && outputs.lyrics) ? `HERE ARE THE CURRENT LYRICS - USE THEM FOR CONTEXT: "${outputs.lyrics.substring(0, 500)}"` : ''}
           ${slot === 'lyrics' ? `Write ONLY the lyrics in ${language} (verses, hooks, chorus) with clear labels like [Verse] or [Chorus]. START with [Verse 1] — no title, no intro text, no descriptions.${language !== 'English' ? ` ALL lyrics MUST be in ${language}.` : ''}` : ''}
-          ${slot === 'audio' ? `Briefly describe a high-quality beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Focus on mood, instrumentation, and energy. Keep it under 80 words for an AI music generator.` : ''}`,
+          ${slot === 'audio' ? `Briefly describe a high-quality beat concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Focus on mood, instrumentation, and energy. Keep it under 80 words for the Beat Agent.` : ''}`,
           model: modelId,
           duration: duration,
           language: language
@@ -4151,7 +4173,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     devLog('[handleGenerateAudio] Starting generation:', { 
       hasDirectInput: !!directInput, 
       promptLength: audioPrompt?.length || 0,
-      engine: musicEngine
+      engine: 'auto'
     });
 
     if (!audioPrompt) {
@@ -4172,15 +4194,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       const { content: cleanAudioPrompt } = splitCreativeContent(audioPrompt);
       const cleanAudioPromptText = cleanAudioPrompt || audioPrompt;
       
-      devLog('[handleGenerateAudio] Making API call to:', `${BACKEND_URL}/api/generate-audio`);
-      devLog('[handleGenerateAudio] Duration:', duration, 'Engine:', musicEngine);
+      devLog('[handleGenerateAudio] Making API call to:', `${BACKEND_URL}${BEAT_GENERATION_ENDPOINT}`);
+      devLog('[handleGenerateAudio] Duration:', duration, 'Engine:', 'Beat Agent auto-selection');
 
-      const response = await fetch(`${BACKEND_URL}/api/generate-audio`, {
+      const response = await fetch(`${BACKEND_URL}${BEAT_GENERATION_ENDPOINT}`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          // Simplified prompt: Backend already wraps with genre/mood/BPM/quality tags
-          // Sending the raw description from the agent is more effective
+        body: JSON.stringify(beatGenerationRequest({
           prompt: typeof cleanAudioPromptText === 'string'
             ? (cleanAudioPromptText.substring(0, 1000) + (arrangementSections ? '\n' + arrangementToPrompt(arrangementSections, projectBpm) : ''))
             : 'Professional music production',
@@ -4194,14 +4214,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           songStructure: songStructure || 'full', // single, full, extended — helps backend sync arrangement
           arrangement: arrangementSections ? arrangementSections.map(s => ({ type: s.type, label: s.label, bars: s.bars })) : null,
           referenceAudio: audioDnaUrl || null,
-          engine: musicEngine || 'auto',
-          quality: 'premium', // Ensure high-fidelity selection in backend
           outputFormat: outputFormat, // music, social, podcast, tv
           highMusicality: highMusicality, // Send Udio-style musicality flag
           seed: seed,
           stem: stemType,
-          agentId: 'beat-arch',
-        }),
+        })),
         // The backend may spend up to 60s on Stability before falling through
         // to Replicate. Keep the first request alive across that failover so a
         // successful fallback is not reported as a failed first attempt.
@@ -4277,7 +4294,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 genre: style,
                 mood: mood,
                 bpm: projectBpm,
-                engine: musicEngine,
+                engine: 'auto',
                 referencedAudioId: audioDnaUrl ? 'dna-ref' : null
               },
               createdAt: new Date().toISOString()
@@ -4391,7 +4408,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     const verifiedPersonalVoice = personalVoiceReadiness({
       voiceId: clonedVoiceId, voices: elVoices, ...voiceCatalogCheck, currentUid: auth.currentUser?.uid,
     });
-    if ((voiceSource === 'personal' || voiceStyle === 'cloned') && !verifiedPersonalVoice.available) {
+    const resolvedVoiceSelection = resolvePersonalVoiceSelection({
+      voiceSource, voiceStyle, readiness: verifiedPersonalVoice,
+    });
+    if (resolvedVoiceSelection.blocked) {
       setShowAssets(true);
       toast.error(verifiedPersonalVoice.detail, { id: 'orch-voice-required' });
       return;
@@ -4461,23 +4481,26 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         'spoken': 'spoken'
       };
 
-      const selectedVoice = voiceMapping[voiceStyle] || 'rapper-male-1';
+      const activeVoiceStyle = resolvedVoiceSelection.voiceStyle;
+      const activeVoiceSource = resolvedVoiceSelection.voiceSource;
+      const activeElevenLabsVoiceId = resolvedVoiceSelection.recovered ? '' : elevenLabsVoiceId;
+      const selectedVoice = voiceMapping[activeVoiceStyle] || 'rapper-male-1';
 
       // Map expanded voice styles to backend style + rapStyle/genre params
-      let backendStyle = voiceStyle;
+      let backendStyle = activeVoiceStyle;
       let backendRapStyle = rapStyle;
-      if (voiceStyle === 'rapper-melodic') {
+      if (activeVoiceStyle === 'rapper-melodic') {
         backendStyle = 'rapper';
         backendRapStyle = 'melodic';
-      } else if (voiceStyle === 'rapper-young') {
+      } else if (activeVoiceStyle === 'rapper-young') {
         backendStyle = 'rapper';
         backendRapStyle = 'trap';
-      } else if (voiceStyle === 'rapper-female-melodic') {
+      } else if (activeVoiceStyle === 'rapper-female-melodic') {
         backendStyle = 'rapper-female';
         backendRapStyle = 'melodic';
-      } else if (voiceStyle === 'singer-pop') {
+      } else if (activeVoiceStyle === 'singer-pop') {
         backendStyle = 'singer';
-      } else if (voiceStyle === 'singer-female-pop') {
+      } else if (activeVoiceStyle === 'singer-female-pop') {
         backendStyle = 'singer-female';
       }
 
@@ -4489,22 +4512,22 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           voice: selectedVoice,
           style: backendStyle,
           rapStyle: backendRapStyle,
-          genre: voiceStyle === 'singer-pop' ? 'pop' : (voiceStyle === 'singer-female-pop' ? 'pop' : (genre || style.toLowerCase().split('/')[0].trim())),
+          genre: activeVoiceStyle === 'singer-pop' ? 'pop' : (activeVoiceStyle === 'singer-female-pop' ? 'pop' : (genre || style.toLowerCase().split('/')[0].trim())),
           language: language || 'English',
           duration: actualBeatDurationRef.current || duration || 30, // Align with actual beat length
           quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
           outputFormat: outputFormat, // TV, Podcast, Social, Music (Righteous Quality)
            // A personal voice always wins when selected. Curated/provider IDs
            // are only sent after the user explicitly chooses “Studio voice”.
-           speakerUrl: voiceSource === 'personal' ? (voiceSampleUrl || null) : null,
-           elevenLabsVoiceId: voiceSource === 'personal'
+           speakerUrl: activeVoiceSource === 'personal' ? (voiceSampleUrl || null) : null,
+           elevenLabsVoiceId: activeVoiceSource === 'personal'
              ? (clonedVoiceId || null)
-             : (elevenLabsVoiceId || null),
-          isPersonalVoice: voiceSource === 'personal',
+             : (activeElevenLabsVoiceId || null),
+          isPersonalVoice: activeVoiceSource === 'personal',
           // Lock to the same provider that worked last time for voice consistency
-          preferredProvider: generationProviders.vocals || null,
+           preferredProvider: resolvedVoiceSelection.recovered ? null : (generationProviders.vocals || null),
           // Pass voice sample as reference for tone/style analysis even when not cloning
-           referenceSongUrl: voiceSource === 'studio' ? (referenceSongUrl || null) : null,
+           referenceSongUrl: activeVoiceSource === 'studio' ? (referenceSongUrl || null) : null,
           // Advanced vocal synthesis parameters
           pitchShift: vocalPitchShift !== 0 ? vocalPitchShift : undefined,
           speed: vocalSpeed !== 1.0 ? vocalSpeed : undefined,
@@ -7536,7 +7559,6 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             { label: 'Structure', value: structure, setter: setStructure, options: ['Full Song', 'Radio Edit', 'Extended', 'Loop', 'Intro', 'Verse', 'Chorus', 'Outro'] },
             { label: 'AI Model', value: model, setter: setModel, options: ['Gemini 2.5 Flash', 'Gemini 2.5 Pro', 'Gemini 2.5 Flash Lite'] },
             { label: 'Mood', value: mood, setter: setMood, options: ['Chill', 'Energetic', 'Dark', 'Happy', 'Epic', 'Mysterious', 'Dreamy'] },
-            { label: 'Music Engine', value: musicEngine, setter: setMusicEngine, options: ['Stability Pro', 'Auto-Selection'] },
             { label: 'Stem Mode', value: stemType, setter: setStemType, options: ['Full Mix', 'Drums Only', 'No Drums', 'Melody Only', 'Bass Only'] }
           ].filter(c => !c.hidden).map(config => (
             <div key={config.label}>
@@ -7552,15 +7574,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 {config.label}
               </label>
               <select
-                value={config.label === 'Music Engine' ? (
-                  musicEngine === 'stability' ? 'Stability Pro' : 'Auto-Selection'
-                ) : config.value}
+                value={config.value}
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (config.label === 'Music Engine') {
-                    if (val === 'Stability Pro') setMusicEngine('stability');
-                    else setMusicEngine('auto');
-                  } else if (['Musical Bars', 'Project BPM', 'Target Duration'].includes(config.label)) {
+                  if (['Musical Bars', 'Project BPM', 'Target Duration'].includes(config.label)) {
                     config.setter(parseInt(val));
                   } else {
                     config.setter(val);

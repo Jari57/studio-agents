@@ -10,6 +10,7 @@ const backend = fs.readFileSync(path.join(root, 'backend', 'server.js'), 'utf8')
 const frontend = fs.readFileSync(path.join(root, 'frontend', 'src', 'components', 'StudioView.jsx'), 'utf8');
 const canvas = fs.readFileSync(path.join(root, 'frontend', 'src', 'components', 'studio', 'CanvasView.jsx'), 'utf8');
 const orchestrator = fs.readFileSync(path.join(root, 'frontend', 'src', 'components', 'StudioOrchestratorV2.jsx'), 'utf8');
+const beatRequest = fs.readFileSync(path.join(root, 'frontend', 'src', 'utils', 'beatGenerationRequest.mjs'), 'utf8');
 
 test('Collab Connect and Release Manager are server-bound text packages', () => {
   assert.match(backend, /const TEXT_AGENT_SYSTEM_INSTRUCTIONS = Object\.freeze/);
@@ -22,7 +23,7 @@ test('Collab Connect and Release Manager are server-bound text packages', () => 
 
 test('Mastering accepts playable audio and every execution identifies its agent', () => {
   assert.match(frontend, /\(isAudioAgent \|\| isSpeechAgent \|\| isMasterAgent\)/);
-  assert.match(frontend, /finalBody = \{ \.\.\.finalBody, agentId \}/);
+  assert.match(frontend, /finalBody = \{ \.\.\.finalBody, agentId: finalBody\.agentId \|\| agentId \}/);
   assert.match(frontend, /metadata: \{ projectId: targetProjectSnapshot\?\.id \|\| null, featureType, agentId \}/);
   assert.match(frontend, /requestedDuration > 30/);
 });
@@ -57,7 +58,8 @@ test('recoverable production steps identify and retain their real media', () => 
   assert.match(orchestrator, /getPaidStepHeaders\('beat-audio'\)/);
   assert.match(orchestrator, /getPaidStepHeaders\('vocals'\)/);
   assert.match(orchestrator, /getPaidStepHeaders\('final-mix'\)/);
-  assert.match(orchestrator, /agentId: 'beat-arch'/);
+  assert.match(orchestrator, /beatGenerationRequest\(/);
+  assert.match(beatRequest, /agentId: 'beat-arch'/);
   assert.match(orchestrator, /agentId: 'vocal-arch'/);
   assert.match(orchestrator, /storagePath: data\.storagePath \|\| data\.audioStoragePath \|\| null/);
 });

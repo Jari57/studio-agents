@@ -6871,14 +6871,6 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     const bpm = parseInt(rawBpm) || 90;
     const durationSeconds = Math.max(parseInt(rawDuration) || 60, 30); // Minimum 30s for professional quality
     const strictPremiumBeat = quality === 'premium' || quality === 'ultra';
-    if (strictPremiumBeat && referenceAudio) {
-      await refundCredits(req, 'premium reference-conditioned instrumental unavailable');
-      return res.status(422).json({
-        error: 'Premium reference conditioning is not available',
-        details: 'This premium instrumental route does not accept reference audio. Keep your uploaded recording in the producer canvas, or remove the reference to generate an original instrumental. Your studio credits were refunded.',
-        isRealGeneration: false,
-      });
-    }
     if (!prompt) {
       await refundCredits(req, 'beat request missing prompt');
       return res.status(400).json({ error: 'Prompt is required' });
@@ -6946,14 +6938,18 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     });
 
     // Engine Selection Logic - Always prefer Stability AI for highest quality
-    let finalEngine = engine;
-    if (engine === 'auto' || !engine || engine === 'music-gpt') {
+    const requestedEngine = engine || 'auto';
+    let finalEngine = requestedEngine;
+    if (requestedEngine === 'auto') {
       if (stabilityKey) {
         finalEngine = 'stability';
       } else {
         finalEngine = 'music-gpt';
       }
     }
+    // MusicGen is the configured beat provider that accepts melody/reference
+    // conditioning. Never send a reference-backed beat to a text-only path.
+    if (referenceAudio) finalEngine = 'music-gpt';
 
     let audioUrl = null;
     let provider = null;
@@ -7025,7 +7021,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     // 2. MiniMax Music 2.6: current full-length instrumental model. Use this
     // ahead of legacy MusicGen for cleaner arrangement, BPM/key adherence and
     // sufficient duration for an actual song foundation.
-    if (replicateKey && !audioUrl && !referenceAudio) {
+    if (replicateKey && !audioUrl && !referenceAudio && requestedEngine !== 'music-gpt') {
       try {
         logger.info('Using Replicate MiniMax Music 2.6 (instrumental)');
         const replicate = new Replicate({ auth: replicateKey });
@@ -7076,7 +7072,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
 
     // 3. Replicate MusicGen legacy fallback. A premium label must not make one
     // provider a single point of failure for the complete asset pipeline.
-    if (replicateKey && !audioUrl && !strictPremiumBeat) {
+    if (replicateKey && !audioUrl && (referenceAudio || requestedEngine === 'music-gpt' || !strictPremiumBeat)) {
       try {
         logger.info('Using Replicate Music GPT (stereo-large)');
         const replicate = new Replicate({ auth: replicateKey });
