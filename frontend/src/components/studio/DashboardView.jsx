@@ -322,7 +322,7 @@ const DashboardView = ({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
                   {[
                     { label: 'New Project', icon: Plus, color: 'var(--studio-accent)', action: () => setShowProjectTypeChoice(true) },
-                    { label: 'AI Pipeline', icon: Sparkles, color: 'var(--studio-sage)', action: () => setShowOrchestrator(true) },
+                    { label: 'AI Pipeline', icon: Sparkles, color: 'var(--studio-sage)', action: () => { setShowOnboarding(false); setShowOrchestrator(true); } },
                     { label: 'Browse Agents', icon: UsersIcon, color: 'var(--studio-accent)', action: () => setActiveTab('agents') },
                     { label: 'Project Hub', icon: Folder, color: 'var(--studio-sage)', action: () => setActiveTab('hub') }
                   ].map((item, i) => (
@@ -405,7 +405,7 @@ const DashboardView = ({
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <button
                         className="cta-button-premium"
-                        onClick={() => setShowOrchestrator(true)}
+                        onClick={() => { setShowOnboarding(false); setShowOrchestrator(true); }}
                         style={{ padding: '12px 24px' }}
                       >
                         Start AI Production

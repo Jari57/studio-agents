@@ -2272,6 +2272,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
   const completeOnboarding = () => {
     localStorage.setItem('studio_onboarding_v4', 'true');
+    localStorage.setItem('studio_onboarding_complete', 'true');
     setShowOnboarding(false);
     
     // Go straight to agents tab - no project creation, no complexity
@@ -2281,6 +2282,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
   const handleSkipOnboarding = () => {
     localStorage.setItem('studio_onboarding_v4', 'true');
+    localStorage.setItem('studio_onboarding_complete', 'true');
     setShowOnboarding(false);
     setActiveTab('agents');
   };

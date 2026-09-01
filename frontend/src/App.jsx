@@ -212,7 +212,7 @@ function App() {
     <div className={`app-container ${theme}-theme`}>
       <Toaster 
         position="bottom-center"
-        containerStyle={{ bottom: 80 }}
+        containerStyle={{ bottom: 80, zIndex: 110000 }}
         toastOptions={{
           duration: 3000,
           style: {
