@@ -7423,7 +7423,7 @@ app.post('/api/mix-audio', verifyFirebaseToken, requireAuth, checkCreditsFor('mi
         processing: result.processing,
         format: mixOptions.outputFormat,
         mimeType: 'audio/mpeg',
-        message: 'Billboard-ready professional mix complete'
+        message: 'Automated professional mix complete. Review the render before release.'
       });
     } else {
       throw new Error('Mixing failed');
@@ -7735,7 +7735,7 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
       mixedAudioUrl: permanentUrl || mixedAudioUrl,
       wavUrl: wavUrl || null,
       provider: 'ffmpeg-professional',
-      quality: mixResult.quality || 'billboard-ready',
+      quality: mixResult.quality || 'automated-master',
       preset: presetName,
       processing: mixResult.processing
     });

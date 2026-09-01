@@ -62,3 +62,22 @@ export async function confirmProjectSave(save, project) {
   if (result !== true) throw new Error('Cloud save did not complete. Your current work is still here; retry saving before closing or generating a new version.');
   return true;
 }
+
+export function requireGeneratedMedia(response, payload = {}, kind = 'media') {
+  const urlKey = kind === 'image' ? 'imageUrl' : 'audioUrl';
+  if (!response?.ok) {
+    throw new Error(payload?.details || payload?.error || `${kind} generation failed. No output was saved.`);
+  }
+  const url = payload?.[urlKey];
+  if (typeof url !== 'string' || !/^https?:\/\//i.test(url.trim())) {
+    throw new Error(`${kind} generation returned no playable output. No output was saved.`);
+  }
+  return url.trim();
+}
+
+export function amoOutputIdentity({ realAssets, audioUrl, masterAudioUrl } = {}) {
+  if (!realAssets) return { type: 'Production Plan', title: 'AMO Production Plan', isMaster: false };
+  if (!audioUrl) throw new Error('Real audio generation did not complete. No master was saved.');
+  if (!masterAudioUrl) throw new Error('Audio mastering did not complete. No master was saved.');
+  return { type: 'Master', title: 'Studio Master', isMaster: true };
+}

@@ -1,12 +1,10 @@
-/* eslint-disable no-use-before-define */
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { Suspense } from 'react';
 import {
-  Sparkles, Zap, Music, Users as UsersIcon, Rocket, Shield,
+  Sparkles, Zap, Users as UsersIcon, Rocket,
   Folder, Plus, Share2, CreditCard,
-  RefreshCw, Trash2, Eye, EyeOff, Landmark, ArrowRight, ChevronRight, X, User, LayoutGrid,
-  TrendingUp, Disc, Activity, Settings, CheckCircle, Clock, Cpu,
-  Layers, Image as ImageIcon, Mail, Download
+  RefreshCw, Trash2, Eye, EyeOff, Landmark, ArrowRight, ChevronRight, User, LayoutGrid,
+  Disc, Activity, Settings, CheckCircle, Clock,
+  Image as ImageIcon, Mail, Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { AGENTS, BACKEND_URL } from '../../constants';
@@ -25,9 +23,9 @@ const DashboardView = ({
   setDashboardTab,
   managedAgents,
   appSettings,
-  storageConnections,
-  setStorageConnections,
-  socialConnections,
+  storageConnections: _storageConnections,
+  setStorageConnections: _setStorageConnections,
+  socialConnections: _socialConnections,
   creationStats,
   systemStatus,
   // User/Auth
@@ -52,16 +50,16 @@ const DashboardView = ({
   setSelectedAgent,
   setShowLoginModal,
   // Data
-  freeGenerationsUsed,
-  FREE_GENERATION_LIMIT,
-  twitterUsername,
-  metaName,
+  freeGenerationsUsed: _freeGenerationsUsed,
+  FREE_GENERATION_LIMIT: _FREE_GENERATION_LIMIT,
+  twitterUsername: _twitterUsername,
+  metaName: _metaName,
   activeProjectSteps,
   // Functions
   toggleAppSetting,
   handleDeleteAccount,
   toggleAgentVisibility,
-  handleConnectSocial,
+  handleConnectSocial: _handleConnectSocial,
   buyCreditPack,
   handleSubscribe,
   handleTextToVoice

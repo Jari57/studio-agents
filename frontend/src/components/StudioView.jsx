@@ -35,6 +35,7 @@ import { Analytics, trackPageView } from '../utils/analytics';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '../utils/errorMonitoring';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 import { generationFailureMessage, selectedVoiceInputs } from '../utils/generationErrors.mjs';
+import { requireGeneratedMedia, amoOutputIdentity } from '../utils/productionIntegrity.mjs';
 import SectionErrorBoundary from './studio/SectionErrorBoundary';
 import { saveProjectChoices } from '../utils/saveProjectChoices.mjs';
 import { producerRenderSignature } from '../utils/producerSession.mjs';
@@ -12639,7 +12640,10 @@ ABSOLUTE RULES (violating any = failure):
 
                       const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets], updatedAt: new Date().toISOString() };
                       setSelectedProject(updated); setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
-                      if (isLoggedIn && user?.uid) saveProjectToCloud(user.uid, updated).catch(err => devWarn("Failed to sync master to cloud", err));
+                      if (isLoggedIn && user?.uid) {
+                        const saved = await saveProjectToCloud(user.uid, updated);
+                        if (!saved) throw new Error('The mix finished, but cloud save did not complete. Keep this session open and retry Save.');
+                      }
                       toast.dismiss('amo-render'); setShowStudioSession(false); setSessionPlaying(false);
                       handleTextToVoice("Master mix complete. Your mixed production is ready."); toast.success('Master mixed and saved to your Hub!');
                       setIsGenerating(false); return;
@@ -12665,16 +12669,24 @@ ABSOLUTE RULES (violating any = failure):
                     if (sessionTracks.generateRealAssets) {
                       toast.loading('Generating real assets...', { id: 'amo-assets' });
                       if (sessionTracks.visual && !sessionTracks.visual.imageUrl) {
-                        try { const imgRes = await fetch(`${BACKEND_URL}/api/generate-image`, { method: 'POST', headers, body: JSON.stringify({ prompt: (sessionTracks.visual.snippet || `Album artwork for ${selectedProject.name}`).substring(0, 500), aspectRatio: sessionTracks.aspectRatio || '16:9' }) }); const imgData = await imgRes.json(); if (imgData.imageUrl) generatedImageUrl = imgData.imageUrl; } catch (e) { devLog('Image generation skipped:', e.message); }
+                        const imgRes = await fetch(`${BACKEND_URL}/api/generate-image`, { method: 'POST', headers, body: JSON.stringify({ prompt: (sessionTracks.visual.snippet || `Album artwork for ${selectedProject.name}`).substring(0, 500), aspectRatio: sessionTracks.aspectRatio || '16:9' }) });
+                        const imgData = await imgRes.json().catch(() => ({}));
+                        generatedImageUrl = requireGeneratedMedia(imgRes, imgData, 'image');
                       }
                       if (sessionTracks.audio && !sessionTracks.audio.audioUrl) {
-                        try { const audRes = await fetch(`${BACKEND_URL}/api/generate-audio`, { method: 'POST', headers, body: JSON.stringify({ prompt: (sessionTracks.audio.snippet || `${sessionTracks.bpm || 120} BPM beat`).substring(0, 200) }) }); const audData = await audRes.json(); if (audData.audioUrl) generatedAudioUrl = audData.audioUrl; } catch (e) { devLog('Audio generation skipped:', e.message); }
+                        const audRes = await fetch(`${BACKEND_URL}/api/generate-audio`, { method: 'POST', headers, body: JSON.stringify({ prompt: (sessionTracks.audio.snippet || `${sessionTracks.bpm || 120} BPM beat`).substring(0, 200) }) });
+                        const audData = await audRes.json().catch(() => ({}));
+                        generatedAudioUrl = requireGeneratedMedia(audRes, audData, 'audio');
                       }
                       toast.dismiss('amo-assets');
                     }
 
                     if (generatedAudioUrl) {
-                      try { toast.loading('Mastering audio...', { id: 'amo-master' }); const masterRes = await fetch(`${BACKEND_URL}/api/master-audio`, { method: 'POST', headers, body: JSON.stringify({ audioUrl: generatedAudioUrl, preset: 'streaming', normalize: true, format: 'wav' }) }); const masterData = await masterRes.json(); if (masterData.audioUrl) generatedAudioUrl = masterData.audioUrl; toast.dismiss('amo-master'); } catch (e) { devLog('Mastering skipped:', e.message); toast.dismiss('amo-master'); }
+                      toast.loading('Mastering audio...', { id: 'amo-master' });
+                      const masterRes = await fetch(`${BACKEND_URL}/api/master-audio`, { method: 'POST', headers, body: JSON.stringify({ audioUrl: generatedAudioUrl, preset: 'streaming', normalize: true, format: 'wav' }) });
+                      const masterData = await masterRes.json().catch(() => ({}));
+                      generatedAudioUrl = requireGeneratedMedia(masterRes, masterData, 'audio');
+                      toast.dismiss('amo-master');
                     }
 
                     updateSessionWithHistory(prev => ({
@@ -12682,9 +12694,10 @@ ABSOLUTE RULES (violating any = failure):
                       renderHistory: [...(prev.renderHistory || []), { pass: renderNumber, timestamp: Date.now() }]
                     }));
 
-                    const masterAsset = data.masterAsset || {
-                      id: `master-${generateId()}`, title: `Studio Master ${renderNumber}/3 - ${selectedProject.name}`,
-                      type: "Master", agent: "AMO Orchestrator", date: "Just now", color: "agent-purple",
+                    const outputIdentity = amoOutputIdentity({ realAssets: sessionTracks.generateRealAssets, audioUrl: generatedAudioUrl, masterAudioUrl: generatedAudioUrl });
+                    const masterAsset = data.masterAsset && outputIdentity.isMaster ? data.masterAsset : {
+                      id: `${outputIdentity.isMaster ? 'master' : 'production-plan'}-${generateId()}`, title: `${outputIdentity.title} ${renderNumber}/3 - ${selectedProject.name}`,
+                      type: outputIdentity.type, agent: "AMO Orchestrator", date: "Just now", color: "agent-purple",
                       snippet: data.output?.slice(0, 200) || "Orchestrated Master Composition.",
                       content: data.output, audioUrl: generatedAudioUrl,
                       stems: { audio: generatedAudioUrl, vocal: sessionTracks.vocal?.audioUrl },
@@ -12694,10 +12707,14 @@ ABSOLUTE RULES (violating any = failure):
 
                     const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets], updatedAt: new Date().toISOString() };
                     setSelectedProject(updated); setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
-                    if (isLoggedIn && user?.uid) saveProjectToCloud(user.uid, updated).catch(err => devWarn("Failed to sync master to cloud", err));
+                    if (isLoggedIn && user?.uid) {
+                      const saved = await saveProjectToCloud(user.uid, updated);
+                      if (!saved) throw new Error('The render finished, but cloud save did not complete. Keep this session open and retry Save.');
+                    }
 
                     toast.dismiss('amo-render'); setShowStudioSession(false); setSessionPlaying(false);
-                    handleTextToVoice("Master render complete. Your orchestrated production is ready."); toast.success('Master rendered and saved to your Hub!');
+                    handleTextToVoice(outputIdentity.isMaster ? "Master render complete. Your production is ready." : "Production plan complete.");
+                    toast.success(outputIdentity.isMaster ? 'Master rendered and saved to your Hub!' : 'Production plan saved to your Hub.');
 
                   } catch (err) {
                     devWarn('AMO Orchestration error:', err);

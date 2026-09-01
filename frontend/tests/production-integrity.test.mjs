@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, confirmProjectSave, currentRunLyrics } from '../src/utils/productionIntegrity.mjs';
+import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, confirmProjectSave, currentRunLyrics, requireGeneratedMedia, amoOutputIdentity } from '../src/utils/productionIntegrity.mjs';
 
 test('music-video prerequisites fail before clearing assets or purchasing unrelated outputs', () => {
   assert.match(productionPrerequisiteError({ video: 'video-gen' }), /needs audio/);
@@ -64,6 +64,19 @@ test('saved is returned only after an explicit durable acknowledgement', async (
   for (const result of [false, undefined, null]) await assert.rejects(confirmProjectSave(async () => result, {}), /Cloud save did not complete/);
   await assert.rejects(confirmProjectSave(async () => { throw new Error('offline'); }, {}), /offline/);
   await assert.rejects(confirmProjectSave(null, {}), /No project save connection/);
+});
+
+test('AMO cannot label missing or failed provider output as a saved master', () => {
+  assert.equal(requireGeneratedMedia({ ok: true }, { audioUrl: 'https://cdn.example/beat.wav' }, 'audio'), 'https://cdn.example/beat.wav');
+  assert.throws(() => requireGeneratedMedia({ ok: false }, { error: 'provider unavailable' }, 'audio'), /provider unavailable/);
+  assert.throws(() => requireGeneratedMedia({ ok: true }, {}, 'image'), /no playable output/);
+  assert.deepEqual(amoOutputIdentity({ realAssets: false }), { type: 'Production Plan', title: 'AMO Production Plan', isMaster: false });
+  assert.throws(() => amoOutputIdentity({ realAssets: true }), /audio generation did not complete/);
+  assert.deepEqual(amoOutputIdentity({ realAssets: true, audioUrl: 'https://cdn/beat.wav', masterAudioUrl: 'https://cdn/master.wav' }), { type: 'Master', title: 'Studio Master', isMaster: true });
+  const source = readFileSync(new URL('../src/components/StudioView.jsx', import.meta.url), 'utf8');
+  const render = source.slice(source.indexOf("toast.loading(`AMO Render"), source.indexOf('<Zap size={18} /> Render Master'));
+  assert.doesNotMatch(render, /generation skipped|Mastering skipped/);
+  assert.match(render, /await saveProjectToCloud/);
 });
 
 test('artwork failures cannot substitute video frames or reuse old image as success', () => {

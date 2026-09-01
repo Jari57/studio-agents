@@ -35,7 +35,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   const [showShowcase, setShowShowcase] = useState(false);
   const [showInvestorPitch, setShowInvestorPitch] = useState(false);
 
-  //  Check if already logged in via Firebase OR localStorage
+  // Firebase owns authenticated identity. A stale local user id must never make
+  // the public page claim Sign Out while the studio correctly requires sign-in.
   const [isLoggedMember, setIsLoggedMember] = useState(false);
   useEffect(() => {
     if (!auth) {
@@ -43,9 +44,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
       return;
     }
     // 1. Initial check via local storage
-    const hasUserId = localStorage.getItem('studio_user_id');
     const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
-    setIsLoggedMember(!!(auth.currentUser || hasUserId || isGuest));
+    setIsLoggedMember(!!(auth.currentUser || isGuest));
 
     // 2. Firebase Auth listener for more accuracy
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -336,10 +336,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   const handleCtaClick = (action = 'start', targetTab = 'mystudio') => {
     if (isTransitioning) return; // Prevent clicks during transition
     
-    //  Check if already logged in via Firebase OR localStorage
-    const hasUserId = localStorage.getItem('studio_user_id');
+    // Check the live Firebase session (or explicit guest mode), never a stale
+    // cached uid that cannot authorize backend requests.
     const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
-    const isActuallyLogged = !!(auth?.currentUser || hasUserId || isGuest);
+    const isActuallyLogged = !!(auth?.currentUser || isGuest);
     
     // Override 'start' action for returning members to avoid re-triggering wizard
     const finalAction = isActuallyLogged && action === 'start' ? 'return' : action;

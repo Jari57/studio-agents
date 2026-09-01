@@ -5795,7 +5795,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             vocalVolume: mixVocalVolume,
             beatVolume: mixBeatVolume,
             preset: mixPreset || 'rapper-over-beat',
-            // Billboard-ready processing flags
+            // Automated mix processing flags; every render still requires review.
             beatBpm: parseInt(projectBpm) || null,
             autoTune: true,
             tempoSync: true,

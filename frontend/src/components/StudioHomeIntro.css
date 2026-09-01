@@ -75,6 +75,10 @@
   padding: 0 24px;
 }
 .studio-home .native-header .header-content { max-width: 1240px; padding: 0; gap: 18px; }
+.studio-home .native-header button::before,
+.studio-home .native-header button::after {
+  content: none;
+}
 .studio-home .header-title { color: var(--home-ink); font-size: 1.15rem; letter-spacing: -.05em; }
 .studio-home .header-logo .text-purple { color: var(--home-accent); }
 .studio-home .header-actions { display: flex; align-items: center; gap: 10px; }
