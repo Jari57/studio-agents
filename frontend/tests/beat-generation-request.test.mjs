@@ -32,11 +32,12 @@ test('individual and orchestrated beats share one premium auto-selected provider
   });
 });
 
-test('both beat entry points use the shared request builder', () => {
-  for (const component of ['StudioView.jsx', 'StudioOrchestratorV2.jsx']) {
+test('every beat entry point uses the shared request builder', () => {
+  for (const component of ['StudioView.jsx', 'StudioOrchestratorV2.jsx', 'studio/CanvasView.jsx']) {
     const source = readFileSync(new URL(`../src/components/${component}`, import.meta.url), 'utf8');
     assert.match(source, /beatGenerationRequest\(/, component);
     assert.match(source, /BEAT_GENERATION_ENDPOINT/, component);
+    assert.doesNotMatch(source, /BACKEND_URL\}\/api\/generate-audio/, `${component} bypasses the shared Beat Agent contract`);
   }
 
   const orchestrator = readFileSync(new URL('../src/components/StudioOrchestratorV2.jsx', import.meta.url), 'utf8');

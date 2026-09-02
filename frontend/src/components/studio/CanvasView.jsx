@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { UsersIcon, Twitter, Instagram, VideoIcon, ImageIcon } from 'lucide-react';
 import { BACKEND_URL } from '../../constants';
+import { BEAT_GENERATION_ENDPOINT, beatGenerationRequest } from '../../utils/beatGenerationRequest.mjs';
 
 const createRequestId = (prefix) => `${prefix}-${typeof crypto?.randomUUID === 'function'
   ? crypto.randomUUID()
@@ -295,17 +296,17 @@ export default function CanvasView({
 
         // Generate actual audio from description
         toast.loading('Generating new beat...', { id: 'regen-audio' });
-        const audioResponse = await fetch(`${BACKEND_URL}/api/generate-audio`, {
+        const audioResponse = await fetch(`${BACKEND_URL}${BEAT_GENERATION_ENDPOINT}`, {
           method: 'POST',
           headers: { ...headers, 'Idempotency-Key': `${regenerationId}-audio` },
-          body: JSON.stringify({
+          body: JSON.stringify(beatGenerationRequest({
             prompt: data.output,
             durationSeconds: asset.settings?.duration || 90,
             bpm: asset.settings?.bpm || asset.bpm || 120,
-            quality: 'premium',
+            genre: asset.settings?.genre || asset.genre || 'hip-hop',
+            mood: asset.settings?.mood || asset.mood || 'creative',
             outputFormat: 'music',
-            agentId: 'beat-arch',
-          })
+          }))
         });
         if (!audioResponse.ok) {
           const errorPayload = await audioResponse.json().catch(() => ({}));

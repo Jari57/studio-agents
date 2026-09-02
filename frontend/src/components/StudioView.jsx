@@ -12675,7 +12675,18 @@ ABSOLUTE RULES (violating any = failure):
                         generatedImageUrl = requireGeneratedMedia(imgRes, imgData, 'image');
                       }
                       if (sessionTracks.audio && !sessionTracks.audio.audioUrl) {
-                        const audRes = await fetch(`${BACKEND_URL}/api/generate-audio`, { method: 'POST', headers, body: JSON.stringify({ prompt: (sessionTracks.audio.snippet || `${sessionTracks.bpm || 120} BPM beat`).substring(0, 200) }) });
+                        const audRes = await fetch(`${BACKEND_URL}${BEAT_GENERATION_ENDPOINT}`, {
+                          method: 'POST',
+                          headers,
+                          body: JSON.stringify(beatGenerationRequest({
+                            prompt: (sessionTracks.audio.snippet || `${sessionTracks.bpm || 120} BPM beat`).substring(0, 1000),
+                            bpm: sessionTracks.bpm || sessionTracks.audio?.bpm || 120,
+                            genre: sessionTracks.audio?.genre || selectedProject.genre || 'hip-hop',
+                            mood: sessionTracks.audio?.mood || 'creative',
+                            durationSeconds: sessionTracks.audio?.duration || sessionTracks.audio?.settings?.duration || 90,
+                            outputFormat: 'music',
+                          })),
+                        });
                         const audData = await audRes.json().catch(() => ({}));
                         generatedAudioUrl = requireGeneratedMedia(audRes, audData, 'audio');
                       }
