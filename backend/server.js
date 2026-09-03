@@ -12698,18 +12698,25 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
           await _saveVideoJob(jobId, failedJob);
         }
       }).catch(async (error) => {
+        // generateSyncedMusicVideo rejects with a structured failure object
+        // ({ success:false, code, error }) rather than an Error, so read both
+        // shapes — otherwise the job records "Video generation failed" with a
+        // null reason and the user has nothing actionable.
+        const reason = error?.message || error?.error || 'Video generation failed';
         const failedJob = { ...videoJobs.get(jobId) };
         await refundVideoJob(failedJob, 'background synced video generation failed');
         Object.assign(failedJob, {
           status: 'failed',
           progress: 0,
-          message: error.message || 'Video generation failed',
-          error: error.message,
+          message: reason,
+          error: reason,
+          errorCode: error?.code || null,
+          failedSegments: error?.failedSegments || undefined,
           updatedAt: Date.now()
         });
         videoJobs.set(jobId, failedJob);
         await _saveVideoJob(jobId, failedJob);
-        logger.error('Background video generation failed', { jobId, error: error.message });
+        logger.error('Background video generation failed', { jobId, code: error?.code || null, error: reason, failedSegments: error?.failedSegments });
       });
 
       return res.status(202).json({
