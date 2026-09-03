@@ -44,7 +44,7 @@
 // ║  ~6380  Final Mix Endpoint                                               ║
 // ║  ~6635  Distribution (SoundCloud, share links)                           ║
 // ║  ~6795  Video+Audio Mux                                                  ║
-// ║  ~6975  Video Generation (Replicate → Veo → Fallback)                    ║
+// ║  ~8360  Video Generation (Replicate MiniMax Hailuo)                       ║
 // ║  ~7748  AMO Orchestrator Endpoint                                        ║
 // ║  ~7865  Audio Mastering (distribution-ready format)                      ║
 // ║  ~8044  Translation API (Gemini)                                         ║
@@ -1558,10 +1558,9 @@ app.get('/api/health', (req, res) => {
           access: 'unknown'
         },
         video: {
-          status: (hasReplicate || apiKey) ? 'configured-unverified' : 'missing-provider',
-          configuredProviders: [hasReplicate && 'replicate-minimax', apiKey && 'google-veo-key'].filter(Boolean),
-          access: 'unknown',
-          note: apiKey ? 'Gemini key presence does not prove Veo model entitlement' : undefined
+          status: hasReplicate ? 'configured-unverified' : 'missing-provider',
+          configuredProviders: [hasReplicate && 'replicate-minimax-hailuo'].filter(Boolean),
+          access: 'unknown'
         }
       }
     }
@@ -8355,7 +8354,7 @@ app.post('/api/mux-audio-video', verifyFirebaseToken, requireAuth, generationLim
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// VIDEO GENERATION ROUTE (Multi-Model: Replicate -> Veo -> Fallback)
+// VIDEO GENERATION ROUTE (Replicate MiniMax Hailuo — sole video engine)
 // ═══════════════════════════════════════════════════════════════════
 // Video generation charges 15 credits (expensive)
 app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFor('video'), generationLimiter, async (req, res) => {
@@ -8407,239 +8406,36 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
       durationSeconds 
     });
 
-    // 1. Try the current Gemini API Veo Fast model as primary.
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey) {
-        const modelId = "veo-3.1-fast-generate-preview";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:predictLongRunning?key=${apiKey}`;
-        
-        try {
-            const veo3Duration = Math.min(durationSeconds, 8);
-            if (durationSeconds > 8) {
-              logger.warn(`⚠️ Video duration capped: requested ${durationSeconds}s → ${veo3Duration}s (Veo 3.1 Fast max 8s)`);
-            }
-            logger.info('Trying Veo 3.1 Fast as primary video generator...');
-            
-            // Build instances with image if provided
-            const instance = { prompt: enhancedPrompt };
-            if (referenceImage) {
-              instance.image = { image_url: referenceImage };
-            }
-
-            const response = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                instances: [instance],
-                parameters: {
-                  aspectRatio: "16:9",
-                  durationSeconds: veo3Duration, // Veo 3.0 Fast max 8 seconds
-                  sampleCount: 1
-                }
-              })
-            });
-
-            if (response.ok) {
-                const operationData = await response.json();
-                logger.info('Veo 3.0 Fast operation started', { name: operationData.name });
-                
-                // Direct response (no polling needed)
-                if (!operationData.name) {
-                  if (operationData.generatedVideos?.[0]?.video?.uri) {
-                    const videoUri = operationData.generatedVideos[0].video.uri;
-                    const authedUrl = videoUri.includes('?') ? `${videoUri}&key=${apiKey}` : `${videoUri}?key=${apiKey}`;
-
-                    // Upload to Firebase Storage for permanent URL
-                    let permanentUrl = null;
-                    if (req.user) {
-                      const bucket = getStorageBucket();
-                      if (bucket) {
-                        try {
-                          const fileName = `video_${Date.now()}.mp4`;
-                          const uploadResult = await uploadToStorage(authedUrl, req.user.uid, fileName, 'video/mp4');
-                          permanentUrl = uploadResult.url;
-                          logger.info('Veo 3.1 Fast video (direct) uploaded to Firebase Storage');
-                        } catch (uploadErr) {
-                          logger.warn('Veo 3.0 Fast direct upload failed', uploadErr.message);
-                        }
-                      }
-                    }
-
-                    let finalVideoUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
-
-                    // Replace Veo-generated audio with user's actual music
-                    if (audioUrl && req.user) {
-                      try {
-                        finalVideoUrl = await replaceVideoAudio(permanentUrl || authedUrl, audioUrl, req.user.uid);
-                      } catch (mergeErr) {
-                        logger.warn('Audio replacement failed (returning video with original audio)', { error: mergeErr.message });
-                      }
-                    }
-
-                    return res.json({ output: finalVideoUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-3.1-fast', permanentUrl: finalVideoUrl });
-                  }
-                  throw new Error('Veo 3.1 Fast returned neither an operation nor a playable video');
-                }
-                
-                // Async operation: store for frontend polling (avoids Vercel proxy timeout)
-                const opId = crypto.randomBytes(16).toString('hex');
-                const veo3FastOp = {
-                  opId,
-                  operationName: operationData.name,
-                  apiKey,
-                  source: 'veo-3.1-fast',
-                  createdAt: Date.now(),
-                  attempts: 0,
-                  consecutiveErrors: 0,
-                  status: 'processing',
-                  result: null,
-                  error: null,
-                  audioUrl: audioUrl || null,
-                  userId: req.user?.uid || null,
-                  userEmail: req.user?.email || '',
-                  ...reservationMetadataFor(req),
-                  refunded: false
-                };
-                pendingVideoOps.set(opId, veo3FastOp);
-                _savePendingVideoOp(opId, veo3FastOp);
-                logger.info('Video operation stored for async polling', { opId, operationName: operationData.name });
-                return res.json({ status: 'processing', operationId: opId, source: 'veo-3.1-fast' });
-            } else if (response.status === 401 || response.status === 402 || response.status === 429) {
-                systemCreditIssue = true;
-            }
-            
-            const errorText = await response.text();
-            logger.error('Veo 3.1 Fast API error', { status: response.status, error: errorText });
-            
-            // If Veo 3.0 Fast fails, try Veo 2.0 as fallback
-            logger.info('Trying Veo 2.0 as fallback...');
-            const veo2Url = `https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning?key=${apiKey}`;
-            // Build Veo 2.0 instance with reference image if provided
-            const veo2Instance = { prompt: enhancedPrompt };
-            if (referenceImage) {
-              veo2Instance.image = { image_url: referenceImage };
-            }
-
-            const veo2Duration = Math.min(durationSeconds, 8);
-            if (durationSeconds > 8) {
-              logger.warn(`⚠️ Video duration capped: requested ${durationSeconds}s → ${veo2Duration}s (Veo 2.0 max 8s)`);
-            }
-
-            const veo2Response = await fetch(veo2Url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  instances: [veo2Instance],
-                  parameters: {
-                    aspectRatio: "16:9",
-                    durationSeconds: veo2Duration,
-                    sampleCount: 1
-                  }
-                })
-            });
-            
-            if (veo2Response.ok) {
-                const veo2Data = await veo2Response.json();
-                logger.info('Veo 2.0 operation started', { name: veo2Data.name });
-                
-                // Direct response (no polling needed)
-                if (!veo2Data.name) {
-                  if (veo2Data.generatedVideos?.[0]?.video?.uri) {
-                    const videoUri = veo2Data.generatedVideos[0].video.uri;
-                    const authedUrl = videoUri.includes('?') ? `${videoUri}&key=${apiKey}` : `${videoUri}?key=${apiKey}`;
-
-                    // Upload to Firebase Storage for permanent URL
-                    let permanentUrl = null;
-                    if (req.user) {
-                      const bucket = getStorageBucket();
-                      if (bucket) {
-                        try {
-                          const fileName = `video_${Date.now()}.mp4`;
-                          const uploadResult = await uploadToStorage(authedUrl, req.user.uid, fileName, 'video/mp4');
-                          permanentUrl = uploadResult.url;
-                          logger.info('Veo 2.0 video (direct) uploaded to Firebase Storage');
-                        } catch (uploadErr) {
-                          logger.warn('Veo 2.0 direct upload failed', uploadErr.message);
-                        }
-                      }
-                    }
-
-                    let finalVideoUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
-
-                    // Replace Veo-generated audio with user's actual music
-                    if (audioUrl && req.user) {
-                      try {
-                        finalVideoUrl = await replaceVideoAudio(permanentUrl || authedUrl, audioUrl, req.user.uid);
-                      } catch (mergeErr) {
-                        logger.warn('Audio replacement failed (returning video with original audio)', { error: mergeErr.message });
-                      }
-                    }
-
-                    return res.json({ output: finalVideoUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-2.0', permanentUrl: finalVideoUrl });
-                  }
-                  throw new Error('Veo 2.0 returned neither an operation nor a playable video');
-                }
-                
-                // Async operation: store for frontend polling (avoids Vercel proxy timeout)
-                const opId = crypto.randomBytes(16).toString('hex');
-                const veo2Op = {
-                  opId,
-                  operationName: veo2Data.name,
-                  apiKey,
-                  source: 'veo-2.0',
-                  createdAt: Date.now(),
-                  attempts: 0,
-                  consecutiveErrors: 0,
-                  status: 'processing',
-                  result: null,
-                  error: null,
-                  audioUrl: audioUrl || null,
-                  userId: req.user?.uid || null,
-                  userEmail: req.user?.email || '',
-                  ...reservationMetadataFor(req),
-                  refunded: false
-                };
-                pendingVideoOps.set(opId, veo2Op);
-                _savePendingVideoOp(opId, veo2Op);
-                logger.info('Video operation stored for async polling (Veo 2.0)', { opId, operationName: veo2Data.name });
-                return res.json({ status: 'processing', operationId: opId, source: 'veo-2.0' });
-            } else if (veo2Response.status === 401 || veo2Response.status === 402 || veo2Response.status === 429) {
-                systemCreditIssue = true;
-            }
-            
-            const veo2Error = await veo2Response.text();
-            logger.error('Veo 2.0 fallback also failed', { error: veo2Error });
-
-        } catch (veoError) {
-            logger.error('Veo generation error, falling back to Replicate', { error: veoError.message });
-        }
-    } else {
-        logger.info('GEMINI_API_KEY not found, skipping Veo');
-    }
-
-    // 2. Try Replicate (Minimax) as FALLBACK — ASYNC to avoid Vercel proxy timeout
+    // Google Veo paths were removed: they capped clips at 8s, returned
+    // provider-authenticated URIs that expired, and diverged from the
+    // Hailuo pipeline the orchestrator ships. Replicate MiniMax Hailuo is the
+    // only video engine.
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     if (replicateKey) {
       try {
-        logger.info('Trying Replicate (Minimax) as fallback video generator (async)...');
+        logger.info('Starting Replicate (MiniMax Hailuo) video generation (async)...');
         const replicate = new Replicate({ auth: replicateKey });
         
         // Truncate prompt for Replicate (Minimax prefers < 1000 characters)
         const minimaxPrompt = enhancedPrompt.length > 800 ? enhancedPrompt.substring(0, 800) + '...' : enhancedPrompt;
 
-        // Build Minimax input with reference image for visual identity clone
+        // Same models as the synced-video orchestrator: Hailuo 2.3 Fast for
+        // image-led clips, Hailuo 2.3 for text-only.
+        const minimaxModel = referenceImage ? 'minimax/hailuo-2.3-fast' : 'minimax/hailuo-2.3';
         const minimaxInput = {
           prompt: minimaxPrompt,
-          prompt_optimizer: true
+          prompt_optimizer: true,
+          duration: 6,
+          resolution: '768p'
         };
         if (referenceImage) {
           minimaxInput.first_frame_image = referenceImage;
-          logger.info('🧬 Minimax fallback using reference image as first frame', { referenceImage: referenceImage.substring(0, 60) });
+          logger.info('🧬 Hailuo using reference image as first frame', { referenceImage: referenceImage.substring(0, 60) });
         }
 
         // Create prediction async (returns immediately, no blocking)
         const prediction = await replicate.predictions.create({
-          model: "minimax/video-01",
+          model: minimaxModel,
           input: minimaxInput
         });
         
@@ -8686,7 +8482,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
             });
           }
           
-          // Store for async polling (same pattern as Veo)
+          // Store for async polling
           const opId = crypto.randomBytes(16).toString('hex');
           const replicateOp = {
                   opId,
@@ -8712,10 +8508,10 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
         }
       } catch (repError) {
         if (/401|402|unauthori[sz]ed|payment|billing|credit|quota|model access/i.test(repError.message || '')) systemCreditIssue = true;
-        logger.error('Replicate fallback generation also failed', { error: repError.message });
+        logger.error('Replicate video generation failed', { error: repError.message });
       }
     } else {
-        logger.info('REPLICATE_API_KEY not found, skipping Replicate fallback');
+        logger.info('REPLICATE_API_KEY not found, video generation unavailable');
     }
       
     // ═══════════════════════════════════════════════════════════════════
@@ -8733,14 +8529,12 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuth, checkCreditsFo
     }
 
     // Return helpful error with setup instructions
-    await refundCredits(req, 'all video providers failed');
+    await refundCredits(req, 'video provider failed');
     return res.status(503).json({ 
       error: 'Video Generation Unavailable', 
-      details: 'Video generation requires API access. Check: 1) Replicate credits at replicate.com/account/billing, 2) Google Veo access at console.cloud.google.com',
+      details: 'Video generation is temporarily unavailable. Your credits were refunded. Please try again in a few minutes.',
       setup: {
-        replicate: 'Add credits at https://replicate.com/account/billing',
-        veo: 'Enable Generative AI API at https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com',
-        veoModels: ['veo-3.1-fast-generate-preview', 'veo-3.1-generate-preview']
+        replicate: 'Add credits at https://replicate.com/account/billing'
       },
       status: 503
     });
@@ -8900,7 +8694,7 @@ async function replaceVideoAudio(videoUrl, audioUrl, userId) {
   }
 }
 
-// ── Async video operations: track Veo polls so frontend can check status ──
+// ── Async video operations: track Replicate predictions so frontend can check status ──
 const pendingVideoOps = new Map(); // id → { operationName, apiKey, source, createdAt, attempts, consecutiveErrors, status, result, error }
 
 async function refundPendingVideoOp(op, reason) {
@@ -9270,7 +9064,7 @@ app.get('/api/video-proxy/:id', verifyFirebaseToken, requireAuth, async (req, re
   }
 });
 
-// ── Video status endpoint: frontend polls this to check Veo operation progress ──
+// ── Video status endpoint: frontend polls this to check video operation progress ──
 app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, res) => {
   const op = pendingVideoOps.get(req.params.id);
   if (!op || !op.userId || op.userId !== req.user.uid) {
@@ -9295,7 +9089,7 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
     return res.status(500).json({ status: 'failed', error: op.error });
   }
 
-  // Poll source API once (Veo or Replicate)
+  // Poll Replicate once
   try {
     op.attempts++;
 
@@ -9361,6 +9155,14 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
         _deletePendingVideoOp(req.params.id);
         return res.json(op.result);
       }
+      if (pred.status === 'succeeded') {
+        // Unknown provider payloads are failures, not completed videos.
+        await settleDetachedReservation(op, 'refund', 'video provider returned no playable asset');
+        op.status = 'failed';
+        op.error = 'The video provider completed without returning a playable video.';
+        _deletePendingVideoOp(req.params.id);
+        return res.status(502).json({ status: 'failed', error: op.error });
+      }
       // Failed or canceled
       op.status = 'failed';
       op.error = pred.error || `Replicate prediction ${pred.status}`;
@@ -9369,129 +9171,13 @@ app.get('/api/video-status/:id', verifyFirebaseToken, requireAuth, async (req, r
       return res.status(500).json({ status: 'failed', error: op.error });
     }
 
-    // ── Veo operation polling ──
-    const pollUrl = `https://generativelanguage.googleapis.com/v1beta/${op.operationName}?key=${op.apiKey}`;
-    const pollResponse = await fetch(pollUrl);
-
-    if (!pollResponse.ok) {
-      const pollError = await pollResponse.text();
-      logger.error('Video status poll error', { status: pollResponse.status, error: pollError, attempt: op.attempts });
-      op.consecutiveErrors++;
-      if (op.consecutiveErrors >= 5) {
-        op.status = 'failed';
-        op.error = `Polling failed after ${op.consecutiveErrors} consecutive errors`;
-        await refundPendingVideoOp(op, 'Veo video polling failed');
-        return res.status(500).json({ status: 'failed', error: op.error });
-      }
-      return res.json({ status: 'processing', attempt: op.attempts });
-    }
-
-    op.consecutiveErrors = 0;
-    const pollData = await pollResponse.json();
-    logger.info('Video status poll', { opId: req.params.id, attempt: op.attempts, done: pollData.done });
-
-    if (!pollData.done) {
-      return res.json({ status: 'processing', attempt: op.attempts });
-    }
-
-    // Operation completed
-    if (pollData.error) {
-      op.status = 'failed';
-      op.error = `Video generation failed: ${JSON.stringify(pollData.error)}`;
-      await refundPendingVideoOp(op, 'Veo video generation failed');
-      _deletePendingVideoOp(req.params.id);
-      return res.status(500).json({ status: 'failed', error: op.error });
-    }
-
-    const result = pollData.response || pollData.result;
-
-    // Try Veo 3.x format
-    if (result?.generatedVideos?.[0]?.video?.uri) {
-      const videoUri = result.generatedVideos[0].video.uri;
-      const authedUrl = videoUri.includes('?') ? `${videoUri}&key=${op.apiKey}` : `${videoUri}?key=${op.apiKey}`;
-
-      // Upload to Firebase Storage for permanent URL
-      let permanentUrl = null;
-      if (req.user) {
-        const bucket = getStorageBucket();
-        if (bucket) {
-          try {
-            const fileName = `video_${Date.now()}.mp4`;
-            const uploadResult = await uploadToStorage(authedUrl, req.user.uid, fileName, 'video/mp4');
-            permanentUrl = uploadResult.url;
-            logger.info('Veo video uploaded to Firebase Storage');
-          } catch (uploadErr) {
-            logger.warn('Veo video upload to Storage failed', uploadErr.message);
-          }
-        }
-      }
-
-      let finalUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
-
-      // Replace Veo-generated audio with user's actual music
-      if (op.audioUrl && (req.user || op.userId)) {
-        try {
-          finalUrl = await replaceVideoAudio(permanentUrl || authedUrl, op.audioUrl, req.user?.uid || op.userId);
-        } catch (mergeErr) {
-          logger.warn('Audio replacement failed during Veo poll (returning video with original audio)', { error: mergeErr.message });
-        }
-      }
-
-      await settleDetachedReservation(op, 'consume', 'asynchronous video generation completed');
-      op.status = 'completed';
-      op.result = { status: 'completed', output: finalUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: finalUrl };
-      _deletePendingVideoOp(req.params.id);
-      return res.json(op.result);
-    }
-
-    // Try older format
-    const videoResponse = result?.generateVideoResponse;
-    if (videoResponse?.generatedSamples?.[0]?.video) {
-      const video = videoResponse.generatedSamples[0].video;
-      const authedUrl = video.uri.includes('?') ? `${video.uri}&key=${op.apiKey}` : `${video.uri}?key=${op.apiKey}`;
-
-      // Upload to Firebase Storage for permanent URL
-      let permanentUrl = null;
-      if (req.user) {
-        const bucket = getStorageBucket();
-        if (bucket) {
-          try {
-            const fileName = `video_${Date.now()}.mp4`;
-            const uploadResult = await uploadToStorage(authedUrl, req.user.uid, fileName, 'video/mp4');
-            permanentUrl = uploadResult.url;
-            logger.info('Veo (legacy) video uploaded to Firebase Storage');
-          } catch (uploadErr) {
-            logger.warn('Veo legacy video upload to Storage failed', uploadErr.message);
-          }
-        }
-      }
-
-      let finalUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
-
-      // Replace Veo-generated audio with user's actual music
-      if (op.audioUrl && (req.user || op.userId)) {
-        try {
-          finalUrl = await replaceVideoAudio(permanentUrl || authedUrl, op.audioUrl, req.user?.uid || op.userId);
-        } catch (mergeErr) {
-          logger.warn('Audio replacement failed during legacy Veo poll (returning video with original audio)', { error: mergeErr.message });
-        }
-      }
-
-      await settleDetachedReservation(op, 'consume', 'asynchronous video generation completed');
-      op.status = 'completed';
-      op.result = { status: 'completed', output: finalUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: finalUrl };
-      _deletePendingVideoOp(req.params.id);
-      return res.json(op.result);
-    }
-
-    // Unknown provider payloads are failures, not completed videos. Returning a
-    // raw object here previously let the client announce success without a
-    // playable asset and consumed the reservation.
-    await settleDetachedReservation(op, 'refund', 'video provider returned no playable asset');
+    // Ops without a Replicate prediction id (e.g. legacy Veo operations
+    // persisted before the Veo path was removed) cannot be resumed.
+    await settleDetachedReservation(op, 'refund', 'unsupported legacy video operation');
     op.status = 'failed';
-    op.error = 'The video provider completed without returning a playable video.';
+    op.error = 'This video job used a retired provider and cannot be resumed. Your credits were refunded.';
     _deletePendingVideoOp(req.params.id);
-    return res.status(502).json({ status: 'failed', error: op.error });
+    return res.status(500).json({ status: 'failed', error: op.error });
 
   } catch (err) {
     logger.error('Video status check error', { error: err.message, attempt: op.attempts });
