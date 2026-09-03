@@ -3224,28 +3224,16 @@ export default function StudioOrchestratorV2({
               }
             : step
         ));
-        productionJobIdRef.current = job.id;
-        productionRunKeyRef.current = job.idempotencyKey;
-        productionJobRevisionRef.current = Number(job.revision) || 0;
-        outputsRef.current = { ...outputsRef.current, ...(job.snapshot?.outputs || {}) };
-        mediaUrlsRef.current = { ...mediaUrlsRef.current, ...(job.snapshot?.mediaUrls || {}) };
-        pipelineStepsRef.current = recoverableSteps;
-        setOutputs(outputsRef.current);
-        setMediaUrls(mediaUrlsRef.current);
-        setPipelineSteps(recoverableSteps);
-        setSongIdea(job.prompt || '');
-        if (job.settings?.style) setStyle(job.settings.style);
-        if (job.settings?.language) setLanguage(job.settings.language);
-        if (job.settings?.duration) setDuration(job.settings.duration);
-        if (job.settings?.bpm) setProjectBpm(job.settings.bpm);
-        if (job.settings?.mood) setMood(job.settings.mood);
-        if (job.settings?.structure) setStructure(job.settings.structure);
-        if (job.settings?.outputFormat) setOutputFormat(job.settings.outputFormat);
+        // Only OFFER the recovery here. Hydrating outputs/media/brief eagerly
+        // meant an old unfinished run silently took over every freshly opened
+        // orchestrator ("previous project won't dismount"), and "Later" only
+        // hid the banner while the stale content stayed loaded. State is
+        // applied in resumeRecoveredProduction, and only if the user asks.
         setRecoveredProductionJob({ ...job, steps: recoverableSteps });
 
         if (job.status === 'running' && recoverableSteps.some((step) => step.status === 'error')) {
           await checkpointProductionJob(headers, job.id, {
-            revision: ++productionJobRevisionRef.current,
+            revision: (Number(job.revision) || 0) + 1,
             status: 'needs_attention',
             currentStep: recoverableSteps.find((step) => step.status === 'error')?.id,
             steps: recoverableSteps,
@@ -3271,8 +3259,24 @@ export default function StudioOrchestratorV2({
     productionRunKeyRef.current = job.idempotencyKey;
     productionJobRevisionRef.current = Math.max(
       productionJobRevisionRef.current,
-      Number(job.revision) || 0
+      // The recovery check may have bumped the revision to needs_attention.
+      (Number(job.revision) || 0) + 1
     );
+    // Hydrate the checkpointed run now that the user explicitly chose to resume.
+    outputsRef.current = { ...outputsRef.current, ...(job.snapshot?.outputs || {}) };
+    mediaUrlsRef.current = { ...mediaUrlsRef.current, ...(job.snapshot?.mediaUrls || {}) };
+    pipelineStepsRef.current = job.steps;
+    setOutputs(outputsRef.current);
+    setMediaUrls(mediaUrlsRef.current);
+    setPipelineSteps(job.steps);
+    setSongIdea(job.prompt || '');
+    if (job.settings?.style) setStyle(job.settings.style);
+    if (job.settings?.language) setLanguage(job.settings.language);
+    if (job.settings?.duration) setDuration(job.settings.duration);
+    if (job.settings?.bpm) setProjectBpm(job.settings.bpm);
+    if (job.settings?.mood) setMood(job.settings.mood);
+    if (job.settings?.structure) setStructure(job.settings.structure);
+    if (job.settings?.outputFormat) setOutputFormat(job.settings.outputFormat);
     setRecoveredProductionJob(null);
     setTimeout(() => handleGenerateRef.current?.({
       agentSelection: job.agentSelection,
@@ -3281,6 +3285,27 @@ export default function StudioOrchestratorV2({
       resumeJob: job
     }), 0);
   }, [isGenerating, recoveredProductionJob, existingProject?.id]);
+
+  // Discard an unfinished run for good. Without cancelling it on the server it
+  // is re-offered (and previously re-loaded) on every orchestrator open.
+  const discardRecoveredProduction = useCallback(async () => {
+    const job = recoveredProductionJob;
+    setRecoveredProductionJob(null);
+    if (!job?.id) return;
+    try {
+      const headers = await getHeaders();
+      if (!headers.Authorization) return;
+      await checkpointProductionJob(headers, job.id, {
+        revision: (Number(job.revision) || 0) + 2,
+        status: 'cancelled',
+        steps: job.steps,
+        snapshot: job.snapshot,
+        lastError: 'Discarded by the user from the orchestrator.'
+      });
+    } catch (error) {
+      console.warn('[ProductionJobs] Could not discard recovered production:', error.message);
+    }
+  }, [getHeaders, recoveredProductionJob]);
 
   // Optional A&R review. It is intentionally separate from the critical
   // generation path so a review can never delay or fail asset creation.
@@ -4870,6 +4895,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
   };
 
   // Clone voice using ElevenLabs Instant Voice Cloning
+  // Sources: freshly queued uploads (base64 + assetId) and, when the queue has
+  // room, the saved profile sample (voiceSampleUrl) so a user who already
+  // uploaded their voice is never stuck at "0/3 samples".
+  const savedSampleUsableForClone = !!voiceSampleUrl && !clonedVoiceId && !voiceSamples.some(s => s.url === voiceSampleUrl);
+  const cloneSampleCount = voiceSamples.length + (savedSampleUsableForClone && voiceSamples.length < 3 ? 1 : 0);
+  const canCloneVoice = cloneSampleCount >= 1 && voiceOwnershipConfirmed && !isCloningVoice;
+
   const handleCloneVoice = async () => {
     // AUTH GUARD: Require sign-in before cloning voice
     if (!auth?.currentUser) {
@@ -4877,8 +4909,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       return;
     }
 
-    if (voiceSamples.length < 2) {
-      toast.error('Upload at least 2 voice samples for best results');
+    if (cloneSampleCount < 1) {
+      toast.error('Upload at least one 15s+ recording of your voice first');
       return;
     }
     if (!voiceOwnershipConfirmed) {
@@ -4891,20 +4923,23 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
     try {
       const headers = await getHeaders();
+      const uploadedSamples = voiceSamples.filter(s => s.base64 && s.assetId);
+      const sampleUrls = savedSampleUsableForClone && uploadedSamples.length < 3 ? [voiceSampleUrl] : [];
       const response = await fetch(`${BACKEND_URL}/api/voice-clone`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          samples: voiceSamples.map(s => s.base64),
-          sourceAssetIds: voiceSamples.map(s => s.assetId).filter(Boolean),
-          voiceName: songIdea ? `${songIdea} Voice` : 'My Voice',
+          samples: uploadedSamples.map(s => s.base64),
+          sourceAssetIds: uploadedSamples.map(s => s.assetId),
+          sampleUrls,
+          voiceName: 'My Voice',
           cloneConsent: {
             confirmed: voiceOwnershipConfirmed,
             mode: 'strict',
             version: '2026-08-07'
           }
         }),
-        signal: createTimeoutSignal(60000)
+        signal: createTimeoutSignal(90000)
       });
 
       const result = await response.json();
@@ -4926,6 +4961,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           type: 'cloned'
         };
         setSavedVoices(prev => [voiceEntry, ...prev]);
+        setVoiceSamples([]);
       } else {
         throw new Error(result.error || result.details || 'Voice cloning failed');
       }
@@ -7412,8 +7448,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   Resume production
                 </button>
                 <button
-                  onClick={() => setRecoveredProductionJob(null)}
-                  aria-label="Dismiss recovered production"
+                  onClick={discardRecoveredProduction}
+                  aria-label="Discard recovered production"
+                  title="Discard this unfinished run so it stops appearing"
                   style={{
                     borderRadius: '9px',
                     padding: '9px 11px',
@@ -7423,7 +7460,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     cursor: 'pointer'
                   }}
                 >
-                  Later
+                  Discard
                 </button>
               </div>
             )}
@@ -8875,9 +8912,20 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <Mic size={16} color="var(--studio-accent, #a34229)" />
-                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: "var(--studio-ink, #202724)", textTransform: 'uppercase', letterSpacing: '0.05em' }}>New Voice Samples</span>
-                  <span style={{ fontSize: '0.65rem', color: "var(--studio-muted, #646c64)", marginLeft: 'auto' }}>{voiceSamples.length}/3 queued</span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: "var(--studio-ink, #202724)", textTransform: 'uppercase', letterSpacing: '0.05em' }}>Voice Samples</span>
+                  <span style={{ fontSize: '0.65rem', color: "var(--studio-muted, #646c64)", marginLeft: 'auto' }}>{cloneSampleCount}/3 ready</span>
                 </div>
+
+                {savedSampleUsableForClone && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 10px', borderRadius: '8px',
+                    background: "var(--studio-surface-alt, #e4e8dc)", border: "1px solid var(--studio-border, #d8d5c9)"
+                  }}>
+                    <span style={{ fontSize: '0.75rem', color: "var(--studio-ink, #202724)" }}>Saved voice sample</span>
+                    <span style={{ fontSize: '0.65rem', color: "var(--studio-sage, #566954)", fontWeight: 700 }}>Ready to clone</span>
+                  </div>
+                )}
 
                 {clonedVoiceId && (
                   <div role="status" style={{ padding: '10px', borderRadius: '8px', background: "var(--studio-surface-alt, #e4e8dc)", border: "1px solid var(--studio-border, #d8d5c9)" }}>
@@ -8949,29 +8997,29 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       style={{ display: 'none' }}
                     />
                     <Upload size={14} />
-                    {voiceSamples.length === 0 ? 'Upload 2-3 voice samples' : 'Add more samples'}
+                    {voiceSamples.length === 0 ? 'Upload 1-3 voice recordings (15s+ each)' : 'Add more samples'}
                   </label>
                 )}
 
                 {/* Clone voice button */}
                 <button
                   onClick={handleCloneVoice}
-                  disabled={voiceSamples.length < 2 || !voiceOwnershipConfirmed || isCloningVoice}
+                  disabled={!canCloneVoice}
                   style={{
                     padding: '10px',
                     borderRadius: '10px',
                     border: "1px solid var(--studio-border, #d8d5c9)",
                     background: "var(--studio-surface-alt, #e4e8dc)",
-                    color: voiceSamples.length < 2 || !voiceOwnershipConfirmed ? "var(--studio-muted, #646c64)" : "var(--studio-accent, #a34229)",
+                    color: !canCloneVoice ? "var(--studio-muted, #646c64)" : "var(--studio-accent, #a34229)",
                     fontSize: '0.8rem',
                     fontWeight: '700',
-                    cursor: voiceSamples.length < 2 || !voiceOwnershipConfirmed || isCloningVoice ? 'not-allowed' : 'pointer',
+                    cursor: !canCloneVoice ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
                     transition: 'all 0.2s',
-                    opacity: voiceSamples.length < 2 || !voiceOwnershipConfirmed ? 0.5 : 1
+                    opacity: !canCloneVoice && !isCloningVoice ? 0.5 : 1
                   }}
                 >
                   {isCloningVoice ? <Loader2 size={14} className="spin" /> : <Sparkles size={14} />}
@@ -8989,7 +9037,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 </label>
 
                 <p style={{ fontSize: '0.65rem', color: "var(--studio-muted, #646c64)", margin: 0, lineHeight: 1.4 }}>
-                  Upload 2–3 recordings to create a new personal voice. This queue is separate from your saved voice; leave it empty to reuse an available saved voice.
+                  One clear 15s+ recording is enough to create your voice; 2–3 improve the match. A saved sample from your profile is used automatically.
                 </p>
               </div>
 

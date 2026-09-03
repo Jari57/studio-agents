@@ -189,7 +189,9 @@ async function generateVideoSegments(
 
           const inputPayload = {
             prompt,
-            prompt_optimizer: true
+            prompt_optimizer: true,
+            duration: 6,
+            resolution: '768p'
           };
 
           // Use image as first frame for EVERY segment to maintain visual identity
@@ -198,7 +200,11 @@ async function generateVideoSegments(
             inputPayload.first_frame_image = imageUrl;
           }
 
-          return runReplicateWithRateLimitRetry(replicate, 'minimax/video-01', inputPayload, logger, globalIdx + 1)
+          // The old video-01 model routinely takes 2.5-5 minutes for a six-second
+          // clip. Hailuo 2.3 Fast handles the normal image-led package path;
+          // current Hailuo 2.3 handles text-only generation.
+          const segmentModel = imageUrl ? 'minimax/hailuo-2.3-fast' : 'minimax/hailuo-2.3';
+          return runReplicateWithRateLimitRetry(replicate, segmentModel, inputPayload, logger, globalIdx + 1)
             .then(output => {
               if (logger) logger.info(`Segment ${globalIdx + 1} generated`, { url: String(output) });
               return {
@@ -289,7 +295,7 @@ async function generateSingleVideo(
   prompt,
   duration = 30, // Up to 30 seconds
   replicateKey,
-  model = 'minimax/video-01',
+  model = 'minimax/hailuo-2.3',
   logger
 ) {
   const startedAt = Date.now();
@@ -312,7 +318,9 @@ async function generateSingleVideo(
       replicate.run(model, {
         input: {
           prompt,
-          prompt_optimizer: true
+          prompt_optimizer: true,
+          duration: 6,
+          resolution: '768p'
         }
       }),
       REPLICATE_SEGMENT_TIMEOUT_MS,

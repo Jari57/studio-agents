@@ -166,6 +166,13 @@ test('production recovery cannot import another project or an unassigned old job
   assert.equal(productionJobMatchesProject({ projectId: null }, null), true);
   const source = readFileSync(new URL('../src/components/StudioOrchestratorV2.jsx', import.meta.url), 'utf8');
   const recovery = source.slice(source.indexOf('const recover = async'), source.indexOf('const resumeRecoveredProduction'));
-  assert.ok(recovery.indexOf('!productionJobMatchesProject(job, existingProject?.id)') < recovery.indexOf('outputsRef.current ='), 'project match is checked before restoring any content');
+  // The recovery check may only OFFER a resume. Eagerly restoring outputs
+  // meant a stale unfinished run took over every freshly opened orchestrator.
+  assert.equal(recovery.includes('outputsRef.current ='), false, 'recovery check must not restore content before the user chooses to resume');
+  assert.equal(recovery.includes('setSongIdea('), false, 'recovery check must not replace the brief before the user chooses to resume');
+  const resume = source.slice(source.indexOf('const resumeRecoveredProduction'), source.indexOf('const discardRecoveredProduction'));
+  assert.ok(resume.indexOf('!productionJobMatchesProject(job, existingProject?.id)') < resume.indexOf('outputsRef.current ='), 'project match is checked before restoring any content');
   assert.match(source, /if \(!productionJobMatchesProject\(job, existingProject\?\.id\) \|\| isGenerating\) return/);
+  // Discarding must cancel the job server-side, otherwise it is re-offered forever.
+  assert.match(resume + source.slice(source.indexOf('const discardRecoveredProduction'), source.indexOf('const discardRecoveredProduction') + 1200), /status: 'cancelled'/);
 });

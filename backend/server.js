@@ -776,18 +776,137 @@ async function fetchWithRetry(url, options = {}, { timeoutMs = 30000, maxRetries
   throw lastError;
 }
 
-async function runReplicateWithRateLimitRetry(replicate, model, options, operationName) {
-  return runWithProviderRetry(
-    () => replicate.run(model, options),
-    {
-      maxAttempts: 3,
-      baseDelayMs: 2000,
-      onRetry: ({ attempt, delayMs, error, status }) => logger.warn(
-        `Replicate temporarily failed ${operationName}; retrying`,
-        { attempt, delayMs, status, error: error?.message }
-      ),
-    }
+async function runReplicateWithRateLimitRetry(_replicate, model, options, operationName) {
+  // __studioReplicateBoundedPrediction
+  // The SDK's replicate.run() can wait indefinitely and previously let one beat
+  // request cascade through several multi-minute fallbacks. Use the prediction
+  // REST API so the server owns the deadline and can cancel unfinished paid work.
+  const token = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+  if (!token) throw new Error('Replicate provider is not configured');
+
+  const configuredTimeoutMs = Number(process.env.REPLICATE_GENERATION_TIMEOUT_MS);
+  const isStemSeparation = /vocal stem separation/i.test(operationName);
+  // Separation is a separate queued GPU job. Production evidence showed a
+  // 50-second cold start consuming most of its old 90-second total budget.
+  const defaultTimeoutMs = isStemSeparation ? 180000 : /MiniMax (beat|vocal) generation/i.test(operationName) ? 150000 : 90000;
+  const timeoutMs = Math.max(
+    30000,
+    Math.min(configuredTimeoutMs || defaultTimeoutMs, isStemSeparation ? 180000 : 150000)
   );
+  const maxCreateAttempts = 2;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxCreateAttempts; attempt++) {
+    let predictionId = '';
+    let predictionStarted = false;
+    const startedAt = Date.now();
+    try {
+      const colon = model.indexOf(':');
+      const modelName = colon === -1 ? model : model.slice(0, colon);
+      const version = colon === -1 ? '' : model.slice(colon + 1);
+      const createUrl = version
+        ? 'https://api.replicate.com/v1/predictions'
+        : 'https://api.replicate.com/v1/models/' + modelName + '/predictions';
+      const createBody = version
+        ? { version, input: options?.input || {} }
+        : { input: options?.input || {} };
+
+      const createResponse = await fetchWithTimeout(createUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + token,
+          'Content-Type': 'application/json',
+          Prefer: 'wait=10',
+          'Cancel-After': Math.round(timeoutMs / 1000) + 's'
+        },
+        body: JSON.stringify(createBody)
+      }, 20000);
+
+      if (createResponse.status === 429) {
+        const retrySeconds = Math.max(Number(createResponse.headers.get('retry-after')) || 8, 1);
+        lastError = new Error('Replicate rate limit reached');
+        if (attempt < maxCreateAttempts) {
+          logger.warn(`Replicate rate-limited ${operationName}; retrying`, { attempt, retrySeconds });
+          await new Promise(resolve => setTimeout(resolve, Math.min(retrySeconds, 15) * 1000));
+          continue;
+        }
+        throw lastError;
+      }
+
+      const createText = await createResponse.text();
+      let prediction;
+      try { prediction = JSON.parse(createText); } catch { prediction = {}; }
+      if (!createResponse.ok) {
+        const detail = String(prediction?.detail || prediction?.error || createText || '').slice(0, 500);
+        const error = new Error(`Replicate could not start ${operationName} (HTTP ${createResponse.status}): ${detail}`);
+        error.status = createResponse.status;
+        throw error;
+      }
+
+      predictionId = String(prediction?.id || '');
+      if (!predictionId) throw new Error(`Replicate did not return a prediction ID for ${operationName}`);
+      predictionStarted = true;
+
+      while (!['succeeded', 'failed', 'canceled', 'aborted'].includes(String(prediction?.status || ''))) {
+        if (Date.now() - startedAt >= timeoutMs) {
+          await fetchWithTimeout(
+            'https://api.replicate.com/v1/predictions/' + encodeURIComponent(predictionId) + '/cancel',
+            { method: 'POST', headers: { Authorization: 'Bearer ' + token } },
+            10000
+          ).catch(() => undefined);
+          const timeoutError = new Error(`${operationName} exceeded the ${Math.round(timeoutMs / 1000)}-second provider budget and was canceled`);
+          timeoutError.code = 'PROVIDER_TIMEOUT';
+          throw timeoutError;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const statusResponse = await fetchWithTimeout(
+          'https://api.replicate.com/v1/predictions/' + encodeURIComponent(predictionId),
+          { headers: { Authorization: 'Bearer ' + token } },
+          15000
+        );
+        if (!statusResponse.ok) {
+          if (statusResponse.status >= 500) continue;
+          throw new Error(`Replicate status check failed for ${operationName} (HTTP ${statusResponse.status})`);
+        }
+        prediction = await statusResponse.json();
+      }
+
+      if (prediction.status === 'succeeded' && prediction.output) {
+        logger.info('Replicate prediction completed within budget', {
+          operationName,
+          predictionId,
+          durationMs: Date.now() - startedAt
+        });
+        return prediction.output;
+      }
+
+      const providerError = String(prediction?.error || prediction?.logs || prediction?.status || 'unknown failure').slice(0, 700);
+      const failed = new Error(`Replicate ${operationName} failed: ${providerError}`);
+      failed.code = 'PROVIDER_FAILED';
+      throw failed;
+    } catch (error) {
+      lastError = error;
+      const message = String(error?.message || '');
+      logger.warn('Replicate prediction attempt failed', {
+        operationName,
+        attempt,
+        predictionId: predictionId || null,
+        durationMs: Date.now() - startedAt,
+        code: error?.code || null,
+        error: message.slice(0, 500)
+      });
+
+      // Once a paid prediction started, do not silently create a duplicate. A
+      // provider failure or our deadline is final for this provider attempt.
+      if (predictionStarted || error?.code === 'PROVIDER_TIMEOUT' || error?.code === 'PROVIDER_FAILED') throw error;
+      const retryable = error?.status === 429 || error?.status >= 500 || /network|fetch|timeout|rate.?limit/i.test(message);
+      if (!retryable || attempt === maxCreateAttempts) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1500 * attempt));
+    }
+  }
+
+  throw lastError || new Error(`${operationName} could not start`);
 }
 
 const app = express();
@@ -3435,7 +3554,7 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
   }
 
   try {
-    const { samples, voiceName = 'My Voice', cloneConsent = null, sourceAssetIds = [] } = req.body;
+    const { samples = [], sampleUrls = [], voiceName = 'My Voice', cloneConsent = null, sourceAssetIds = [] } = req.body;
 
     // Never accept biometric voice material without a current, explicit
     // ownership attestation. This keeps old clients and direct API calls from
@@ -3446,18 +3565,53 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
       });
     }
 
-    if (!samples || !Array.isArray(samples) || samples.length === 0) {
-      return res.status(400).json({ error: 'At least 1 audio sample is required', required: ['samples'] });
+    if (!Array.isArray(samples) || !Array.isArray(sampleUrls)) {
+      return res.status(400).json({ error: 'samples and sampleUrls must be arrays' });
+    }
+    const totalSamples = samples.length + sampleUrls.length;
+    if (totalSamples === 0) {
+      return res.status(400).json({ error: 'At least 1 audio sample is required', required: ['samples', 'sampleUrls'] });
     }
 
-    if (samples.length > 3) {
+    if (totalSamples > 3) {
       return res.status(400).json({ error: 'Maximum 3 audio samples allowed' });
     }
 
-    if (sourceAssetIds.length !== samples.length || !await userOwnsVoiceAssets(req.user.uid, sourceAssetIds)) {
+    if (samples.length > 0 && (sourceAssetIds.length !== samples.length || !await userOwnsVoiceAssets(req.user.uid, sourceAssetIds))) {
       return res.status(403).json({
         error: 'Voice samples must be uploaded to your private asset library before cloning'
       });
+    }
+
+    // Saved voice samples (e.g. the profile's voiceSampleUrl or a library
+    // voice without a clone yet) are referenced by URL. They are only accepted
+    // when the URL is an audio asset in this user's own library, then fetched
+    // server-side so the client never has to re-upload the recording.
+    const urlSampleBuffers = [];
+    if (sampleUrls.length > 0) {
+      const db = getFirestoreDb();
+      if (!db) return res.status(503).json({ error: 'Asset library unavailable' });
+      const uniqueUrls = [...new Set(sampleUrls.filter((u) => typeof u === 'string' && /^https:\/\//i.test(u)))];
+      if (uniqueUrls.length !== sampleUrls.length) {
+        return res.status(400).json({ error: 'sampleUrls must be unique https URLs' });
+      }
+      for (const url of uniqueUrls) {
+        const owned = await db.collection('users').doc(req.user.uid).collection('assets')
+          .where('url', '==', url).limit(1).get();
+        const ownedDoc = owned.docs[0];
+        if (!ownedDoc || ownedDoc.data()?.assetType !== 'audio') {
+          return res.status(403).json({ error: 'Saved voice sample is not in your private asset library' });
+        }
+        const resp = await fetchWithRetry(url, {}, { timeoutMs: 30000 });
+        if (!resp.ok) {
+          return res.status(502).json({ error: `Could not download saved voice sample (HTTP ${resp.status})` });
+        }
+        const buffer = Buffer.from(await resp.arrayBuffer());
+        if (buffer.length > 10 * 1024 * 1024) {
+          return res.status(400).json({ error: 'Saved voice sample exceeds 10MB limit' });
+        }
+        urlSampleBuffers.push({ buffer, mimeType: resp.headers.get('content-type') || 'audio/mpeg' });
+      }
     }
 
     // Build multipart form data for ElevenLabs IVC API using Node built-in FormData + Blob
@@ -3490,10 +3644,19 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
       formData.append('files', new Blob([buffer], { type: mimeType }), `sample_${i + 1}.${ext}`);
     }
 
+    urlSampleBuffers.forEach(({ buffer, mimeType }, i) => {
+      const ext = mimeType.includes('wav') ? 'wav'
+        : mimeType.includes('mp4') || mimeType.includes('m4a') || mimeType.includes('aac') ? 'm4a'
+        : mimeType.includes('webm') ? 'webm'
+        : 'mp3';
+      formData.append('files', new Blob([buffer], { type: mimeType }), `saved_sample_${i + 1}.${ext}`);
+    });
+
     logger.info('Starting ElevenLabs IVC voice cloning', {
       userId: req.user.uid,
       voiceName,
-      sampleCount: samples.length
+      sampleCount: totalSamples,
+      fromSavedUrls: urlSampleBuffers.length
     });
 
     // Call ElevenLabs Instant Voice Cloning API
@@ -3526,8 +3689,9 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
         voiceId,
         name: voiceName,
         provider: 'elevenlabs-ivc',
-        sampleCount: samples.length,
+        sampleCount: totalSamples,
         sourceAssetIds,
+        sourceSampleUrls: sampleUrls,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         userId: req.user.uid,
         consent: cloneConsent?.confirmed === true ? {
@@ -3556,7 +3720,7 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
       voiceId,
       name: voiceName,
       provider: 'elevenlabs-ivc',
-      sampleCount: samples.length,
+      sampleCount: totalSamples,
       strictClone: cloneConsent?.mode === 'strict'
     });
 
@@ -6862,7 +7026,7 @@ Do NOT include any other text.`
 app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('beat'), generationLimiter, async (req, res) => {
   try {
     const { 
-      prompt, bpm: rawBpm = 90, durationSeconds: rawDuration = 60, genre = 'hip-hop', mood = 'chill',
+      prompt, bpm: rawBpm = 90, durationSeconds: rawDuration = req.body?.duration ?? 60, genre = 'hip-hop', mood = 'chill',
       referenceAudio, engine = 'auto', highMusicality = true, seed = -1, stem = 'Full Mix',
       quality = 'standard', outputFormat = 'music', songStructure = 'full',
       arrangement = null  // Array of {type, label, bars} from ArrangementEditor
@@ -6892,11 +7056,20 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     const falKey = process.env.FAL_KEY || process.env.FAL_API_KEY;
     const stabilityAudio = getStabilityAudioSettings();
 
+    // Stability AI Stable Audio is the studio's ONLY music engine. The old
+    // MiniMax → MusicGen → Beatoven fallback chain silently swapped engines
+    // mid-session, producing inconsistent beats (different length caps, WAV vs
+    // MP3, different sonic character) that made the 4-asset pipeline
+    // unreliable. Legacy providers are kept strictly opt-in for emergencies via
+    // BEAT_FALLBACK_PROVIDERS=true and are never used when Stability is
+    // configured.
+    const allowFallbackBeatProviders = String(process.env.BEAT_FALLBACK_PROVIDERS || '').toLowerCase() === 'true';
+    const hasFallbackBeatProvider = allowFallbackBeatProviders && !!(replicateKey || falKey);
+
     // Do not let the credit middleware charge a user when no audio provider is
-    // configured. This is especially important for premium requests: silently
-    // falling through to a weak draft engine is forbidden, and a failed
-    // provider configuration must be actionable rather than a generic 500.
-    if (!stabilityKey && !replicateKey && !falKey) {
+    // configured. A failed provider configuration must be actionable rather
+    // than a generic 500.
+    if (!stabilityKey && !hasFallbackBeatProvider) {
       await refundCredits(req, 'audio provider not configured');
       return res.status(503).json({
         error: 'Audio provider unavailable',
@@ -6913,6 +7086,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       outputFormat,
       hasStability: !!stabilityKey,
       stabilityModel: stabilityAudio.model,
+      fallbackProvidersEnabled: allowFallbackBeatProviders,
       hasReplicate: !!replicateKey,
       hasFal: !!falKey
     });
@@ -6937,29 +7111,62 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       stem
     });
 
-    // Engine Selection Logic - Always prefer Stability AI for highest quality
+    // Engine selection: Stability whenever it is configured, regardless of the
+    // client's `engine` hint. Reference audio (Audio DNA) is handled by
+    // Stability's audio-to-audio endpoint rather than being rerouted to MusicGen.
     const requestedEngine = engine || 'auto';
-    let finalEngine = requestedEngine;
-    if (requestedEngine === 'auto') {
-      if (stabilityKey) {
-        finalEngine = 'stability';
-      } else {
-        finalEngine = 'music-gpt';
-      }
-    }
-    // MusicGen is the configured beat provider that accepts melody/reference
-    // conditioning. Never send a reference-backed beat to a text-only path.
-    if (referenceAudio) finalEngine = 'music-gpt';
+    const finalEngine = stabilityKey ? 'stability' : 'music-gpt';
 
     let audioUrl = null;
     let provider = null;
     let systemCreditIssue = false;
     let providerErrors = [];
 
+    // Fast balance probe (cached 5 min). An exhausted Stability account used to
+    // hold every request for a full provider timeout before failing. This does
+    // NOT reroute to another engine — it fails fast with an actionable, refunded
+    // system-credit error so the studio stays on one consistent music engine.
+    // __studioStabilityAudioAvailability
+    let stabilityUsable = !!stabilityKey;
+    if (stabilityKey) {
+      const cached = globalThis.__studioStabilityAudioAvailability;
+      if (cached && Date.now() - cached.checkedAt < 5 * 60 * 1000) {
+        stabilityUsable = cached.usable;
+      } else {
+        try {
+          const balanceResponse = await fetch('https://api.stability.ai/v1/user/balance', {
+            headers: { Authorization: 'Bearer ' + stabilityKey, Accept: 'application/json' },
+            signal: AbortSignal.timeout(3000)
+          });
+          const balancePayload = await balanceResponse.json().catch(() => ({}));
+          // Only a confirmed zero balance or rejected key disables the engine; a
+          // failed probe (network blip, 5xx) must not block generation.
+          const exhausted = balanceResponse.ok
+            && Number.isFinite(Number(balancePayload.credits))
+            && Number(balancePayload.credits) <= 0;
+          stabilityUsable = !exhausted && balanceResponse.status !== 401 && balanceResponse.status !== 402;
+          globalThis.__studioStabilityAudioAvailability = {
+            checkedAt: Date.now(),
+            usable: stabilityUsable,
+            status: balanceResponse.status
+          };
+          if (!stabilityUsable) {
+            logger.error('Stability audio account has no usable balance', { status: balanceResponse.status, credits: balancePayload.credits });
+          }
+        } catch (availabilityError) {
+          logger.warn('Stability balance probe failed; proceeding with generation', { error: availabilityError.message });
+        }
+      }
+      if (!stabilityUsable) {
+        systemCreditIssue = true;
+        providerErrors.push({ provider: 'stability', error: 'Provider account balance exhausted' });
+      }
+    }
+
     // ═══════════════════════════════════════════════════════════════════
-    // 1. Stability AI Stable Audio 2.5 (PRIMARY FOR PREMIUM/LONG FORM)
+    // 1. Stability AI Stable Audio 2.5 (SOLE MUSIC ENGINE)
     // ═══════════════════════════════════════════════════════════════════
-    if (stabilityKey && (finalEngine === 'stability')) {
+    if (stabilityKey && stabilityUsable && (finalEngine === 'stability')) {
 
       try {
         // DNA EXACT-CLONE: When audio DNA is provided, inject strict matching instructions
@@ -6969,48 +7176,101 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
           logger.info('🧬 Audio DNA exact-clone mode activated for Stability AI');
         }
 
-        logger.info('Using Stability AI');
-        const formData = new FormData();
-        formData.append('prompt', stableMusicPrompt);
-        formData.append('negative_prompt', 'vocals, singing, speech, producer tag, clipping, distortion, muddy bass, harsh cymbals, abrupt ending, random genre switch');
-        formData.append('duration', Math.min(durationSeconds, 180).toString());
-        formData.append('model', stabilityAudio.model);
-        formData.append('output_format', 'mp3');
-        formData.append('steps', stabilityAudio.steps.toString());
-        if (stabilityAudio.cfgScale !== null) {
-          formData.append('cfg_scale', stabilityAudio.cfgScale.toString());
-        }
-        if (seed > 0) formData.append('seed', seed.toString());
-
-        const response = await fetchWithRetry('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
-          method: 'POST',
-          // Request raw audio bytes; readStabilityAudioResponse also supports
-          // JSON/base64 for older account/API responses.
-          headers: { 'Authorization': `Bearer ${stabilityKey}`, 'Accept': 'audio/*' },
-          body: formData
-        }, { timeoutMs: 60000 });
-
-        if (response.ok) {
-          const generatedAudio = await readStabilityAudioResponse(response, 'mpeg');
-          if (generatedAudio && generatedAudio.length > 500) {
-            audioUrl = generatedAudio;
-            provider = stabilityAudio.model;
-          } else {
-            logger.warn('Stability returned too little audio data');
-            providerErrors.push({ provider: 'stability', error: 'Audio data was empty or too small' });
+        const negativePrompt = 'vocals, singing, speech, producer tag, clipping, distortion, muddy bass, harsh cymbals, abrupt ending, random genre switch';
+        const buildStabilityForm = () => {
+          const form = new FormData();
+          form.append('prompt', stableMusicPrompt);
+          form.append('negative_prompt', negativePrompt);
+          form.append('duration', Math.min(durationSeconds, 180).toString());
+          form.append('model', stabilityAudio.model);
+          form.append('output_format', 'mp3');
+          form.append('steps', stabilityAudio.steps.toString());
+          if (stabilityAudio.cfgScale !== null) {
+            form.append('cfg_scale', stabilityAudio.cfgScale.toString());
           }
-        } else {
+          if (seed > 0) form.append('seed', seed.toString());
+          return form;
+        };
+
+        const callStability = async (endpoint, formData, label) => {
+          const response = await fetchWithRetry(`https://api.stability.ai/v2beta/audio/stable-audio-2/${endpoint}`, {
+            method: 'POST',
+            // Request raw audio bytes; readStabilityAudioResponse also supports
+            // JSON/base64 for older account/API responses.
+            headers: { 'Authorization': `Bearer ${stabilityKey}`, 'Accept': 'audio/*' },
+            body: formData
+          }, { timeoutMs: 90000, maxRetries: 0 });
+
+          if (response.ok) {
+            const generatedAudio = await readStabilityAudioResponse(response, 'mpeg');
+            if (generatedAudio && generatedAudio.length > 500) {
+              return generatedAudio;
+            }
+            logger.warn(`Stability ${label} returned too little audio data`);
+            providerErrors.push({ provider: `stability-${label}`, error: 'Audio data was empty or too small' });
+            return null;
+          }
+
           const errData = await response.json().catch(() => ({}));
           // SYSTEM CREDIT ISSUE DETECTION
           if (response.status === 402 || (errData.name === 'payment_required')) {
             systemCreditIssue = true;
           }
-          providerErrors.push({ provider: 'stability', error: errData.message || errData.name || `HTTP ${response.status}` });
-          logger.error('Stability AI API error', {
+          providerErrors.push({ provider: `stability-${label}`, error: errData.message || errData.name || `HTTP ${response.status}` });
+          logger.error(`Stability AI ${label} API error`, {
             status: response.status,
             error: errData.message || errData.name || errData.error || 'Unknown error',
             fullError: JSON.stringify(errData)
           });
+          return null;
+        };
+
+        // 1a. Audio DNA → Stability audio-to-audio (reference-conditioned).
+        if (referenceAudio) {
+          try {
+            let refBuffer = null;
+            let refType = 'audio/mpeg';
+            if (typeof referenceAudio === 'string' && referenceAudio.startsWith('data:')) {
+              const match = referenceAudio.match(/^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s);
+              if (match) {
+                refType = match[1] || refType;
+                refBuffer = Buffer.from(match[2], 'base64');
+              }
+            } else if (typeof referenceAudio === 'string' && /^https?:\/\//i.test(referenceAudio)) {
+              const refResp = await fetchWithRetry(referenceAudio, {}, { timeoutMs: 30000, maxRetries: 0 });
+              if (!refResp.ok) throw new Error(`Reference audio download failed: HTTP ${refResp.status}`);
+              refType = refResp.headers.get('content-type') || refType;
+              refBuffer = Buffer.from(await refResp.arrayBuffer());
+            }
+            if (refBuffer && refBuffer.length > 1000) {
+              const refExt = refType.includes('wav') ? 'wav' : 'mp3';
+              const a2aForm = buildStabilityForm();
+              a2aForm.append('audio', new Blob([refBuffer], { type: refType }), `reference.${refExt}`);
+              // 0.6 keeps the reference's groove/key while letting the prompt reshape it.
+              a2aForm.append('strength', '0.6');
+              logger.info('Using Stability AI audio-to-audio (Audio DNA reference)', { refBytes: refBuffer.length, refType });
+              const a2aAudio = await callStability('audio-to-audio', a2aForm, 'audio-to-audio');
+              if (a2aAudio) {
+                audioUrl = a2aAudio;
+                provider = stabilityAudio.model;
+              }
+            } else {
+              logger.warn('Reference audio unusable for Stability audio-to-audio; using text-to-audio with DNA prompt');
+            }
+          } catch (refErr) {
+            providerErrors.push({ provider: 'stability-audio-to-audio', error: refErr.message });
+            logger.warn('Stability audio-to-audio failed; using text-to-audio with DNA prompt', { error: refErr.message });
+          }
+        }
+
+        // 1b. Text-to-audio (primary path, and fallback for a failed DNA pass).
+        if (!audioUrl) {
+          logger.info('Using Stability AI text-to-audio');
+          const t2aAudio = await callStability('text-to-audio', buildStabilityForm(), 'text-to-audio');
+          if (t2aAudio) {
+            audioUrl = t2aAudio;
+            provider = stabilityAudio.model;
+          }
         }
       } catch (err) {
         providerErrors.push({ provider: 'stability', error: err.message });
@@ -7018,10 +7278,17 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // LEGACY FALLBACK PROVIDERS — disabled unless BEAT_FALLBACK_PROVIDERS=true.
+    // Stability is the studio's only music engine; these exist purely as an
+    // emergency switch and never run when Stability is configured.
+    // ═══════════════════════════════════════════════════════════════════
+    const useLegacyBeatProviders = hasFallbackBeatProvider && !stabilityKey;
+
     // 2. MiniMax Music 2.6: current full-length instrumental model. Use this
     // ahead of legacy MusicGen for cleaner arrangement, BPM/key adherence and
     // sufficient duration for an actual song foundation.
-    if (replicateKey && !audioUrl && !referenceAudio && requestedEngine !== 'music-gpt') {
+    if (useLegacyBeatProviders && replicateKey && !audioUrl && !referenceAudio && requestedEngine !== 'music-gpt') {
       try {
         logger.info('Using Replicate MiniMax Music 2.6 (instrumental)');
         const replicate = new Replicate({ auth: replicateKey });
@@ -7044,7 +7311,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
 
         if (output) {
           const directUrl = typeof output.url === 'function' ? output.url() : String(output);
-          const audioResponse = await fetchWithRetry(directUrl, {}, { timeoutMs: 60000 });
+          const audioResponse = await fetchWithRetry(directUrl, {}, { timeoutMs: 45000, maxRetries: 0 });
           if (audioResponse.ok) {
             const audioData = await audioResponse.arrayBuffer();
             if (audioData.byteLength > 100) {
@@ -7070,14 +7337,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       }
     }
 
-    // 3. Replicate MusicGen legacy fallback. A premium label must not make one
-    // provider a single point of failure for the complete asset pipeline. This
-    // must run whenever the earlier premium providers (Stability, MiniMax)
-    // failed to produce audio — strictPremiumBeat only controls *preference*
-    // ordering, never whether a fallback runs at all, otherwise a premium
-    // request with no working primary provider fails outright with zero
-    // fallback (the exact bug this comment already warned against).
-    if (replicateKey && !audioUrl) {
+    // 3. Replicate MusicGen legacy fallback (emergency-only, see above).
+    if (useLegacyBeatProviders && replicateKey && !audioUrl) {
       try {
         logger.info('Using Replicate Music GPT (stereo-large)');
         const replicate = new Replicate({ auth: replicateKey });
@@ -7118,7 +7379,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
           const directUrl = Array.isArray(output) ? output[0] : output;
           logger.info('Replicate generated audio URL', { directUrl });
           
-          const audioResponse = await fetchWithRetry(directUrl, {}, { timeoutMs: 60000 });
+          const audioResponse = await fetchWithRetry(directUrl, {}, { timeoutMs: 45000, maxRetries: 0 });
           if (audioResponse.ok) {
             const audioData = await audioResponse.arrayBuffer();
             if (audioData.byteLength > 100) {
@@ -7151,24 +7412,21 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       }
     }
 
-    // 4. FAL.ai last fallback. Same reasoning as MusicGen above: only ever
-    // reached when every earlier provider already failed (!audioUrl), so this
-    // never degrades a successful premium generation — it just prevents a
-    // total failure when Stability/MiniMax/MusicGen are all down or over quota.
-    if (falKey && !audioUrl) {
+    // 4. FAL.ai legacy fallback (emergency-only, see above).
+    if (useLegacyBeatProviders && falKey && !audioUrl) {
       try {
         const response = await fetchWithRetry('https://queue.fal.run/beatoven/music-generation', {
           method: 'POST',
           headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: musicPrompt, duration: Math.min(durationSeconds, 60) })
-        }, { timeoutMs: 60000 });
+        }, { timeoutMs: 45000, maxRetries: 0 });
         if (durationSeconds > 60) {
           logger.warn(`⚠️ Beat duration capped: requested ${durationSeconds}s → 60s (FAL/Beatoven max)`);
         }
         if (response.ok) {
           const data = await response.json();
           const falUrl = data.audio_url || data.audio;
-          const audioData = await fetchWithRetry(falUrl, {}, { timeoutMs: 60000 }).then(r => r.arrayBuffer());
+          const audioData = await fetchWithRetry(falUrl, {}, { timeoutMs: 45000, maxRetries: 0 }).then(r => r.arrayBuffer());
           audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
           provider = 'beatoven';
         } else {

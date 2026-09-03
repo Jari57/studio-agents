@@ -878,11 +878,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     }
   }, [selectedAgent, user?.uid]);
 
-  // Persist selectedProject ID to localStorage
+  // Persist selectedProject ID to localStorage. Clearing the selection must
+  // also clear the persisted ID, otherwise the mount-time restore above brings
+  // the previous project straight back on the next refresh and every "New
+  // Project" opens the orchestrator with stale context.
   useEffect(() => {
     const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
     if (selectedProject?.id) {
       localStorage.setItem(`studio_selected_project_${uid}`, selectedProject.id);
+    } else {
+      localStorage.removeItem(`studio_selected_project_${uid}`);
     }
   }, [selectedProject, user?.uid]);
 
@@ -2317,10 +2322,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   // startWizard prop is deprecated - we no longer auto-open wizard from landing page
   // Users go straight to agents tab and can click "Create Project" when ready
 
+  // Open the orchestrator for a brand-new project. The orchestrator is keyed on
+  // selectedProject.id, so clearing the selection first guarantees a clean
+  // remount with no lyrics/beat/vocals/visuals carried over from the last
+  // project. Paths that intentionally continue an existing project (project
+  // canvas "load into orchestrator") call setShowOrchestrator(true) directly.
+  const openFreshOrchestrator = () => {
+    setSelectedProject(null);
+    setShowOrchestrator(true);
+  };
+
   // If startOrchestrator prop is true, open the AI orchestrator directly
   useEffect(() => {
     if (startOrchestrator) {
-      setShowOrchestrator(true);
+      openFreshOrchestrator();
     }
   }, [startOrchestrator]);
 
@@ -6571,7 +6586,7 @@ ABSOLUTE RULES (violating any = failure):
             setSelectedProject={setSelectedProject}
             setActiveTab={setActiveTab}
             setShowCreditsModal={setShowCreditsModal}
-            setShowOrchestrator={setShowOrchestrator}
+            setShowOrchestrator={(open) => { if (open) openFreshOrchestrator(); else setShowOrchestrator(false); }}
             setShowProjectTypeChoice={setShowProjectTypeChoice}
             setShowOnboarding={setShowOnboarding}
             setOnboardingStep={setOnboardingStep}
@@ -9562,7 +9577,7 @@ ABSOLUTE RULES (violating any = failure):
             window.location.hash = `#/${item.id}`;
           } else if (item.id === 'orchestrator') {
             setActiveTab('mystudio');
-            setShowOrchestrator(true);
+            openFreshOrchestrator();
           } else if (item.id === 'workflow') {
             setActiveTab('mystudio');
             setDashboardTab('overview');
@@ -11036,7 +11051,7 @@ ABSOLUTE RULES (violating any = failure):
             window.location.hash = `#/${item.id}`;
           } else if (item.id === 'orchestrator') {
             setActiveTab('mystudio');
-            setShowOrchestrator(true);
+            openFreshOrchestrator();
           } else if (item.id === 'workflow') {
             setActiveTab('mystudio');
             setDashboardTab('overview');
@@ -15688,7 +15703,7 @@ ABSOLUTE RULES (violating any = failure):
               <button
                 onClick={() => {
                   setShowProjectTypeChoice(false);
-                  setShowOrchestrator(true);
+                  openFreshOrchestrator();
                 }}
                 style={{
                   display: 'flex',

@@ -86,12 +86,17 @@ test('conclusively unavailable saved voice is cleared before generation UX', () 
 });
 
 test('actual clone guard requires explicit consent even when invoked outside its disabled button', async () => {
-  const start = source.indexOf('    if (voiceSamples.length < 2)', source.indexOf('const handleCloneVoice'));
+  const start = source.indexOf('    if (cloneSampleCount < 1)', source.indexOf('const handleCloneVoice'));
   const end = source.indexOf('    setIsCloningVoice(true)', start);
-  const guard = new Function('voiceSamples', 'voiceOwnershipConfirmed', 'toast', source.slice(start, end) + '\nreturn "allowed";');
-  assert.equal(guard([{}, {}], false, { error() {} }), undefined);
-  assert.equal(guard([{}, {}], true, { error() {} }), 'allowed');
+  assert.ok(start > 0 && end > start, 'clone guard block located');
+  const guard = new Function('cloneSampleCount', 'voiceOwnershipConfirmed', 'toast', source.slice(start, end) + '\nreturn "allowed";');
+  assert.equal(guard(2, false, { error() {} }), undefined);
+  assert.equal(guard(0, true, { error() {} }), undefined);
+  assert.equal(guard(1, true, { error() {} }), 'allowed');
   assert.doesNotMatch(source, /'Personal Voice Ready'/);
-  assert.match(source, /New Voice Samples/);
-  assert.match(source, /voiceSamples\.length\}\/3 queued/);
+  // A user who already saved a profile voice sample must not be stuck at 0/3:
+  // the saved sample counts toward the clone and is sent by URL.
+  assert.match(source, /const savedSampleUsableForClone = !!voiceSampleUrl && !clonedVoiceId/);
+  assert.match(source, /sampleUrls,/);
+  assert.match(source, /cloneSampleCount\}\/3 ready/);
 });
