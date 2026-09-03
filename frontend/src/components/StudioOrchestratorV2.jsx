@@ -4078,10 +4078,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
   // Regenerate single slot
   const handleRegenerate = async (slot) => {
-    // PREVENT DUPLICATE CALLS
-    if (isGenerating || generatingSlots[slot]) return;
+    // PREVENT DUPLICATE CALLS — but never silently: a click that does nothing
+    // reads as a broken button.
+    if (isGenerating || generatingSlots[slot]) {
+      toast('Still generating — Redo will be available when this finishes.', { id: `redo-busy-${slot}` });
+      return;
+    }
 
-    if (!selectedAgents[slot]) return;
+    if (!selectedAgents[slot]) {
+      toast.error('Pick an agent for this slot first, then Redo.', { id: `redo-agent-${slot}` });
+      return;
+    }
 
     const agent = AGENTS.find(a => a.id === selectedAgents[slot]);
     if (!agent) return;
@@ -6935,29 +6942,32 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   }}>
                     {existingProject?.name || 'Current Project'}
                   </span>
-                  {projects.length > 0 && onSwitchProject && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowProjectSwitcher(true); }}
-                      style={{
-                        background: "var(--studio-surface-alt, #e4e8dc)",
-                        border: "1px solid var(--studio-border, #d8d5c9)",
-                        borderRadius: '6px',
-                        padding: '1px 6px',
-                        color: "var(--studio-sage, #566954)",
-                        fontSize: '0.65rem',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '3px'
-                      }}
-                    >
-                      <RefreshCw size={10} /> Switch
-                    </button>
-                  )}
                 </>
               ) : (
                 <>4 AI Generators • One Unified Pipeline</>
+              )}
+              {/* Always reachable: lets the user load a saved project or start
+                  fresh from any state, not only after a project is loaded. */}
+              {onSwitchProject && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowProjectSwitcher(true); }}
+                  aria-label="Switch project"
+                  style={{
+                    background: "var(--studio-surface-alt, #e4e8dc)",
+                    border: "1px solid var(--studio-border, #d8d5c9)",
+                    borderRadius: '6px',
+                    padding: '1px 6px',
+                    color: "var(--studio-sage, #566954)",
+                    fontSize: '0.65rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px'
+                  }}
+                >
+                  <RefreshCw size={10} /> {existingProject ? 'Switch' : 'Open project'}
+                </button>
               )}
             </p>
           </div>
