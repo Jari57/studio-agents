@@ -39,9 +39,12 @@ test('artwork-only selection starts at zero of one and does not request a full s
   assert.match(html, /Still to create: <strong>Artwork<\/strong>/);
   assert.doesNotMatch(html, /Create Full Song|Create Full Project|Next: Create Vocals/);
   assert.match(html, /mixing is not required for your selected outputs/);
-  for (const control of ['Mixing Console', 'Create Mix', 'Create Music Video', 'Push to SoundCloud', 'Get Share Link']) {
+  for (const control of ['Mixing Console', 'Create Mix', 'Create Music Video', 'Get Share Link']) {
     assert.ok(html.includes(control), `${control} must remain available`);
   }
+  // SoundCloud is only advertised when the backend reports credentials.
+  assert.ok(!html.includes('Push to SoundCloud'), 'SoundCloud must be hidden until the backend enables it');
+  assert.ok(renderHub({ soundcloudEnabled: true }).includes('Push to SoundCloud'), 'SoundCloud appears when enabled');
 });
 
 test('an art description is saveable progress but not a completed image', () => {

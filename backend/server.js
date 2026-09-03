@@ -338,12 +338,12 @@ const CREDIT_COSTS = {
   'speech': 2,
   'voice': 2,
   
-  // Beats/Music (Replicate MusicGen ~$0.07 for 30s)
-  'beat': 5,
-  'audio': 5,
-  'music': 5,
-  
-  // Extended beats (60+ seconds)
+  // Beats/Music — every beat is a full-length 90–150s track (Stability Stable Audio 2.5),
+  // so there is one flat price. The *-extended keys are kept equal so getCreditCost
+  // charges the same amount regardless of the duration a client sends.
+  'beat': 10,
+  'audio': 10,
+  'music': 10,
   'beat-extended': 10,
   'audio-extended': 10,
   
@@ -1519,12 +1519,17 @@ app.get('/api/health', (req, res) => {
   const hasElevenLabs = !!process.env.ELEVENLABS_API_KEY;
   const hasSuno = !!process.env.SUNO_API_KEY;
   const hasUberduck = !!(process.env.UBERDUCK_API_KEY && process.env.UBERDUCK_API_SECRET);
+  const hasSoundCloud = !!(process.env.SOUNDCLOUD_ACCESS_TOKEN && process.env.SOUNDCLOUD_CLIENT_ID);
   res.status(isHealthy ? 200 : 503).json({
     status: isHealthy ? 'ok' : 'degraded',
     timestamp: new Date().toISOString(),
     version: '2.0.0',
     deployment: {
       commit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || 'unknown'
+    },
+    // Optional integrations the UI should only advertise when they can actually work.
+    features: {
+      soundcloud: hasSoundCloud
     },
     services: {
       api: 'up',
@@ -1954,6 +1959,67 @@ app.get('/api/v2/voices', verifyFirebaseToken, requireAuth, async (req, res) => 
     }
   } catch (error) {
     res.status(500).json({ error: 'Internal server error', details: safeErrorDetail(error) });
+  }
+});
+
+// The user's personal voice state in one call: active clone + saved samples.
+// This is the single source of truth for the Voice Engine picker; the client
+// no longer reads users/{uid} or users/{uid}/voices from Firestore directly.
+app.get('/api/v2/voices/me', verifyFirebaseToken, requireAuth, async (req, res) => {
+  try {
+    const db = getFirestoreDb();
+    if (!db) return res.status(503).json({ error: 'Voice library unavailable' });
+    const userRef = db.collection('users').doc(req.user.uid);
+    const [profile, owned] = await Promise.all([
+      userRef.get(),
+      userRef.collection('voices').orderBy('createdAt', 'desc').limit(50).get().catch(() => userRef.collection('voices').limit(50).get())
+    ]);
+    const toIso = (value) => (value && typeof value.toDate === 'function') ? value.toDate().toISOString() : (value || null);
+    const voices = [];
+    owned.forEach((doc) => {
+      const data = doc.data() || {};
+      voices.push({
+        id: doc.id,
+        name: typeof data.name === 'string' ? data.name : 'Saved Voice',
+        url: typeof data.url === 'string' ? data.url : null,
+        voiceId: typeof data.voiceId === 'string' ? data.voiceId : null,
+        provider: typeof data.provider === 'string' ? data.provider : null,
+        type: typeof data.type === 'string' ? data.type : null,
+        createdAt: toIso(data.createdAt)
+      });
+    });
+    const profileData = profile.exists ? (profile.data() || {}) : {};
+    res.json({
+      clonedVoiceId: typeof profileData.clonedVoiceId === 'string' ? profileData.clonedVoiceId : null,
+      clonedVoiceName: typeof profileData.clonedVoiceName === 'string' ? profileData.clonedVoiceName : null,
+      voiceSampleUrl: typeof profileData.voiceSampleUrl === 'string' ? profileData.voiceSampleUrl : null,
+      voices
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load voice library', details: safeErrorDetail(error) });
+  }
+});
+
+// Register an uploaded sample (already stored via /api/upload-asset) in the
+// user's voice library and make it the current sample.
+app.post('/api/v2/voices/samples', verifyFirebaseToken, requireAuth, async (req, res) => {
+  try {
+    const db = getFirestoreDb();
+    if (!db) return res.status(503).json({ error: 'Voice library unavailable' });
+    const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+    const name = (typeof req.body?.name === 'string' ? req.body.name : 'Voice sample').trim().slice(0, 120) || 'Voice sample';
+    if (!/^https:\/\//i.test(url) || url.length > 4096) {
+      return res.status(400).json({ error: 'A valid https sample URL is required' });
+    }
+    const userRef = db.collection('users').doc(req.user.uid);
+    const voiceDoc = { url, name, type: 'sample', createdAt: admin.firestore.FieldValue.serverTimestamp() };
+    const [created] = await Promise.all([
+      userRef.collection('voices').add(voiceDoc),
+      userRef.set({ voiceSampleUrl: url, lastVoiceUpdate: Date.now() }, { merge: true })
+    ]);
+    res.json({ id: created.id, name, url, type: 'sample', voiceId: null, provider: null, createdAt: new Date().toISOString() });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to save voice sample', details: safeErrorDetail(error) });
   }
 });
 

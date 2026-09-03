@@ -201,9 +201,9 @@ const CREDIT_COSTS = {
   'vocal': 2,
   'speech': 2,
   'voice': 2,
-  'beat': 5,
-  'audio': 5,
-  'music': 5,
+  'beat': 10, // flat — every beat is a full 90–150s track
+  'audio': 10,
+  'music': 10,
   'image': 3,
   'video': 15,
   'video-synced': 20,
@@ -4655,10 +4655,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         featureType = 'video-synced';
     }
 
-    const requestedDuration = Number(voiceSettings.duration || 30);
-    const cost = isAudioAgent && requestedDuration > 30
-      ? CREDIT_COSTS.beat * 2
-      : (CREDIT_COSTS[featureType] || CREDIT_COSTS.default);
+    const cost = CREDIT_COSTS[featureType] || CREDIT_COSTS.default;
     
     // Lyrical Context: Try to find lyrics in the current project to inform other agents
     if (targetProjectSnapshot?.assets) {

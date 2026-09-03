@@ -10,7 +10,7 @@ import {
 import { BACKEND_URL, AGENTS, getCreatorMode } from '../constants';
 import toast from 'react-hot-toast';
 import { db, auth, doc, setDoc, updateDoc, increment, getDoc } from '../firebase';
-import { collection, query, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { deleteDoc } from 'firebase/firestore';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 import { Analytics } from '../utils/analytics';
 import {
@@ -26,6 +26,7 @@ import { productionScope, productionPrerequisiteError, unfinishedProductionSteps
 import { restoreProductionConfig, withProductionConfig, mergeProductionAssets } from '../utils/productionProjectConfig.mjs';
 import { generationFailureMessage } from '../utils/generationErrors.mjs';
 import { BEAT_GENERATION_ENDPOINT, beatGenerationRequest } from '../utils/beatGenerationRequest.mjs';
+import { fetchBackendFeatures } from '../utils/backendFeatures.mjs';
 import { personalVoiceReadiness, personalVoiceCloneLabel, resolvePersonalVoiceSelection } from '../utils/personalVoiceReadiness.mjs';
 
 // Dev-only logging — tree-shaken in production
@@ -1356,6 +1357,7 @@ function ProductionControlHub({
   handleDownloadStemsPack,
   distributing,
   shareLink,
+  soundcloudEnabled = false,
   creatorMode = 'artist',
   muxRetryParams,
   autoMuxVideoWithAudio,
@@ -2010,7 +2012,8 @@ function ProductionControlHub({
           </div>
 
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
-            {/* SoundCloud */}
+            {/* SoundCloud — only offered when the backend has credentials; a button that always 503s is worse than none */}
+            {soundcloudEnabled && (
             <button
               onClick={(finalMixPreview || mediaUrls.mixedAudio) ? handleDistributeToSoundCloud : () => toast('Create a final mix first before distributing', { icon: '🎚️' })}
               disabled={!!distributing || !(finalMixPreview || mediaUrls.mixedAudio)}
@@ -2039,6 +2042,7 @@ function ProductionControlHub({
                 <><ExternalLink size={16} /> Push to SoundCloud</>
               )}
             </button>
+            )}
 
             {/* Share Link */}
             <button
@@ -2323,8 +2327,15 @@ export default function StudioOrchestratorV2({
   const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
   const [distributing, setDistributing] = useState(null); // 'soundcloud' | 'share' | null
   const [shareLink, setShareLink] = useState(null); // Generated share link data
+  const [backendFeatures, setBackendFeatures] = useState({ soundcloud: false });
+  useEffect(() => {
+    let cancelled = false;
+    fetchBackendFeatures(BACKEND_URL).then((features) => { if (!cancelled) setBackendFeatures(features); });
+    return () => { cancelled = true; };
+  }, []);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
+  const exitIntentRef = useRef('close'); // 'close' | 'fresh' — what "Discard" in the exit dialog should do
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false); // Save/clear before re-generating
   const [isSaved, setIsSaved] = useState(!!existingProject); // Existing projects start as saved
   const [isSavingProject, setIsSavingProject] = useState(false);
@@ -2752,32 +2763,43 @@ export default function StudioOrchestratorV2({
     }
   }, [existingProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch saved voices from Firestore
+  // Personal voice library — one API call is the source of truth for the active
+  // clone, the current sample, and saved voices (no direct Firestore reads).
   useEffect(() => {
-    const fetchSavedVoices = async () => {
-      if (!auth.currentUser) return;
+    if (!isOpen || !auth.currentUser) return;
+    let cancelled = false;
+    const fetchVoiceLibrary = async () => {
       setLoadingVoices(true);
       try {
-        const q = query(
-          collection(db, 'users', auth.currentUser?.uid, 'voices')
-        );
-        const querySnapshot = await getDocs(q);
-        const voices = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        const headers = await getHeaders();
+        if (!headers.Authorization) return;
+        const response = await fetch(`${BACKEND_URL}/api/v2/voices/me`, { headers });
+        if (!response.ok) throw new Error(`Voice library unavailable (${response.status})`);
+        const library = await response.json();
+        if (cancelled) return;
+        const voices = Array.isArray(library.voices) ? library.voices : [];
         setSavedVoices(voices);
+        if (library.voiceSampleUrl) setVoiceSampleUrl(library.voiceSampleUrl);
+        // Default to the user's own voice whenever they have one — nobody who
+        // cloned their voice wants to hunt for it under "Sample Voices".
+        const personalVoiceId = library.clonedVoiceId
+          || voices.find((voice) => voice.voiceId || voice.provider === 'elevenlabs-ivc')?.voiceId
+          || null;
+        if (personalVoiceId) {
+          setClonedVoiceId(personalVoiceId);
+          setElevenLabsVoiceId(personalVoiceId);
+          setVoiceSource('personal');
+          setVoiceStyle('cloned');
+        }
       } catch (err) {
-        console.error('[Orchestrator] Error fetching saved voices:', err);
+        console.error('[Orchestrator] Error fetching voice library:', err);
       } finally {
-        setLoadingVoices(false);
+        if (!cancelled) setLoadingVoices(false);
       }
     };
-
-    if (isOpen) {
-      fetchSavedVoices();
-    }
-  }, [isOpen]);
+    fetchVoiceLibrary();
+    return () => { cancelled = true; };
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch ElevenLabs voices
   useEffect(() => {
@@ -2882,13 +2904,7 @@ export default function StudioOrchestratorV2({
           if (userData.audioDnaUrl) setAudioDnaUrl(userData.audioDnaUrl);
           if (userData.videoDnaUrl) setVideoDnaUrl(userData.videoDnaUrl);
           if (userData.lyricsDnaUrl) setLyricsDnaUrl(userData.lyricsDnaUrl);
-          if (userData.voiceSampleUrl) setVoiceSampleUrl(userData.voiceSampleUrl);
-          if (userData.clonedVoiceId) {
-            setClonedVoiceId(userData.clonedVoiceId);
-            setElevenLabsVoiceId(userData.clonedVoiceId);
-            setVoiceSource('personal');
-            setVoiceStyle('cloned');
-          }
+          // Voice fields (voiceSampleUrl / clonedVoiceId) come from /api/v2/voices/me.
           devLog('[Orchestrator] User DNA profile loaded');
         }
       } catch (err) {
@@ -3309,6 +3325,35 @@ export default function StudioOrchestratorV2({
       console.warn('[ProductionJobs] Could not discard recovered production:', error.message);
     }
   }, [getHeaders, recoveredProductionJob]);
+
+  // "Start New Project" must be a real fresh start: cancel the job we are
+  // offering to resume AND any run this orchestrator started but did not
+  // finish, so neither can resurface as a banner in the new orchestrator.
+  const startFreshProject = useCallback(async () => {
+    const offered = recoveredProductionJob;
+    const inFlightId = productionJobIdRef.current;
+    setRecoveredProductionJob(null);
+    onSwitchProject?.(null);
+    const targets = [];
+    if (offered?.id) targets.push({ id: offered.id, revision: (Number(offered.revision) || 0) + 2, steps: offered.steps, snapshot: offered.snapshot });
+    if (inFlightId && inFlightId !== offered?.id) {
+      targets.push({ id: inFlightId, revision: productionJobRevisionRef.current + 2, steps: pipelineStepsRef.current, snapshot: undefined });
+    }
+    if (targets.length === 0) return;
+    try {
+      const headers = await getHeaders();
+      if (!headers.Authorization) return;
+      await Promise.all(targets.map((target) => checkpointProductionJob(headers, target.id, {
+        revision: target.revision,
+        status: 'cancelled',
+        steps: target.steps,
+        snapshot: target.snapshot,
+        lastError: 'Cancelled: the user started a new project.'
+      }).catch((error) => console.warn('[ProductionJobs] Could not cancel job on new project:', error.message))));
+    } catch (error) {
+      console.warn('[ProductionJobs] Could not cancel jobs on new project:', error.message);
+    }
+  }, [getHeaders, onSwitchProject, recoveredProductionJob]);
 
   // Optional A&R review. It is intentionally separate from the critical
   // generation path so a review can never delay or fail asset creation.
@@ -4785,28 +4830,21 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             setVoiceSource('studio');
             toast.success('Voice sample saved. Choose Create My Voice to activate it before generation.', { id: 'voice-upload' });
             
-            // Industrial Strength Persistence: Save to User Profile
+            // Persist to the voice library through the API (single source of truth)
             if (auth.currentUser) {
               try {
-                // Primary Voice Field
-                const userRef = doc(db, 'users', auth.currentUser?.uid);
-                await updateDoc(userRef, {
-                  voiceSampleUrl: result.url,
-                  lastVoiceUpdate: Date.now()
+                const saveResponse = await fetch(`${BACKEND_URL}/api/v2/voices/samples`, {
+                  method: 'POST',
+                  headers,
+                  body: JSON.stringify({ url: result.url, name: file.name.replace(/\.[^/.]+$/, '') })
                 });
-
-                // Archive to Voices Sub-collection
-                const voiceData = {
-                  url: result.url,
-                  name: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
-                  createdAt: serverTimestamp(),
-                  type: 'cloned'
-                };
-                const docRef = await addDoc(collection(db, 'users', auth.currentUser?.uid, 'voices'), voiceData);
-                setSavedVoices(prev => [{ id: docRef.id, ...voiceData }, ...prev]);
+                const saved = await saveResponse.json().catch(() => ({}));
+                if (!saveResponse.ok) throw new Error(saved.error || `Save failed (${saveResponse.status})`);
+                setSavedVoices(prev => [saved, ...prev]);
                 toast.success('Voice saved to library');
               } catch (saveErr) {
                 console.error('Failed to save voice to profile:', saveErr);
+                toast.error('Sample uploaded but could not be added to your voice library', { id: 'voice-library-save' });
               }
             }
           } else {
@@ -6306,16 +6344,6 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
   // EXPORT ALL — Download complete project as ZIP bundle
   // Includes: master mix, beat, vocals, cover art, video, lyrics, metadata
   // ═══════════════════════════════════════════════════════════════════
-  // CRC-32 for ZIP integrity (required by ZIP spec)
-  const _crc32 = (data) => {
-    let crc = 0xFFFFFFFF;
-    for (let i = 0; i < data.length; i++) {
-      crc ^= data[i];
-      for (let j = 0; j < 8; j++) crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
-    }
-    return (crc ^ 0xFFFFFFFF) >>> 0;
-  };
-
   const handleExportAll = async () => {
     const assets = [];
     const baseName = (songIdea || 'project').replace(/[^a-zA-Z0-9 _-]/g, '').substring(0, 50);
@@ -6386,75 +6414,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         return;
       }
 
-      // Build ZIP using the Blob API (no external dependency)
-      // Uses the minimal ZIP format with local file headers + central directory
-      const zipParts = [];
-      const centralDirectory = [];
-      let offset = 0;
-
+      // Media is already compressed; store it as-is (level 0) so the export is instant.
+      const { zipSync } = await import('fflate');
+      const entries = {};
       for (const asset of assets) {
-        const fileData = new Uint8Array(await asset.blob.arrayBuffer());
-        const nameBytes = new TextEncoder().encode(asset.name);
-
-        // Local file header (30 bytes + name + data)
-        const localHeader = new Uint8Array(30 + nameBytes.length);
-        const view = new DataView(localHeader.buffer);
-        view.setUint32(0, 0x04034b50, true);  // Local file header signature
-        view.setUint16(4, 20, true);           // Version needed (2.0)
-        view.setUint16(6, 0, true);            // Flags
-        view.setUint16(8, 0, true);            // Compression: stored (no compression)
-        view.setUint16(10, 0, true);           // Mod time
-        view.setUint16(12, 0, true);           // Mod date
-        view.setUint32(14, _crc32(fileData), true); // CRC-32 (RFC 1952)
-        view.setUint32(18, fileData.length, true); // Compressed size
-        view.setUint32(22, fileData.length, true); // Uncompressed size
-        view.setUint16(26, nameBytes.length, true); // File name length
-        view.setUint16(28, 0, true);           // Extra field length
-        localHeader.set(nameBytes, 30);
-
-        zipParts.push(localHeader);
-        zipParts.push(fileData);
-
-        // Central directory entry
-        const cdEntry = new Uint8Array(46 + nameBytes.length);
-        const cdView = new DataView(cdEntry.buffer);
-        cdView.setUint32(0, 0x02014b50, true);  // Central directory signature
-        cdView.setUint16(4, 20, true);           // Version made by
-        cdView.setUint16(6, 20, true);           // Version needed
-        cdView.setUint16(8, 0, true);            // Flags
-        cdView.setUint16(10, 0, true);           // Compression
-        cdView.setUint16(12, 0, true);           // Mod time
-        cdView.setUint16(14, 0, true);           // Mod date
-        cdView.setUint32(16, _crc32(fileData), true);  // CRC-32
-        cdView.setUint32(20, fileData.length, true);
-        cdView.setUint32(24, fileData.length, true);
-        cdView.setUint16(28, nameBytes.length, true);
-        cdView.setUint16(30, 0, true);           // Extra field length
-        cdView.setUint16(32, 0, true);           // File comment length
-        cdView.setUint16(34, 0, true);           // Disk number start
-        cdView.setUint16(36, 0, true);           // Internal attrs
-        cdView.setUint32(38, 0, true);           // External attrs
-        cdView.setUint32(42, offset, true);      // Offset of local header
-        cdEntry.set(nameBytes, 46);
-
-        centralDirectory.push(cdEntry);
-        offset += localHeader.length + fileData.length;
+        const data = new Uint8Array(await asset.blob.arrayBuffer());
+        const compressible = /\.(txt|json)$/i.test(asset.name);
+        entries[asset.name] = [data, { level: compressible ? 6 : 0 }];
       }
-
-      // End of central directory record
-      const cdSize = centralDirectory.reduce((sum, e) => sum + e.length, 0);
-      const eocd = new Uint8Array(22);
-      const eocdView = new DataView(eocd.buffer);
-      eocdView.setUint32(0, 0x06054b50, true);
-      eocdView.setUint16(4, 0, true);
-      eocdView.setUint16(6, 0, true);
-      eocdView.setUint16(8, centralDirectory.length, true);
-      eocdView.setUint16(10, centralDirectory.length, true);
-      eocdView.setUint32(12, cdSize, true);
-      eocdView.setUint32(16, offset, true);
-      eocdView.setUint16(20, 0, true);
-
-      const zipBlob = new Blob([...zipParts, ...centralDirectory, eocd], { type: 'application/zip' });
+      const zipBlob = new Blob([zipSync(entries)], { type: 'application/zip' });
       const zipUrl = URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
       a.href = zipUrl;
@@ -7327,7 +7295,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         let cost = 0;
                         const active = selectedAgents;
                         if (active.lyrics) cost += 1 + 2; // text + vocals
-                        if (active.audio) cost += 1 + (duration > 30 ? 10 : 5); // text + beat audio
+                        if (active.audio) cost += 1 + 10; // text + beat audio (flat, full-length)
                         if (active.visual) cost += 1 + 3; // text + image
                         if (active.video) cost += 1 + 15; // text + video
                         if (active.lyrics && active.audio) cost += 10; // final mix
@@ -9534,6 +9502,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               handleDownloadStemsPack={handleDownloadStemsPack}
               distributing={distributing}
               shareLink={shareLink}
+              soundcloudEnabled={backendFeatures.soundcloud}
               creatorMode={creatorMode}
               muxRetryParams={muxRetryParams}
               autoMuxVideoWithAudio={autoMuxVideoWithAudio}
@@ -10093,9 +10062,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               onClick={() => {
                 setShowProjectSwitcher(false);
                 if (hasUnsavedContent()) {
+                  exitIntentRef.current = 'fresh';
                   setShowExitConfirm(true);
                 } else {
-                  onSwitchProject?.(null);
+                  void startFreshProject();
                 }
               }}
               style={{
@@ -10290,6 +10260,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               <div style={{ display: 'flex', gap: '12px', flexDirection: isMobile ? 'column-reverse' : 'row' }}>
                 <button
                   onClick={() => {
+                    exitIntentRef.current = 'close';
                     setShowExitConfirm(false);
                   }}
                   className="btn-pill glass"
@@ -10303,7 +10274,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 <button
                   onClick={() => {
                     setShowExitConfirm(false);
-                    onClose?.();
+                    const intent = exitIntentRef.current;
+                    exitIntentRef.current = 'close';
+                    if (intent === 'fresh') void startFreshProject();
+                    else onClose?.();
                   }}
                   className="btn-pill secondary"
                   style={{
@@ -10311,7 +10285,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     padding: '12px'
                   }}
                 >
-                  Discard & Exit
+                  {exitIntentRef.current === 'fresh' ? 'Discard & Start New' : 'Discard & Exit'}
                 </button>
               </div>
             </div>

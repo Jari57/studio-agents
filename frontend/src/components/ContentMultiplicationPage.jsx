@@ -179,7 +179,7 @@ const ASSET_SUMMARY = [
   { asset: 'Alternate Motion Loop', agent: 'Video Creator', credits: 15 },
   { asset: '15s Hook Clips (×3)', agent: 'Orchestrator', credits: 8 },
   { asset: '30s Teaser Clip', agent: 'Orchestrator', credits: 8 },
-  { asset: 'Mixed Master Track', agent: 'Beat + Vocal + Mix', credits: 7 },
+  { asset: 'Mixed Master Track', agent: 'Beat + Vocal + Mix', credits: 22 },
   { asset: 'Instrumental Version', agent: 'Beat Maker', credits: 0 },
   { asset: 'Pre-save Copy & Bio', agent: 'Ghostwriter', credits: 1 },
   { asset: 'Kinetic Type Video', agent: 'Video Creator', credits: 15 },

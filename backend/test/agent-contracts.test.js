@@ -25,7 +25,9 @@ test('Mastering accepts playable audio and every execution identifies its agent'
   assert.match(frontend, /\(isAudioAgent \|\| isSpeechAgent \|\| isMasterAgent\)/);
   assert.match(frontend, /finalBody = \{ \.\.\.finalBody, agentId: finalBody\.agentId \|\| agentId \}/);
   assert.match(frontend, /metadata: \{ projectId: targetProjectSnapshot\?\.id \|\| null, featureType, agentId \}/);
-  assert.match(frontend, /requestedDuration > 30/);
+  // Beats have one flat price (full-length tracks); no duration-based doubling on the client.
+  assert.doesNotMatch(frontend, /requestedDuration > 30/);
+  assert.match(frontend, /'beat': 10/);
 });
 
 test('paid media requests are durable, idempotent, and retain storage provenance', () => {
