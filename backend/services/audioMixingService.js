@@ -234,11 +234,16 @@ async function mixAudioProfessional(options, logger) {
       // === AUTO-DUCKING (Lyria-grade sidechaining) ===
       // When vocals play, slightly reduce beat volume for clarity
       if (autoDuck) {
+        // A filter output may only feed ONE input. ffmpeg 7+ (Railway/Alpine)
+        // rejects reusing [vocal] for both the sidechain key and the mix
+        // ("Stream specifier 'vocal' in filtergraph description ... Invalid
+        // argument"), so fork it explicitly.
+        filterComplex.push(`[vocal]asplit=2[vocal_key][vocal_mix]`);
         // threshold 0.05 = lower threshold for more responsive ducking
         // ratio 4.0 = firmer pocket for vocals (Billboard Standard)
         // attack 5ms = faster ducking to avoid initial clashing
-        filterComplex.push(`[beat][vocal]sidechaincompress=threshold=0.08:ratio=2.5:attack=10:release=220:makeup=1[beat_ducked]`);
-        filterComplex.push(`[vocal][beat_ducked]amix=inputs=2:duration=longest:normalize=0[mixed]`);
+        filterComplex.push(`[beat][vocal_key]sidechaincompress=threshold=0.08:ratio=2.5:attack=10:release=220:makeup=1[beat_ducked]`);
+        filterComplex.push(`[vocal_mix][beat_ducked]amix=inputs=2:duration=longest:normalize=0[mixed]`);
       } else {
         // Simple mix without ducking — normalize=0 preserves volume
         filterComplex.push(`[vocal][beat]amix=inputs=2:duration=longest:normalize=0[mixed]`);
