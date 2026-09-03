@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Award, Music, Mic, Video, Image, FileText, Zap, Star, Crown, 
   Trophy, Flame, Sparkles, Target, Heart, Disc, Film, Globe, 
@@ -258,16 +258,28 @@ export function useBadgeTracker(userId) {
     localStorage.setItem(`studio_badge_stats_${key}`, JSON.stringify(stats));
   }, [earnedBadges, stats, userId]);
 
-  const awardBadge = useCallback((badgeId) => {
-    const badge = BADGE_DEFINITIONS[badgeId];
-    if (!badge || earnedBadges[badgeId]) return;
-    
-    const newEarned = { ...earnedBadges, [badgeId]: { earnedAt: new Date().toISOString() } };
-    setEarnedBadges(newEarned);
-    
-    // Show toast notification
-    toast.custom((t) => (
-      <div 
+  // A ref mirror of earnedBadges that's updated the instant a badge is queued
+  // (synchronously, ahead of React's re-render). Several tracker events (e.g.
+  // one save per generated asset) can call checkBadges within the same short
+  // window, each capturing the `earnedBadges` state closure *before* the
+  // previous call's setEarnedBadges has flushed and re-rendered. Reading/
+  // writing this ref instead of the stale closure prevents the same badge
+  // from being re-awarded (and re-toasted) multiple times in that window.
+  const earnedBadgesRef = useRef(earnedBadges);
+  useEffect(() => {
+    earnedBadgesRef.current = earnedBadges;
+  }, [earnedBadges]);
+
+  // Maximum badge toasts to show in a single burst. Any additional badges
+  // earned in the same check are still recorded/persisted silently, just
+  // without piling on more toasts (a batch-sync can legitimately cross many
+  // thresholds at once; the UI should never dump 15-20 toasts on the user).
+  const MAX_BADGE_TOASTS_PER_BURST = 3;
+  const TOAST_STAGGER_MS = 450;
+
+  const showBadgeToast = useCallback((badge, delayMs = 0) => {
+    const fire = () => toast.custom((t) => (
+      <div
         onClick={() => toast.dismiss(t.id)}
         style={{
           display: 'flex', alignItems: 'center', gap: '12px',
@@ -299,56 +311,81 @@ export function useBadgeTracker(userId) {
         </div>
       </div>
     ), { duration: 4000 });
-  }, [earnedBadges]);
 
-  // Check and award badges based on current stats
+    if (delayMs > 0) setTimeout(fire, delayMs);
+    else fire();
+  }, []);
+
+  // Check and award badges based on current stats. Collects every
+  // newly-qualifying badge and applies them as a SINGLE state update
+  // (avoiding the stale-closure re-award race from awarding one badge at a
+  // time inside a loop), then shows their toasts staggered instead of all
+  // at once.
   const checkBadges = useCallback((currentStats) => {
     const allBadges = getAllBadges();
-    
+    const newlyEarnedIds = [];
+
     allBadges.forEach(badge => {
-      if (earnedBadges[badge.id]) return; // Already earned
-      
+      if (earnedBadgesRef.current[badge.id]) return; // Already earned
+      let qualifies = false;
+
       switch (badge.trigger) {
         case 'generation':
-          if (badge.agentId && (currentStats.agentCounts[badge.agentId] || 0) >= badge.threshold) {
-            awardBadge(badge.id);
-          }
+          qualifies = !!badge.agentId && (currentStats.agentCounts[badge.agentId] || 0) >= badge.threshold;
           break;
         case 'total_generations':
-          if (currentStats.totalGenerations >= badge.threshold) {
-            awardBadge(badge.id);
-          }
+          qualifies = currentStats.totalGenerations >= badge.threshold;
           break;
         case 'unique_agents':
-          if (currentStats.uniqueAgents.length >= badge.threshold) {
-            awardBadge(badge.id);
-          }
+          qualifies = currentStats.uniqueAgents.length >= badge.threshold;
           break;
         case 'pipeline':
-          if (badge.requires && badge.requires.every(a => currentStats.pipelineAgents.includes(a))) {
-            awardBadge(badge.id);
-          }
+          qualifies = !!badge.requires && badge.requires.every(a => currentStats.pipelineAgents.includes(a));
           break;
         case 'project_save':
-          if (currentStats.projectsSaved >= badge.threshold) {
-            awardBadge(badge.id);
-          }
+          qualifies = currentStats.projectsSaved >= badge.threshold;
           break;
         case 'tour_complete':
-          if (currentStats.tourCompleted) {
-            awardBadge(badge.id);
-          }
+          qualifies = !!currentStats.tourCompleted;
           break;
         case 'mix':
-          if (currentStats.mixesCreated >= badge.threshold) {
-            awardBadge(badge.id);
-          }
+          qualifies = currentStats.mixesCreated >= badge.threshold;
           break;
         default:
           break;
       }
+
+      if (qualifies) newlyEarnedIds.push(badge.id);
     });
-  }, [earnedBadges, awardBadge]);
+
+    if (newlyEarnedIds.length === 0) return;
+
+    const earnedAt = new Date().toISOString();
+
+    // Mark these badges earned in the ref immediately (synchronously), so any
+    // other checkBadges call already in flight (or fired moments later, before
+    // this state update has rendered) sees them as already-earned instead of
+    // independently re-awarding + re-toasting them.
+    earnedBadgesRef.current = { ...earnedBadgesRef.current };
+    for (const id of newlyEarnedIds) {
+      if (!earnedBadgesRef.current[id]) earnedBadgesRef.current[id] = { earnedAt };
+    }
+
+    setEarnedBadges(prev => {
+      const next = { ...prev };
+      for (const id of newlyEarnedIds) {
+        if (!next[id]) next[id] = { earnedAt };
+      }
+      return next;
+    });
+
+    newlyEarnedIds
+      .slice(0, MAX_BADGE_TOASTS_PER_BURST)
+      .forEach((id, index) => {
+        const badge = BADGE_DEFINITIONS[id];
+        if (badge) showBadgeToast(badge, index * TOAST_STAGGER_MS);
+      });
+  }, [showBadgeToast]);
 
   // Track a generation event
   const trackGeneration = useCallback((agentId) => {

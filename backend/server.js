@@ -7071,8 +7071,13 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     }
 
     // 3. Replicate MusicGen legacy fallback. A premium label must not make one
-    // provider a single point of failure for the complete asset pipeline.
-    if (replicateKey && !audioUrl && (referenceAudio || requestedEngine === 'music-gpt' || !strictPremiumBeat)) {
+    // provider a single point of failure for the complete asset pipeline. This
+    // must run whenever the earlier premium providers (Stability, MiniMax)
+    // failed to produce audio — strictPremiumBeat only controls *preference*
+    // ordering, never whether a fallback runs at all, otherwise a premium
+    // request with no working primary provider fails outright with zero
+    // fallback (the exact bug this comment already warned against).
+    if (replicateKey && !audioUrl) {
       try {
         logger.info('Using Replicate Music GPT (stereo-large)');
         const replicate = new Replicate({ auth: replicateKey });
@@ -7146,8 +7151,11 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       }
     }
 
-    // 4. FAL.ai last fallback
-    if (falKey && !audioUrl && !strictPremiumBeat) {
+    // 4. FAL.ai last fallback. Same reasoning as MusicGen above: only ever
+    // reached when every earlier provider already failed (!audioUrl), so this
+    // never degrades a successful premium generation — it just prevents a
+    // total failure when Stability/MiniMax/MusicGen are all down or over quota.
+    if (falKey && !audioUrl) {
       try {
         const response = await fetchWithRetry('https://queue.fal.run/beatoven/music-generation', {
           method: 'POST',

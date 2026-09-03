@@ -4679,17 +4679,39 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     // Duration guard: the singing-clone engine (MiniMax Music) requires a
     // sample of at least 15 seconds to reproduce the voice as a full sung
     // song. Shorter clips fall back to lower-quality speech, so block them.
+    //
+    // NOTE: mobile browsers (iOS Safari in particular, and many in-app
+    // webviews) frequently report `duration: 0` or `Infinity` on the very
+    // first `loadedmetadata` event for phone-recorded .mp3/.wav files —
+    // this is NOT the real duration, just metadata that hasn't finished
+    // loading yet. Treating that placeholder as "too short" was rejecting
+    // valid phone recordings. Only trust a duration reading that is finite
+    // AND greater than 0; anything else is treated as "unknown" and the
+    // upload is allowed through (the backend validates length as needed).
     try {
       const durationSec = await new Promise((resolve) => {
         const objUrl = URL.createObjectURL(file);
         const probe = new Audio();
         probe.preload = 'metadata';
-        probe.onloadedmetadata = () => {
-          const d = probe.duration;
+        let settled = false;
+        const finish = (d) => {
+          if (settled) return;
+          settled = true;
           URL.revokeObjectURL(objUrl);
-          resolve(Number.isFinite(d) ? d : null);
+          resolve(Number.isFinite(d) && d > 0 ? d : null);
         };
-        probe.onerror = () => { URL.revokeObjectURL(objUrl); resolve(null); };
+        probe.onloadedmetadata = () => {
+          // Some mobile browsers report duration correctly only after
+          // `durationchange` fires (loadedmetadata can be a placeholder).
+          if (Number.isFinite(probe.duration) && probe.duration > 0) {
+            finish(probe.duration);
+          }
+        };
+        probe.ondurationchange = () => finish(probe.duration);
+        probe.onerror = () => finish(null);
+        // Safety net: don't block the upload indefinitely if metadata
+        // never resolves on a given device.
+        setTimeout(() => finish(null), 3000);
         probe.src = objUrl;
       });
       if (durationSec !== null && durationSec < 15) {
@@ -5804,7 +5826,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       // Always call the mixing endpoint when we have both vocals + beat (dry vocals, clean mix)
       if (hasVocals && hasBeat) {
-        toast.loading('Mixing vocals + beat into master (auto-tune + tempo sync ~30s)...', { id: 'final-mix' });
+        toast.loading('Mixing vocals + beat into master (auto-tune + tempo sync, may take a few minutes)...', { id: 'final-mix' });
 
         const headers = await getPaidStepHeaders('final-mix');
         const response = await fetch(`${BACKEND_URL}/api/create-final-mix`, {
@@ -5828,7 +5850,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             artist: 'Studio Agents AI',
             coverArtUrl: currentMediaUrls.image || null
           }),
-          signal: createTimeoutSignal(120000)
+          // Auto-tune + tempo sync + mastering is real DSP work and can
+          // legitimately run past 2 minutes. A shorter browser timeout was
+          // aborting the request while the backend kept processing (and
+          // sometimes finished the mix moments later), making the job look
+          // like it "fails after ~5 minutes" when vocal generation (up to
+          // 5 min) was immediately followed by a too-short 2-min mix abort.
+          signal: createTimeoutSignal(600000)
         });
 
         if (response.ok) {

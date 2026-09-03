@@ -158,8 +158,27 @@ function GuidedTour({ active, onClose, onNavigate }) {
     let tooltipLeft = left - tooltipWidth / 2;
     tooltipLeft = Math.max(16, Math.min(tooltipLeft, window.innerWidth - tooltipWidth - 16));
 
+    // Estimated tooltip height (title + description + nav row + padding).
+    // Used to keep the whole card fully on-screen — actual measured height
+    // (via tooltipRef) refines this on the next frame in positionTooltip's
+    // caller effect.
+    const estimatedHeight = tooltipRef.current?.offsetHeight || 220;
+    const viewportMargin = 16;
+
     let tooltipTop = pos === 'top' ? undefined : top;
     let tooltipBottom = pos === 'top' ? (window.innerHeight - top) : undefined;
+
+    if (pos === 'top') {
+      // Tooltip's bottom edge sits at `top`; make sure its top edge
+      // (top - estimatedHeight) never goes above the viewport.
+      tooltipBottom = Math.min(tooltipBottom, window.innerHeight - estimatedHeight - viewportMargin);
+      tooltipBottom = Math.max(tooltipBottom, viewportMargin);
+    } else {
+      // Tooltip's top edge sits at `top`; make sure its bottom edge
+      // (top + estimatedHeight) never goes past the viewport.
+      tooltipTop = Math.max(tooltipTop, viewportMargin);
+      tooltipTop = Math.min(tooltipTop, window.innerHeight - estimatedHeight - viewportMargin);
+    }
 
     // Recalculate arrow horizontal position relative to tooltip
     const arrowLeft = Math.max(24, Math.min(left - tooltipLeft, tooltipWidth - 24));

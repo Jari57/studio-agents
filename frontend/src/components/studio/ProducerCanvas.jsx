@@ -26,9 +26,21 @@ const numberValue = (value, fallback = 0) => {
 
 function ProducerTrack({ track, index, onChange, onRemove, disabled }) {
   const [expanded, setExpanded] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const confirmTimer = useRef(null);
   const meta = ROLE_META[track.role] || ROLE_META.instrument;
   const Icon = meta.icon;
   const patch = (changes) => onChange(track.id, changes);
+  useEffect(() => () => window.clearTimeout(confirmTimer.current), []);
+  const handleRemoveClick = () => {
+    if (confirmRemove) {
+      window.clearTimeout(confirmTimer.current);
+      onRemove(track.id);
+      return;
+    }
+    setConfirmRemove(true);
+    confirmTimer.current = window.setTimeout(() => setConfirmRemove(false), 2600);
+  };
 
   return (
     <article className={`producer-track${track.muted ? ' is-muted' : ''}${track.solo ? ' is-solo' : ''}`} style={{ '--track-color': meta.color }}>
@@ -49,8 +61,17 @@ function ProducerTrack({ track, index, onChange, onRemove, disabled }) {
         <button className={`producer-mini-button${track.muted ? ' danger' : ''}`} onClick={() => patch({ muted: !track.muted })} aria-pressed={Boolean(track.muted)} aria-label={`Mute ${track.name}`} title={track.muted ? 'Unmute track' : 'Mute track'}>
           {track.muted ? <VolumeX size={14} /> : 'M'}
         </button>
+        <span className="producer-track-divider" aria-hidden="true" />
         <button className="producer-mini-button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} title="Detailed controls">
           {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        </button>
+        <button
+          className={`producer-mini-button danger${confirmRemove ? ' confirm' : ''}`}
+          onClick={handleRemoveClick}
+          aria-label={confirmRemove ? `Confirm remove ${track.name} lane` : `Remove ${track.name} lane`}
+          title={confirmRemove ? 'Click again to remove' : 'Remove lane'}
+        >
+          <Trash2 size={14} />
         </button>
       </div>
 
@@ -72,7 +93,6 @@ function ProducerTrack({ track, index, onChange, onRemove, disabled }) {
           </label>
           <ProducerControl label="Fade in" name={`${track.name} fade in`} value={track.fadeIn ?? 0} min={0} max={30} step={0.1} unit="seconds" onChange={value => patch({ fadeIn: value })} />
           <ProducerControl label="Fade out" name={`${track.name} fade out`} value={track.fadeOut ?? 0} min={0} max={30} step={0.1} unit="seconds" onChange={value => patch({ fadeOut: value })} />
-          <button className="producer-remove-track" onClick={() => onRemove(track.id)}><Trash2 size={14} /> Remove lane</button>
         </div>
       )}
       </fieldset>
@@ -100,6 +120,7 @@ export default function ProducerCanvas({
   const [assetRole, setAssetRole] = useState('beat');
   const [showLibrary, setShowLibrary] = useState(true);
   const [librarySearch, setLibrarySearch] = useState('');
+  const [libraryScope, setLibraryScope] = useState('project');
   const [selectedMixId, setSelectedMixId] = useState(null);
   const [playbackError, setPlaybackError] = useState('');
 
@@ -108,7 +129,10 @@ export default function ProducerCanvas({
     const solos = tracks.filter((track) => track.solo && !track.muted);
     return solos.length ? solos : tracks.filter((track) => !track.muted);
   }, [tracks]);
-  const audioAssets = useMemo(() => producerAudioLibrary(project, projects, librarySearch), [project, projects, librarySearch]);
+  const audioAssets = useMemo(
+    () => producerAudioLibrary(project, libraryScope === 'all' ? projects : [], librarySearch),
+    [project, projects, librarySearch, libraryScope]
+  );
   const unusedAssets = useMemo(() => {
     const urls = new Set(tracks.map((track) => track.url));
     return audioAssets.filter((asset) => !urls.has(asset.audioUrl));
@@ -234,14 +258,18 @@ export default function ProducerCanvas({
               <span><Music2 size={16} /> Studio asset library</span>{showLibrary ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
             {showLibrary && <div className="producer-asset-list">
-              <input type="search" aria-label="Search your audio library" placeholder="Find audio across your projects…" value={librarySearch} onChange={event => setLibrarySearch(event.target.value)} />
+              <div className="producer-scope-toggle" role="group" aria-label="Asset library scope">
+                <button type="button" className={libraryScope === 'project' ? 'active' : ''} onClick={() => setLibraryScope('project')}>This project</button>
+                <button type="button" className={libraryScope === 'all' ? 'active' : ''} onClick={() => setLibraryScope('all')}>All projects</button>
+              </div>
+              <input type="search" aria-label="Search your audio library" placeholder={libraryScope === 'all' ? 'Find audio across your projects…' : 'Find audio in this project…'} value={librarySearch} onChange={event => setLibrarySearch(event.target.value)} />
               {unusedAssets.length ? unusedAssets.map((asset) => (
                 <button disabled={rendering || uploading || tracks.length >= 12} key={asset.audioUrl} onClick={() => onAddAsset(asset, inferProducerRole(asset))}>
                   <span><Play size={13} fill="currentColor" /></span>
                   <div><strong>{asset.title || asset.agent || 'Audio asset'}</strong><small>{ROLE_META[inferProducerRole(asset)].label} · {asset.projectName}</small></div>
                   <Plus size={15} />
                 </button>
-              )) : <p className="producer-panel-empty">No matching unused audio. Search another project or upload a stem.</p>}
+              )) : <p className="producer-panel-empty">{libraryScope === 'all' ? 'No matching unused audio. Search another project or upload a stem.' : 'No unused audio in this project yet. Switch to "All projects" or upload a stem.'}</p>}
               <p className="producer-panel-empty">Up to 12 lanes. Adding audio keeps the original project and asset intact.</p>
             </div>}
           </section>

@@ -483,7 +483,25 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   });
 
   // --- PROJECTS & ASSETS ---
-  const [selectedProject, setSelectedProject] = useState(null);
+  // Restore the last-open project synchronously from localStorage on mount
+  // (matching how `projects`/`activeTab` already restore). Without this,
+  // returning to project_canvas (via tab switch or page refresh) found
+  // selectedProject still null, so the Orchestrator/ProjectHub rendered as
+  // a brand-new blank project instead of the one the user was working on.
+  const [selectedProject, setSelectedProject] = useState(() => {
+    try {
+      const uid = localStorage.getItem('studio_user_id') || 'guest';
+      const savedProjectId = localStorage.getItem(`studio_selected_project_${uid}`);
+      if (!savedProjectId) return null;
+      const savedProjects = localStorage.getItem(`studio_projects_${uid}`) || localStorage.getItem('studio_agents_projects');
+      if (!savedProjects) return null;
+      const parsed = JSON.parse(savedProjects);
+      if (!Array.isArray(parsed)) return null;
+      return parsed.find(p => p?.id === savedProjectId) || null;
+    } catch {
+      return null;
+    }
+  });
   const [isProjectsLoading, setIsProjectsLoading] = useState(true);
   const [projects, setProjects] = useState(() => {
     try {
