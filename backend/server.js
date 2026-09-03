@@ -7060,7 +7060,15 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     } = req.body;
 
     const bpm = parseInt(rawBpm) || 90;
-    const durationSeconds = Math.max(parseInt(rawDuration) || 60, 30); // Minimum 30s for professional quality
+    // Product policy: every beat is a usable full-length track (1:30–2:30).
+    // Clamp server-side so stale clients or short defaults can't produce 30s clips.
+    const BEAT_MIN_SECONDS = 90;
+    const BEAT_MAX_SECONDS = 150;
+    const requestedBeatSeconds = parseInt(rawDuration) || 120;
+    const durationSeconds = Math.min(Math.max(requestedBeatSeconds, BEAT_MIN_SECONDS), BEAT_MAX_SECONDS);
+    if (requestedBeatSeconds !== durationSeconds) {
+      logger.info(`🎵 Beat duration clamped to policy: requested ${requestedBeatSeconds}s → ${durationSeconds}s`);
+    }
     const strictPremiumBeat = quality === 'premium' || quality === 'ultra';
     if (!prompt) {
       await refundCredits(req, 'beat request missing prompt');

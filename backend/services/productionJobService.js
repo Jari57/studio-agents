@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 
 const JOB_STATUSES = new Set(['queued', 'running', 'needs_attention', 'completed', 'cancelled']);
+const ACTIVE_JOB_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const STEP_STATUSES = new Set(['pending', 'active', 'done', 'error']);
 const STEP_IDS = new Set([
   'lyrics', 'beat-desc', 'visual-desc', 'beat-audio', 'image',
@@ -212,17 +213,38 @@ function createProductionJobService({ getDb, admin, logger = console }) {
     return serializeJob(snapshot.id, snapshot.data());
   }
 
-  async function getActive(userId) {
+  async function getActive(userId, { now = Date.now(), maxAgeMs = ACTIVE_JOB_MAX_AGE_MS } = {}) {
     const db = getDb();
     if (!db) throw new Error('Firestore unavailable');
-    const snapshot = await db.collection('users').doc(userId).collection('productionJobs').limit(50).get();
+    const collection = db.collection('users').doc(userId).collection('productionJobs');
+    const snapshot = await collection.limit(50).get();
     const jobs = [];
+    const expired = [];
     snapshot.forEach((doc) => {
       const data = doc.data();
-      if (['queued', 'running', 'needs_attention'].includes(data.status)) {
-        jobs.push(serializeJob(doc.id, data));
+      if (!['queued', 'running', 'needs_attention'].includes(data.status)) return;
+      const job = serializeJob(doc.id, data);
+      const lastTouched = Date.parse(job.updatedAt || job.createdAt || '');
+      // An unfinished run that nobody touched for a day is abandoned, not
+      // "active". Re-offering it forever made every fresh orchestrator open
+      // with a stale "Production ready to resume" banner.
+      if (Number.isFinite(lastTouched) && now - lastTouched > maxAgeMs) {
+        expired.push(doc.ref);
+        return;
       }
+      jobs.push(job);
     });
+    if (expired.length > 0) {
+      const timestamp = admin?.firestore?.FieldValue?.serverTimestamp?.() ?? new Date().toISOString();
+      await Promise.all(expired.map((ref) => ref.set({
+        status: 'cancelled',
+        lastError: 'Expired: production was not resumed within 24 hours.',
+        updatedAt: timestamp,
+        completedAt: timestamp
+      }, { merge: true }).catch((error) => {
+        logger.warn?.(`[ProductionJobs] Could not expire stale job ${ref.id}: ${error.message}`);
+      })));
+    }
     jobs.sort((a, b) => String(b.updatedAt || b.createdAt).localeCompare(String(a.updatedAt || a.createdAt)));
     return jobs[0] || null;
   }
