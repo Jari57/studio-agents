@@ -461,6 +461,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     const lastTab = localStorage.getItem(`studio_tab_${uid}`);
     return (lastTab && VALID_TABS.includes(lastTab)) ? lastTab : 'mystudio';
   });
+  // Mirrors activeTab synchronously so the async hashchange handler below can
+  // tell a real browser navigation from the echo of a programmatic tab change.
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
   const [theme, setTheme] = useStudioTheme();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [selectedAgent, setSelectedAgent] = useState(() => {
@@ -822,7 +826,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         if (activeTab !== 'agents') _setActiveTab('agents');
         if (selectedAgent?.id !== agent.id) setSelectedAgent(agent);
       } else if (VALID_TABS.includes(tabOrId)) {
-        setShowOrchestrator(false);
+        // Only a real tab change dismisses the production pipeline. The
+        // pipeline launchers call setActiveTab('mystudio') and then open the
+        // orchestrator synchronously; the resulting hashchange echo lands here
+        // with the tab already committed and must not close what was just opened.
+        if (tabOrId !== activeTabRef.current) {
+          setShowOrchestrator(false);
+        }
         if (tabOrId !== 'agents' && tabOrId !== 'project_canvas' && selectedAgent) {
           setSelectedAgent(null);
         }
@@ -852,6 +862,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       setSelectedAgent(null);
     }
     if (tab !== activeTab) {
+      activeTabRef.current = tab;
       _setActiveTab(tab);
       const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
       localStorage.setItem(`studio_tab_${uid}`, tab);
