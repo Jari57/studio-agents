@@ -33,3 +33,5 @@ bundle-stats.html
 
 # Claude temp files
 tmpclaude-*
+.vercel
+.env*.local
