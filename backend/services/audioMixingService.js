@@ -239,10 +239,15 @@ async function mixAudioProfessional(options, logger) {
         // ("Stream specifier 'vocal' in filtergraph description ... Invalid
         // argument"), so fork it explicitly.
         filterComplex.push(`[vocal]asplit=2[vocal_key][vocal_mix]`);
+        // Silence-pad only the detector, never the audible vocal. Otherwise
+        // sidechaincompress stops the beat the moment a shorter vocal ends and
+        // the master gets truncated to the vocal length. The finite beat
+        // bounds the padded detector's lifetime.
+        filterComplex.push(`[vocal_key]apad[vocal_detector]`);
         // threshold 0.05 = lower threshold for more responsive ducking
         // ratio 4.0 = firmer pocket for vocals (Billboard Standard)
         // attack 5ms = faster ducking to avoid initial clashing
-        filterComplex.push(`[beat][vocal_key]sidechaincompress=threshold=0.08:ratio=2.5:attack=10:release=220:makeup=1[beat_ducked]`);
+        filterComplex.push(`[beat][vocal_detector]sidechaincompress=threshold=0.08:ratio=2.5:attack=10:release=220:makeup=1[beat_ducked]`);
         filterComplex.push(`[vocal_mix][beat_ducked]amix=inputs=2:duration=longest:normalize=0[mixed]`);
       } else {
         // Simple mix without ducking — normalize=0 preserves volume
