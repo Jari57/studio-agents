@@ -16,6 +16,25 @@ const net = require('net');
 // Wire the bundled ffmpeg binary so it works on Railway/Heroku/etc.
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
+// fluent-ffmpeg only reports the last stderr line ("Conversion failed!").
+// Keep the tail of ffmpeg's own diagnostics, minus local file paths, so a
+// failed mix can tell the user (and the logs) what actually went wrong.
+function describeFfmpegFailure(err, stderr) {
+  const tail = String(stderr || '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !/^(frame=|size=|Conversion failed!$)/.test(line))
+    .slice(-3)
+    .join(' | ')
+    .replace(/[A-Za-z]:\\[^\s'"|]+|\/[^\s'"|]+/g, '<file>');
+  const base = err?.message || 'ffmpeg failed';
+  const message = tail && !base.includes(tail) ? `${base} — ${tail}` : base;
+  const wrapped = new Error(message.slice(0, 500));
+  wrapped.code = 'MIX_RENDER_FAILED';
+  wrapped.publicReason = message.slice(0, 300);
+  return wrapped;
+}
+
 /**
  * Download audio/video file from URL with redirect following and timeout
  */
@@ -304,8 +323,9 @@ async function mixAudioProfessional(options, logger) {
             }
           });
         })
-        .on('error', (err) => {
-          if (logger) logger.error('Mixing error', { error: err.message });
+        .on('error', (err, _stdout, stderr) => {
+          const failure = describeFfmpegFailure(err, stderr);
+          if (logger) logger.error('Mixing error', { error: failure.message });
 
           // Cleanup on error
           try {
@@ -314,7 +334,7 @@ async function mixAudioProfessional(options, logger) {
             }
           } catch (_e) { /* ignore */ }
 
-          reject(err);
+          reject(failure);
         });
 
       cmd.run();
@@ -350,10 +370,17 @@ async function mixAudioFromUrls(vocalUrl, beatUrl, options, logger) {
     });
 
     // Download both files in parallel
-    await Promise.all([
-      downloadAudio(vocalUrl, vocalPath),
-      downloadAudio(beatUrl, beatPath)
-    ]);
+    try {
+      await Promise.all([
+        downloadAudio(vocalUrl, vocalPath),
+        downloadAudio(beatUrl, beatPath)
+      ]);
+    } catch (downloadError) {
+      const failure = new Error(`Could not download audio for mixing: ${downloadError.message}`);
+      failure.code = 'MIX_AUDIO_DOWNLOAD_FAILED';
+      failure.publicReason = failure.message.slice(0, 300);
+      throw failure;
+    }
 
     if (logger) logger.info('Audio files downloaded, starting mix...');
 

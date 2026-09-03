@@ -7840,7 +7840,8 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
     }, logger);
 
     if (!mixResult || !mixResult.outputPath || !fs.existsSync(mixResult.outputPath)) {
-      return res.status(500).json({ error: 'Mixing failed — no output produced' });
+      await refundCredits(req, 'final mix produced no output');
+      return res.status(500).json({ error: 'Failed to create final mix', code: 'MIX_NO_OUTPUT', reason: 'Mixing produced no output file' });
     }
 
     // ── ID3 METADATA + COVER ART EMBEDDING ──
@@ -7975,8 +7976,16 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
       processing: mixResult.processing
     });
   } catch (err) {
-    logger.error('Final mix error:', err);
-    res.status(500).json({ error: 'Failed to create final mix', details: safeErrorDetail(err) });
+    logger.error('Final mix error:', { code: err?.code || null, error: err?.message, stack: err?.stack?.split('\n').slice(0, 3).join(' | ') });
+    await refundCredits(req, 'final mix failed');
+    // `publicReason` is a sanitized ffmpeg/download summary (no paths); it is
+    // what lets the user act on "Failed to create final mix".
+    res.status(500).json({
+      error: 'Failed to create final mix',
+      code: err?.code || 'MIX_FAILED',
+      reason: err?.publicReason || undefined,
+      details: safeErrorDetail(err)
+    });
   }
 });
 

@@ -5907,7 +5907,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           const err = await response.json().catch(() => ({}));
           devWarn('[FinalMix] Mixing failed; no master will be saved', err);
           setMixFailed(true);
-          throw new Error(err.details || err.error || 'The mixer could not create a master.');
+          const reason = err.reason || err.details;
+          throw new Error(reason ? `${err.error || 'Mix failed'}: ${reason}` : (err.error || 'The mixer could not create a master.'));
         }
       }
 
