@@ -1091,6 +1091,33 @@ const allowedOrigins = isDevelopment
 
 app.use(cors(createCorsPolicy(allowedOrigins, logger)));
 
+// Generated assets live in Firebase Storage. Without a bucket CORS policy the
+// browser can play them (<audio>/<video> tags are exempt) but every fetch()
+// based feature — "Save" downloads, Export All (.zip), stems packing, waveform
+// analysis — is blocked and silently falls back to popups. Apply the policy
+// once at boot so the whole app can read its own assets. Read-only (GET/HEAD).
+async function ensureStorageCors() {
+  const bucket = getStorageBucket();
+  if (!bucket) return;
+  const origins = Array.from(new Set(allowedOrigins.filter(o => /^https?:\/\//.test(o))));
+  const desired = [{
+    origin: origins,
+    method: ['GET', 'HEAD'],
+    responseHeader: ['Content-Type', 'Content-Length', 'Content-Range', 'Accept-Ranges', 'Range'],
+    maxAgeSeconds: 3600
+  }];
+  try {
+    const [metadata] = await bucket.getMetadata();
+    const current = JSON.stringify(metadata?.cors || []);
+    if (current === JSON.stringify(desired)) return;
+    await bucket.setCorsConfiguration(desired);
+    logger.info('📦 Firebase Storage CORS policy applied', { origins: origins.length });
+  } catch (error) {
+    logger.warn('Firebase Storage CORS policy could not be applied (downloads will use fallback)', { error: error.message });
+  }
+}
+ensureStorageCors();
+
 app.use(express.json({ limit: '50mb' }));
 
 /**

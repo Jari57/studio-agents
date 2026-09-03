@@ -6192,8 +6192,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           a.href = formattedUrl;
           a.download = fileName;
           a.click();
+          toast.success(`Saved ${fileName}`, { id: `dl-${slot}` });
         } else {
-          const resp = await fetch(formattedUrl);
+          toast.loading('Preparing download...', { id: `dl-${slot}` });
+          const resp = await fetch(formattedUrl, { signal: createTimeoutSignal(120000) });
+          if (!resp.ok) throw new Error(`Download failed (${resp.status})`);
           const blob = await resp.blob();
           const blobUrl = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -6201,11 +6204,23 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           a.download = fileName;
           a.click();
           URL.revokeObjectURL(blobUrl);
+          toast.success(`Saved ${fileName}`, { id: `dl-${slot}` });
         }
       } catch (dlErr) {
-        devWarn('[Orchestrator] Fetch download failed, opening in new tab:', dlErr);
-        window.open(formattedUrl, '_blank', 'noopener');
+        devWarn('[Orchestrator] Fetch download failed, offering direct link:', dlErr);
+        // window.open() after an await is popup-blocked in most browsers, so
+        // hand the user an explicit link instead of failing silently.
+        toast((t) => (
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span>Direct download blocked by the browser.</span>
+            <a href={formattedUrl} target="_blank" rel="noopener noreferrer" download={fileName} onClick={() => toast.dismiss(t.id)} style={{ fontWeight: 700 }}>
+              Open {fileName} in a new tab
+            </a>
+          </span>
+        ), { id: `dl-${slot}`, duration: 12000 });
       }
+    } else if (output) {
+      toast.success('Saved text file', { id: `dl-${slot}` });
     }
 
     // For video: also download a JSON metadata file with all project info
