@@ -393,6 +393,21 @@ async function generateSyncedMusicVideo(
     let phaseStartedAt = Date.now();
     const beatAnalysis = await analyzeMusicBeats(audioUrl, logger);
     phaseMs.beatAnalysis = durationMs(phaseStartedAt);
+
+    // If the analyzer could not read the file it returns bpm 120 and no beats.
+    // A synced video still needs cut points, so fall back to a metronomic grid
+    // at the detected/default BPM instead of shipping an unsynced render.
+    if (!Array.isArray(beatAnalysis.beats) || beatAnalysis.beats.length === 0) {
+      const bpm = Number(beatAnalysis.bpm) > 0 ? Number(beatAnalysis.bpm) : 120;
+      const beatIntervalMs = 60000 / bpm;
+      beatAnalysis.beats = Array.from(
+        { length: Math.max(1, Math.floor((requestedDuration * 1000) / beatIntervalMs)) },
+        (_, i) => Math.round(i * beatIntervalMs)
+      );
+      beatAnalysis.bpm = bpm;
+      beatAnalysis.synthesizedGrid = true;
+      if (logger) logger.warn('Beat analysis returned no markers; using BPM grid', { bpm, beats: beatAnalysis.beats.length, reason: beatAnalysis.error });
+    }
     
     if (logger) logger.info('Beat analysis complete', {
       bpm: beatAnalysis.bpm,

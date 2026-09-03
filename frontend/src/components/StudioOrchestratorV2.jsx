@@ -135,38 +135,38 @@ const splitCreativeContent = (text) => {
 // GENRE PRESETS - Smart defaults per genre
 // ═══════════════════════════════════════════════════════════════════════════════
 const GENRE_PRESETS = {
-  'Trap':             { bpm: 140, mood: 'Dark',      structure: 'Full Song', duration: 180 },
-  'Drill':            { bpm: 140, mood: 'Dark',      structure: 'Full Song', duration: 180 },
-  'Modern Hip-Hop':   { bpm: 130, mood: 'Energetic', structure: 'Full Song', duration: 180 },
-  '90s Boom Bap':     { bpm: 90,  mood: 'Chill',     structure: 'Full Song', duration: 180 },
-  'R&B / Soul':       { bpm: 100, mood: 'Dreamy',    structure: 'Full Song', duration: 180 },
-  'Pop':              { bpm: 120, mood: 'Happy',     structure: 'Full Song', duration: 180 },
-  'Rock':             { bpm: 130, mood: 'Energetic', structure: 'Full Song', duration: 180 },
-  'Electronic / EDM': { bpm: 128, mood: 'Energetic', structure: 'Full Song', duration: 180 },
+  'Trap':             { bpm: 140, mood: 'Dark',      structure: 'Full Song', duration: 150 },
+  'Drill':            { bpm: 140, mood: 'Dark',      structure: 'Full Song', duration: 150 },
+  'Modern Hip-Hop':   { bpm: 130, mood: 'Energetic', structure: 'Full Song', duration: 150 },
+  '90s Boom Bap':     { bpm: 90,  mood: 'Chill',     structure: 'Full Song', duration: 150 },
+  'R&B / Soul':       { bpm: 100, mood: 'Dreamy',    structure: 'Full Song', duration: 150 },
+  'Pop':              { bpm: 120, mood: 'Happy',     structure: 'Full Song', duration: 150 },
+  'Rock':             { bpm: 130, mood: 'Energetic', structure: 'Full Song', duration: 150 },
+  'Electronic / EDM': { bpm: 128, mood: 'Energetic', structure: 'Full Song', duration: 150 },
   'Lo-Fi':            { bpm: 80,  mood: 'Chill',     structure: 'Loop',      duration: 120 },
-  'Afrobeat':         { bpm: 110, mood: 'Energetic', structure: 'Full Song', duration: 180 },
-  'Reggaeton':        { bpm: 95,  mood: 'Energetic', structure: 'Full Song', duration: 180 },
-  'K-Pop':            { bpm: 125, mood: 'Happy',     structure: 'Full Song', duration: 180 },
-  'J-Pop':            { bpm: 130, mood: 'Happy',     structure: 'Full Song', duration: 180 },
-  'Amapiano':         { bpm: 113, mood: 'Chill',     structure: 'Full Song', duration: 180 },
-  'Phonk':            { bpm: 140, mood: 'Dark',      structure: 'Full Song', duration: 180 },
-  'Dancehall':        { bpm: 100, mood: 'Energetic', structure: 'Full Song', duration: 180 },
-  'Latin Trap':       { bpm: 140, mood: 'Dark',      structure: 'Full Song', duration: 180 },
-  'Country':          { bpm: 110, mood: 'Happy',     structure: 'Full Song', duration: 180 },
-  'Jazz':             { bpm: 120, mood: 'Chill',     structure: 'Full Song', duration: 180 },
-  'Classical':        { bpm: 100, mood: 'Epic',      structure: 'Full Song', duration: 240 },
-  'Gospel':           { bpm: 110, mood: 'Epic',      structure: 'Full Song', duration: 180 },
-  'Reggae':           { bpm: 80,  mood: 'Chill',     structure: 'Full Song', duration: 180 },
-  'Metal':            { bpm: 160, mood: 'Dark',      structure: 'Full Song', duration: 180 },
+  'Afrobeat':         { bpm: 110, mood: 'Energetic', structure: 'Full Song', duration: 150 },
+  'Reggaeton':        { bpm: 95,  mood: 'Energetic', structure: 'Full Song', duration: 150 },
+  'K-Pop':            { bpm: 125, mood: 'Happy',     structure: 'Full Song', duration: 150 },
+  'J-Pop':            { bpm: 130, mood: 'Happy',     structure: 'Full Song', duration: 150 },
+  'Amapiano':         { bpm: 113, mood: 'Chill',     structure: 'Full Song', duration: 150 },
+  'Phonk':            { bpm: 140, mood: 'Dark',      structure: 'Full Song', duration: 150 },
+  'Dancehall':        { bpm: 100, mood: 'Energetic', structure: 'Full Song', duration: 150 },
+  'Latin Trap':       { bpm: 140, mood: 'Dark',      structure: 'Full Song', duration: 150 },
+  'Country':          { bpm: 110, mood: 'Happy',     structure: 'Full Song', duration: 150 },
+  'Jazz':             { bpm: 120, mood: 'Chill',     structure: 'Full Song', duration: 150 },
+  'Classical':        { bpm: 100, mood: 'Epic',      structure: 'Full Song', duration: 150 },
+  'Gospel':           { bpm: 110, mood: 'Epic',      structure: 'Full Song', duration: 150 },
+  'Reggae':           { bpm: 80,  mood: 'Chill',     structure: 'Full Song', duration: 150 },
+  'Metal':            { bpm: 160, mood: 'Dark',      structure: 'Full Song', duration: 150 },
   'Punk':             { bpm: 170, mood: 'Energetic', structure: 'Full Song', duration: 120 },
-  'Funk':             { bpm: 110, mood: 'Energetic', structure: 'Full Song', duration: 180 },
-  'Disco':            { bpm: 120, mood: 'Happy',     structure: 'Full Song', duration: 180 },
-  'Synthwave':        { bpm: 118, mood: 'Dreamy',    structure: 'Full Song', duration: 180 },
-  'Indie':            { bpm: 115, mood: 'Dreamy',    structure: 'Full Song', duration: 180 },
-  'Acoustic':         { bpm: 100, mood: 'Chill',     structure: 'Full Song', duration: 180 },
-  'Bollywood':        { bpm: 130, mood: 'Energetic', structure: 'Full Song', duration: 180 },
-  'Afro-Pop':         { bpm: 105, mood: 'Happy',     structure: 'Full Song', duration: 180 },
-  'Cumbia':           { bpm: 95,  mood: 'Happy',     structure: 'Full Song', duration: 180 },
+  'Funk':             { bpm: 110, mood: 'Energetic', structure: 'Full Song', duration: 150 },
+  'Disco':            { bpm: 120, mood: 'Happy',     structure: 'Full Song', duration: 150 },
+  'Synthwave':        { bpm: 118, mood: 'Dreamy',    structure: 'Full Song', duration: 150 },
+  'Indie':            { bpm: 115, mood: 'Dreamy',    structure: 'Full Song', duration: 150 },
+  'Acoustic':         { bpm: 100, mood: 'Chill',     structure: 'Full Song', duration: 150 },
+  'Bollywood':        { bpm: 130, mood: 'Energetic', structure: 'Full Song', duration: 150 },
+  'Afro-Pop':         { bpm: 105, mood: 'Happy',     structure: 'Full Song', duration: 150 },
+  'Cumbia':           { bpm: 95,  mood: 'Happy',     structure: 'Full Song', duration: 150 },
 };
 
 const ALL_GENRES = Object.keys(GENRE_PRESETS);
@@ -249,10 +249,10 @@ const ALL_LANGUAGES = [
 // OUTPUT FORMAT PRESETS - Platform-optimized profiles
 // ═══════════════════════════════════════════════════════════════════════════════
 const OUTPUT_PRESETS = {
-  'Full Song Release':  { duration: 180, structure: 'Full Song',  outputFormat: 'music',   useBars: false, icon: '💿' },
+  'Full Song Release':  { duration: 150, structure: 'Full Song',  outputFormat: 'music',   useBars: false, icon: '💿' },
   'TikTok / Reels':     { duration: 30,  structure: 'Chorus',     outputFormat: 'social',  useBars: false, icon: '📱' },
-  'YouTube Music Video': { duration: 180, structure: 'Full Song',  outputFormat: 'music',   useBars: false, icon: '🎬' },
-  'Spotify Single':     { duration: 180, structure: 'Radio Edit', outputFormat: 'music',   useBars: false, icon: '🎧' },
+  'YouTube Music Video': { duration: 150, structure: 'Full Song',  outputFormat: 'music',   useBars: false, icon: '🎬' },
+  'Spotify Single':     { duration: 150, structure: 'Radio Edit', outputFormat: 'music',   useBars: false, icon: '🎧' },
   'Ad / Commercial':    { duration: 30,  structure: 'Loop',       outputFormat: 'tv',      useBars: false, icon: '📺' },
   'Podcast Intro':      { duration: 15,  structure: 'Intro',      outputFormat: 'podcast', useBars: false, icon: '🎙️' },
   'Instagram Story':    { duration: 15,  structure: 'Chorus',     outputFormat: 'social',  useBars: false, icon: '📷' },
@@ -2235,10 +2235,12 @@ export default function StudioOrchestratorV2({
   const [songIdea, setSongIdea] = useState(existingProject?.name || '');
   const [language, setLanguage] = useState(existingProject?.language || 'English');
   const [style, setStyle] = useState(existingProject?.style || 'Modern Hip-Hop');
-  const [duration, setDuration] = useState(existingProject?.duration || 90);
+  const [duration, setDuration] = useState(existingProject?.duration || 120);
   const actualBeatDurationRef = useRef(null); // Stores the real beat duration (may differ from requested if truncated)
   const [bars, setBars] = useState(existingProject?.musicalBars || 16); // musical bars
-  const [useBars, setUseBars] = useState(existingProject?.useBars ?? true); // Toggle for bar-based timing
+  // Seconds mode by default: bar-based timing (16 bars ≈ 30s) produced loop-length
+  // beats. Beats are full tracks (1:30–2:30) unless the user opts into bars.
+  const [useBars, setUseBars] = useState(existingProject?.useBars ?? false); // Toggle for bar-based timing
   const [model, setModel] = useState(existingProject?.model || 'Gemini 2.5 Flash');
   const [mood, setMood] = useState(existingProject?.mood || 'Energetic'); // Beatoven-inspired
   const [structure, setStructure] = useState(existingProject?.structure || 'Full Song'); // Structure control
@@ -2678,9 +2680,9 @@ export default function StudioOrchestratorV2({
     setSongIdea(existingProject?.songIdea || existingProject?.name || '');
     setLanguage(existingProject?.language || 'English');
     setStyle(existingProject?.style || 'Modern Hip-Hop');
-    setDuration(existingProject?.duration || 90);
+    setDuration(existingProject?.duration || 120);
     setBars(existingProject?.musicalBars || 16);
-    setUseBars(existingProject?.useBars ?? true);
+    setUseBars(existingProject?.useBars ?? false);
     setProjectBpm(existingProject?.bpm || existingProject?.settings?.bpm || 120);
     setMood(existingProject?.mood || 'Energetic');
     setStructure(existingProject?.structure || 'Full Song');
@@ -2921,11 +2923,12 @@ export default function StudioOrchestratorV2({
   // Sync structure with bars if needed, or vice-versa
   useEffect(() => {
     if (!useBars) {
-      if (structure === 'Full Song') setDuration(90);
+      // Beat lengths stay inside the 1:30–2:30 product window (see
+      // clampBeatDuration); sections and loops use the floor.
+      if (structure === 'Full Song') setDuration(120);
       else if (structure === 'Radio Edit') setDuration(150);
-      else if (structure === 'Extended') setDuration(180);
-      else if (structure === 'Loop') setDuration(30);
-      else setDuration(15); 
+      else if (structure === 'Extended') setDuration(150);
+      else setDuration(90);
     }
   }, [structure, useBars]);
   
@@ -4232,10 +4235,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           genre: (style || 'hip-hop').toLowerCase().split('/')[0].trim(),
           mood: mood.toLowerCase() || 'energetic',
           bpm: parseInt(projectBpm) || 90,
-          durationSeconds: parseInt(duration) || (structure === 'Full Song' ? 90 :
-                          structure === 'Radio Edit' ? 150 :
-                          structure === 'Extended' ? 180 :
-                          structure === 'Loop' ? 15 : 30),
+          durationSeconds: parseInt(duration) || (structure === 'Radio Edit' || structure === 'Extended' ? 150 : 120),
           songStructure: songStructure || 'full', // single, full, extended — helps backend sync arrangement
           arrangement: arrangementSections ? arrangementSections.map(s => ({ type: s.type, label: s.label, bars: s.bars })) : null,
           referenceAudio: audioDnaUrl || null,

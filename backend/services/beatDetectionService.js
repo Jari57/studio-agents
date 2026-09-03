@@ -8,6 +8,51 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const { spawnSync } = require('child_process');
+
+function resolveFfmpegBinary() {
+  const probe = spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' });
+  if (!probe.error && probe.status === 0) return 'ffmpeg';
+  try {
+    const ffmpegStatic = require('ffmpeg-static');
+    if (ffmpegStatic && fs.existsSync(ffmpegStatic)) return ffmpegStatic;
+  } catch (_e) { /* ffmpeg-static not installed */ }
+  return null;
+}
+
+function isWavFile(filePath) {
+  try {
+    const fd = fs.openSync(filePath, 'r');
+    const header = Buffer.alloc(12);
+    fs.readSync(fd, header, 0, 12, 0);
+    fs.closeSync(fd);
+    return header.toString('ascii', 0, 4) === 'RIFF' && header.toString('ascii', 8, 12) === 'WAVE';
+  } catch (_e) {
+    return false;
+  }
+}
+
+/**
+ * Generated beats arrive as MP3 (Stability) or AAC. The analyzer only reads
+ * PCM WAV, so decode anything else to mono 16-bit 22.05kHz WAV first. Mono at
+ * a reduced rate keeps the JS energy analysis fast for 2½-minute tracks.
+ */
+function ensurePcmWav(inputPath, logger) {
+  if (isWavFile(inputPath)) return inputPath;
+  const ffmpegBin = resolveFfmpegBinary();
+  if (!ffmpegBin) throw new Error('ffmpeg is required to decode non-WAV audio for beat analysis');
+  const wavPath = inputPath.replace(/\.[^.]+$/, '') + '_pcm.wav';
+  const result = spawnSync(ffmpegBin, [
+    '-y', '-loglevel', 'error', '-i', inputPath,
+    '-vn', '-ac', '1', '-ar', '22050', '-sample_fmt', 's16', '-f', 'wav', wavPath
+  ], { encoding: 'utf8', timeout: 60000 });
+  if (result.error || result.status !== 0 || !fs.existsSync(wavPath)) {
+    const detail = result.error?.message || String(result.stderr || '').trim().split(/\r?\n/).slice(-2).join(' | ') || `exit ${result.status}`;
+    throw new Error(`Could not decode audio for beat analysis: ${detail}`);
+  }
+  if (logger) logger.info('Decoded audio to PCM for beat analysis', { input: path.basename(inputPath) });
+  return wavPath;
+}
 
 /**
  * Download audio file from URL to temporary location
@@ -264,7 +309,8 @@ function analyzeWavFile(filePath) {
  */
 async function analyzeMusicBeats(audioUrl, logger) {
   const tempDir = path.join(__dirname, '../../backend', 'temp');
-  const tempAudioPath = path.join(tempDir, `audio_${Date.now()}.wav`);
+  const tempAudioPath = path.join(tempDir, `audio_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.src`);
+  let decodedPath = null;
   
   try {
     // Create temp directory if needed
@@ -276,11 +322,12 @@ async function analyzeMusicBeats(audioUrl, logger) {
     
     // Download audio file
     await downloadAudio(audioUrl, tempAudioPath);
+    decodedPath = ensurePcmWav(tempAudioPath, logger);
     
-    if (logger) logger.info('Analyzing audio for beats', { path: tempAudioPath });
+    if (logger) logger.info('Analyzing audio for beats', { path: decodedPath });
     
     // Analyze the WAV file
-    const analysis = analyzeWavFile(tempAudioPath);
+    const analysis = analyzeWavFile(decodedPath);
     
     if (logger) logger.info('Beat analysis complete', { 
       bpm: analysis.bpm, 
@@ -302,13 +349,15 @@ async function analyzeMusicBeats(audioUrl, logger) {
       error: error.message
     };
   } finally {
-    // Clean up temp file
-    try {
-      if (fs.existsSync(tempAudioPath)) {
-        fs.unlinkSync(tempAudioPath);
+    // Clean up temp files
+    for (const file of [tempAudioPath, decodedPath]) {
+      try {
+        if (file && fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+      } catch (_e) {
+        // Ignore cleanup errors
       }
-    } catch (_e) {
-      // Ignore cleanup errors
     }
   }
 }
@@ -318,5 +367,6 @@ module.exports = {
   analyzeWavFile,
   detectBeatMarkers,
   downloadAudio,
+  ensurePcmWav,
   parseWavFile
 };

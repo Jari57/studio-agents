@@ -12848,6 +12848,7 @@ app.get('/api/video-job-status/:jobId', verifyFirebaseToken, requireAuth, apiLim
       beats: job.beats || null,
       segments: job.segments || null,
       error: job.error || null,
+      errorCode: job.errorCode || null,
       estimatedTimeRemaining: job.status === 'processing'
         ? `${Math.max(1, Math.floor((job.duration || 30) / 6))} minutes remaining`
         : null

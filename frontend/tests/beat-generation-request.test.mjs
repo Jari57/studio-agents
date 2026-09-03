@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { BEAT_GENERATION_ENDPOINT, beatGenerationRequest } from '../src/utils/beatGenerationRequest.mjs';
+import {
+  BEAT_GENERATION_ENDPOINT,
+  BEAT_MAX_DURATION_SECONDS,
+  BEAT_MIN_DURATION_SECONDS,
+  beatGenerationRequest,
+  clampBeatDuration,
+} from '../src/utils/beatGenerationRequest.mjs';
 
 test('individual and orchestrated beats share one premium auto-selected provider contract', () => {
   assert.equal(BEAT_GENERATION_ENDPOINT, '/api/generate-audio');
@@ -10,14 +16,14 @@ test('individual and orchestrated beats share one premium auto-selected provider
     bpm: '94',
     genre: 'R&B',
     mood: 'Creative',
-    durationSeconds: '45',
+    durationSeconds: '120',
     referenceAudio: 'https://example.test/reference.wav',
   }), {
     prompt: 'Warm soul drums',
     bpm: 94,
     genre: 'r&b',
     mood: 'creative',
-    durationSeconds: 45,
+    durationSeconds: 120,
     referenceAudio: 'https://example.test/reference.wav',
     audioId: null,
     quality: 'premium',
@@ -30,6 +36,26 @@ test('individual and orchestrated beats share one premium auto-selected provider
     stem: 'Full Mix',
     agentId: 'beat-arch',
   });
+});
+
+test('beats are always full-length tracks between 1:30 and 2:30', () => {
+  assert.equal(BEAT_MIN_DURATION_SECONDS, 90);
+  assert.equal(BEAT_MAX_DURATION_SECONDS, 150);
+  // Bar-based loops and legacy short presets are raised to the floor.
+  assert.equal(clampBeatDuration(32), 90);
+  assert.equal(clampBeatDuration('45'), 90);
+  assert.equal(clampBeatDuration(0), 90);
+  assert.equal(clampBeatDuration(undefined), 90);
+  // Requests inside the window pass through unchanged.
+  assert.equal(clampBeatDuration(90), 90);
+  assert.equal(clampBeatDuration(135), 135);
+  assert.equal(clampBeatDuration(150), 150);
+  // Anything longer is capped so Stability renders in a single pass.
+  assert.equal(clampBeatDuration(180), 150);
+  assert.equal(clampBeatDuration(240), 150);
+  assert.equal(beatGenerationRequest({ prompt: 'x' }).durationSeconds, 90);
+  assert.equal(beatGenerationRequest({ prompt: 'x', durationSeconds: 30 }).durationSeconds, 90);
+  assert.equal(beatGenerationRequest({ prompt: 'x', durationSeconds: 180 }).durationSeconds, 150);
 });
 
 test('every beat entry point uses the shared request builder', () => {

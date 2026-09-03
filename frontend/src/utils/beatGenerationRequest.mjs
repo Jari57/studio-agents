@@ -1,11 +1,23 @@
 export const BEAT_GENERATION_ENDPOINT = '/api/generate-audio';
 
+// Product rule: every generated beat is a usable full-length track between
+// 1:30 and 2:30. Shorter requests (bar-based loops, legacy 30/60s presets) are
+// raised to the floor and longer ones capped so Stability renders in one pass.
+export const BEAT_MIN_DURATION_SECONDS = 90;
+export const BEAT_MAX_DURATION_SECONDS = 150;
+
+export function clampBeatDuration(durationSeconds) {
+  const parsed = Number.parseInt(durationSeconds, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return BEAT_MIN_DURATION_SECONDS;
+  return Math.min(BEAT_MAX_DURATION_SECONDS, Math.max(BEAT_MIN_DURATION_SECONDS, parsed));
+}
+
 export function beatGenerationRequest({
   prompt,
   bpm = 90,
   genre = 'hip-hop',
   mood = 'chill',
-  durationSeconds = 60,
+  durationSeconds = BEAT_MIN_DURATION_SECONDS,
   referenceAudio = null,
   audioId = null,
   outputFormat = 'music',
@@ -20,7 +32,7 @@ export function beatGenerationRequest({
     bpm: Number.parseInt(bpm, 10) || 90,
     genre: String(genre || 'hip-hop').trim().toLowerCase(),
     mood: String(mood || 'chill').trim().toLowerCase(),
-    durationSeconds: Math.max(Number.parseInt(durationSeconds, 10) || 60, 30),
+    durationSeconds: clampBeatDuration(durationSeconds),
     referenceAudio: referenceAudio || null,
     audioId: audioId || null,
     quality: 'premium',

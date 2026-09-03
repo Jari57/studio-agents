@@ -10,6 +10,24 @@ const fs = require('fs');
 const https = require('https');
 const http = require('http');
 
+// fluent-ffmpeg only puts the last stderr line ("Conversion failed!") on the
+// error. Keep the tail of ffmpeg's own diagnostics so a failed job says why.
+function describeFfmpegError(err, stderr) {
+  const tail = String(stderr || '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !/^(frame=|size=|Conversion failed!$)/.test(line))
+    .slice(-4)
+    .join(' | ');
+  const base = err?.message || 'ffmpeg failed';
+  return tail && !base.includes(tail) ? `${base} — ${tail}`.slice(0, 600) : base;
+}
+
+// libx264 with yuv420p needs even dimensions. Hailuo returns portrait
+// 768x1024 shots; the old `scale=1280:-1` produced 1280x1707 and ffmpeg 7+
+// aborted the whole beat-sync pass with "height not divisible by 2".
+const EVEN_DIMENSIONS_FILTER = 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
+
 // Use ffmpeg-static as fallback when system ffmpeg is not on PATH
 try {
   const ffmpegStatic = require('ffmpeg-static');
@@ -136,8 +154,9 @@ async function composeVideoWithBeats(
           
           resolve({ success: true, outputPath });
         })
-        .on('error', (err) => {
-          if (logger) logger.error('Composition error', { error: err.message });
+        .on('error', (err, _stdout, stderr) => {
+          const detail = describeFfmpegError(err, stderr);
+          if (logger) logger.error('Composition error', { error: detail });
           
           // Cleanup
           try {
@@ -145,7 +164,7 @@ async function composeVideoWithBeats(
             fs.unlinkSync(outputPath);
           } catch (_e) { /* ignore */ }
           
-          reject(err);
+          reject(new Error(detail));
         });
 
       cmd.run();
@@ -188,15 +207,17 @@ async function createBeatSyncedVideo(
           return `between(t,${t},${(parseFloat(t)+0.1).toFixed(3)})`;
         }).join('+');
 
-        // Apply brightness flash and contrast boost on beats
-        filterComplex = `eq=brightness='if(${enableExpr},0.12,0)':contrast='if(${enableExpr},1.25,1)'`;
+        // Apply brightness flash and contrast boost on beats. `eval=frame` is
+        // required for `t` to be re-evaluated per frame; the default (init)
+        // evaluates the expression once and never flashes.
+        filterComplex = `${EVEN_DIMENSIONS_FILTER},eq=brightness='if(${enableExpr},0.12,0)':contrast='if(${enableExpr},1.25,1)':eval=frame`;
         
         if (logger) logger.info('Generated beat-sync filter', { beatCount: activeBeats.length });
       }
 
-      // If no beat-specific filter, use standard quality settings
+      // If no beat-specific filter, only normalize dimensions for the encoder.
       if (!filterComplex) {
-        filterComplex = 'scale=1280:-1'; // Ensure consistent resolution
+        filterComplex = EVEN_DIMENSIONS_FILTER;
       }
 
       let cmd = ffmpeg(baseVideoPath)
@@ -227,9 +248,10 @@ async function createBeatSyncedVideo(
           if (logger) logger.info('Beat-synced video created', { output: outputPath });
           resolve({ success: true, outputPath, beatCount: beatMarkers.length });
         })
-        .on('error', (err) => {
-          if (logger) logger.error('Beat sync error', { error: err.message });
-          reject(err);
+        .on('error', (err, _stdout, stderr) => {
+          const detail = describeFfmpegError(err, stderr);
+          if (logger) logger.error('Beat sync error', { error: detail });
+          reject(new Error(detail));
         });
 
       cmd.run();
