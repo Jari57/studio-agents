@@ -21,10 +21,9 @@ if (audioStart === -1 || audioEnd === -1) {
 const audioRoute = source.slice(audioStart, audioEnd);
 
 const requiredServer = [
-  // Stability is the sole music engine; legacy providers are emergency opt-in.
+  // Stability is the sole music engine; there is no fallback chain.
   'Stability AI Stable Audio 2.5 (SOLE MUSIC ENGINE)',
-  "const finalEngine = stabilityKey ? 'stability' : 'music-gpt'",
-  'const useLegacyBeatProviders = hasFallbackBeatProvider && !stabilityKey',
+  "const finalEngine = 'stability'",
   // Fast, cached balance probe so an exhausted account fails fast with a refund.
   '__studioStabilityAudioAvailability',
   'https://api.stability.ai/v1/user/balance',
@@ -45,6 +44,12 @@ for (const required of requiredServer) {
 if (/\{ timeoutMs: 60000 \}/.test(audioRoute)) {
   console.error('Audio route still contains an unbounded retrying provider wait.');
   process.exit(1);
+}
+for (const forbidden of ['minimax/music', 'musicgen', 'beatoven', 'BEAT_FALLBACK_PROVIDERS', 'useLegacyBeatProviders']) {
+  if (audioRoute.includes(forbidden)) {
+    console.error('Audio route must not reference a legacy beat provider: ' + forbidden);
+    process.exit(1);
+  }
 }
 
 const helperStart = source.indexOf('async function runReplicateWithRateLimitRetry(');

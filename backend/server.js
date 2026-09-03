@@ -7153,24 +7153,17 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     }
 
     const stabilityKey = process.env.STABILITY_API_KEY;
-    const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
-    const falKey = process.env.FAL_KEY || process.env.FAL_API_KEY;
     const stabilityAudio = getStabilityAudioSettings();
 
     // Stability AI Stable Audio is the studio's ONLY music engine. The old
-    // MiniMax → MusicGen → Beatoven fallback chain silently swapped engines
-    // mid-session, producing inconsistent beats (different length caps, WAV vs
-    // MP3, different sonic character) that made the 4-asset pipeline
-    // unreliable. Legacy providers are kept strictly opt-in for emergencies via
-    // BEAT_FALLBACK_PROVIDERS=true and are never used when Stability is
-    // configured.
-    const allowFallbackBeatProviders = String(process.env.BEAT_FALLBACK_PROVIDERS || '').toLowerCase() === 'true';
-    const hasFallbackBeatProvider = allowFallbackBeatProviders && !!(replicateKey || falKey);
+    // MiniMax → MusicGen → Beatoven fallback chain was removed: it silently
+    // swapped engines mid-session and produced inconsistent beats (different
+    // length caps, WAV vs MP3, different sonic character).
 
     // Do not let the credit middleware charge a user when no audio provider is
     // configured. A failed provider configuration must be actionable rather
     // than a generic 500.
-    if (!stabilityKey && !hasFallbackBeatProvider) {
+    if (!stabilityKey) {
       await refundCredits(req, 'audio provider not configured');
       return res.status(503).json({
         error: 'Audio provider unavailable',
@@ -7185,11 +7178,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       bpm, 
       engine,
       outputFormat,
-      hasStability: !!stabilityKey,
-      stabilityModel: stabilityAudio.model,
-      fallbackProvidersEnabled: allowFallbackBeatProviders,
-      hasReplicate: !!replicateKey,
-      hasFal: !!falKey
+      stabilityModel: stabilityAudio.model
     });
 
     // ── Song structure arrangement hints ──
@@ -7212,11 +7201,10 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       stem
     });
 
-    // Engine selection: Stability whenever it is configured, regardless of the
-    // client's `engine` hint. Reference audio (Audio DNA) is handled by
-    // Stability's audio-to-audio endpoint rather than being rerouted to MusicGen.
-    const requestedEngine = engine || 'auto';
-    const finalEngine = stabilityKey ? 'stability' : 'music-gpt';
+    // Engine selection: Stability always, regardless of the client's `engine`
+    // hint. Reference audio (Audio DNA) is handled by Stability's
+    // audio-to-audio endpoint.
+    const finalEngine = 'stability';
 
     let audioUrl = null;
     let provider = null;
@@ -7228,8 +7216,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     // NOT reroute to another engine — it fails fast with an actionable, refunded
     // system-credit error so the studio stays on one consistent music engine.
     // __studioStabilityAudioAvailability
-    let stabilityUsable = !!stabilityKey;
-    if (stabilityKey) {
+    let stabilityUsable = true;
+    {
       const cached = globalThis.__studioStabilityAudioAvailability;
       if (cached && Date.now() - cached.checkedAt < 5 * 60 * 1000) {
         stabilityUsable = cached.usable;
@@ -7267,7 +7255,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     // ═══════════════════════════════════════════════════════════════════
     // 1. Stability AI Stable Audio 2.5 (SOLE MUSIC ENGINE)
     // ═══════════════════════════════════════════════════════════════════
-    if (stabilityKey && stabilityUsable && (finalEngine === 'stability')) {
+    if (stabilityUsable && finalEngine === 'stability') {
 
       try {
         // DNA EXACT-CLONE: When audio DNA is provided, inject strict matching instructions
@@ -7378,172 +7366,6 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
         logger.error('Stability AI request failed', { error: err.message });
       }
     }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // LEGACY FALLBACK PROVIDERS — disabled unless BEAT_FALLBACK_PROVIDERS=true.
-    // Stability is the studio's only music engine; these exist purely as an
-    // emergency switch and never run when Stability is configured.
-    // ═══════════════════════════════════════════════════════════════════
-    const useLegacyBeatProviders = hasFallbackBeatProvider && !stabilityKey;
-
-    // 2. MiniMax Music 2.6: current full-length instrumental model. Use this
-    // ahead of legacy MusicGen for cleaner arrangement, BPM/key adherence and
-    // sufficient duration for an actual song foundation.
-    if (useLegacyBeatProviders && replicateKey && !audioUrl && !referenceAudio && requestedEngine !== 'music-gpt') {
-      try {
-        logger.info('Using Replicate MiniMax Music 2.6 (instrumental)');
-        const replicate = new Replicate({ auth: replicateKey });
-        const qualityDirection = 'Instrumental only. Clean transient separation, one coherent drum groove, controlled low end, natural instrument attacks, evolving song arrangement, no test tones, no sustained electronic whine, no clipping, no duplicated drums, no digital glitches.';
-        const output = await runReplicateWithRateLimitRetry(
-          replicate,
-          'minimax/music-2.6',
-          {
-            input: {
-              prompt: `${musicPrompt}. ${qualityDirection}`.slice(0, 2000),
-              is_instrumental: true,
-              lyrics_optimizer: false,
-              audio_format: 'mp3',
-              sample_rate: 44100,
-              bitrate: 256000
-            }
-          },
-          'MiniMax beat generation'
-        );
-
-        if (output) {
-          const directUrl = typeof output.url === 'function' ? output.url() : String(output);
-          const audioResponse = await fetchWithRetry(directUrl, {}, { timeoutMs: 45000, maxRetries: 0 });
-          if (audioResponse.ok) {
-            const audioData = await audioResponse.arrayBuffer();
-            if (audioData.byteLength > 100) {
-              audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
-              provider = 'minimax-music-2.6';
-              logger.info('Successfully fetched MiniMax instrumental', { size: audioData.byteLength });
-            } else {
-              providerErrors.push({ provider: 'minimax-music-2.6', error: `Audio data too small (${audioData.byteLength} bytes)` });
-            }
-          } else {
-            providerErrors.push({ provider: 'minimax-music-2.6', error: `Download failed HTTP ${audioResponse.status}` });
-          }
-        }
-      } catch (err) {
-        providerErrors.push({ provider: 'minimax-music-2.6', error: err.message });
-        if ([401, 402, 403].includes(err.status) || /billing|payment|insufficient.credit|quota/i.test(err.message || '')) {
-          systemCreditIssue = true;
-        }
-        logger.error('MiniMax Music 2.6 failed', {
-          error: err.message,
-          fallbackAllowed: !strictPremiumBeat && durationSeconds <= 65
-        });
-      }
-    }
-
-    // 3. Replicate MusicGen legacy fallback (emergency-only, see above).
-    if (useLegacyBeatProviders && replicateKey && !audioUrl) {
-      try {
-        logger.info('Using Replicate Music GPT (stereo-large)');
-        const replicate = new Replicate({ auth: replicateKey });
-
-        // DNA EXACT-CLONE: When audio DNA is provided, use it as melody conditioning
-        // MusicGen's melody parameter forces the model to follow the harmonic/rhythmic structure
-        const musicGenInput = {
-              prompt: musicPrompt,
-              duration: Math.min(durationSeconds, 65),
-              model_version: 'stereo-large',
-              output_format: "wav",
-              normalization_strategy: "loudness",
-              top_k: 250,
-              top_p: 0.0,
-              temperature: referenceAudio ? 0.5 : (highMusicality ? 0.6 : 0.7),
-              classifier_free_guidance: referenceAudio ? 12 : 9  // Higher = stricter prompt adherence
-        };
-        if (durationSeconds > 65) {
-          logger.warn(`⚠️ Beat duration capped: requested ${durationSeconds}s → 65s (MusicGen max)`);
-        }
-
-        if (referenceAudio) {
-          musicGenInput.melody = referenceAudio;  // Condition generation on reference audio DNA
-          musicGenInput.model_version = 'stereo-melody-large';  // Use melody-conditioned model for DNA
-          logger.info('🧬 Audio DNA exact-clone mode: MusicGen melody conditioning activated');
-        }
-
-        const output = await runReplicateWithRateLimitRetry(
-          replicate,
-          "facebook/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38",
-          {
-            input: musicGenInput
-          },
-          'beat generation'
-        );
-
-        if (output) {
-          const directUrl = Array.isArray(output) ? output[0] : output;
-          logger.info('Replicate generated audio URL', { directUrl });
-          
-          const audioResponse = await fetchWithRetry(directUrl, {}, { timeoutMs: 45000, maxRetries: 0 });
-          if (audioResponse.ok) {
-            const audioData = await audioResponse.arrayBuffer();
-            if (audioData.byteLength > 100) {
-              audioUrl = `data:audio/wav;base64,${Buffer.from(audioData).toString('base64')}`;
-              provider = 'music-gpt';
-              logger.info('Successfully fetched audio from Replicate', { size: audioData.byteLength });
-            } else {
-              logger.warn('Replicate audio data too small', { size: audioData.byteLength });
-              providerErrors.push({ provider: 'replicate', error: `Audio data too small (${audioData.byteLength} bytes)` });
-            }
-          } else {
-            providerErrors.push({ provider: 'replicate', error: `Download failed HTTP ${audioResponse.status}` });
-            logger.error('Failed to download audio from Replicate URL', {
-              status: audioResponse.status,
-              url: directUrl
-            });
-          }
-        }
-      } catch (err) {
-        // Detect system credit issues specifically
-        const isQuotaError = err.message?.includes('402') || err.message?.toLowerCase().includes('payment');
-        if (isQuotaError) {
-          systemCreditIssue = true;
-        }
-        providerErrors.push({ provider: 'replicate', error: err.message });
-        logger.error('Music GPT (Replicate SDK) failed', {
-          error: err.message,
-          isPossibleCreditIssue: isQuotaError
-        });
-      }
-    }
-
-    // 4. FAL.ai legacy fallback (emergency-only, see above).
-    if (useLegacyBeatProviders && falKey && !audioUrl) {
-      try {
-        const response = await fetchWithRetry('https://queue.fal.run/beatoven/music-generation', {
-          method: 'POST',
-          headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: musicPrompt, duration: Math.min(durationSeconds, 60) })
-        }, { timeoutMs: 45000, maxRetries: 0 });
-        if (durationSeconds > 60) {
-          logger.warn(`⚠️ Beat duration capped: requested ${durationSeconds}s → 60s (FAL/Beatoven max)`);
-        }
-        if (response.ok) {
-          const data = await response.json();
-          const falUrl = data.audio_url || data.audio;
-          const audioData = await fetchWithRetry(falUrl, {}, { timeoutMs: 45000, maxRetries: 0 }).then(r => r.arrayBuffer());
-          audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
-          provider = 'beatoven';
-        } else {
-          if (response.status === 402 || response.status === 401) {
-            systemCreditIssue = true;
-          }
-          providerErrors.push({ provider: 'fal', error: `HTTP ${response.status}` });
-          logger.error('FAL API error', { status: response.status });
-        }
-      } catch (err) {
-        if (err.message.includes('402')) systemCreditIssue = true;
-        providerErrors.push({ provider: 'fal', error: err.message });
-        logger.error('FAL failed', { error: err.message });
-      }
-    }
-
     if (audioUrl) {
       // UPLOAD TO FIREBASE STORAGE FOR PERMANENT URL
       let permanentUrl = null;
@@ -7553,13 +7375,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
         const bucket = getStorageBucket();
         if (bucket) {
           try {
-            // Replicate MusicGen returns WAV. Preserve the real container and
-            // content type instead of storing WAV bytes behind an .mp3 name.
-            const generatedMimeType = audioUrl.startsWith('data:audio/wav')
-              ? 'audio/wav'
-              : 'audio/mpeg';
-            const generatedExtension = generatedMimeType === 'audio/wav' ? 'wav' : 'mp3';
-            const fileName = `beat_${genre}_${bpm}bpm_${Date.now()}.${generatedExtension}`;
+            // Stable Audio returns MP3 (see outputFormat above).
+            const generatedMimeType = 'audio/mpeg';
+            const fileName = `beat_${genre}_${bpm}bpm_${Date.now()}.mp3`;
             const result = await uploadToStorage(audioUrl, req.user.uid, fileName, generatedMimeType);
             permanentUrl = result.url;
             storagePath = result.path;
@@ -7590,27 +7408,19 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
         }
       }
 
-      const isReleaseCandidate = provider === 'minimax-music-2.6'
-        || String(provider || '').startsWith('stable-audio');
       res.json({
         audioUrl: permanentUrl || audioUrl,
         provider,
         duration: durationSeconds,
         requestedDuration: durationSeconds,
-        actualDuration: provider === 'minimax-music-2.6' ? null
-                       : provider === 'music-gpt' ? Math.min(durationSeconds, 65)
-                       : provider === 'beatoven' ? Math.min(durationSeconds, 60) 
-                       : durationSeconds,
-        durationNote: provider === 'minimax-music-2.6'
-          ? 'This provider returns a variable-length instrumental. Check playback duration and trim in the producer canvas; the requested duration is a creative direction, not a measured result.'
-          : undefined,
+        actualDuration: durationSeconds,
         requiresHumanReview: true,
-        wasTruncated: (provider === 'music-gpt' && durationSeconds > 65) || (provider === 'beatoven' && durationSeconds > 60),
+        wasTruncated: false,
         isRealGeneration: true,
-        isReleaseCandidate,
-        qualityTier: isReleaseCandidate ? 'release-candidate' : 'studio-draft',
+        isReleaseCandidate: true,
+        qualityTier: 'release-candidate',
         isDurable: !req.user || !!permanentUrl,
-        mimeType: audioUrl.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mpeg',
+        mimeType: 'audio/mpeg',
         providerErrors: providerErrors.length > 0 ? providerErrors : undefined
       });
     } else {

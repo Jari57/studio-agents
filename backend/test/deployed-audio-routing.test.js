@@ -156,19 +156,24 @@ test('no configured audio provider returns an actionable 503 and refunds', async
   const outcome = await generate({ prompt: 'Original instrumental' }, { env: { REPLICATE_API_KEY: 'test-only' } });
   assert.equal(outcome.status, 503, JSON.stringify(outcome.result));
   assert.equal(outcome.result.isProviderConfigIssue, true);
-  assert.deepEqual(outcome.models, [], 'Replicate is not used without BEAT_FALLBACK_PROVIDERS=true');
+  assert.deepEqual(outcome.models, [], 'Replicate is never used for beats');
   assert.equal(outcome.refunds, 1);
 });
 
-test('legacy providers only run when explicitly enabled and Stability is absent', async () => {
+test('legacy beat providers are gone: BEAT_FALLBACK_PROVIDERS has no effect', async () => {
   const outcome = await generate(
     { prompt: 'Original instrumental', duration: 60 },
-    { env: { REPLICATE_API_KEY: 'test-only', BEAT_FALLBACK_PROVIDERS: 'true' } }
+    { env: { REPLICATE_API_KEY: 'test-only', FAL_KEY: 'test-only', BEAT_FALLBACK_PROVIDERS: 'true' } }
   );
-  assert.equal(outcome.status, 200, JSON.stringify(outcome.result));
-  assert.deepEqual(outcome.models, ['minimax/music-2.6']);
-  assert.equal(outcome.result.provider, 'minimax-music-2.6');
-  assert.equal(outcome.result.actualDuration, null, 'Do not invent the generated duration');
+  assert.equal(outcome.status, 503, JSON.stringify(outcome.result));
+  assert.deepEqual(outcome.models, []);
+  assert.equal(outcome.refunds, 1);
+  const audioStart = deployed.indexOf("app.post('/api/generate-audio'");
+  const audioEnd = deployed.indexOf("app.post('/api/mix-audio'", audioStart);
+  const audioRoute = deployed.slice(audioStart, audioEnd);
+  for (const forbidden of ['minimax/music', 'musicgen', 'beatoven', 'BEAT_FALLBACK_PROVIDERS', 'useLegacyBeatProviders']) {
+    assert.ok(!audioRoute.includes(forbidden), `audio route must not reference ${forbidden}`);
+  }
 });
 
 function providerHarness(status = 'succeeded', configuredTimeout) {
