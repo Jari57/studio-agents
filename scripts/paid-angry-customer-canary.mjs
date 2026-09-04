@@ -6,6 +6,7 @@ const baseUrl = (process.env.STUDIO_CANARY_BASE_URL || 'https://studioagentsai.c
 const requestTimeoutMs = 150_000;
 const routeWaitMs = 20 * 60_000;
 const includeMedia = process.env.STUDIO_CANARY_MEDIA === '1';
+const includeSong = process.env.STUDIO_CANARY_SONG === '1';
 const firebaseKeyPattern = /^AIza[0-9A-Za-z_-]{30,}$/;
 
 function resolveFirebaseApiKey() {
@@ -89,7 +90,7 @@ async function firebaseRequest(action, body) {
   );
 }
 
-async function api(path, token, init = {}) {
+async function api(path, token, init = {}, timeoutMs = requestTimeoutMs) {
   return request(`${baseUrl}${path}`, {
     ...init,
     headers: {
@@ -97,7 +98,7 @@ async function api(path, token, init = {}) {
       'Content-Type': 'application/json',
       ...(init.headers || {}),
     },
-  });
+  }, timeoutMs);
 }
 
 async function getCredits(token) {
@@ -228,6 +229,53 @@ async function main() {
     const refundedBalance = await waitForCredits(idToken, chargedBalance, 45_000);
     evidence.push({ check: 'failed-generation-refund', status: 'pass', credits: refundedBalance });
 
+    let mediaStartingBalance = refundedBalance;
+    if (includeSong) {
+      const song = await api('/api/generate-speech', idToken, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': `canary-song-${nonce}` },
+        body: JSON.stringify({
+          prompt: '[Verse]\nCity lights are calling, every heartbeat finds the drum\nBuilt it from the silence, now the brighter days have come\n\n[Chorus]\nWe move together, every note is in its place\nRhythm in the footsteps, harmony across the space',
+          voice: 'studio-singer',
+          style: 'singer',
+          genre: 'r&b',
+          language: 'en',
+          duration: 30,
+          outputFormat: 'music',
+          bpm: 92,
+          mood: 'confident and warm',
+          songStructure: 'verse, chorus',
+          musicalDirection: 'Modern Brooklyn R&B with a clear pocket, melodic lead vocal, warm bass, restrained drums, and a resolved ending.',
+          isPersonalVoice: false,
+        }),
+      }, 12 * 60_000);
+      assert(song.response.status >= 200 && song.response.status < 300,
+        `Coherent song generation returned ${song.response.status}: ${song.text.slice(0, 600)}`);
+      assert(song.payload?.provider === 'minimax-music-2.6-demucs',
+        `Coherent song used unexpected provider ${song.payload?.provider || 'unknown'}`);
+      assert(song.payload?.performanceType === 'coherent-song-stems',
+        `Coherent song returned ${song.payload?.performanceType || 'no performance type'}`);
+      assert(song.payload?.wasMixed === true, 'Coherent song was not identified as a matched musical performance');
+      assert(song.payload?.isRealGeneration === true, 'Coherent song was not marked as real provider output');
+      assert(song.payload?.isDurable === true, 'Coherent song assets were not durably saved');
+      for (const [field, value] of [
+        ['audioUrl', song.payload?.audioUrl],
+        ['instrumentalUrl', song.payload?.instrumentalUrl],
+        ['mixedAudioUrl', song.payload?.mixedAudioUrl],
+      ]) {
+        assert(String(value || '').startsWith('https://'), `Coherent song did not return a durable ${field}`);
+      }
+      mediaStartingBalance = await waitForCredits(idToken, refundedBalance - 2, 60_000);
+      evidence.push({
+        check: 'coherent-song-generation',
+        status: 'pass',
+        provider: song.payload.provider,
+        performanceType: song.payload.performanceType,
+        durable: song.payload.isDurable,
+        credits: mediaStartingBalance,
+      });
+    }
+
     if (includeMedia) {
       const audio = await api('/api/generate-audio', idToken, {
         method: 'POST',
@@ -248,7 +296,7 @@ async function main() {
       assert(audioAsset.startsWith('https://') || audioAsset.startsWith('data:audio/'),
         'Audio generation did not return a playable asset');
       assert(audio.payload?.isRealGeneration === true, 'Audio generation was not marked as real provider output');
-      const afterAudio = await waitForCredits(idToken, refundedBalance - 5, 60_000);
+      const afterAudio = await waitForCredits(idToken, mediaStartingBalance - 10, 60_000);
       evidence.push({
         check: 'real-audio-generation',
         status: 'pass',
@@ -309,6 +357,7 @@ async function main() {
       ok: true,
       baseUrl,
       includeMedia,
+      includeSong,
       checkedAt: new Date().toISOString(),
       durationMs: Date.now() - startedAt,
       evidence,

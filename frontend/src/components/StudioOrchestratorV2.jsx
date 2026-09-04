@@ -4591,6 +4591,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         backendStyle = 'singer-female';
       }
 
+      // A named ElevenLabs voice is a speech identity, not a singing engine.
+      // Never let an old catalog selection leak into a musical request and make
+      // every new take sound like the same stuck narrator. Personal singing is
+      // conditioned with the user's owned sample; Studio singing is generated
+      // as one coherent musical performance and then separated into stems.
+      const requiresSungPerformance = ['singer', 'singer-female', 'rapper', 'rapper-female'].includes(backendStyle)
+        || outputFormat === 'music'
+        || !!mediaUrlsRef.current.audio;
+
       const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
         method: 'POST',
         headers,
@@ -4613,10 +4622,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
            speakerUrl: activeVoiceSource === 'personal' ? (voiceSampleUrl || null) : null,
            elevenLabsVoiceId: activeVoiceSource === 'personal'
              ? (clonedVoiceId || null)
-             : (activeElevenLabsVoiceId || null),
+             : (requiresSungPerformance ? null : (activeElevenLabsVoiceId || null)),
           isPersonalVoice: activeVoiceSource === 'personal',
           // Lock to the same provider that worked last time for voice consistency
-           preferredProvider: resolvedVoiceSelection.recovered ? null : (generationProviders.vocals || null),
+           preferredProvider: requiresSungPerformance
+             ? (activeVoiceSource === 'personal' ? 'minimax-music' : null)
+             : (resolvedVoiceSelection.recovered ? null : (generationProviders.vocals || null)),
           // Pass voice sample as reference for tone/style analysis even when not cloning
            referenceSongUrl: activeVoiceSource === 'studio' ? (referenceSongUrl || null) : null,
           // Advanced vocal synthesis parameters

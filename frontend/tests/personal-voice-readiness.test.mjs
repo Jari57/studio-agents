@@ -82,7 +82,7 @@ test('conclusively unavailable saved voice is cleared before generation UX', () 
   assert.match(source, /Saved voice is unavailable\. Studio voice selected so generation can continue\./);
   assert.match(source, /activeVoiceSource === 'personal'[\s\S]*?isPersonalVoice: activeVoiceSource === 'personal'/);
   assert.match(source, /resolvedVoiceSelection\.recovered \? '' : elevenLabsVoiceId/);
-  assert.match(source, /preferredProvider: resolvedVoiceSelection\.recovered \? null/);
+  assert.match(source, /: \(resolvedVoiceSelection\.recovered \? null : \(generationProviders\.vocals \|\| null\)\)/);
 });
 
 test('actual clone guard requires explicit consent even when invoked outside its disabled button', async () => {

@@ -17,6 +17,12 @@ test('the frontend never selects a speech provider for personal singing', () => 
   assert.match(studio, /preferredProvider: personalVoiceSelected \? 'minimax-music'/);
 });
 
+test('a stale ElevenLabs catalog selection cannot leak into a musical take', () => {
+  assert.match(orchestrator, /const requiresSungPerformance = \['singer', 'singer-female', 'rapper', 'rapper-female'\]/);
+  assert.match(orchestrator, /requiresSungPerformance \? null : \(activeElevenLabsVoiceId \|\| null\)/);
+  assert.match(orchestrator, /requiresSungPerformance\s*\? \(activeVoiceSource === 'personal' \? 'minimax-music' : null\)/);
+});
+
 test('personal singing sends the selected instrumental through the frontend contract', () => {
   assert.match(studio, /backingTrackUrl: audioDnaUrl \|\| backingTrack\?\.audioUrl \|\| null/);
 });
