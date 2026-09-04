@@ -17,6 +17,8 @@ test('musical generation returns a matched vocal, instrumental, and master with 
   assert.equal(calls[0].input.lyrics, brief.lyrics);
   assert.equal(calls[0].input.lyrics_optimizer, false);
   assert.match(calls[0].input.prompt, /92 BPM/);
+  assert.match(calls[0].input.prompt, /lead vocal the primary focus/);
+  assert.match(calls[0].input.prompt, /supportive harmonies that never mask the lead/);
   assert.equal(calls[1].input.audio, 'https://example.test/song.mp3');
   assert.equal(calls[1].input.stem, 'vocals');
 });

@@ -1659,7 +1659,7 @@ function ProductionControlHub({
                 : !hasBeat && !hasVocalMedia
                 ? 'Generate a beat and vocals above to unlock the mixing console. Your tracks will be combined and mastered here.'
                 : hasBeat && hasVocalMedia 
-                  ? 'Choose a preset → adjust the sliders → hit "Create Mix" to combine your beat and vocals into a mastered track.'
+                  ? 'Vocal clarity is primary by default. Choose a preset → adjust the sliders → hit "Create Mix" to combine your beat and vocals into a mastered track.'
                   : hasBeat 
                     ? 'Beat audio is ready. Generate vocals to unlock mixing, or create a mix with beat-only.'
                     : 'Vocal audio is ready. Generate a beat to unlock full mixing.'}
@@ -1691,10 +1691,11 @@ function ProductionControlHub({
               </div>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)',
+                gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)',
                 gap: '8px'
               }}>
                 {[
+                  { id: 'vocal-focus', label: '🎙️ Vocal First', desc: 'Clear lead, beat tucked', vol: { vocal: 0.95, beat: 0.48 } },
                   { id: 'rapper-over-beat', label: '🎤 Rapper', desc: 'Vocals forward, heavy 808s', vol: { vocal: 0.90, beat: 0.55 } },
                   { id: 'singer-over-beat', label: '🎵 Singer', desc: 'Warm & balanced blend', vol: { vocal: 0.80, beat: 0.65 } },
                   { id: 'social-viral', label: '📱 Social', desc: 'Loud & punchy for TikTok', vol: { vocal: 0.90, beat: 0.60 } },
@@ -2316,9 +2317,9 @@ export default function StudioOrchestratorV2({
   const [deleteVoiceTarget, setDeleteVoiceTarget] = useState(null); // Voice to confirm deletion
   const [creatingFinalMix, setCreatingFinalMix] = useState(false);
   const [finalMixPreview, setFinalMixPreview] = useState(null);
-  const [mixVocalVolume, setMixVocalVolume] = useState(0.85); // Vocal volume for final mix (0-1)
-  const [mixBeatVolume, setMixBeatVolume] = useState(0.60); // Beat volume for final mix (0-1)
-  const [mixPreset, setMixPreset] = useState('rapper-over-beat'); // Mix preset for audio mastering
+  const [mixVocalVolume, setMixVocalVolume] = useState(0.95); // Vocal-first default for final mix (0-1)
+  const [mixBeatVolume, setMixBeatVolume] = useState(0.48); // Leave room for a clear lead vocal (0-1)
+  const [mixPreset, setMixPreset] = useState('vocal-focus'); // Clear vocals are the primary default
   const [generatingMusicVideo, setGeneratingMusicVideo] = useState(false);
   const [musicVideoUrl, setMusicVideoUrl] = useState(null);
   const [muxRetryParams, setMuxRetryParams] = useState(null); // { videoUrl, audioUrl } — set on mux failure for retry
@@ -5957,7 +5958,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             genre: genre || style,
             vocalVolume: mixVocalVolume,
             beatVolume: mixBeatVolume,
-            preset: mixPreset || 'rapper-over-beat',
+            preset: mixPreset || 'vocal-focus',
             // Automated mix processing flags; every render still requires review.
             beatBpm: parseInt(projectBpm) || null,
             autoTune: true,

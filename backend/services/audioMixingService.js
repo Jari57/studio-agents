@@ -163,8 +163,8 @@ async function downloadAudio(url, destPath, maxRedirects = 3) {
  * @param {string} options.vocalPath - Path to vocal audio file
  * @param {string} options.beatPath - Path to beat audio file
  * @param {string} options.outputPath - Output file path
- * @param {number} options.vocalVolume - Vocal volume (0-1, default 0.85)
- * @param {number} options.beatVolume - Beat volume (0-1, default 0.60)
+ * @param {number} options.vocalVolume - Vocal volume (0-1, default 0.95)
+ * @param {number} options.beatVolume - Beat volume (0-1, default 0.48)
  * @param {boolean} options.autoDuck - Auto-duck beat when vocals play (default true)
  * @param {boolean} options.compression - Apply professional compression (default true)
  * @param {number} options.lufsTarget - Target loudness in LUFS (default -14)
@@ -176,8 +176,8 @@ async function mixAudioProfessional(options, logger) {
     vocalPath,
     beatPath,
     outputPath,
-    vocalVolume = 0.85,
-    beatVolume = 0.60,
+    vocalVolume = 0.95,
+    beatVolume = 0.48,
     autoDuck = true,
     compression = true,
     lufsTarget = -14,
@@ -622,6 +622,14 @@ function readProducerDuration(inputPath) {
  */
 function getMixPreset(presetName) {
   const presets = {
+    'vocal-focus': {
+      vocalVolume: 0.95,
+      beatVolume: 0.48,
+      autoDuck: true,
+      compression: true,
+      lufsTarget: -14,
+      outputFormat: 'music'
+    },
     'rapper-over-beat': {
       vocalVolume: 0.90,
       beatVolume: 0.55,
@@ -664,7 +672,7 @@ function getMixPreset(presetName) {
     }
   };
 
-  return presets[presetName] || presets['rapper-over-beat'];
+  return presets[presetName] || presets['vocal-focus'];
 }
 
 /**

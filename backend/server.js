@@ -7564,8 +7564,8 @@ app.post('/api/mix-audio', verifyFirebaseToken, requireAuth, checkCreditsFor('mi
 
     // Get preset or use custom settings
     let mixOptions = preset ? getMixPreset(preset) : {
-      vocalVolume: vocalVolume || 0.85,
-      beatVolume: beatVolume || 0.60,
+      vocalVolume: vocalVolume ?? 0.95,
+      beatVolume: beatVolume ?? 0.48,
       autoDuck,
       compression,
       lufsTarget: lufsTarget || -14,
@@ -7575,8 +7575,8 @@ app.post('/api/mix-audio', verifyFirebaseToken, requireAuth, checkCreditsFor('mi
     // Override preset with custom values if provided
     if (!preset) {
       mixOptions = {
-        vocalVolume: vocalVolume || 0.85,
-        beatVolume: beatVolume || 0.60,
+        vocalVolume: vocalVolume ?? 0.95,
+        beatVolume: beatVolume ?? 0.48,
         autoDuck,
         compression,
         lufsTarget: lufsTarget || -14,

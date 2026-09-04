@@ -9,7 +9,17 @@ const {
   normalizeProducerTracks,
   buildMultiStemFilterGraph,
   mixMultipleStems,
+  getMixPreset,
 } = require('../services/audioMixingService');
+
+test('vocal-focus is the safe default mix with a clear lead over the beat', () => {
+  const explicit = getMixPreset('vocal-focus');
+  const fallback = getMixPreset('unknown-preset');
+  assert.equal(explicit.vocalVolume, 0.95);
+  assert.equal(explicit.beatVolume, 0.48);
+  assert.equal(explicit.autoDuck, true);
+  assert.deepEqual(fallback, explicit);
+});
 
 test('normalizes producer controls and removes muted tracks', () => {
   const tracks = normalizeProducerTracks([

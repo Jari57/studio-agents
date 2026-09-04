@@ -13,8 +13,8 @@ import {
 export default function RealtimePreviewMixer({
   beatUrl,
   vocalUrl,
-  beatVolume = 0.60,
-  vocalVolume = 0.85,
+  beatVolume = 0.48,
+  vocalVolume = 0.95,
   onBeatVolumeChange,
   onVocalVolumeChange,
   isMobile = false

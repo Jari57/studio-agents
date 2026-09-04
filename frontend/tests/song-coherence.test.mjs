@@ -33,3 +33,10 @@ test('music mode presents musical performers instead of speech-provider controls
   assert.match(orchestrator, /outputFormat !== 'music' && \(vocalQuality === 'premium'/);
   assert.doesNotMatch(orchestrator, /Arnold — Deep &amp; Commanding/);
 });
+
+test('the default song mix keeps the lead vocal primary and the beat tucked', () => {
+  assert.match(orchestrator, /useState\(0\.95\); \/\/ Vocal-first default/);
+  assert.match(orchestrator, /useState\(0\.48\); \/\/ Leave room for a clear lead vocal/);
+  assert.match(orchestrator, /useState\('vocal-focus'\); \/\/ Clear vocals are the primary default/);
+  assert.match(orchestrator, /Vocal clarity is primary by default/);
+});
