@@ -26,3 +26,10 @@ test('a stale ElevenLabs catalog selection cannot leak into a musical take', () 
 test('personal singing sends the selected instrumental through the frontend contract', () => {
   assert.match(studio, /backingTrackUrl: audioDnaUrl \|\| backingTrack\?\.audioUrl \|\| null/);
 });
+
+test('music mode presents musical performers instead of speech-provider controls', () => {
+  assert.match(orchestrator, /Sung vocals, melody, harmony, and a matched arrangement/);
+  assert.match(orchestrator, /enableSpeechPreview=\{outputFormat !== 'music'\}/);
+  assert.match(orchestrator, /outputFormat !== 'music' && \(vocalQuality === 'premium'/);
+  assert.doesNotMatch(orchestrator, /Arnold — Deep &amp; Commanding/);
+});

@@ -306,7 +306,8 @@ function GeneratorCard({
   isUploadingDna = false,
   provider = null,
   onEditCover = null,
-  isMaximized = false
+  isMaximized = false,
+  enableSpeechPreview = true
 }) {
   const [showPreview, setShowPreview] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -1097,8 +1098,9 @@ function GeneratorCard({
         }}>
           {/* Primary actions — left group */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {/* TTS / Hear Vocals */}
-            <button
+            {/* Speech preview is intentionally absent from music cards. A generated
+                vocal stem can still be auditioned from the lyrics card. */}
+            {(enableSpeechPreview || (slot === 'lyrics' && mediaUrl)) && <button
               onClick={onSpeak}
               title={isSpeaking ? 'Stop' : (slot === 'lyrics' && mediaUrl) ? 'Play AI Vocals' : 'Text to Speech'}
               style={{
@@ -1113,7 +1115,7 @@ function GeneratorCard({
             >
               {isSpeaking ? <VolumeX size={13} /> : <Volume2 size={13} />}
               {isSpeaking ? 'Stop' : (slot === 'lyrics' && mediaUrl) ? 'Vocals' : 'TTS'}
-            </button>
+            </button>}
 
             {/* Copy */}
             <button
@@ -7999,7 +8001,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.58rem', fontWeight: '700', color: "var(--studio-warning, #806023)", background: "var(--studio-accent-soft, #f0ded2)", padding: '2px 7px', borderRadius: '20px', border: "1px solid var(--studio-border, #d8d5c9)" }}><Zap size={8} />Premium</span>
                   {mediaUrls.lyricsVocal && <span style={{ fontSize: '0.58rem', fontWeight: '700', color: "var(--studio-sage, #566954)", background: "var(--studio-surface-alt, #e4e8dc)", padding: '2px 7px', borderRadius: '20px', border: "1px solid var(--studio-border, #d8d5c9)" }}>✓ Vocals Ready</span>}
                 </div>
-                <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: "var(--studio-muted, #646c64)" }}>Voice cloning, ElevenLabs, style control</p>
+                <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: "var(--studio-muted, #646c64)" }}>
+                  {outputFormat === 'music'
+                    ? 'Sung vocals, melody, harmony, and a matched arrangement'
+                    : 'Narration voices, cloning, and delivery control'}
+                </p>
               </div>
               <div style={{ color: "var(--studio-muted, #646c64)", flexShrink: 0, transition: 'transform 0.3s ease', transform: expandedSections.vocalEngine ? 'rotate(180deg)' : 'none' }}><ChevronDown size={15} /></div>
             </button>
@@ -8135,7 +8141,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       <span style={{ fontSize: '0.7rem', color: "var(--studio-muted, #646c64)" }}>
                         {voiceStyle === 'cloned' ? 'Cloned Voice' : voiceStyle.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       </span>
-                      {elevenLabsVoiceId && (
+                      {outputFormat !== 'music' && elevenLabsVoiceId && (
                         <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: "var(--studio-accent-soft, #f0ded2)", color: "var(--studio-warning, #806023)", fontWeight: '700' }}>ElevenLabs</span>
                       )}
                       {referenceSongUrl && (
@@ -8190,7 +8196,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 borderBottom: "1px solid var(--studio-border, #d8d5c9)"
               }}>
                 <Settings size={14} color="var(--studio-warning, #806023)" />
-                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: "var(--studio-warning, #806023)", textTransform: 'uppercase', letterSpacing: '0.06em' }}>Voice Engine</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: "var(--studio-warning, #806023)", textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {outputFormat === 'music' ? 'Musical Voice & Style' : 'Voice Engine'}
+                </span>
               </div>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
               <select
@@ -8236,15 +8244,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     <option key={voice.id} value={`saved-${voice.id}`}>🎙️ {voice.name || 'Saved Voice'}</option>
                   ))}
                 </optgroup>
-                <optgroup label="🔥 Sample Voices — Male">
-                  <option value="rapper">Arnold — Deep &amp; Commanding (Rap)</option>
-                  <option value="rapper-melodic">Antoni — Smooth &amp; Melodic (R&amp;B/Rap)</option>
-                  <option value="rapper-young">Josh — Young &amp; Dynamic (Trap)</option>
+                <optgroup label="🔥 Studio Performers — Male">
+                  <option value="rapper">Deep, commanding rapper</option>
+                  <option value="rapper-melodic">Smooth melodic R&amp;B / rap singer</option>
+                  <option value="rapper-young">Young, dynamic trap performer</option>
                 </optgroup>
-                <optgroup label="💜 Sample Voices — Female">
-                  <option value="rapper-female">Freya — Powerful &amp; Bold (Rap)</option>
-                  <option value="singer-female">Rachel — Warm &amp; Soulful (R&amp;B)</option>
-                  <option value="singer-female-pop">Bella — Sweet &amp; Clear (Pop)</option>
+                <optgroup label="💜 Studio Performers — Female">
+                  <option value="rapper-female">Powerful, bold rapper</option>
+                  <option value="singer-female">Warm, soulful R&amp;B singer</option>
+                  <option value="singer-female-pop">Bright, clear pop singer</option>
                 </optgroup>
               </select>
 
@@ -8338,7 +8346,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       <Trash2 size={14} />
                     </button>
                   </div>
-                ) : (vocalQuality === 'premium' || voiceStyle === 'cloned' || voiceStyle.startsWith('saved-')) && (
+                ) : outputFormat !== 'music' && (vocalQuality === 'premium' || voiceStyle === 'cloned' || voiceStyle.startsWith('saved-')) && (
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {elVoices.length > 0 ? (
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -9437,6 +9445,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       onDownload={() => handleDownload(slot.key)}
                       onSpeak={() => speakText(outputs[slot.key], slot.key)}
                       isSpeaking={speakingSlot === slot.key}
+                      enableSpeechPreview={outputFormat !== 'music'}
                       onMaximize={() => { setShowPreviewModal(false); setMaximizedSlot(slot.key); }}
                       onUploadDna={
                         slot.key === 'visual' ? (e) => handleUploadDna('visual', e) :
@@ -9669,6 +9678,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     onDownload={() => handleDownload(slot.key)}
                     onSpeak={() => speakText(outputs[slot.key], slot.key)}
                     isSpeaking={speakingSlot === slot.key}
+                    enableSpeechPreview={outputFormat !== 'music'}
                     onUploadDna={
                       slot.key === 'visual' ? (e) => handleUploadDna('visual', e) :
                       slot.key === 'audio' ? (e) => handleUploadDna('audio', e) :
