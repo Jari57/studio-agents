@@ -4202,25 +4202,35 @@ const fetchUserCredits = useCallback(async (uid) => {
           duration: voiceSettings.duration || 30,
           bpm: voiceSettings.bpm || 90,
           speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl,
-          backingTrackUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
+          backingTrackUrl: audioDnaUrl || backingTrack?.audioUrl || null,
           audioId: referencedAudioId || undefined,
           elevenLabsVoiceId: elevenLabsVoiceId,
           referenceSongUrl: referenceSongUrl || null,
-          quality: (elevenLabsVoiceId || voiceSampleUrl || voiceSettings.speakerUrl) ? 'premium' : 'standard',
+          quality: ['rapper', 'rapper-female', 'singer', 'singer-female', 'cloned'].some(kind => (voiceSettings.style || '').includes(kind)) ? 'premium' : 'standard',
           isPersonalVoice: personalVoiceSelected,
-          preferredProvider: personalVoiceSelected ? 'elevenlabs-clone' : null
+          // Personal singing uses MiniMax Music with both the consented voice
+          // sample and selected instrumental. ElevenLabs remains a narration
+          // provider; forcing it here is what produced speech over a beat.
+          preferredProvider: personalVoiceSelected ? 'minimax-music' : null,
+          musicalDirection: backingTrack?.title || selectedProject?.name || sourceAgent,
+          mood: voiceSettings.mood || null,
+          songStructure: voiceSettings.structure || 'full song'
         })
       });
 
       const data = await response.json();
 
-      if (data.audioUrl) {
+      if (response.ok && data.audioUrl) {
+        const playbackUrl = data.mixedAudioUrl || data.audioUrl;
         // Instead of creating a NEW item, ADD the audio to the EXISTING preview item
         // This consolidates lyrics + vocal into ONE card
         if (previewItem) {
           const consolidatedItem = {
             ...previewItem,
-            audioUrl: data.audioUrl,
+            audioUrl: playbackUrl,
+            vocalUrl: data.audioUrl,
+            instrumentalUrl: data.instrumentalUrl || null,
+            mixedAudioUrl: data.mixedAudioUrl || null,
             mimeType: data.mimeType || 'audio/wav',
             type: 'vocal', // Upgrade type to vocal (has both text + audio)
             vocalSnippet: `🎤 AI Vocal created from lyrics`,
@@ -4245,7 +4255,10 @@ const fetchUserCredits = useCallback(async (uid) => {
             title: `AI Vocal - ${sourceAgent}`,
             agent: sourceAgent,
             type: 'vocal',
-            audioUrl: data.audioUrl,
+            audioUrl: playbackUrl,
+            vocalUrl: data.audioUrl,
+            instrumentalUrl: data.instrumentalUrl || null,
+            mixedAudioUrl: data.mixedAudioUrl || null,
             mimeType: data.mimeType || 'audio/wav',
             snippet: `🎤 AI Vocal: "${textToSpeak.substring(0, 50)}..."`,
             projectSnapshot: targetProjectSnapshot, // Preserve context
@@ -4256,8 +4269,8 @@ const fetchUserCredits = useCallback(async (uid) => {
           toast.success('AI vocal created!', { id: toastId });
           return vocalItem;
         }
-      } else if (data.error) {
-        throw new Error(data.error);
+      } else if (data.error || data.details) {
+        throw new Error(data.details || data.error);
       } else {
         throw new Error('No audio URL returned');
       }
@@ -5035,9 +5048,12 @@ ABSOLUTE RULES (violating any = failure):
           language: voiceSettings.language || 'English',
           duration: voiceSettings.duration || 30,
           bpm: voiceSettings.bpm || 90,
-          backingTrackUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
+          backingTrackUrl: audioDnaUrl || backingTrack?.audioUrl || null,
           audioId: referencedAudioId,
           referenceSongUrl: referenceSongUrl || null,
+          musicalDirection: expandedPrompt,
+          mood: heroIntensity >= 7 ? 'high energy' : heroIntensity >= 4 ? 'driving' : 'restrained',
+          songStructure: 'full song',
         };
       } else if (isMasterAgent) {
         // Mastering Lab -requires an existing audio asset to master

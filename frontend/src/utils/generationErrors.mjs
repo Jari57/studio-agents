@@ -15,6 +15,8 @@ export function selectedVoiceInputs({ personalVoiceSelected, elevenLabsVoiceId, 
     isPersonalVoice: Boolean(personalVoiceSelected),
     elevenLabsVoiceId: personalVoiceSelected ? elevenLabsVoiceId || null : null,
     speakerUrl: personalVoiceSelected ? voiceSampleUrl || speakerUrl || null : null,
-    preferredProvider: personalVoiceSelected ? 'elevenlabs-clone' : null,
+    // ElevenLabs is excellent for narration, but it is still a speech model.
+    // Personal singing must use the music model with the selected instrumental.
+    preferredProvider: personalVoiceSelected ? 'minimax-music' : null,
   };
 }

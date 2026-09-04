@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { requestsPersonalVoice } = require('../services/voiceRequestPolicy');
-const { generateMusicalVocal, separateVocal, SONG_MODEL } = require('../services/musicalVocalService');
+const { generateMusicalVocal, separateSongStems, separateVocal, SONG_MODEL } = require('../services/musicalVocalService');
 const source = fs.readFileSync(path.join(__dirname, '../server.js'), 'utf8');
 const route = source.slice(source.indexOf("app.post('/api/generate-speech'"), source.indexOf("app.post('/api/generate-audio'"));
 
@@ -17,7 +17,7 @@ async function request(body, failStem = false) {
     verifyFirebaseToken() {}, requireAuthForPersonalVoice() {}, requireAuthOrFreeLimit() {}, generationLimiter() {}, checkCreditsFor: () => () => {},
     process: { env: { REPLICATE_API_KEY: 'test-only' } },
     logger: { info() {}, warn() {}, error() {} },
-    requestsPersonalVoice, generateMusicalVocal, separateVocal, Buffer,
+    requestsPersonalVoice, generateMusicalVocal, separateSongStems, separateVocal, Buffer,
     Replicate: class {},
     getOwnedVoiceRecord: async () => null,
     refundCredits: async () => { refunds++; },
@@ -26,7 +26,12 @@ async function request(body, failStem = false) {
       models.push(model);
       inputs.push(options.input);
       if (model === SONG_MODEL) return 'https://example.test/song.mp3';
-      return failStem ? { other: 'https://example.test/song.mp3' } : { vocals: 'https://example.test/vocal.mp3' };
+      return failStem
+        ? { other: 'https://example.test/instrumental.mp3' }
+        : {
+            vocals: 'https://example.test/vocal.mp3',
+            other: 'https://example.test/instrumental.mp3',
+          };
     },
     fetchWithRetry: async () => ({ ok: true, arrayBuffer: async () => Buffer.alloc(2000) }),
   });
@@ -36,11 +41,14 @@ async function request(body, failStem = false) {
   return { status, result, refunds, models, inputs };
 }
 
-test('production vocal handler returns an isolated musical stem without auto-mixing', async () => {
+test('production vocal handler returns one coherent master and its matched stems', async () => {
   const response = await request({ backingTrackUrl: 'https://example.test/beat.mp3' });
   assert.equal(response.status, 200, JSON.stringify(response.result));
-  assert.equal(response.result.wasMixed, false);
-  assert.equal(response.result.performanceType, 'isolated-musical-vocal');
+  assert.equal(response.result.wasMixed, true);
+  assert.equal(response.result.performanceType, 'coherent-song-stems');
+  assert.equal(response.result.audioUrl, 'https://example.test/vocal.mp3');
+  assert.equal(response.result.instrumentalUrl, 'https://example.test/instrumental.mp3');
+  assert.equal(response.result.mixedAudioUrl, 'https://example.test/song.mp3');
   assert.equal(response.result.requiresHumanReview, true);
   assert.equal(response.models.length, 2);
   assert.equal(response.refunds, 0);

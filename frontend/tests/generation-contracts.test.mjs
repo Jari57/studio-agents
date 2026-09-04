@@ -13,7 +13,9 @@ test('AI vocal selection never transmits a stored personal sample or clone ID', 
   assert.deepEqual(selectedVoiceInputs({ ...settings, personalVoiceSelected: false }), {
     isPersonalVoice: false, elevenLabsVoiceId: null, speakerUrl: null, preferredProvider: null,
   });
-  assert.equal(selectedVoiceInputs({ ...settings, personalVoiceSelected: true }).speakerUrl, settings.voiceSampleUrl);
+  const personal = selectedVoiceInputs({ ...settings, personalVoiceSelected: true });
+  assert.equal(personal.speakerUrl, settings.voiceSampleUrl);
+  assert.equal(personal.preferredProvider, 'minimax-music');
 });
 test('permissions and consent errors are not mislabeled as credit failures', () => {
   assert.equal(generationFailureMessage(403, { error: 'Personal voice not found in your library' }), 'Personal voice not found in your library');

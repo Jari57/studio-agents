@@ -90,7 +90,7 @@ const {
   runWithProviderRetry,
 } = require('./services/providerReliability');
 const { projectRevision, canonicalProjectSnapshot, nextProjectTimestampMs } = require('./services/projectRevision');
-const { generateMusicalVocal, separateVocal } = require('./services/musicalVocalService');
+const { generateMusicalVocal, separateSongStems, separateVocal } = require('./services/musicalVocalService');
 const { analyzeMusicBeats } = require('./services/beatDetectionService');
 const {
   getVideoMetadata,
@@ -5204,6 +5204,9 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
       outputFormat = 'social', // social, podcast, tv, music
       backingTrackUrl = null, // Backing track for vocal mixing (optional)
       referenceSongUrl = null, // Reference song for tone/warmth/vibe matching
+      musicalDirection = null, // Shared beat/arrangement brief for a coherent song
+      mood = null,
+      songStructure = null,
       preferredProvider = null // Lock to a specific provider for consistency (suno, elevenlabs-premium, bark-singing, etc.)
     } = req.body;
     
@@ -5367,6 +5370,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
 
     let audioUrl = null;
     let provider = null;
+    let coherentInstrumentalUrl = null;
+    let coherentSongUrl = null;
     let persistedCloneId = null; // Tracks the ElevenLabs voice_id for cloned voices (cached or newly created)
     let resolvedElevenLabsVoiceId = null; // Tracks the resolved voice ID for consistency across re-generations
     let systemCreditIssue = false;
@@ -5378,25 +5383,26 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     const isSingingStyle = style.includes('singer');
     const isRapStyle = style.includes('rapper');
     const requiresMusicalPerformance = isSingingStyle || isRapStyle || outputFormat === 'music' || !!backingTrackUrl;
-    const strictMusicalQuality = requiresMusicalPerformance
-      && (req.body.quality === 'premium' || req.body.quality === 'ultra');
+    // Singing and rap must always use a music model. A lower UI quality label
+    // may alter cost or fidelity, but it must never downgrade a musical request
+    // into ElevenLabs/Bark/Gemini speech.
+    const strictMusicalQuality = requiresMusicalPerformance;
     let isolatedMusicalVocal = false;
 
     // A musical performance plus stem extraction, never speech disguised as
     // singing or a full instrumental song labeled as a dry vocal. Do not use
     // this route for personal identities: their consent/identity path is separate.
-    if (strictMusicalQuality && !isPersonalVoice && replicateKey && !preferredProvider) {
+    if (strictMusicalQuality && !isPersonalVoice && replicateKey) {
       try {
         const client = new Replicate({ auth: replicateKey });
         const generated = await generateMusicalVocal({
-          lyrics: cleanedPrompt, style, genre, language, rapStyle, duration, bpm: req.body.bpm,
+          lyrics: cleanedPrompt, style, genre, language, rapStyle, duration,
+          bpm: req.body.bpm, musicalDirection, mood, songStructure,
         }, (model, input, operation) => runReplicateWithRateLimitRetry(client, model, { input }, operation),
         stage => emit('vocals', stage));
-        const download = await fetchWithRetry(generated.audioUrl, {}, { timeoutMs: 45000, maxRetries: 0 });
-        if (!download.ok) throw new Error('The generated vocal stem could not be downloaded.');
-        const bytes = Buffer.from(await download.arrayBuffer());
-        if (bytes.length < 1000) throw new Error('The generated vocal stem was empty.');
-        audioUrl = `data:audio/mpeg;base64,${bytes.toString('base64')}`;
+        audioUrl = generated.audioUrl;
+        coherentInstrumentalUrl = generated.instrumentalUrl;
+        coherentSongUrl = generated.songUrl;
         provider = generated.provider;
         isolatedMusicalVocal = true;
       } catch (vocalError) {
@@ -5418,6 +5424,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     // artist clone through a TTS endpoint is the primary cause of spoken,
     // rhythmically inconsistent "vocals". Narration continues to use the
     // identity-locked ElevenLabs clone.
+    // Ignore any remembered speech provider for a musical request. Provider
+    // stickiness is useful only inside the same capability class.
     const supportedStrictPreference = preferredProvider === 'suno' ? 'suno' : null;
     const wantProvider = isPersonalVoice
       ? (strictMusicalQuality ? 'minimax-music' : 'elevenlabs-clone')
@@ -5556,6 +5564,14 @@ Return ONLY valid JSON, no markdown.`;
       && (style === 'cloned' || speakerUrl)
       && cloneVoiceSampleUrl
       && !/^data:/.test(cloneVoiceSampleUrl); // Replicate needs a fetchable URL, not a data URI
+    if (strictMusicalQuality && isPersonalVoice && !backingTrackUrl && !referenceSongUrl) {
+      await refundCredits(req, 'personal singing requires an instrumental or reference song');
+      return res.status(422).json({
+        error: 'Choose or generate a beat first',
+        code: 'PERSONAL_VOICE_NEEDS_MUSIC',
+        details: 'A personal singing voice needs a beat or reference song so the performance has real rhythm, key, and phrasing. StudioAgents will not substitute speech or an a-cappella hum. Your credits were refunded.',
+      });
+    }
     if (!audioUrl && canMinimaxClone && (!wantProvider || wantProvider === 'minimax-music')) {
       try {
         logger.info('🎤🎵 MiniMax Music — singing lyrics in cloned voice (zero-shot, no TTS)', { sample: cloneVoiceSampleUrl.substring(0, 60) });
@@ -5591,8 +5607,13 @@ Return ONLY valid JSON, no markdown.`;
           sample_rate: 44100,
           bitrate: 256000
         };
-        // Only pass a separate reference SONG for style if a distinct one was supplied
-        if (referenceSongUrl && referenceSongUrl !== cloneVoiceSampleUrl && !/^data:/.test(referenceSongUrl)) {
+        // MiniMax Music 01 can condition on the actual instrumental. Supplying
+        // it alongside the consented voice sample is the only supported way to
+        // make the personal vocal follow this beat instead of producing an
+        // unrelated a-cappella hum.
+        if (backingTrackUrl && !/^data:/.test(backingTrackUrl)) {
+          mmInput.instrumental_file = backingTrackUrl;
+        } else if (referenceSongUrl && referenceSongUrl !== cloneVoiceSampleUrl && !/^data:/.test(referenceSongUrl)) {
           mmInput.song_file = referenceSongUrl;
         }
 
@@ -5623,8 +5644,9 @@ Return ONLY valid JSON, no markdown.`;
             if (out && typeof out === 'string') {
               const aud = await fetch(out);
               if (aud.ok) {
-                const buf = await aud.arrayBuffer();
-                audioUrl = `data:audio/mpeg;base64,${Buffer.from(buf).toString('base64')}`;
+                audioUrl = out;
+                coherentSongUrl = out;
+                coherentInstrumentalUrl = backingTrackUrl || null;
                 provider = 'minimax-music-clone';
                 emit('vocals', 'minimax-complete');
                 logger.info('✅ MiniMax cloned-voice song generated (real singing)');
@@ -6820,14 +6842,13 @@ Do NOT include any other text.`
       try {
         if (!replicateKey) throw new Error('Vocal stem extraction is not configured');
         const client = new Replicate({ auth: replicateKey });
-        const stemUrl = await separateVocal(audioUrl,
+        const musicalPerformanceUrl = audioUrl;
+        const stems = await separateSongStems(musicalPerformanceUrl,
           (model, input, operation) => runReplicateWithRateLimitRetry(client, model, { input }, operation),
           stage => emit('vocals', stage));
-        const download = await fetchWithRetry(stemUrl, {}, { timeoutMs: 45000, maxRetries: 0 });
-        if (!download.ok) throw new Error('Could not download the separated vocal');
-        const bytes = Buffer.from(await download.arrayBuffer());
-        if (bytes.length < 1000) throw new Error('Empty vocal stem');
-        audioUrl = `data:audio/mpeg;base64,${bytes.toString('base64')}`;
+        audioUrl = stems.vocalUrl;
+        coherentInstrumentalUrl = coherentInstrumentalUrl || stems.instrumentalUrl;
+        coherentSongUrl = coherentSongUrl || musicalPerformanceUrl;
         isolatedMusicalVocal = true;
       } catch (stemError) {
         logger.warn('Vocal stem extraction failed', { code: stemError.code || null });
@@ -6844,6 +6865,10 @@ Do NOT include any other text.`
 
       let permanentUrl = null;
       let storagePath = null;
+      let permanentInstrumentalUrl = null;
+      let instrumentalStoragePath = null;
+      let permanentSongUrl = null;
+      let songStoragePath = null;
 
       // MIX WITH BACKING TRACK IF PROVIDED
       // Only mix with real vocal providers — TTS providers return dry vocals
@@ -6960,7 +6985,10 @@ Do NOT include any other text.`
             // Applied via FFmpeg filters to the generated vocal audio
             // ═══════════════════════════════════════════════════════════════
             const { pitchShift, speed: vocalSpeed, vibrato: vibratoDepth, expression: expressionPreset } = req.body;
-            const needsProcessing = (pitchShift && pitchShift !== 0) || (vocalSpeed && vocalSpeed !== 1.0) || (vibratoDepth && vibratoDepth > 0);
+            // A coherent master and its stems must stay sample-aligned. Applying
+            // vocal-only processing here would make the saved vocal drift away
+            // from the master that the listener actually approved.
+            const needsProcessing = !coherentSongUrl && ((pitchShift && pitchShift !== 0) || (vocalSpeed && vocalSpeed !== 1.0) || (vibratoDepth && vibratoDepth > 0));
 
             if (needsProcessing) {
               const synthTempFiles = [];
@@ -7044,6 +7072,27 @@ Do NOT include any other text.`
             const result = await uploadToStorage(audioUrl, req.user.uid, fileName, 'audio/mpeg');
             permanentUrl = result.url;
             storagePath = result.path;
+
+            if (coherentInstrumentalUrl) {
+              const instrumentalResult = await uploadToStorage(
+                coherentInstrumentalUrl,
+                req.user.uid,
+                `instrumental_matched_${Date.now()}.mp3`,
+                'audio/mpeg'
+              );
+              permanentInstrumentalUrl = instrumentalResult.url;
+              instrumentalStoragePath = instrumentalResult.path;
+            }
+            if (coherentSongUrl) {
+              const songResult = await uploadToStorage(
+                coherentSongUrl,
+                req.user.uid,
+                `song_master_${Date.now()}.mp3`,
+                'audio/mpeg'
+              );
+              permanentSongUrl = songResult.url;
+              songStoragePath = songResult.path;
+            }
             
             const db = getFirestoreDb();
             if (db) {
@@ -7054,24 +7103,48 @@ Do NOT include any other text.`
                 provider: provider,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
               });
+              if (permanentInstrumentalUrl) {
+                await db.collection('users').doc(req.user.uid).collection('assets').add({
+                  url: permanentInstrumentalUrl,
+                  storagePath: instrumentalStoragePath,
+                  assetType: 'beat',
+                  provider,
+                  relationship: 'coherent-song-instrumental',
+                  createdAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+              }
+              if (permanentSongUrl) {
+                await db.collection('users').doc(req.user.uid).collection('assets').add({
+                  url: permanentSongUrl,
+                  storagePath: songStoragePath,
+                  assetType: 'mix',
+                  provider,
+                  relationship: 'coherent-song-master',
+                  createdAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+              }
             }
           } catch (uploadErr) { logger.warn('Cloud save failed'); }
         }
       }
       
       const isReleaseCandidate = isolatedMusicalVocal;
-      const performanceType = isolatedMusicalVocal
+      const performanceType = coherentSongUrl
+        ? 'coherent-song-stems'
+        : isolatedMusicalVocal
         ? 'isolated-musical-vocal'
         : (provider === 'bark-singing' ? 'musical-preview' : 'spoken-vocal');
 
       res.json({
         audioUrl: permanentUrl || audioUrl,
+        instrumentalUrl: permanentInstrumentalUrl || coherentInstrumentalUrl || null,
+        mixedAudioUrl: permanentSongUrl || coherentSongUrl || null,
         temporaryUrl: permanentUrl ? audioUrl : null,
         mimeType: audioUrl.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mpeg',
         provider,
         resolvedVoiceId: resolvedElevenLabsVoiceId || null,
         clonedVoiceId: persistedCloneId || null,
-        wasMixed,
+        wasMixed: wasMixed || !!coherentSongUrl,
         style,
         isRealGeneration: true,
         isReleaseCandidate,
@@ -7079,9 +7152,9 @@ Do NOT include any other text.`
         requiresHumanReview: true,
         actualDuration: null,
         requestedDuration: duration,
-        durationNote: isolatedMusicalVocal ? 'Extracted musical vocal stem. Length and phrasing may differ from the brief; review separation artifacts and align it in the mixer. No automatic pitch or tempo correction was applied.' : null,
+        durationNote: coherentSongUrl ? 'The vocal, instrumental, and master come from one musical performance, so tempo, key, harmony, phrasing, and arrangement stay together.' : isolatedMusicalVocal ? 'Extracted musical vocal stem. Review separation artifacts before release.' : null,
         qualityTier: isReleaseCandidate ? 'release-candidate' : 'studio-draft',
-        isDurable: !req.user || !!permanentUrl,
+        isDurable: !req.user || (!!permanentUrl && (!coherentInstrumentalUrl || !!permanentInstrumentalUrl) && (!coherentSongUrl || !!permanentSongUrl)),
         referenceAnalysis: refSongAnalysis || null,
         message: refSongAnalysis 
           ? `Professional vocal generated via ${provider} — matched to reference (${refSongAnalysis.tone} tone, ${refSongAnalysis.mood} mood)`

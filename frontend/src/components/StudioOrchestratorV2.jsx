@@ -3533,6 +3533,9 @@ export default function StudioOrchestratorV2({
     
     const currentSelectedAgents = requestedAgents;
     const requestedScope = productionScope(currentSelectedAgents, includeVocals);
+    const coherentSongRun = requestedScope.finalMix
+      && voiceSource !== 'personal'
+      && voiceStyle !== 'cloned';
     
     const activeSlots = Object.entries(currentSelectedAgents).filter(([, v]) => v);
     devLog('[handleGenerate] Final activeSlots:', activeSlots);
@@ -3554,7 +3557,7 @@ export default function StudioOrchestratorV2({
       if (currentSelectedAgents.lyrics) steps.push({ id: 'lyrics', label: 'Writing lyrics', status: 'pending', startTime: null, endTime: null });
       if (currentSelectedAgents.audio) steps.push({ id: 'beat-desc', label: 'Composing beat description', status: 'pending', startTime: null, endTime: null });
       if (currentSelectedAgents.visual) steps.push({ id: 'visual-desc', label: 'Designing album art concept', status: 'pending', startTime: null, endTime: null });
-      if (currentSelectedAgents.audio) steps.push({ id: 'beat-audio', label: 'Generating beat audio', status: 'pending', startTime: null, endTime: null });
+      if (currentSelectedAgents.audio && !coherentSongRun) steps.push({ id: 'beat-audio', label: 'Generating beat audio', status: 'pending', startTime: null, endTime: null });
       if (currentSelectedAgents.visual) steps.push({ id: 'image', label: 'Creating album artwork', status: 'pending', startTime: null, endTime: null });
       // Vocals run whenever lyrics will exist (slot selected OR lyrics already present from a prior run)
       if (requestedScope.vocals) steps.push({ id: 'vocals', label: 'Recording AI vocals', status: 'pending', startTime: null, endTime: null });
@@ -3745,18 +3748,25 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             
             // Track media generation promises so we can sequence the pipeline
             if (slot === 'audio') {
-              // Beat description ready → queue beat audio generation (starts immediately)
-              updatePipelineStep('beat-audio', 'active');
-              pipelinePromises.beatAudio = handleGenerateAudio(data.output)
-                .then((generated) => updatePipelineStep(
-                  'beat-audio',
-                  generated ? 'done' : 'error',
-                  generated ? '' : (lastAudioErrorRef.current || 'Premium beat audio was not created. No credits were charged.')
-                ))
-                .catch((err) => {
-                  updatePipelineStep('beat-audio', 'error', err?.message || 'Premium beat audio was not created.');
-                  toast.error(`Beat generation failed: ${err?.message || 'Unknown error'}`, { id: 'orch-beat-audio-fail' });
-                });
+              if (coherentSongRun) {
+                // The music model will create the master and both matched stems
+                // in one pass after lyrics are ready. Do not spend on a separate
+                // beat that the singer cannot follow.
+                devLog('[Pipeline] Beat direction ready; coherent song generation will render the audio');
+              } else {
+                // Beat description ready → queue beat audio generation (starts immediately)
+                updatePipelineStep('beat-audio', 'active');
+                pipelinePromises.beatAudio = handleGenerateAudio(data.output)
+                  .then((generated) => updatePipelineStep(
+                    'beat-audio',
+                    generated ? 'done' : 'error',
+                    generated ? '' : (lastAudioErrorRef.current || 'Premium beat audio was not created. No credits were charged.')
+                  ))
+                  .catch((err) => {
+                    updatePipelineStep('beat-audio', 'error', err?.message || 'Premium beat audio was not created.');
+                    toast.error(`Beat generation failed: ${err?.message || 'Unknown error'}`, { id: 'orch-beat-audio-fail' });
+                  });
+              }
             } else if (slot === 'visual') {
               updatePipelineStep('image', 'active');
               pipelinePromises.image = handleGenerateImage(data.output, { brief: songIdea, lyrics: contextLyrics, video: '' })
@@ -3856,7 +3866,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       // Rehydrate completed descriptions and restart only their missing media
       // stages. Provider outputs saved in the durable checkpoint are reused.
-      if (resumeJob && outputs.audio) {
+      if (resumeJob && outputs.audio && !coherentSongRun) {
         updatePipelineStep('beat-desc', 'done');
         if (mediaUrlsRef.current.audio) {
           updatePipelineStep('beat-audio', 'done');
@@ -3934,7 +3944,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       const lyricsForVocals = currentRunLyrics(freshGeneration, lyricsResult, outputsRef.current.lyrics, outputs.lyrics);
       const alreadyHasVocals = !!(mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal);
       const pipelineBeatReady = !!mediaUrlsRef.current.audio;
-      if (requestedScope.vocals && lyricsForVocals && !pipelineBeatReady) {
+      if (requestedScope.vocals && lyricsForVocals && !pipelineBeatReady && !coherentSongRun) {
         // Keep dependent generation honest: an unaligned vocal take is not a
         // successful Full Package result. Preserve the lyrics/artwork and let
         // the user retry the failed beat before spending on dependent stages.
@@ -4592,8 +4602,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           genre: activeVoiceStyle === 'singer-pop' ? 'pop' : (activeVoiceStyle === 'singer-female-pop' ? 'pop' : (genre || style.toLowerCase().split('/')[0].trim())),
           language: language || 'English',
           duration: actualBeatDurationRef.current || duration || 30, // Align with actual beat length
+          bpm: projectBpm,
           quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
           outputFormat: outputFormat, // TV, Podcast, Social, Music (Righteous Quality)
+          musicalDirection: outputsRef.current.audio || outputs.audio || songIdea,
+          mood,
+          songStructure,
            // A personal voice always wins when selected. Curated/provider IDs
            // are only sent after the user explicitly chooses “Studio voice”.
            speakerUrl: activeVoiceSource === 'personal' ? (voiceSampleUrl || null) : null,
@@ -4632,15 +4646,24 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       const resolvedAudioUrl = data.audioUrl || data.output;
       if (response.ok && resolvedAudioUrl) {
         mediaDurabilityRef.current.vocals = data.isDurable !== false;
-        // Only mark as mixedAudio if backend explicitly confirms it mixed vocal+beat
+        // A coherent song response contains all three views of one performance:
+        // dry vocal, matched instrumental, and the provider master. Replace an
+        // independently generated beat with the matched stem so later editing
+        // cannot accidentally recombine unrelated music.
         const vocalUpdate = {
           vocals: resolvedAudioUrl,
           lyricsVocal: resolvedAudioUrl,
-          ...(data.wasMixed ? { mixedAudio: resolvedAudioUrl } : {})
+          ...(data.instrumentalUrl ? { audio: data.instrumentalUrl } : {}),
+          ...(data.mixedAudioUrl
+            ? { mixedAudio: data.mixedAudioUrl }
+            : (data.wasMixed ? { mixedAudio: resolvedAudioUrl } : {}))
         };
         setMediaUrls(prev => ({ ...prev, ...vocalUpdate }));
         mediaUrlsRef.current = { ...mediaUrlsRef.current, ...vocalUpdate }; // Sync ref for pipeline reads
         setGenerationProviders(prev => ({ ...prev, vocals: data.provider || 'ai' }));
+        if (data.instrumentalUrl) {
+          setGenerationProviders(prev => ({ ...prev, audio: data.provider || 'ai' }));
+        }
         // If backend returned a persisted clonedVoiceId, save it so future generations skip re-cloning
         if (data.clonedVoiceId && !clonedVoiceId) {
           setClonedVoiceId(data.clonedVoiceId);

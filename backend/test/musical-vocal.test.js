@@ -1,16 +1,18 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { SONG_MODEL, STEM_MODEL, generateMusicalVocal, separateVocal } = require('../services/musicalVocalService');
+const { SONG_MODEL, STEM_MODEL, generateMusicalVocal, separateSongStems, separateVocal } = require('../services/musicalVocalService');
 const brief = { lyrics: '[Verse]\nAn original test lyric line', style: 'singer', genre: 'soul', duration: 30, bpm: 92 };
 
-test('musical generation returns only the separated vocal with unchanged lyrics', async () => {
+test('musical generation returns a matched vocal, instrumental, and master with unchanged lyrics', async () => {
   const calls = [];
   const result = await generateMusicalVocal(brief, async (model, input) => {
     calls.push({ model, input });
     return model === SONG_MODEL ? 'https://example.test/song.mp3' : { vocals: 'https://example.test/vocals.mp3', other: 'https://example.test/beat.mp3' };
   });
   assert.equal(result.audioUrl, 'https://example.test/vocals.mp3');
-  assert.equal(result.performanceType, 'isolated-musical-vocal');
+  assert.equal(result.instrumentalUrl, 'https://example.test/beat.mp3');
+  assert.equal(result.songUrl, 'https://example.test/song.mp3');
+  assert.equal(result.performanceType, 'coherent-song-stems');
   assert.deepEqual(calls.map(call => call.model), [SONG_MODEL, STEM_MODEL]);
   assert.equal(calls[0].input.lyrics, brief.lyrics);
   assert.equal(calls[0].input.lyrics_optimizer, false);
@@ -43,7 +45,20 @@ test('a separator failure is terminal, without another paid song generation', as
 test('legacy musical output is also explicitly separated, not relabeled', async () => {
   const url = await separateVocal('data:audio/mpeg;base64,test-fixture', async (_model, input) => {
     assert.equal(input.stem, 'vocals');
-    return { vocals: 'https://example.test/isolated.mp3' };
+    return { vocals: 'https://example.test/isolated.mp3', other: 'https://example.test/instrumental.mp3' };
   });
   assert.equal(url, 'https://example.test/isolated.mp3');
+});
+
+test('one separation call preserves both sides of the same performance', async () => {
+  let calls = 0;
+  const stems = await separateSongStems('https://example.test/song.mp3', async () => {
+    calls++;
+    return { vocals: 'https://example.test/vocals.mp3', other: 'https://example.test/instrumental.mp3' };
+  });
+  assert.equal(calls, 1);
+  assert.deepEqual(stems, {
+    vocalUrl: 'https://example.test/vocals.mp3',
+    instrumentalUrl: 'https://example.test/instrumental.mp3',
+  });
 });

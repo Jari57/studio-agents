@@ -197,12 +197,14 @@ test.describe('release smoke checks', () => {
   test('personal voice requests stay explicit and consent-gated', async () => {
     const studioSource = readFileSync(resolve(process.cwd(), 'src/components/StudioView.jsx'), 'utf8');
     const orchestratorSource = readFileSync(resolve(process.cwd(), 'src/components/StudioOrchestratorV2.jsx'), 'utf8');
+    const generationInputSource = readFileSync(resolve(process.cwd(), 'src/utils/generationErrors.mjs'), 'utf8');
     const backendSource = readFileSync(resolve(process.cwd(), '../backend/server.js'), 'utf8');
 
     expect(studioSource).toContain("style: storedSpeakerUrl || storedCloneId ? 'cloned' : 'rapper'");
     expect(studioSource).toContain('isPersonalVoice: personalVoiceSelected');
-    expect(studioSource.match(/preferredProvider: personalVoiceSelected \? 'elevenlabs-clone' : null/g)).toHaveLength(2);
-    expect(studioSource).not.toContain("preferredProvider: personalVoiceSelected\n            ? ((voiceSampleUrl || voiceSettings.speakerUrl) ? 'minimax-music'");
+    expect(studioSource).toContain("preferredProvider: personalVoiceSelected ? 'minimax-music' : null");
+    expect(generationInputSource).toContain("preferredProvider: personalVoiceSelected ? 'minimax-music' : null");
+    expect(studioSource).not.toContain("preferredProvider: personalVoiceSelected ? 'elevenlabs-clone' : null");
     expect(studioSource).toContain('sourceAssetIds: [uploadResult.assetId]');
     expect(studioSource).toContain("mode: 'strict'");
     expect(studioSource).toContain('disabled={!elevenLabsVoiceId}');
