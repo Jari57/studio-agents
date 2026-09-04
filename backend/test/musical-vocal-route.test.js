@@ -77,3 +77,10 @@ test('musical lyrics preserve ordinary opening lines and arrangement tags', asyn
   assert.match(response.inputs[0].lyrics, /Here we stand together/);
   assert.match(response.inputs[0].lyrics, /\[Chorus\]/);
 });
+
+test('personal singing is conditioned on music and cannot select a speech provider', () => {
+  assert.match(source, /const strictMusicalQuality = requiresMusicalPerformance/);
+  assert.match(source, /mmInput\.instrumental_file = backingTrackUrl/);
+  assert.match(source, /PERSONAL_VOICE_NEEDS_MUSIC/);
+  assert.match(source, /strictMusicalQuality \? 'minimax-music' : 'elevenlabs-clone'/);
+});
