@@ -33,7 +33,11 @@ Scope: the 15 findings in the 2026-09-04 review. Code repairs and local regressi
 
 ## Release tracking
 
-At this checkpoint, no production deployment or GitHub sync has been performed for this change set. Railway login was renewed for the coordinated release. The existing production frontend and backend remain at `673577eca8aa14463215199819951c8e313677e9`.
+Railway login was renewed. Code and build-gate commits `ea26be4` and `7e94d90` are on `codex/song-coherence`. Railway deployment `74869fc0-266e-4d9e-829c-c2d5a8a8b4bd` passed the complete Docker gate and health check. New singing-reference GET/prepare endpoints return JSON 401 without authentication and the correct production CORS origin. The first attempt (`73152e45-c4d9-4149-8bf4-c4cedc3cbf20`) failed its build gate because cross-layer tests needed frontend source files; it did not replace the live service. Docker packaging was corrected, not the tests weakened.
+
+Vercel production-target build `dpl_46f5AvWaBvCnPQydS7VfdPkNhaT8` is READY with domain promotion deliberately deferred until the backend was healthy. Its source is `7e94d90ed5bf98ac066350264c0fe196ec0b2275`.
+
+The build exposed an existing moderate `qs` advisory. The lockfile now resolves 6.16.0; backend production-dependency audit reports zero advisories, the malformed-query regression is successful and all 130 backend tests still pass. Final main-branch sync/revision and live-browser acceptance are recorded separately after this checkpoint; this document is not a claim that those gates have already passed.
 
 Preserve all existing projects, samples and takes. Do not change Firebase database selection or deploy new rules as part of this repair. Legacy speech-voice records that lack server-owned authorization must be revalidated through an owned sample; they are not silently trusted or deleted.
 
