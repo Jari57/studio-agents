@@ -11769,20 +11769,10 @@ ABSOLUTE RULES (violating any = failure):
               className="action-button secondary haptic-press"
               onClick={() => setShowBadges(true)}
               title="Achievements"
-              style={{ position: 'relative' }}
+              aria-label="Badges"
             >
               <Award size={20} />
               <span className="desktop-only">Badges</span>
-              {badgeTracker.totalEarned > 0 && (
-                <span style={{
-                  position: 'absolute', top: '-2px', right: '-2px',
-                  minWidth: '16px', height: '16px', borderRadius: '8px',
-                  background: "linear-gradient(135deg, var(--studio-warning), var(--studio-accent))",
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.6rem', fontWeight: 800, color: "var(--studio-on-accent)",
-                  padding: '0 4px', border: '1px solid var(--card-bg)',
-                }}>{badgeTracker.totalEarned}</span>
-              )}
             </button>
             <button 
               data-tour="header-help"
