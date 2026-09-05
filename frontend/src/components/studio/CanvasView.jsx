@@ -8,6 +8,7 @@ import {
 import { UsersIcon, Twitter, Instagram, VideoIcon, ImageIcon } from 'lucide-react';
 import { BACKEND_URL } from '../../constants';
 import { BEAT_GENERATION_ENDPOINT, beatGenerationRequest } from '../../utils/beatGenerationRequest.mjs';
+import { projectDeliveryReadiness } from '../../utils/deliveryReadiness.mjs';
 
 const createRequestId = (prefix) => `${prefix}-${typeof crypto?.randomUUID === 'function'
   ? crypto.randomUUID()
@@ -112,19 +113,19 @@ export default function CanvasView({
     return filtered;
   }, [selectedProject?.assets, assetFilter, pipelineFilter, PRODUCTION_STAGES]);
 
+  const projectDelivery = useMemo(() => projectDeliveryReadiness(selectedProject), [selectedProject]);
   const pipelineStatus = useMemo(() => {
-    const safeAssets = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
+    const keys = { lyrics: 'lyrics', beat: 'audio', vocals: 'vocals', artwork: 'visual', video: 'video', master: 'master' };
     return PRODUCTION_STAGES.map(stage => {
-      if (stage.key === 'idea') return { ...stage, status: 'complete', count: 1 };
-      const matching = safeAssets.filter(a => stage.assetTypes.includes((a.type || '').toLowerCase()));
-      return { ...stage, status: matching.length > 0 ? 'complete' : 'empty', count: matching.length };
+      const key = keys[stage.key];
+      const required = stage.key === 'idea' || projectDelivery.selected.includes(key);
+      const ready = stage.key === 'idea' ? Boolean(selectedProject?.songIdea || selectedProject?.description || projectDelivery.ready.lyrics) : projectDelivery.ready[key];
+      return { ...stage, required, status: ready ? 'complete' : 'empty', count: ready ? 1 : 0 };
     });
-  }, [selectedProject?.assets, PRODUCTION_STAGES]);
+  }, [selectedProject, projectDelivery, PRODUCTION_STAGES]);
 
-  const canvasCompletionPercent = useMemo(() => {
-    const completed = pipelineStatus.filter(s => s.status === 'complete').length;
-    return Math.round((completed / PRODUCTION_STAGES.length) * 100);
-  }, [pipelineStatus, PRODUCTION_STAGES.length]);
+  const canvasCompletionPercent = projectDelivery.selected.length
+    ? Math.round(projectDelivery.completed / projectDelivery.selected.length * 100) : 0;
 
   // A musician does not think in seven disconnected tools. Keep the detailed
   // asset taxonomy below, but organize the workspace around the four creative
@@ -137,14 +138,15 @@ export default function CanvasView({
       { key: 'look', label: 'Look', helper: 'Artwork & video', stages: ['artwork', 'video'], color: 'var(--studio-accent)', icon: ImageIcon },
       { key: 'release', label: 'Release', helper: 'Master & share', stages: ['master'], color: 'var(--studio-warning)', icon: Share2 }
     ].map(step => {
-      const completedStages = step.stages.filter(key => stageByKey.get(key)?.status === 'complete');
-      const assetCount = step.stages.reduce((total, key) => total + (stageByKey.get(key)?.count || 0), 0);
-      return { ...step, complete: completedStages.length === step.stages.length, assetCount };
+      const requiredStages = step.stages.filter(key => stageByKey.get(key)?.required);
+      const completedStages = requiredStages.filter(key => stageByKey.get(key)?.status === 'complete');
+      const assetCount = requiredStages.reduce((total, key) => total + (stageByKey.get(key)?.count || 0), 0);
+      return { ...step, optional: requiredStages.length === 0, complete: requiredStages.length > 0 && completedStages.length === requiredStages.length, assetCount };
     });
   }, [pipelineStatus]);
 
   const nextJourneyStep = useMemo(
-    () => musicianJourney.find(step => !step.complete) || musicianJourney[musicianJourney.length - 1],
+    () => musicianJourney.find(step => !step.optional && !step.complete) || musicianJourney.filter(step => !step.optional).at(-1) || musicianJourney[0],
     [musicianJourney]
   );
 
@@ -572,7 +574,7 @@ export default function CanvasView({
               color: canvasCompletionPercent === 100 ? 'var(--studio-sage)' : 'var(--studio-accent)',
               fontWeight: '600'
             }}>
-              {canvasCompletionPercent}% complete
+              {canvasCompletionPercent}% selected outputs ready
             </span>
           </div>
         </div>
@@ -621,7 +623,7 @@ export default function CanvasView({
           <div>
             <div style={{ color: 'var(--studio-muted)', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Your next move</div>
             <div style={{ color: 'var(--studio-ink)', fontSize: isMobile ? '1rem' : '1.12rem', fontWeight: 750, marginTop: '3px' }}>
-              {nextJourneyStep.complete ? 'Your release package is ready to review.' : `Build the ${nextJourneyStep.label.toLowerCase()} of this release.`}
+              {projectDelivery.complete ? 'Your selected outputs are ready to audition.' : `Build the ${nextJourneyStep.label.toLowerCase()} of this release.`}
             </div>
             <div style={{ color: 'var(--studio-muted)', fontSize: '0.78rem', marginTop: '3px' }}>{nextJourneyStep.helper}</div>
           </div>
@@ -648,7 +650,7 @@ export default function CanvasView({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                   <StepIcon size={16} style={{ color: step.color }} />
                   <span style={{ color: step.complete ? 'var(--studio-sage)' : 'var(--studio-muted)', fontSize: '0.67rem', fontWeight: 700 }}>
-                    {step.complete ? 'Done' : step.assetCount ? `${step.assetCount} saved` : 'Next'}
+                    {step.optional ? 'Optional' : step.complete ? 'Saved · review' : step.assetCount ? `${step.assetCount} ready` : 'Next'}
                   </span>
                 </div>
                 <div style={{ fontWeight: 750, fontSize: '0.87rem', marginTop: '10px' }}>{step.label}</div>

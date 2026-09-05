@@ -919,7 +919,7 @@ app.use(compression({
   level: 6, // Balanced compression level
   threshold: 1024, // Only compress responses > 1KB
   filter: (req, res) => {
-    if (req.headers['x-no-compression']) return false;
+    if (req.headers['x-no-compression'] || req.path.startsWith('/api/pipeline-events/')) return false;
     return compression.filter(req, res);
   }
 }));
@@ -1583,6 +1583,7 @@ function emitPipelineEvent(sessionId, event, data) {
 // SSE endpoint — client connects to receive real-time pipeline updates
 app.get('/api/pipeline-events/:sessionId', (req, res) => {
   const { sessionId } = req.params;
+  if (!/^[a-f0-9-]{36}$/i.test(sessionId)) return res.status(400).json({ error: 'Invalid progress session' });
   
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -1590,11 +1591,14 @@ app.get('/api/pipeline-events/:sessionId', (req, res) => {
     'Connection': 'keep-alive',
     'X-Accel-Buffering': 'no' // Disable nginx buffering
   });
+  res.flushHeaders();
   
   // Send initial connection event
   res.write(`event: connected\ndata: ${JSON.stringify({ sessionId, timestamp: Date.now() })}\n\n`);
   
   // Register this client
+  const previous = sseClients.get(sessionId);
+  if (previous && previous !== res && !previous.writableEnded) previous.end();
   sseClients.set(sessionId, res);
   
   // Heartbeat every 30s to keep connection alive
@@ -1605,9 +1609,10 @@ app.get('/api/pipeline-events/:sessionId', (req, res) => {
   }, 30000);
   
   // Cleanup on disconnect
-  req.on('close', () => {
+  res.on('close', () => {
     clearInterval(heartbeat);
-    sseClients.delete(sessionId);
+    // A reconnect may already have registered its replacement response.
+    if (sseClients.get(sessionId) === res) sseClients.delete(sessionId);
   });
 });
 

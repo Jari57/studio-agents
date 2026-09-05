@@ -171,6 +171,18 @@ input::placeholder, textarea::placeholder { color: var(--studio-muted); opacity:
   color: var(--studio-ink) !important;
 }
 .studio-container.studio-shell .studio-header-actions .action-button.secondary span { color: inherit; }
+.studio-container.studio-shell .studio-header-actions { flex-wrap: wrap; gap: 8px; min-width: 0; }
+.studio-container.studio-shell .studio-header-actions button {
+  font-size: .75rem;
+  line-height: 1.25;
+  letter-spacing: 0;
+  white-space: nowrap;
+  min-height: 44px;
+  height: auto;
+  flex-shrink: 0;
+}
+.studio-container.studio-shell .studio-header-actions button span { font-size: inherit; line-height: inherit; }
+.studio-container.studio-shell .studio-header-actions button svg { flex-shrink: 0; }
 .studio-container.studio-shell .studio-title { font-family: 'Inter', system-ui, sans-serif; }
 .studio-container .cta-button-secondary {
   background: var(--studio-surface);

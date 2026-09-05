@@ -95,7 +95,7 @@
 .studio-home .studio-home-nav button,
 .studio-home .header-actions .header-login-btn {
   border: 0; background: transparent; color: var(--home-ink); cursor: pointer;
-  font: inherit; font-size: .86rem; font-weight: 650; min-height: 44px; padding: 8px 10px;
+  font: inherit; font-size: .75rem; line-height: 1.25; font-weight: 650; min-height: 44px; height: auto; padding: 8px 10px; white-space: nowrap; flex-shrink: 0;
 }
 .studio-home .header-actions .header-login-btn { border: 1px solid var(--home-line); display: inline-flex; gap: 8px; align-items: center; border-radius: 8px; }
 .studio-home .studio-home-intro { max-width: 1240px; margin: 0 auto; padding: 126px 24px 48px; }
