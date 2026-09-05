@@ -20,7 +20,7 @@ COPY backend .
 # patch-provider-routing.mjs is a verifier: provider routing lives in source.
 COPY scripts/verify-video-reliability.mjs /app/scripts/verify-video-reliability.mjs
 COPY scripts/patch-provider-routing.mjs /app/scripts/patch-provider-routing.mjs
-RUN node --test test/deployed-audio-routing.test.js test/provider-reliability.test.js test/voice-request-policy.test.js test/musical-vocal.test.js test/musical-vocal-route.test.js \
+RUN node --test test/*.test.js \
   && node scripts/apply-credit-reservation-hardening.js \
   && node scripts/apply-account-deletion-hardening.js \
   && node /app/scripts/patch-provider-routing.mjs \

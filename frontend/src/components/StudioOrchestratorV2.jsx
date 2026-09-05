@@ -22,12 +22,19 @@ import StudioOnboarding from './StudioOnboarding';
 import StudioOutputActions from './StudioOutputActions';
 import './StudioOrchestratorTheme.css';
 import { productionJobMatchesProject } from '../utils/productionRecovery.mjs';
+import { quickProductionPlan, songDirectionBrief, recoveryOfferVisible, quickSongJourney } from '../utils/quickSongFlow.mjs';
+import { LATIN_SONG_GENRES, LATIN_GENRE_PRESETS, detectLatinGenre } from '../utils/latinGenres.mjs';
+import { collectProjectExport, downloadVerifiedMedia } from '../utils/projectExport.mjs';
+import { songSessionState, songStateSignature, mixStateSignature, authoritativeMaster } from '../utils/songSession.mjs';
 import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, artworkDirectionRequest, confirmProjectSave as confirmCloudProjectSave, currentRunLyrics } from '../utils/productionIntegrity.mjs';
 import { restoreProductionConfig, withProductionConfig, mergeProductionAssets } from '../utils/productionProjectConfig.mjs';
 import { generationFailureMessage } from '../utils/generationErrors.mjs';
 import { BEAT_GENERATION_ENDPOINT, beatGenerationRequest } from '../utils/beatGenerationRequest.mjs';
 import { fetchBackendFeatures } from '../utils/backendFeatures.mjs';
-import { personalVoiceReadiness, personalVoiceCloneLabel, resolvePersonalVoiceSelection } from '../utils/personalVoiceReadiness.mjs';
+import { personalVoiceReadiness, singingVoiceReadiness, personalVoiceCloneLabel, resolvePersonalVoiceSelection } from '../utils/personalVoiceReadiness.mjs';
+import SongReferencesPanel from './SongReferencesPanel';
+import { deliveryReadiness } from '../utils/deliveryReadiness.mjs';
+import { restoreProjectOutputs } from '../utils/projectRestore.mjs';
 
 // Dev-only logging — tree-shaken in production
 const devLog = import.meta.env.DEV ? (...args) => console.log(...args) : () => {};
@@ -147,6 +154,7 @@ const GENRE_PRESETS = {
   'Lo-Fi':            { bpm: 80,  mood: 'Chill',     structure: 'Loop',      duration: 120 },
   'Afrobeat':         { bpm: 110, mood: 'Energetic', structure: 'Full Song', duration: 150 },
   'Reggaeton':        { bpm: 95,  mood: 'Energetic', structure: 'Full Song', duration: 150 },
+  ...LATIN_GENRE_PRESETS,
   'K-Pop':            { bpm: 125, mood: 'Happy',     structure: 'Full Song', duration: 150 },
   'J-Pop':            { bpm: 130, mood: 'Happy',     structure: 'Full Song', duration: 150 },
   'Amapiano':         { bpm: 113, mood: 'Chill',     structure: 'Full Song', duration: 150 },
@@ -187,7 +195,7 @@ const GENRE_KEYWORDS = {
   'Electronic / EDM': ['edm', 'electronic', 'house music', 'techno', 'dance music', 'rave', 'bass drop', 'dubstep', 'trance'],
   'Lo-Fi':            ['lo-fi', 'lofi', 'lo fi', 'chill beats', 'study beats'],
   'Afrobeat':         ['afrobeat', 'afrobeats', 'afro beat'],
-  'Reggaeton':        ['reggaeton', 'perreo', 'dembow'],
+  'Reggaeton':        ['reggaeton', 'perreo'],
   'K-Pop':            ['k-pop', 'kpop', 'k pop', 'korean pop'],
   'J-Pop':            ['j-pop', 'jpop', 'j pop', 'japanese pop'],
   'Amapiano':         ['amapiano', 'piano house'],
@@ -213,6 +221,8 @@ const GENRE_KEYWORDS = {
 
 function detectGenreFromPrompt(text) {
   if (!text) return null;
+  const latinGenre = detectLatinGenre(text);
+  if (latinGenre) return latinGenre.label;
   const lower = text.toLowerCase();
   let bestMatch = null;
   let bestScore = 0;
@@ -916,7 +926,7 @@ function GeneratorCard({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px' }}>
                   <Loader2 size={14} className="spin" color={color} />
                   <span style={{ fontSize: '0.75rem', color: 'var(--studio-accent, #a34229)', fontWeight: '600' }}>
-                    {slot === 'lyrics' ? 'Cloning vocals...' : `Synthesizing ${mediaType}...`}
+                    {slot === 'lyrics' ? 'Creating vocal performance...' : `Synthesizing ${mediaType}...`}
                   </span>
                 </div>
               </div>
@@ -1333,6 +1343,8 @@ function ProductionControlHub({
   outputs,
   mediaUrls,
   selectedAgents = {},
+  includeVocals = false,
+  renderedMixSignature = '',
   songIdea,
   finalMixPreview,
   creatingFinalMix,
@@ -1369,19 +1381,12 @@ function ProductionControlHub({
 }) {
   // Count only requested deliverables. A description is not an audio/image/video
   // file, and restored extras such as `mix` must not inflate selected progress.
-  const generatorOutputKeys = ['lyrics', 'audio', 'visual', 'video'];
-  const selectedOutputKeys = generatorOutputKeys.filter(key => Boolean(selectedAgents[key]));
-  const readyOutputs = {
-    lyrics: Boolean(outputs?.lyrics),
-    audio: Boolean(mediaUrls.audio),
-    visual: Boolean(mediaUrls.image),
-    video: Boolean(mediaUrls.video)
-  };
+  const { selected: selectedOutputKeys, ready: readyOutputs } = deliveryReadiness(outputs, mediaUrls, selectedAgents, includeVocals);
   const outputLabels = {
     lyrics: creatorMode === 'creator' ? 'Script' : 'Lyrics',
     audio: creatorMode === 'creator' ? 'Audio' : 'Beat',
     visual: creatorMode === 'creator' ? 'Graphics' : 'Artwork',
-    video: 'Video'
+    video: 'Video', vocals: 'Sung vocal', master: 'Song master'
   };
   const completedCount = selectedOutputKeys.filter(key => readyOutputs[key]).length;
   const totalSlots = selectedOutputKeys.length;
@@ -1785,7 +1790,16 @@ function ProductionControlHub({
             </div>
           )}
 
-          {/* Real-time Preview Mixer */}
+          {authoritativeMaster(mediaUrls, finalMixPreview) && <section aria-label="Rendered master audition" style={{ margin: '16px 0' }}>
+            <strong>Listen to the actual master</strong>
+            <p style={{ fontSize: '.8rem', lineHeight: 1.5 }}>This is the same audio file that is saved and downloaded.
+              {renderedMixSignature === 'provider-original' ? ' Original song mix; render a new mix to apply your fader settings.'
+                : renderedMixSignature && renderedMixSignature !== mixStateSignature(mediaUrls, { mixPreset, mixVocalVolume, mixBeatVolume }) ? ' Settings changed: render a new mix to hear those changes.' : ' Review balance, timing and artifacts before release.'}</p>
+            <audio key={authoritativeMaster(mediaUrls, finalMixPreview)} controls preload="metadata" src={authoritativeMaster(mediaUrls, finalMixPreview)} style={{ width: '100%' }}
+              onError={() => toast.error('The saved master could not be played. Retry its download or render; no speech substitute will play.')} />
+          </section>}
+          <details><summary style={{ cursor: 'pointer', padding: '12px 0' }}>Audition individual stems (optional)</summary>
+          <p style={{ fontSize: '.8rem', lineHeight: 1.5 }}>This browser blend is approximate. Solo and mute only affect this audition; they are not exported. Use the Producer Canvas for saved lane-level control. Render a mix above to hear final processing.</p>
           <Suspense fallback={null}>
             <RealtimePreviewMixer
               beatUrl={mediaUrls.audio}
@@ -1797,6 +1811,7 @@ function ProductionControlHub({
               isMobile={isMobile}
             />
           </Suspense>
+          </details>
 
           {/* Create Mix + Preview buttons */}
           <div style={{ marginTop: '16px' }}>
@@ -2351,10 +2366,17 @@ export default function StudioOrchestratorV2({
   // take's asset identity. Saving is not a request to produce another version.
   function confirmProjectSave(save, project) {
     const configured = withProductionConfig(project, { selectedAgents, quickMode, quickOutcome, quickGenre });
+    const snapshot = { ...JSON.parse(currentSongSignatureRef.current || '{}'), session: currentSongSessionRef.current,
+      outputs: { ...outputsRef.current }, mediaUrls: { ...(configured.mediaUrls || mediaUrlsRef.current) } };
+    const savedSignature = songStateSignature(snapshot);
     return confirmCloudProjectSave(save, {
       ...configured,
+      mood: snapshot.mood, musicalBars: snapshot.bars, useBars: snapshot.useBars,
+      songSession: snapshot.session,
+      outputs: snapshot.outputs,
+      mediaUrls: snapshot.mediaUrls,
       assets: mergeProductionAssets(existingProject?.assets || [], configured.assets || [], productionAssetIdentityRef.current)
-    });
+    }).then(result => { if (result) savedSongSignatureRef.current = savedSignature; return result; });
   }
   const [selectedOutputPreset, setSelectedOutputPreset] = useState('Full Song Release'); // Output format preset
   // Collapsible section state — all sections start collapsed for a clean first impression
@@ -2368,9 +2390,11 @@ export default function StudioOrchestratorV2({
   const [pipelineSteps, setPipelineSteps] = useState([]); // Live progress feed
   const [retryingStep, setRetryingStep] = useState(null); // ID of pipeline step currently being retried
   const [recoveredProductionJob, setRecoveredProductionJob] = useState(null);
+  const productionRunStartedRef = useRef(false);
   const [isRecoveringProduction, setIsRecoveringProduction] = useState(false);
   const [mixFailed, setMixFailed] = useState(false); // True when /api/create-final-mix returned an error
   const [voiceSampleUrl, setVoiceSampleUrl] = useState(null); // URL of uploaded voice sample for cloning
+  const [libraryVoiceSampleUrl, setLibraryVoiceSampleUrl] = useState(null);
   const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState(localStorage.getItem('studio_elevenlabs_voice_id') || '');
   const [isUploadingSample, setIsUploadingSample] = useState(false);
   const [savedVoices, setSavedVoices] = useState([]); // List of voices saved in Firestore
@@ -2380,6 +2404,16 @@ export default function StudioOrchestratorV2({
   const [voiceCatalogCheck, setVoiceCatalogCheck] = useState({ status: 'idle', ownerUid: null });
   const [voiceCatalogRefresh, setVoiceCatalogRefresh] = useState(0);
   const [referenceSongUrl, setReferenceSongUrl] = useState(null); // Reference song for tone/style matching
+  const [songReferences, setSongReferences] = useState([]);
+  const [personalReferenceId, setPersonalReferenceId] = useState(null);
+  const [personalLyricsExcerpt, setPersonalLyricsExcerpt] = useState('');
+  const [singingLibrary, setSingingLibrary] = useState({ references: [], status: 'idle', ownerUid: null });
+  const [activePerformance, setActivePerformance] = useState(null);
+  const [renderedMixSignature, setRenderedMixSignature] = useState('');
+  const currentSongSessionRef = useRef(null);
+  const currentSongSignatureRef = useRef('');
+  const savedSongSignatureRef = useRef(null);
+  const restoringSongRef = useRef(false);
   const [isUploadingReferenceSong, setIsUploadingReferenceSong] = useState(false);
 
   // ElevenLabs IVC (Instant Voice Cloning) state
@@ -2387,11 +2421,13 @@ export default function StudioOrchestratorV2({
   const [isCloningVoice, setIsCloningVoice] = useState(false);
   const [clonedVoiceId, setClonedVoiceId] = useState(null); // ElevenLabs voice_id from IVC
   const [voiceOwnershipConfirmed, setVoiceOwnershipConfirmed] = useState(false);
-  const personalVoiceStatus = personalVoiceReadiness({
+  const personalVoiceStatus = outputFormat === 'music' ? singingVoiceReadiness({
+    referenceId: personalReferenceId, ...singingLibrary, currentUid: auth.currentUser?.uid,
+  }) : personalVoiceReadiness({
     voiceId: clonedVoiceId, voices: elVoices, ...voiceCatalogCheck,
     currentUid: auth.currentUser?.uid,
   });
-  const [showAssets, setShowAssets] = useState(true); // Your Assets section visibility
+  const [showAssets, setShowAssets] = useState(false); // Optional inputs stay out of the primary song path.
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false); // Project picker overlay
 
   // First-run onboarding
@@ -2473,7 +2509,8 @@ export default function StudioOrchestratorV2({
       'latin trap': 'latin-trap', 'country': 'country', 'jazz': 'jazz', 'classical': 'classical',
       'gospel': 'gospel', 'reggae': 'reggae', 'metal': 'metal', 'punk': 'punk', 'funk': 'funk',
       'disco': 'disco', 'synthwave': 'synthwave', 'indie': 'indie', 'acoustic': 'acoustic',
-      'bollywood': 'bollywood', 'afro-pop': 'afro-pop', 'cumbia': 'cumbia'
+      'bollywood': 'bollywood', 'afro-pop': 'afro-pop', 'cumbia': 'cumbia',
+      'salsa': 'salsa', 'bachata': 'bachata', 'dembow': 'dembow'
     };
     setGenre(vocalGenreMap[genreLower] || genreLower.split('/')[0].trim());
 
@@ -2488,6 +2525,8 @@ export default function StudioOrchestratorV2({
 
     setVoiceStyle(prev => {
       if (prev === 'cloned') return prev; // Never override cloned voice
+      const latinGenre = LATIN_SONG_GENRES.find(genre => genre.id === genreLower);
+      if (latinGenre) return latinGenre.voice;
       if (singerGenres.includes(genreLower)) return 'singer';
       if (rapperGenres.includes(genreLower)) return 'rapper';
       if (dancehallGenres.includes(genreLower)) return 'singer';
@@ -2642,18 +2681,8 @@ export default function StudioOrchestratorV2({
     return () => { mountedRef.current = false; };
   }, []);
 
-  // Auto-expand sections when content is generated so the user sees results immediately
-  useEffect(() => { if (outputs.lyrics) expandSection('lyrics'); }, [outputs.lyrics, expandSection]);
-  useEffect(() => { if (outputs.audio) expandSection('audio'); }, [outputs.audio, expandSection]);
-  useEffect(() => { if (outputs.visual) expandSection('visual'); }, [outputs.visual, expandSection]);
-  useEffect(() => { if (outputs.video) expandSection('video'); }, [outputs.video, expandSection]);
-  // Lyrics unlock the next workflow step in both Quick and Advanced modes.
-  useEffect(() => { if (outputs.lyrics) expandSection('vocalEngine'); }, [outputs.lyrics, expandSection]);
-  // Auto-expand Production Hub once anything is complete
-  useEffect(() => {
-    const hasAny = Object.values(outputs).some(Boolean);
-    if (hasAny) expandSection('productionHub');
-  }, [outputs, expandSection]);
+  // Pipeline events reveal the active result. Restoring saved text must not
+  // force every panel open or undo the artist's deliberate collapse choices.
 
   // Reset and restore state when switching between projects
   useEffect(() => {
@@ -2682,6 +2711,11 @@ export default function StudioOrchestratorV2({
     setProjectName(existingProject?.name || '');
 
     // Restore project settings (useState initializers only run on first mount)
+    restoringSongRef.current = true;
+    const restoreTimer = setTimeout(() => {
+      savedSongSignatureRef.current = currentSongSignatureRef.current;
+      restoringSongRef.current = false;
+    }, 0);
     const productionConfig = restoreProductionConfig(existingProject);
     setSelectedAgents(productionConfig.selectedAgents);
     setQuickMode(productionConfig.quickMode);
@@ -2703,39 +2737,35 @@ export default function StudioOrchestratorV2({
     
     // Restore new project metadata
     setReferenceSongUrl(existingProject?.referenceSongUrl || null);
+    const restoredSession = songSessionState(existingProject?.songSession || { referenceSongUrl: existingProject?.referenceSongUrl });
+    setSongReferences(restoredSession.references);
+    setReferenceSongUrl(restoredSession.referenceSongUrl);
+    setPersonalReferenceId(restoredSession.personalReferenceId);
+    setPersonalLyricsExcerpt(restoredSession.personalLyricsExcerpt);
+    setVoiceSource(restoredSession.voiceSource);
+    setVoiceSampleUrl(restoredSession.voiceSampleUrl);
+    setVoiceStyle(restoredSession.voiceStyle);
+    setGenre(restoredSession.genre);
+    setRapStyle(restoredSession.rapStyle);
+    setMixPreset(restoredSession.mixPreset);
+    setMixVocalVolume(restoredSession.mixVocalVolume);
+    setMixBeatVolume(restoredSession.mixBeatVolume);
+    setOutputFormat(restoredSession.outputFormat);
+    setActivePerformance(restoredSession.performance);
+    setRenderedMixSignature(restoredSession.renderedMixSignature);
+    setSongStructure(restoredSession.songStructure);
+    setArrangementSections(restoredSession.arrangementSections);
+    setExpandedSections({ ...restoredSession.expandedSections,
+      ...(!Object.values(productionConfig.selectedAgents).some(Boolean) ? { agentSelection: true } : {}) });
+    setSelectedOutputPreset(restoredSession.selectedOutputPreset);
     setVocalQuality(existingProject?.vocalQuality || 'standard');
     setElevenLabsVoiceId(existingProject?.elevenLabsVoiceId || null);
 
     // Then restore from new project's assets
-    if (!existingProject?.assets?.length) return;
+    if (!existingProject) return () => clearTimeout(restoreTimer);
 
-    const restoredUrls = existingProject?.mediaUrls ? { ...existingProject.mediaUrls } : {};
-    const restoredOutputs = {};
-
-    for (const asset of existingProject.assets) {
-      if (asset.type === 'beat' || asset.type === 'audio') {
-        if (asset.audioUrl && !restoredUrls.audio) restoredUrls.audio = asset.audioUrl;
-        if (asset.content && !restoredOutputs.audio) restoredOutputs.audio = asset.content;
-      }
-      if (asset.type === 'vocal') {
-        if (asset.audioUrl && !restoredUrls.vocals) {
-          restoredUrls.vocals = asset.audioUrl;
-          if (!restoredUrls.lyricsVocal) restoredUrls.lyricsVocal = asset.audioUrl;
-        }
-      }
-      if (asset.type === 'image' || asset.type === 'cover' || asset.type === 'visual') {
-        if ((asset.imageUrl || asset.url) && !restoredUrls.image) restoredUrls.image = asset.imageUrl || asset.url;
-        if (asset.content && !restoredOutputs.visual) restoredOutputs.visual = asset.content;
-      }
-      if (asset.type === 'video') {
-        if (asset.videoUrl && !restoredUrls.video) restoredUrls.video = asset.videoUrl;
-        if (asset.isPremium && asset.videoUrl) setMusicVideoUrl(asset.videoUrl);
-        if (asset.content && !restoredOutputs.video) restoredOutputs.video = asset.content;
-      }
-      if (asset.type === 'lyrics') {
-        if (asset.content && !restoredOutputs.lyrics) restoredOutputs.lyrics = asset.content;
-      }
-    }
+    const { media: restoredUrls, outputs: restoredOutputs } = restoreProjectOutputs(existingProject);
+    if (restoredUrls.video) setMusicVideoUrl(restoredUrls.video);
 
     if (Object.keys(restoredUrls).length > 0) {
       setMediaUrls(prev => ({ ...prev, ...restoredUrls }));
@@ -2747,8 +2777,8 @@ export default function StudioOrchestratorV2({
     }
 
     // Restore voice/generation settings from vocal asset metadata
-    for (const asset of existingProject.assets) {
-      if ((asset.type === 'vocal' || asset.type === 'mix') && asset.settings) {
+    for (const asset of [...(existingProject.assets || [])].reverse()) {
+      if (!existingProject.songSession && (asset.type === 'vocal' || asset.type === 'mix') && asset.settings) {
         if (asset.settings.voiceStyle) setVoiceStyle(asset.settings.voiceStyle);
         if (asset.settings.elevenLabsVoiceId) {
           setElevenLabsVoiceId(asset.settings.elevenLabsVoiceId);
@@ -2764,6 +2794,7 @@ export default function StudioOrchestratorV2({
         break; // Use most recent vocal/mix asset
       }
     }
+    return () => clearTimeout(restoreTimer);
   }, [existingProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Personal voice library — one API call is the source of truth for the active
@@ -2782,17 +2813,15 @@ export default function StudioOrchestratorV2({
         if (cancelled) return;
         const voices = Array.isArray(library.voices) ? library.voices : [];
         setSavedVoices(voices);
-        if (library.voiceSampleUrl) setVoiceSampleUrl(library.voiceSampleUrl);
-        // Default to the user's own voice whenever they have one — nobody who
-        // cloned their voice wants to hunt for it under "Sample Voices".
+        setLibraryVoiceSampleUrl(library.voiceSampleUrl || null);
+        // Load the library without attaching a sample or changing an artist's
+        // current choice. New songs use an original MiniMax performer unless
+        // the artist explicitly selects their personal voice.
         const personalVoiceId = library.clonedVoiceId
           || voices.find((voice) => voice.voiceId || voice.provider === 'elevenlabs-ivc')?.voiceId
           || null;
         if (personalVoiceId) {
           setClonedVoiceId(personalVoiceId);
-          setElevenLabsVoiceId(personalVoiceId);
-          setVoiceSource('personal');
-          setVoiceStyle('cloned');
         }
       } catch (err) {
         console.error('[Orchestrator] Error fetching voice library:', err);
@@ -2834,32 +2863,12 @@ export default function StudioOrchestratorV2({
       }
     };
 
-    if (isOpen) {
+    if (isOpen && outputFormat !== 'music') {
       fetchElVoices();
     }
     return () => { cancelled = true; };
-  }, [isOpen, voiceCatalogRefresh]);
+  }, [isOpen, voiceCatalogRefresh, outputFormat]);
 
-  useEffect(() => {
-    const selection = resolvePersonalVoiceSelection({ voiceSource, voiceStyle, readiness: personalVoiceStatus });
-    if (!selection.recovered) return;
-
-    setVoiceSource(selection.voiceSource);
-    setVoiceStyle(selection.voiceStyle);
-    setClonedVoiceId(null);
-    setElevenLabsVoiceId('');
-    localStorage.removeItem('studio_elevenlabs_voice_id');
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      updateDoc(doc(db, 'users', currentUser.uid), { clonedVoiceId: null }).catch(() => {
-        devWarn('[Orchestrator] Could not clear stale personal voice selection from profile');
-      });
-    }
-    toast('Saved voice is unavailable. Studio voice selected so generation can continue.', {
-      id: 'voice-studio-auto-recovery',
-      duration: 5000,
-    });
-  }, [personalVoiceStatus.state, voiceSource, voiceStyle]);
 
   // Delete a voice from ElevenLabs
   const handleDeleteVoice = async (voiceId) => {
@@ -3093,17 +3102,24 @@ export default function StudioOrchestratorV2({
         vocalAudioRef.current = vocalAudio;
         vocalAudio.play().catch(err => {
           console.error("Audio playback failed:", err);
-          // Fallback to TTS if audio fails
-          speakRoboticText(textToSpeak, slot);
+          setSpeakingSlot(null);
+          toast.error('The vocal audio could not play. Retry playback or download the take.');
         });
         vocalAudio.onended = () => setSpeakingSlot(null);
         setSpeakingSlot(slot);
         return;
       } catch (err) {
         console.error("Vocal playback error:", err);
+        setSpeakingSlot(null);
+        toast.error('The vocal audio could not play. Your take has not been replaced.');
+        return;
       }
     }
     
+    if (outputFormat === 'music') {
+      toast('Create a vocal performance before previewing this song. Text readout is only available in speech mode.');
+      return;
+    }
     speakRoboticText(textToSpeak, slot);
   };
 
@@ -3217,7 +3233,10 @@ export default function StudioOrchestratorV2({
   productionJobCheckpointRef.current = checkpointCurrentProduction;
 
   useEffect(() => {
-    if (!isOpen) productionRecoveryCheckedRef.current = false;
+    if (!isOpen) {
+      productionRecoveryCheckedRef.current = false;
+      productionRunStartedRef.current = false;
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -3234,7 +3253,7 @@ export default function StudioOrchestratorV2({
           return;
         }
         const { job } = await fetchActiveProductionJob(headers);
-        if (cancelled || !productionJobMatchesProject(job, existingProject?.id)) return;
+        if (cancelled || productionRunStartedRef.current || !productionJobMatchesProject(job, existingProject?.id)) return;
 
         const recoverableSteps = (job.steps || []).map((step) => (
           step.status === 'active'
@@ -3467,9 +3486,7 @@ export default function StudioOrchestratorV2({
     }
     // Check a requested personal vocal before purchasing the upstream beat or
     // lyrics. Artwork-only and text-only drafts do not require a voice.
-    const requestedVoiceStatus = personalVoiceReadiness({
-      voiceId: clonedVoiceId, voices: elVoices, ...voiceCatalogCheck, currentUid: auth.currentUser?.uid,
-    });
+    const requestedVoiceStatus = personalVoiceStatus;
     const requestedVoiceSelection = resolvePersonalVoiceSelection({
       voiceSource, voiceStyle, readiness: requestedVoiceStatus,
     });
@@ -3481,6 +3498,11 @@ export default function StudioOrchestratorV2({
     }
 
     // Track whether we're starting fresh (state was cleared)
+    if (voiceSource === 'personal' && outputFormat === 'music' && productionScope(requestedAgents, includeVocals).vocals
+      && (!personalLyricsExcerpt.trim() || personalLyricsExcerpt.trim().length > 400)) {
+      toast.error('Choose the exact 1–400 character verse or hook in Voice & optional references before starting.');
+      return;
+    }
     let freshGeneration = false;
 
     // If there's existing unsaved content, prompt user to save or clear first
@@ -3544,6 +3566,8 @@ export default function StudioOrchestratorV2({
     devLog('[handleGenerate] Final activeSlots:', activeSlots);
     
     setIsGenerating(true);
+    productionRunStartedRef.current = true;
+    setRecoveredProductionJob(null);
     setMixFailed(false); // Reset mix failure flag for this run
     toast.loading('Generating content...', { id: 'gen-all' });
 
@@ -3558,15 +3582,22 @@ export default function StudioOrchestratorV2({
       : [];
     if (!resumeJob) {
       if (currentSelectedAgents.lyrics) steps.push({ id: 'lyrics', label: 'Writing lyrics', status: 'pending', startTime: null, endTime: null });
-      if (currentSelectedAgents.audio) steps.push({ id: 'beat-desc', label: 'Composing beat description', status: 'pending', startTime: null, endTime: null });
+      if (currentSelectedAgents.audio && !coherentSongRun) steps.push({ id: 'beat-desc', label: 'Composing beat description', status: 'pending', startTime: null, endTime: null });
       if (currentSelectedAgents.visual) steps.push({ id: 'visual-desc', label: 'Designing album art concept', status: 'pending', startTime: null, endTime: null });
       if (currentSelectedAgents.audio && !coherentSongRun) steps.push({ id: 'beat-audio', label: 'Generating beat audio', status: 'pending', startTime: null, endTime: null });
       if (currentSelectedAgents.visual) steps.push({ id: 'image', label: 'Creating album artwork', status: 'pending', startTime: null, endTime: null });
       // Vocals run whenever lyrics will exist (slot selected OR lyrics already present from a prior run)
-      if (requestedScope.vocals) steps.push({ id: 'vocals', label: 'Recording AI vocals', status: 'pending', startTime: null, endTime: null });
+      if (requestedScope.vocals) steps.push({ id: 'vocals', label: coherentSongRun ? 'Creating song — vocals and matching beat' : 'Creating vocal performance', status: 'pending', startTime: null, endTime: null });
       if (currentSelectedAgents.video) steps.push({ id: 'video', label: 'Producing music video', status: 'pending', startTime: null, endTime: null });
       if (currentSelectedAgents.video && currentSelectedAgents.audio) steps.push({ id: 'mux', label: 'Syncing audio to video', status: 'pending', startTime: null, endTime: null });
       if (requestedScope.finalMix) steps.push({ id: 'final', label: 'Creating final mix', status: 'pending', startTime: null, endTime: null });
+    }
+    if (coherentSongRun) {
+      // Old checkpoints may contain the redundant beat stages. The coherent
+      // music request supplies that audio; keep only the relevant stages.
+      for (let i = steps.length - 1; i >= 0; i--) {
+        if (['beat-desc', 'beat-audio'].includes(steps[i].id)) steps.splice(i, 1);
+      }
     }
     pipelineStepsRef.current = steps;
     setPipelineSteps(steps);
@@ -3801,7 +3832,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             }
             console.error(`[handleGenerate] ${slot} failed:`, response.status, errorText);
             setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
-            updatePipelineStep(stepId, 'error');
+            updatePipelineStep(stepId, 'error', errorMessage);
             const actionMessage = response.status === 401
               ? 'Sign in again to continue.'
               : response.status === 403
@@ -3813,7 +3844,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         } catch (err) {
           console.error(`Error generating ${slot}:`, err);
           setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
-          updatePipelineStep(stepId, 'error');
+          updatePipelineStep(stepId, 'error', err?.message || 'The request could not finish. Retry this step; completed takes are kept.');
           toast.error(`Connection Error: ${slot} generation failed.`, { id: `orch-conn-${slot}`, icon: '📡' });
           return null;
         }
@@ -3827,7 +3858,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         // A recovered lyric checkpoint is authoritative even if the later
         // vocal stage never started. Reusing it avoids paying for the same
         // writing stage twice after a refresh.
-        if (!freshGeneration && outputs.lyrics) {
+        if (voiceSource === 'personal' && outputFormat === 'music' && includeVocals) {
+          lyricsResult = personalLyricsExcerpt.trim();
+          outputsRef.current = { ...outputsRef.current, lyrics: lyricsResult };
+          setOutputs(prev => ({ ...prev, lyrics: lyricsResult }));
+          updatePipelineStep('lyrics', 'done', 'Using your chosen audition lyrics unchanged');
+        } else if (!freshGeneration && outputs.lyrics) {
           lyricsResult = outputs.lyrics;
           updatePipelineStep('lyrics', 'done');
           devLog('[Orchestrator] Skipping lyrics — already generated');
@@ -3865,7 +3901,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       const otherSlots = activeSlots.filter(([s]) => s !== 'lyrics');
       const visualSlot = otherSlots.find(([s]) => s === 'visual');
       const videoSlot = otherSlots.find(([s]) => s === 'video');
-      const parallelSlots = otherSlots.filter(([s]) => s !== 'video'); // audio + visual run together
+      const parallelSlots = otherSlots.filter(([s]) => s !== 'video' && !(coherentSongRun && s === 'audio'));
+      if (coherentSongRun && !outputsRef.current.audio) {
+        const direction = songDirectionBrief({ idea: songIdea, genre: style, bpm: projectBpm, language, duration });
+        outputsRef.current = { ...outputsRef.current, audio: direction };
+        setOutputs(prev => ({ ...prev, audio: direction }));
+      }
 
       // Rehydrate completed descriptions and restart only their missing media
       // stages. Provider outputs saved in the durable checkpoint are reused.
@@ -4103,10 +4144,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       return;
     }
 
-    const isFullPackage = outcome === 'full-package';
-    const agentSelection = isFullPackage
-      ? { lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' }
-      : { lyrics: 'ghost', audio: 'beat', visual: null, video: null };
+    const plan = quickProductionPlan(outcome);
+    const { agentSelection } = plan;
 
     // Resolve one coherent run configuration before generation. React state
     // setters are asynchronous; calling handleGenerate immediately after the
@@ -4127,8 +4166,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
     const generationOptions = {
       agentSelection,
-      includeVocals: isFullPackage,
-      completionMessage: isFullPackage ? 'Full package complete!' : 'Song draft ready — review it, then add vocals or visuals when you are ready.'
+      includeVocals: plan.includeVocals,
+      completionMessage: plan.completionMessage
     };
     // Run through the latest callback after React commits the preset/BPM state.
     setTimeout(() => handleGenerateRef.current?.(generationOptions), 0);
@@ -4495,9 +4534,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     // Do not silently fall back to an anonymous voice. Personal voice is the
     // default path; require the artist to finish the short consented setup or
     // explicitly opt into a curated studio voice.
-    const verifiedPersonalVoice = personalVoiceReadiness({
-      voiceId: clonedVoiceId, voices: elVoices, ...voiceCatalogCheck, currentUid: auth.currentUser?.uid,
-    });
+    const verifiedPersonalVoice = personalVoiceStatus;
     const resolvedVoiceSelection = resolvePersonalVoiceSelection({
       voiceSource, voiceStyle, readiness: verifiedPersonalVoice,
     });
@@ -4506,54 +4543,20 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       toast.error(verifiedPersonalVoice.detail, { id: 'orch-voice-required' });
       return;
     }
+    if (voiceSource === 'personal' && outputFormat === 'music' && (!personalLyricsExcerpt.trim() || personalLyricsExcerpt.trim().length > 400)) {
+      toast.error('Choose the exact 1–400 character lyrics excerpt in Voice & optional references.'); return;
+    }
+    if (voiceSource !== 'personal' && lyricsText.length > 3500 && outputFormat === 'music') {
+      toast.error('This song exceeds the provider’s 3500-character lyric limit. Edit it before generating; nothing has been cut.'); return;
+    }
     setGeneratingMedia(prev => ({ ...prev, vocals: true }));
-    toast.loading('Generating AI Vocals (up to 2 mins)...', { id: 'gen-vocals' });
+    toast.loading('Creating your musical performance and matching stems…', { id: 'gen-vocals' });
     
     try {
       const headers = await getPaidStepHeaders('vocals');
 
-      // Ensure we only send the actual lyrics content, not the intro/prompt fluff
-      const { content: lyricsOnly } = splitCreativeContent(lyricsText);
-      // Aggressively strip AI preamble even in fallback to prevent prompt context in vocals
-      let cleanLyrics = lyricsOnly || lyricsText;
-
-      // 🛡️ [NUCLEAR OPTION] Block AI refusals from being "sung"
-      const lowerLower = cleanLyrics.toLowerCase();
-      if (
-        (lowerLower.includes("i'm sorry") || lowerLower.includes("i cannot") || lowerLower.includes("i'm unable to")) &&
-        (lowerLower.includes("generate") || lowerLower.includes("comply") || lowerLower.includes("lyrics"))
-      ) {
-         toast.error("AI refused to generate valid lyrics. Please try a different prompt.", { id: 'gen-vocals' });
-         setGeneratingMedia(prev => ({ ...prev, vocals: false }));
-         return;
-      }
-      
-      // DEEP CLEANING: Strip everything before the first actual song structure tag.
-      // Most reliable path to kill AI chatter before the song starts.
-      const firstTagIndex = cleanLyrics.search(/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro|Section)\b/i);
-      if (firstTagIndex !== -1) {
-        cleanLyrics = cleanLyrics.substring(firstTagIndex);
-      }
-
-      cleanLyrics = cleanLyrics
-        // Strip multi-line AI preamble (fallback if no tags found)
-        .replace(/^(Sure[,!]?|Okay[,!]?|Absolutely[,!]?|Certainly[,!]?|Alright[,!]?|Of course[,!]?|Here('s| is| are)|I'?ve (written|created|generated|prepared)|I wrote|Let me|Below are|These lyrics|This (song|track|piece) is|I hope you enjoy|Hope this helps)[^\n]*\n/gim, '')
-        // Strip meta lines: Title:, Genre:, Style:, Tempo:, Key:, Mood:, About:, Description:
-        .replace(/^(Title|Genre|Style|Tempo|Key|Mood|About|Description|Inspired by|Written for|Artist|Musical Notes|Voice Direction)[^\n]*\n/gim, '')
-        .replace(/\[Ad-lib:[^\]]*\]/gi, '')  // Strip ad-lib direction tags
-        .replace(/\[(?!Verse|Chorus|Bridge|Pre-Chorus|Hook|Outro|Intro)[^\]]*\]/gi, '')  // Strip non-standard performance/direction tags
-        .replace(/^\s*\n/gm, '')  // Remove empty lines left by stripped tags
-        .trim();
-        
-      // If after cleaning it still starts with AI filler, it's likely purely meta-commentary
-      if (/^(I'?m |I'?ve |This song |Here are |Sure!)/i.test(cleanLyrics) && cleanLyrics.length < 150) {
-        // If it's short and looks like a description, it's not lyrics
-        if (cleanLyrics.split('\n').length < 3) {
-          toast.error("Generated content contains no singable lyrics. Please re-generate lyrics first.", { id: 'gen-vocals' });
-          setGeneratingMedia(prev => ({ ...prev, vocals: false }));
-          return;
-        }
-      }
+      // Preserve the artist’s text; the server removes only recognized metadata.
+      const cleanLyrics = lyricsText.trim();
 
       // Use the same voice mapping as handleGenerateLyricsVocal
       const voiceMapping = {
@@ -4607,7 +4610,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: cleanLyrics.substring(0, 1500),
+          prompt: activeVoiceSource === 'personal' && requiresSungPerformance ? personalLyricsExcerpt.trim() : cleanLyrics,
           voice: selectedVoice,
           style: backendStyle,
           rapStyle: backendRapStyle,
@@ -4623,8 +4626,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
            // A personal voice always wins when selected. Curated/provider IDs
            // are only sent after the user explicitly chooses “Studio voice”.
            speakerUrl: activeVoiceSource === 'personal' ? (voiceSampleUrl || null) : null,
+           personalReferenceId: activeVoiceSource === 'personal' && requiresSungPerformance ? personalReferenceId : null,
            elevenLabsVoiceId: activeVoiceSource === 'personal'
-             ? (clonedVoiceId || null)
+             ? (requiresSungPerformance ? null : (clonedVoiceId || null))
              : (requiresSungPerformance ? null : (activeElevenLabsVoiceId || null)),
           isPersonalVoice: activeVoiceSource === 'personal',
           // Lock to the same provider that worked last time for voice consistency
@@ -4633,11 +4637,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
              : (resolvedVoiceSelection.recovered ? null : (generationProviders.vocals || null)),
           // Pass voice sample as reference for tone/style analysis even when not cloning
            referenceSongUrl: activeVoiceSource === 'studio' ? (referenceSongUrl || null) : null,
+           songReferences: songReferences.length ? songReferences.map(ref => ({ assetId: ref.assetId || undefined, url: ref.url })) : undefined,
           // Advanced vocal synthesis parameters
-          pitchShift: vocalPitchShift !== 0 ? vocalPitchShift : undefined,
-          speed: vocalSpeed !== 1.0 ? vocalSpeed : undefined,
-          vibrato: vocalVibrato > 0 ? vocalVibrato : undefined,
-          expression: vocalExpression !== 'neutral' ? vocalExpression : undefined,
+          pitchShift: !requiresSungPerformance && vocalPitchShift !== 0 ? vocalPitchShift : undefined,
+          speed: !requiresSungPerformance && vocalSpeed !== 1.0 ? vocalSpeed : undefined,
+          vibrato: !requiresSungPerformance && vocalVibrato > 0 ? vocalVibrato : undefined,
+          expression: !requiresSungPerformance && vocalExpression !== 'neutral' ? vocalExpression : undefined,
           // Pass beat URL so backend mixes vocal+beat during generation (no extra credit cost)
           backingTrackUrl: mediaUrlsRef.current.audio || null,
           agentId: 'vocal-arch',
@@ -4659,6 +4664,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       const resolvedAudioUrl = data.audioUrl || data.output;
       if (response.ok && resolvedAudioUrl) {
+        const performance = data.instrumentalUrl && data.mixedAudioUrl ? { id: data.performanceId || crypto.randomUUID(), vocalUrl: resolvedAudioUrl,
+          instrumentalUrl: data.instrumentalUrl, masterUrl: data.mixedAudioUrl } : null;
+        if (performance) {
+          setActivePerformance(performance);
+          currentSongSessionRef.current = { ...currentSongSessionRef.current, performance, renderedMixSignature: 'provider-original' };
+          setRenderedMixSignature('provider-original');
+        }
         mediaDurabilityRef.current.vocals = data.isDurable !== false;
         // A coherent song response contains all three views of one performance:
         // dry vocal, matched instrumental, and the provider master. Replace an
@@ -4709,7 +4721,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             title: `Vocal Performance${versionLabel}`,
             type: 'vocal',
             agent: 'Ghostwriter',
-            content: cleanLyrics.substring(0, 500),
+            content: activeVoiceSource === 'personal' && requiresSungPerformance ? personalLyricsExcerpt.trim() : cleanLyrics,
+            metadata: { role: 'vocal', performanceId: performance?.id || null },
             audioUrl: resolvedAudioUrl,
             storagePath: data.storagePath || data.audioStoragePath || null,
             provider: data.provider || data.source || null,
@@ -4732,8 +4745,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           try {
             await confirmProjectSave(saveFunc, {
               ...existingProject,
-              assets: [vocalAsset, ...(existingProject.assets || [])],
-              mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, { vocals: resolvedAudioUrl, lyricsVocal: resolvedAudioUrl }),
+              assets: [vocalAsset, ...(performance ? [
+                { id: `${performance.id}-beat`, type: 'beat', title: 'Matching accompaniment', audioUrl: performance.instrumentalUrl, metadata: { role: 'beat', performanceId: performance.id } },
+                { id: `${performance.id}-master`, type: 'master', title: 'Original song master', audioUrl: performance.masterUrl, metadata: { role: 'master', performanceId: performance.id } },
+              ] : []), ...(existingProject.assets || [])],
+              mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, vocalUpdate),
               updatedAt: new Date().toISOString()
             });
             setIsSaved(true);
@@ -5941,10 +5957,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     try {
       let finalAudioUrl = null;
       let mixedViaApi = false;
+      let mixDurable = true;
 
       // Always call the mixing endpoint when we have both vocals + beat (dry vocals, clean mix)
       if (hasVocals && hasBeat) {
-        toast.loading('Mixing vocals + beat into master (auto-tune + tempo sync, may take a few minutes)...', { id: 'final-mix' });
+        toast.loading('Rendering your mix with original stem timing. This may take a few minutes...', { id: 'final-mix' });
 
         const headers = await getPaidStepHeaders('final-mix');
         const response = await fetch(`${BACKEND_URL}/api/create-final-mix`, {
@@ -5961,8 +5978,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             preset: mixPreset || 'vocal-focus',
             // Automated mix processing flags; every render still requires review.
             beatBpm: parseInt(projectBpm) || null,
-            autoTune: true,
-            tempoSync: true,
+            vocalPolish: false,
+            tempoSync: false,
             // ID3 metadata for professional export
             title: songIdea || 'Untitled',
             artist: 'Studio Agents AI',
@@ -5981,6 +5998,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           const data = await response.json();
           if (!data.mixedAudioUrl) throw new Error('The mixer completed without returning playable master audio.');
           finalAudioUrl = data.mixedAudioUrl;
+          mixDurable = data.isDurable !== false;
+          mediaDurabilityRef.current.mixedAudio = mixDurable;
+          const renderSignature = mixStateSignature(currentMediaUrls, { mixPreset, mixVocalVolume, mixBeatVolume });
+          setRenderedMixSignature(renderSignature);
+          currentSongSessionRef.current = { ...currentSongSessionRef.current, renderedMixSignature: renderSignature };
           mixedViaApi = true;
           setMediaUrls(prev => ({ ...prev, mixedAudio: finalAudioUrl }));
           mediaUrlsRef.current = { ...mediaUrlsRef.current, mixedAudio: finalAudioUrl }; // Sync ref
@@ -6037,7 +6059,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       // Auto-save final mix to project
       const saveFunc = onSaveToProject || (() => devWarn('[FinalMix] No save callback'));
-      if (existingProject && finalAudioUrl) {
+      if (existingProject && finalAudioUrl && mixDurable) {
         const mixAsset = {
           id: `mix-${crypto.randomUUID()}`,
           title: `${songIdea || 'Untitled'} - Master Mix`,
@@ -6056,8 +6078,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           createdAt: new Date().toISOString()
         };
 
-        // Replace any existing mix asset (keep only latest master)
-        const existingAssets = (existingProject.assets || []).filter(a => a.type !== 'mix');
+        // Preserve previous masters as takes; only the current master pointer changes.
+        const existingAssets = existingProject.assets || [];
         await confirmProjectSave(saveFunc, {
           ...existingProject,
           assets: [mixAsset, ...existingAssets],
@@ -6068,6 +6090,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         devLog('[FinalMix] Auto-saved master mix to project');
       }
 
+      if (!mixDurable) {
+        setIsSaved(false);
+        toast.error('Master rendered but not saved to the cloud. Download it now and retry saving.', { id: 'final-mix' });
+        return;
+      }
       toast.success(
         mixedViaApi ? 'Master mix ready!' : 'The production package is ready.',
         { id: 'final-mix' }
@@ -6264,42 +6291,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       if (slot === 'video') formattedUrl = formatVideoSrc(mediaUrl);
       if (slot === 'lyrics') formattedUrl = formatAudioSrc(mediaUrl); // Vocals are audio
 
-      const extMap = { audio: '.mp3', visual: '.png', video: '.mp4', lyrics: '.wav' };
-      const fileName = `${baseName}-${slot}${extMap[slot] || ''}`;
-
-      // Use fetch→blob for cross-origin URLs (a.download is ignored cross-origin)
       try {
-        if (formattedUrl.startsWith('data:') || formattedUrl.startsWith('blob:')) {
-          const a = document.createElement('a');
-          a.href = formattedUrl;
-          a.download = fileName;
-          a.click();
-          toast.success(`Saved ${fileName}`, { id: `dl-${slot}` });
-        } else {
-          toast.loading('Preparing download...', { id: `dl-${slot}` });
-          const resp = await fetch(formattedUrl, { signal: createTimeoutSignal(120000) });
-          if (!resp.ok) throw new Error(`Download failed (${resp.status})`);
-          const blob = await resp.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = fileName;
-          a.click();
-          URL.revokeObjectURL(blobUrl);
-          toast.success(`Saved ${fileName}`, { id: `dl-${slot}` });
-        }
-      } catch (dlErr) {
-        devWarn('[Orchestrator] Fetch download failed, offering direct link:', dlErr);
-        // window.open() after an await is popup-blocked in most browsers, so
-        // hand the user an explicit link instead of failing silently.
-        toast((t) => (
-          <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span>Direct download blocked by the browser.</span>
-            <a href={formattedUrl} target="_blank" rel="noopener noreferrer" download={fileName} onClick={() => toast.dismiss(t.id)} style={{ fontWeight: 700 }}>
-              Open {fileName} in a new tab
-            </a>
-          </span>
-        ), { id: `dl-${slot}`, duration: 12000 });
+        toast.loading('Preparing download...', { id: `dl-${slot}` });
+        const fileName = await downloadVerifiedMedia(formattedUrl, `${baseName}-${slot}`);
+        toast.success(`Download started: ${fileName}`, { id: `dl-${slot}` });
+      } catch (error) {
+        devWarn('[Orchestrator] Media download failed:', error);
+        toast.error(`Media download failed: ${error.message}.${output ? ' The text download was requested separately.' : ''} Retry when the media is available.`, { id: `dl-${slot}`, duration: 9000 });
+        return;
       }
     } else if (output) {
       toast.success('Saved text file', { id: `dl-${slot}` });
@@ -6351,29 +6350,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       return;
     }
     try {
-      const fileName = `${songIdea || 'master'}-final-mix.mp3`;
-      if (mixUrl.startsWith('data:') || mixUrl.startsWith('blob:')) {
-        const a = document.createElement('a');
-        a.href = mixUrl;
-        a.download = fileName;
-        a.click();
-      } else {
-        toast.loading('Preparing download...', { id: 'dl-master' });
-        const resp = await fetch(mixUrl, { signal: createTimeoutSignal(120000) });
-        if (!resp.ok) throw new Error(`Download failed (${resp.status})`);
-        const blob = await resp.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(blobUrl);
-        toast.dismiss('dl-master');
-      }
-      toast.success('Downloading master mix');
-    } catch (err) {
-      console.error('[DownloadMaster] Error:', err);
-      window.open(mixUrl, '_blank');
+      toast.loading('Preparing download...', { id: 'dl-master' });
+      const fileName = await downloadVerifiedMedia(mixUrl, `${songIdea || 'master'}-final-mix`);
+      toast.success(`Download started: ${fileName}`, { id: 'dl-master' });
+    } catch (error) {
+      devWarn('[DownloadMaster] Error:', error);
+      toast.error(`Master download failed: ${error.message}. Retry when the media is available.`, { id: 'dl-master', duration: 9000 });
     }
   };
 
@@ -6387,40 +6369,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     toast.loading('Preparing project export...', { id: 'export-all' });
 
     try {
-      // Helper: fetch a URL and return as blob
-      const fetchAsBlob = async (url, fallbackName) => {
-        if (!url) return null;
-        try {
-          if (url.startsWith('data:')) {
-            const resp = await fetch(url);
-            return await resp.blob();
-          }
-          const resp = await fetch(url);
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          return await resp.blob();
-        } catch (err) {
-          devWarn(`[ExportAll] Failed to fetch ${fallbackName}:`, err.message);
-          return null;
-        }
-      };
-
-      // Collect all assets in parallel
-      const [masterBlob, beatBlob, vocalsBlob, imageBlob, videoBlob] = await Promise.all([
-        fetchAsBlob(mediaUrls.mixedAudio || finalMixPreview?.mixedAudioUrl, 'master mix'),
-        fetchAsBlob(mediaUrls.audio, 'beat'),
-        fetchAsBlob(mediaUrls.vocals || mediaUrls.lyricsVocal, 'vocals'),
-        fetchAsBlob(mediaUrls.image, 'cover art'),
-        fetchAsBlob(musicVideoUrl || mediaUrls.video, 'video')
-      ]);
-
-      if (masterBlob) assets.push({ name: `${baseName} - Master Mix.mp3`, blob: masterBlob });
-      if (beatBlob) assets.push({ name: `${baseName} - Beat.mp3`, blob: beatBlob });
-      if (vocalsBlob) assets.push({ name: `${baseName} - Vocals.mp3`, blob: vocalsBlob });
-      if (imageBlob) {
-        const ext = imageBlob.type?.includes('png') ? 'png' : 'jpg';
-        assets.push({ name: `${baseName} - Cover Art.${ext}`, blob: imageBlob });
-      }
-      if (videoBlob) assets.push({ name: `${baseName} - Music Video.mp4`, blob: videoBlob });
+      const bundle = await collectProjectExport({
+        'Master Mix': mediaUrls.mixedAudio || finalMixPreview?.mixedAudioUrl,
+        Beat: mediaUrls.audio, Vocals: mediaUrls.vocals || mediaUrls.lyricsVocal,
+        'Cover Art': mediaUrls.image, 'Music Video': musicVideoUrl || mediaUrls.video,
+      }, baseName);
+      assets.push(...bundle.assets);
 
       // Lyrics text file
       if (outputs.lyrics) {
@@ -6450,6 +6404,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         toast.error('No assets to export — generate content first', { id: 'export-all' });
         return;
       }
+      bundle.manifest.files.push(...assets.filter(item => /\.(txt|json)$/.test(item.name)).map(item => ({ name: item.name, mimeType: item.blob.type, bytes: item.blob.size, status: 'exported' })));
+      assets.push({ name: 'manifest.json', blob: new Blob([JSON.stringify(bundle.manifest, null, 2)], { type: 'application/json' }) });
 
       // Media is already compressed; store it as-is (level 0) so the export is instant.
       const { zipSync } = await import('fflate');
@@ -6470,7 +6426,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       toast.success(`Exported ${assets.length} files as ZIP!`, { id: 'export-all' });
     } catch (err) {
       console.error('[ExportAll] Error:', err);
-      toast.error('Export failed — try downloading files individually', { id: 'export-all' });
+      toast.error(err.message || 'Export failed. No complete bundle was downloaded.', { id: 'export-all', duration: 8000 });
     }
   };
 
@@ -6492,13 +6448,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       const response = await fetch(BACKEND_URL + '/api/export-stems-zip', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ beatUrl, vocalsUrl, masterUrl, projectName, bpm: projectBpm })
+        body: JSON.stringify({ beatUrl, vocalsUrl, masterUrl, projectName, bpm: projectBpm }),
+        signal: createTimeoutSignal(300000)
       });
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || ('Server error ' + response.status));
+        throw new Error([errData.error || ('Server error ' + response.status), errData.failedFiles?.join(', ')].filter(Boolean).join(' — '));
       }
       const blob = await response.blob();
+      if (!blob.size || !/application\/zip/i.test(blob.type)) throw new Error('The server did not return a valid stems archive');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -6649,7 +6607,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     setOutputs(prev => ({ ...prev, [slot]: newText }));
     // Update ref immediately so media generation uses the edited text
     outputsRef.current[slot] = newText;
-    toast.success('Saved');
+    setIsSaved(false);
+    toast('Text updated locally. Save your project to keep the edit.');
   };
 
   // One awaited save path serves explicit save, project switching and regeneration.
@@ -6729,14 +6688,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     }
 
     // ADDED: Add Final Mix if exists
-    if (finalMixPreview) {
+    const selectedMasterUrl = authoritativeMaster(mediaUrls, finalMixPreview);
+    if (selectedMasterUrl) {
       const mixAsset = {
         id: `fmix-${crypto.randomUUID()}`,
         title: 'Full Production Master',
-        type: 'pro', // StudioView uses 'pro' for full production
+        type: 'master',
         agent: 'Studio Orchestrator',
-        content: typeof finalMixPreview === 'string' ? finalMixPreview : JSON.stringify(finalMixPreview),
-        audioUrl: formatAudioSrc(mediaUrls.audio),
+        content: typeof finalMixPreview === 'string' ? finalMixPreview : JSON.stringify(finalMixPreview || { mixedAudioUrl: selectedMasterUrl }),
+        audioUrl: formatAudioSrc(selectedMasterUrl),
+        metadata: { role: 'master', performanceId: activePerformance?.id || null,
+          vocalUrl: mediaUrls.vocals || mediaUrls.lyricsVocal || null, instrumentalUrl: mediaUrls.audio || null },
         videoUrl: formatVideoSrc(musicVideoUrl || mediaUrls.video),
         imageUrl: formatImageSrc(mediaUrls.image),
         date: new Date().toLocaleDateString(),
@@ -6775,7 +6737,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         return agent?.name || id;
       }),
       assets,
-      mediaUrls: mergeCurrentMedia(existingProject?.mediaUrls, mediaUrls),
+      mediaUrls: { ...mediaUrls },
       coverImage: formatImageSrc(mediaUrls.image) || existingProject?.coverImage || null
     };
     
@@ -6829,26 +6791,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
   // Keep ref in sync so saveAndGenerate always calls latest version
   handleCreateProjectRef.current = handleCreateProject;
 
-  const journeyStages = [
+  const currentDelivery = deliveryReadiness(outputs, mediaUrls, selectedAgents, !quickMode || quickOutcome !== 'song-draft');
+  const stageLabels = { lyrics: 'Lyrics', audio: 'Beat', vocals: 'Vocals', master: 'Mix', visual: 'Artwork', video: 'Video' };
+  const stageIcons = { lyrics: '📝', audio: '🎵', vocals: '🎤', master: '🎛️', visual: '🎨', video: '🎬' };
+  const orderedStages = ['lyrics', 'audio', 'vocals', 'master', 'visual', 'video'].filter(key => currentDelivery.selected.includes(key));
+  const advancedJourneyStages = [
     { id: 'brief', label: 'Brief', complete: Boolean(songIdea) },
-    { id: 'write', label: 'Write', complete: Boolean(outputs.lyrics) },
-    { id: 'produce', label: 'Produce', complete: Boolean(mediaUrls.audio) },
-    { id: 'vocals', label: 'Vocals', complete: Boolean(mediaUrls.vocals || mediaUrls.lyricsVocal) },
-    { id: 'visuals', label: 'Visuals', complete: Boolean(mediaUrls.image || mediaUrls.video) },
-    { id: 'finish', label: 'Finish', complete: Boolean(mediaUrls.mixedAudio || musicVideoUrl) }
+    ...orderedStages.map(key => ({ id: key, label: stageLabels[key], complete: currentDelivery.ready[key] }))
   ];
-  const nextJourneyStage = journeyStages.find((stage) => !stage.complete)?.id || 'finish';
-  const journeyMessage = !songIdea
-    ? 'Start with one sentence about the song you want to make.'
-    : !outputs.lyrics || !mediaUrls.audio
-      ? 'Create a playable song draft first — lyrics and beat, with no extra spend on visuals.'
-      : !(mediaUrls.vocals || mediaUrls.lyricsVocal)
-        ? 'Your draft is ready. When it sounds right, choose Full package to add a vocal performance.'
-        : !(mediaUrls.image || mediaUrls.video)
-          ? 'Your song is taking shape. Add a visual direction only when you are ready.'
-          : !mediaUrls.mixedAudio
-            ? 'Review the takes, then create a final mix when you are happy with the performance.'
-            : 'Your creative package is ready to review, export, and share.';
+  const quickJourney = quickSongJourney({ outcome: quickOutcome, idea: songIdea, lyrics: outputs.lyrics, media: mediaUrls });
+  const journeyStages = quickMode ? quickJourney.stages : advancedJourneyStages;
+  const nextJourneyStage = quickMode ? quickJourney.next : journeyStages.find((stage) => !stage.complete)?.id || 'finish';
+  const journeyMessage = quickJourney.message;
   const selectedDeliverables = GENERATOR_SLOTS.filter(slot => selectedAgents[slot.key]).map(slot => slot.title);
   const advancedJourneyMessage = selectedDeliverables.length
     ? `Selected: ${selectedDeliverables.join(', ')}. Review your brief, create these outputs, then save the takes you want to keep.`
@@ -6859,14 +6813,23 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       document.getElementById('studio-song-brief')?.focus();
       return;
     }
-    if (!outputs.lyrics || !mediaUrls.audio) {
-      setQuickOutcome('song-draft');
-      startQuickCreate('song-draft');
+    if (!outputs.lyrics && !mediaUrls.audio) {
+      startQuickCreate();
       return;
     }
-    setQuickOutcome('full-package');
-    toast('Your draft is protected. Choose Full package when you are ready to extend it.', { id: 'orch-next-step' });
+    document.getElementById('orchestrator-results-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  const currentSongSession = songSessionState({ voiceSource, voiceStyle, genre, rapStyle, voiceSampleUrl,
+    personalReferenceId, personalLyricsExcerpt, referenceSongUrl, references: songReferences, mixPreset, mixVocalVolume, mixBeatVolume,
+    outputFormat, selectedOutputPreset, songStructure, arrangementSections, expandedSections, renderedMixSignature, performance: activePerformance });
+  currentSongSessionRef.current = currentSongSession;
+  const songSignature = songStateSignature({ session: currentSongSession, outputs, mediaUrls, songIdea,
+    language, style, model, duration, bars, useBars, projectBpm, structure, mood, selectedAgents, quickMode, quickOutcome, quickGenre });
+  currentSongSignatureRef.current = songSignature;
+  useEffect(() => {
+    if (!restoringSongRef.current && savedSongSignatureRef.current && savedSongSignatureRef.current !== songSignature && isSaved) setIsSaved(false);
+  }, [songSignature, isSaved]);
 
   if (!isOpen) return null;
 
@@ -6979,6 +6942,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         </div>
         <button 
           onClick={handleCloseWithCheck}
+          aria-label="Close orchestrator"
           style={{ 
             background: "var(--studio-surface, #fbf8f1)",
             border: 'none', 
@@ -7036,11 +7000,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', minHeight: '40px', padding: '8px 12px', whiteSpace: 'nowrap'
               }}
             >
-              {!quickMode ? 'Review brief' : nextJourneyStage === 'brief' ? 'Write brief' : nextJourneyStage === 'write' ? 'Create draft' : nextJourneyStage === 'finish' ? 'Review package' : `Continue: ${nextJourneyStage}`}
+              {!quickMode ? 'Review brief' : nextJourneyStage === 'brief' ? 'Write brief' : outputs.lyrics || mediaUrls.audio ? 'Review takes' : 'Create song'}
             </button>
           </div>
           <div style={{ display: 'flex', gap: '6px', marginTop: '12px', overflowX: 'auto', paddingBottom: '2px' }}>
-            {(quickMode ? journeyStages : journeyStages.filter(stage => stage.id === 'brief' || (stage.id === 'write' && selectedAgents.lyrics) || (stage.id === 'produce' && selectedAgents.audio) || (stage.id === 'visuals' && (selectedAgents.visual || selectedAgents.video)))).map((stage) => (
+            {journeyStages.map((stage) => (
               <div key={stage.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: stage.complete ? "var(--studio-sage, #566954)" : stage.id === nextJourneyStage ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)", fontSize: '0.7rem', fontWeight: stage.id === nextJourneyStage ? 700 : 600, whiteSpace: 'nowrap' }}>
                 <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: stage.complete ? "var(--studio-surface-alt, #e4e8dc)" : stage.id === nextJourneyStage ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)" }} />
                 {stage.label}
@@ -7085,16 +7049,19 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             </button>
           </div>
 
+          {outputFormat === 'music' && <SongReferencesPanel backendUrl={BACKEND_URL} getHeaders={getHeaders}
+            currentUid={() => auth.currentUser?.uid} accountId={auth.currentUser?.uid}
+            references={songReferences.length ? songReferences : referenceSongUrl ? [{ url: referenceSongUrl, name: 'Saved song reference' }] : []}
+            onReferencesChange={items => { setSongReferences(items); setReferenceSongUrl(items[0]?.url || null); }}
+            voiceSource={voiceSource} onVoiceSourceChange={source => { setVoiceSource(source); setVoiceStyle(source === 'personal' ? 'cloned' : 'singer'); }}
+            personalReferenceId={personalReferenceId} onPersonalReferenceChange={reference => { setPersonalReferenceId(reference?.id || null); setVoiceSampleUrl(reference?.url || null); }}
+            onLibraryChange={setSingingLibrary} lyricsExcerpt={personalLyricsExcerpt} onLyricsExcerptChange={setPersonalLyricsExcerpt} />}
           {quickMode ? (
             /* ═══════ QUICK CREATE MODE ═══════ */
-            <div style={{
-              display: 'flex',
-              flexDirection: isMobile ? 'column' : 'row',
-              gap: '10px',
-              alignItems: isMobile ? 'stretch' : 'center'
-            }}>
+            <div className="quick-song-form">
               <input
                 id="studio-song-brief"
+                aria-label="Describe your song"
                 value={songIdea}
                 onChange={(e) => setSongIdea(e.target.value)}
                 onKeyDown={(e) => {
@@ -7118,6 +7085,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 }}
               />
               <select
+                aria-label="Song genre"
                 value={quickGenre}
                 onChange={(e) => {
                   setQuickGenre(e.target.value);
@@ -7157,7 +7125,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   minWidth: isMobile ? 'auto' : '150px'
                 }}
               >
-                <option value="song-draft" style={{ background: "var(--studio-surface, #fbf8f1)" }}>Draft song first</option>
+                <option value="song" style={{ background: "var(--studio-surface, #fbf8f1)" }}>Song — vocals + beat</option>
+                <option value="song-draft" style={{ background: "var(--studio-surface, #fbf8f1)" }}>Lyrics + beat only</option>
                 <option value="full-package" style={{ background: "var(--studio-surface, #fbf8f1)" }}>Full package</option>
               </select>
               <button
@@ -7194,13 +7163,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 ) : (
                   <>
                     <Sparkles size={18} />
-                    {quickOutcome === 'full-package' ? (creatorMode === 'creator' ? 'Create Full Project' : 'Create Full Song') : 'Create Song Draft'}
-                    <span style={{ fontSize: '0.65rem', opacity: 0.6, fontWeight: '400' }}>
-                      {quickOutcome === 'full-package' ? (creatorMode === 'creator' ? 'Script + Audio + Graphics + Video' : 'Lyrics + Vocals + Beat + Art + Video') : 'Lyrics + Beat — approve before adding more'}
-                    </span>
+                    <span>{quickOutcome === 'full-package' ? (creatorMode === 'creator' ? 'Create Full Project' : 'Create Full Package') : quickOutcome === 'song-draft' ? 'Create Draft' : 'Create Song'}</span>
                   </>
                 )}
               </button>
+              <p className="quick-song-explanation">
+                {LATIN_SONG_GENRES.find(({ label }) => label === quickGenre)?.hint && <>
+                  {LATIN_SONG_GENRES.find(({ label }) => label === quickGenre).hint} Tempo and lyric language are adjustable in Advanced.{' '}
+                </>}
+                {voiceSource === 'personal'
+                  ? 'Personal voice selected. Your authorized sample stays private; review the supported audition length before creating.'
+                  : 'No sample needed: MiniMax creates an original performer with matching music. Use Voice & optional references above if you want to add your own.'}
+              </p>
             </div>
           ) : (
             /* ═══════ ADVANCED MODE ═══════ */
@@ -7439,7 +7413,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           );
         })()}
 
-        {(isRecoveringProduction || recoveredProductionJob) && !isGenerating && (
+        {(isRecoveringProduction || recoveryOfferVisible(recoveredProductionJob, existingProject?.id, songIdea, productionRunStartedRef.current)) && !isGenerating && (
           <div style={{
             background: "linear-gradient(135deg, var(--studio-surface, #fbf8f1), var(--studio-accent-soft, #f0ded2))",
             borderRadius: '14px',
@@ -8237,15 +8211,17 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   outline: 'none'
                 }}
               >
-                <optgroup label="🎙️ Your Voice">
+                {outputFormat === 'music' && <option value="cloned" disabled={!personalVoiceStatus.available}>My approved singing reference</option>}
+                {outputFormat !== 'music' && <optgroup label="🎙️ Your Voice">
                   <option value="cloned" disabled={!personalVoiceStatus.available}>
                     {clonedVoiceId ? `✨ My Voice — ${personalVoiceStatus.label}` : '✨ My Voice (Create it below)'}
                   </option>
                   {savedVoices.filter(voice => voice.voiceId || voice.provider === 'elevenlabs-ivc').map(voice => (
                     <option key={voice.id} value={`saved-${voice.id}`}>🎙️ {voice.name || 'Saved Voice'}</option>
                   ))}
-                </optgroup>
+                </optgroup>}
                 <optgroup label="🔥 Studio Performers — Male">
+                  <option value="singer">Original melodic singer</option>
                   <option value="rapper">Deep, commanding rapper</option>
                   <option value="rapper-melodic">Smooth melodic R&amp;B / rap singer</option>
                   <option value="rapper-young">Young, dynamic trap performer</option>
@@ -8532,7 +8508,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               )}
               
               {/* ── ElevenLabs Premium Voice Selector ── */}
-              {elVoices.length > 0 && (
+              {outputFormat !== 'music' && elVoices.length > 0 && (
                 <div style={{ width: '100%', marginTop: '4px' }}>
                   <div style={{ fontSize: '0.7rem', color: "var(--studio-warning, #806023)", fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <Zap size={10} color="var(--studio-warning, #806023)" fill="var(--studio-warning, #806023)" /> Premium Voice Engine
@@ -8601,6 +8577,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               )}
 
               {/* ── Reference Song Upload (Tone/Style Matching) ── */}
+              {outputFormat !== 'music' && (
               <div style={{
                 width: '100%',
                 padding: '12px 14px',
@@ -8646,6 +8623,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   </label>
                 </div>
               </div>
+              )}
 
               {/* Rap Style Selector - only show for rap voices */}
               {(voiceStyle === 'rapper' || voiceStyle === 'rapper-female' || voiceStyle === 'rapper-melodic' || voiceStyle === 'rapper-young' || voiceStyle === 'rapper-female-melodic') && (
@@ -8708,6 +8686,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     <option value="reggae">🟢 Reggae</option>
                     <option value="dancehall">🔊 Dancehall</option>
                     <option value="reggaeton">💃 Reggaeton</option>
+                    {LATIN_SONG_GENRES.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
                     <option value="latin-trap">🌴 Latin Trap</option>
                     <option value="bollywood">🎬 Bollywood</option>
                     <option value="k-pop">🇰🇷 K-Pop</option>
@@ -8731,6 +8710,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               )}
 
               {/* Advanced Vocal Synthesis Controls */}
+              {outputFormat !== 'music' ? (
               <Suspense fallback={null}>
                 <VocalSynthControls
                   pitchShift={vocalPitchShift}
@@ -8748,6 +8728,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   isMobile={isMobile}
                 />
               </Suspense>
+              ) : <p style={{ fontSize: '0.8rem', color: 'var(--studio-muted)', lineHeight: 1.5 }}>
+                Musical delivery follows your genre, lyrics, tempo and song direction. Speech speed, pitch and vibrato controls do not apply to this song engine. Adjust individual stems in the producer canvas after listening.
+              </p>}
               </div>
             </div>
 
@@ -8823,35 +8806,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               {mediaUrls.lyricsVocal && (
                 <button
                   onClick={async () => {
-                    const url = mediaUrls.lyricsVocal;
-                    const ext = url.includes('audio/wav') ? 'wav' : 'mp3';
-                    const fileName = `${songIdea || 'lyrics'}-${voiceStyle}.${ext}`;
                     try {
-                      if (url.startsWith('data:')) {
-                        // Base64 data URL — direct download
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = fileName;
-                        a.click();
-                      } else {
-                        // HTTP URL — fetch as blob then download
-                        toast.loading('Preparing download...', { id: 'dl-vocal' });
-                        const resp = await fetch(url);
-                        if (!resp.ok) throw new Error('Download failed');
-                        const blob = await resp.blob();
-                        const blobUrl = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = blobUrl;
-                        a.download = fileName;
-                        a.click();
-                        URL.revokeObjectURL(blobUrl);
-                        toast.success('Download started', { id: 'dl-vocal' });
-                      }
-                    } catch (err) {
-                      console.error('[Download Audio] Error:', err);
-                      // Fallback: open in new tab
-                      window.open(url, '_blank');
-                      toast.dismiss('dl-vocal');
+                      toast.loading('Preparing download...', { id: 'dl-vocal' });
+                      const fileName = await downloadVerifiedMedia(mediaUrls.lyricsVocal, `${songIdea || 'lyrics'}-vocal`);
+                      toast.success(`Download started: ${fileName}`, { id: 'dl-vocal' });
+                    } catch (error) {
+                      devWarn('[DownloadVocal] Error:', error);
+                      toast.error(`Vocal download failed: ${error.message}. Retry when the media is available.`, { id: 'dl-vocal', duration: 9000 });
                     }
                   }}
                   style={{
@@ -8895,6 +8856,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           {/* Header with collapse toggle */}
           <button
             onClick={() => setShowAssets(!showAssets)}
+            aria-expanded={showAssets}
+            aria-controls="song-optional-inputs"
             style={{
               width: '100%',
               display: 'flex',
@@ -8910,7 +8873,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: showAssets ? "var(--studio-surface-alt, #e4e8dc)" : "var(--studio-surface, #fbf8f1)", border: `1px solid ${showAssets ? "var(--studio-border, #d8d5c9)" : "var(--studio-border, #d8d5c9)"}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Upload size={13} color={showAssets ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)"} /></div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
               <span style={{ fontSize: '0.85rem', fontWeight: '600', color: showAssets ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)" }}>
-                Your Assets
+                Optional references & your assets
               </span>
               {(voiceSamples.length > 0 || visualDnaUrl || audioDnaUrl) && (
                 <span style={{
@@ -8929,7 +8892,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           </button>
 
           {showAssets && (
-            <div style={{
+            <div id="song-optional-inputs" style={{
               padding: '14px 16px 16px',
               borderTop: "1px solid var(--studio-border, #d8d5c9)",
               display: 'grid',
@@ -8938,6 +8901,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             }}>
 
               {/* Column 1: Voice Samples */}
+              {outputFormat !== 'music' && (
               <div style={{
                 padding: '16px',
                 background: "var(--studio-surface-alt, #e4e8dc)",
@@ -8962,6 +8926,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                     <span style={{ fontSize: '0.75rem', color: "var(--studio-ink, #202724)" }}>Saved voice sample</span>
                     <span style={{ fontSize: '0.65rem', color: "var(--studio-sage, #566954)", fontWeight: 700 }}>Ready to clone</span>
                   </div>
+                )}
+
+                {!voiceSampleUrl && libraryVoiceSampleUrl && (
+                  <button type="button" onClick={() => setVoiceSampleUrl(libraryVoiceSampleUrl)}
+                    style={{ minHeight: 40, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--studio-border)', background: 'var(--studio-surface)', color: 'var(--studio-ink)', cursor: 'pointer' }}>
+                    Attach saved voice sample
+                  </button>
                 )}
 
                 {clonedVoiceId && (
@@ -9074,9 +9045,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 </label>
 
                 <p style={{ fontSize: '0.65rem', color: "var(--studio-muted, #646c64)", margin: 0, lineHeight: 1.4 }}>
-                  One clear 15s+ recording is enough to create your voice; 2–3 improve the match. A saved sample from your profile is used automatically.
+                A clear recording can guide a personal voice. Saved samples are attached only when you choose them; adding a reference does not give permission to clone its singer.
                 </p>
               </div>
+              )}
 
               {/* Column 2: Artist Image */}
               <div style={{
@@ -9250,13 +9222,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           justifyContent: 'center',
           overflow: 'hidden'
         }}>
-          {[
-            { num: 1, label: 'Lyrics', done: !!outputs.lyrics, icon: '📝' },
-            { num: 2, label: 'Beat', done: !!mediaUrls.audio, icon: '🎵' },
-            { num: 3, label: 'Vocals', done: !!(mediaUrls.vocals || mediaUrls.lyricsVocal), icon: '🎤' },
-            { num: 4, label: 'Mix', done: !!mediaUrls.mixedAudio, icon: '🎛️' },
-            { num: 5, label: 'Video', done: !!mediaUrls.video || !!musicVideoUrl, icon: '🎬' }
-          ].map((step, i, arr) => {
+          {orderedStages.map((key, index) => ({ num: index + 1, label: stageLabels[key], done: currentDelivery.ready[key], icon: stageIcons[key] })).map((step, i, arr) => {
             const isActive = !step.done && (i === 0 || arr[i - 1].done);
             return (
               <React.Fragment key={step.num}>
@@ -9505,7 +9471,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 <span style={{ fontSize: '0.88rem', fontWeight: '700', color: expandedSections.productionHub ? "var(--studio-sage, #566954)" : "var(--studio-muted, #646c64)" }}>Production Control Hub</span>
                 {Object.values(outputs).some(Boolean) && (
                   <span style={{ fontSize: '0.62rem', fontWeight: '700', color: "var(--studio-sage, #566954)", background: "var(--studio-surface-alt, #e4e8dc)", padding: '2px 8px', borderRadius: '20px', border: "1px solid var(--studio-border, #d8d5c9)" }}>
-                    {['lyrics', 'audio', 'visual', 'video'].filter(key => selectedAgents[key] && Boolean(key === 'lyrics' ? outputs?.lyrics : mediaUrls[key === 'visual' ? 'image' : key])).length}/{['lyrics', 'audio', 'visual', 'video'].filter(key => selectedAgents[key]).length} selected ready
+                    {currentDelivery.completed}/{currentDelivery.selected.length} selected ready
                   </span>
                 )}
               </div>
@@ -9517,6 +9483,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           </button>
           {expandedSections.productionHub && (
             <ProductionControlHub
+              includeVocals={!quickMode || quickOutcome !== 'song-draft'}
+              renderedMixSignature={renderedMixSignature}
               outputs={outputs}
               mediaUrls={mediaUrls}
               selectedAgents={selectedAgents}
@@ -9753,6 +9721,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       {/* Footer Actions */}
       {Object.values(outputs).some(Boolean) && (
         <StudioOutputActions
+          includeVocals={!quickMode || quickOutcome !== 'song-draft'}
           outputs={outputs}
           mediaUrls={mediaUrls}
           selectedAgents={selectedAgents}

@@ -8,14 +8,14 @@ export function serializeProductionConfig(config = {}) {
       typeof config.selectedAgents?.[slot] === 'string' && config.selectedAgents[slot].trim()
         ? config.selectedAgents[slot] : null])),
     quickMode: config.quickMode === true,
-    quickOutcome: config.quickOutcome === 'song-draft' ? 'song-draft' : 'full-package',
+    quickOutcome: ['song', 'song-draft', 'full-package'].includes(config.quickOutcome) ? config.quickOutcome : 'full-package',
     quickGenre: typeof config.quickGenre === 'string' && config.quickGenre ? config.quickGenre : 'Modern Hip-Hop'
   };
 }
 
 export function restoreProductionConfig(project) {
   if (project?.productionConfig?.version === 1) return serializeProductionConfig(project.productionConfig);
-  if (!project?.id) return serializeProductionConfig({ selectedAgents: defaults, quickMode: true, quickOutcome: 'full-package' });
+  if (!project?.id) return serializeProductionConfig({ selectedAgents: { ...defaults, visual: null, video: null }, quickMode: true, quickOutcome: 'song' });
 
   // Legacy projects did not record generation scope. Infer only the outputs
   // already present, and open Advanced mode so a full package is never silently

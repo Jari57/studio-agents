@@ -6,15 +6,16 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Download, FolderPlus } from 'lucide-react';
 import ts from 'typescript';
+import { deliveryReadiness } from '../src/utils/deliveryReadiness.mjs';
 
 const read = path => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 const orchestrator = read('components/StudioOrchestratorV2.jsx');
 const actions = read('components/StudioOutputActions.jsx');
 const css = read('components/StudioOrchestratorTheme.css');
-const { outputText } = ts.transpileModule(actions.replace(/^import .*;\r?\n/m, '').replace('export default function', 'function'), {
+const { outputText } = ts.transpileModule(actions.replace(/^import .*;\r?\n/gm, '').replace('export default function', 'function'), {
   compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 }
 });
-const Actions = runInNewContext(`${outputText}\nStudioOutputActions`, { React, Download, FolderPlus });
+const Actions = runInNewContext(`${outputText}\nStudioOutputActions`, { React, Download, FolderPlus, deliveryReadiness });
 
 test('orchestrator uses the shared editorial palette, with explicitly scoped dark media stages', () => {
   for (const token of ['bg', 'surface', 'surface-alt', 'ink', 'muted', 'border', 'accent', 'accent-soft', 'sage']) {

@@ -1,8 +1,8 @@
 import { Download, FolderPlus } from 'lucide-react';
+import { deliveryReadiness } from '../utils/deliveryReadiness.mjs';
 
-export default function StudioOutputActions({ outputs = {}, mediaUrls = {}, selectedAgents = {}, isMobile, onExport, onStems, onSave }) {
-  const selected = ['lyrics', 'audio', 'visual', 'video'].filter(key => selectedAgents[key]);
-  const ready = selected.filter(key => key === 'lyrics' ? outputs.lyrics : mediaUrls[key === 'visual' ? 'image' : key]).length;
+export default function StudioOutputActions({ outputs = {}, mediaUrls = {}, selectedAgents = {}, includeVocals = false, isMobile, onExport, onStems, onSave }) {
+  const { selected, completed: ready } = deliveryReadiness(outputs, mediaUrls, selectedAgents, includeVocals);
   const buttonStyle = {
     minWidth: 0, minHeight: 48, padding: isMobile ? '10px 6px' : '12px 18px',
     borderRadius: 12, border: '1px solid var(--studio-border, #d8d5c9)',
@@ -22,7 +22,7 @@ export default function StudioOutputActions({ outputs = {}, mediaUrls = {}, sele
       position: 'sticky', bottom: 0, backdropFilter: 'blur(10px)'
     }}>
       <p style={{ margin: 0, minWidth: 0, fontSize: '0.8rem', color: 'var(--studio-muted, #646c64)' }}>
-        {ready}/{selected.length} selected outputs ready · {Object.values(mediaUrls).filter(Boolean).length} media files
+        {ready}/{selected.length} selected outputs ready · {new Set(Object.values(mediaUrls).filter(Boolean)).size} media files · Listen before release
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: isMobile ? 8 : 12, minWidth: 0 }}>
         <button aria-label="Export All (.zip)" onClick={onExport} style={buttonStyle}>

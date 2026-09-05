@@ -8,10 +8,6 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffmpegStatic = require('ffmpeg-static');
 const path = require('path');
 const fs = require('fs');
-const https = require('https');
-const http = require('http');
-const dns = require('dns').promises;
-const net = require('net');
 
 // Wire the bundled ffmpeg binary so it works on Railway/Heroku/etc.
 ffmpeg.setFfmpegPath(ffmpegStatic);
@@ -38,122 +34,8 @@ function describeFfmpegFailure(err, stderr) {
 /**
  * Download audio/video file from URL with redirect following and timeout
  */
-const MAX_AUDIO_DOWNLOAD_BYTES = 150 * 1024 * 1024;
-
-function isPrivateAddress(address) {
-  if (net.isIPv4(address)) {
-    const parts = address.split('.').map(Number);
-    return parts[0] === 10
-      || parts[0] === 127
-      || parts[0] === 0
-      || (parts[0] === 169 && parts[1] === 254)
-      || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31)
-      || (parts[0] === 192 && parts[1] === 168);
-  }
-  const normalized = address.toLowerCase();
-  return normalized === '::1' || normalized === '::' || normalized.startsWith('fc')
-    || normalized.startsWith('fd') || normalized.startsWith('fe80:');
-}
-
-async function assertSafeRemoteAudioUrl(value) {
-  const parsed = new URL(value);
-  if (parsed.protocol !== 'https:') throw new Error('Remote audio sources must use HTTPS');
-  if (parsed.username || parsed.password) throw new Error('Credentialed audio URLs are not accepted');
-  const hostname = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  if (hostname === 'localhost' || hostname.endsWith('.local')) throw new Error('Local audio URLs are not accepted');
-  if (net.isIP(hostname)) {
-    if (isPrivateAddress(hostname)) throw new Error('Private-network audio URLs are not accepted');
-    return;
-  }
-  const addresses = await dns.lookup(hostname, { all: true });
-  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
-    throw new Error('Audio URL resolved to an unsafe network address');
-  }
-}
-
-async function downloadAudio(url, destPath, maxRedirects = 3) {
-  if (typeof url !== 'string') throw new Error('Audio URL must be a string');
-  if (!url.startsWith('data:')) await assertSafeRemoteAudioUrl(url);
-  return new Promise((resolve, reject) => {
-    // Handle base64 data URLs (vocals/beats returned as data: URIs from AI providers)
-    if (url.startsWith('data:')) {
-      try {
-        const match = url.match(/^data:[^;]+;base64,(.+)$/s);
-        if (!match) return reject(new Error('Invalid data URI — missing base64 payload'));
-        fs.writeFileSync(destPath, Buffer.from(match[1], 'base64'));
-        return resolve(destPath);
-      } catch (err) {
-        return reject(err);
-      }
-    }
-
-    const doRequest = (requestUrl, redirectsLeft) => {
-      const protocol = requestUrl.startsWith('https') ? https : http;
-      const file = fs.createWriteStream(destPath);
-
-      const req = protocol.get(requestUrl, (response) => {
-        // Follow redirects (301, 302, 307, 308)
-        if ([301, 302, 307, 308].includes(response.statusCode) && response.headers.location) {
-          file.close();
-          fs.unlink(destPath, () => {});
-          if (redirectsLeft <= 0) {
-            return reject(new Error(`Too many redirects downloading ${requestUrl}`));
-          }
-          const redirectUrl = response.headers.location.startsWith('http')
-            ? response.headers.location
-            : new URL(response.headers.location, requestUrl).href;
-          assertSafeRemoteAudioUrl(redirectUrl)
-            .then(() => doRequest(redirectUrl, redirectsLeft - 1))
-            .catch(reject);
-          return;
-        }
-
-        if (response.statusCode !== 200) {
-          file.close();
-          fs.unlink(destPath, () => {});
-          reject(new Error(`Download failed: HTTP ${response.statusCode} for ${requestUrl.substring(0, 80)}`));
-          return;
-        }
-        const declaredSize = Number(response.headers['content-length'] || 0);
-        if (declaredSize > MAX_AUDIO_DOWNLOAD_BYTES) {
-          response.destroy();
-          file.close();
-          fs.unlink(destPath, () => {});
-          reject(new Error('Audio source is larger than the 150MB session limit'));
-          return;
-        }
-        let received = 0;
-        response.on('data', (chunk) => {
-          received += chunk.length;
-          if (received > MAX_AUDIO_DOWNLOAD_BYTES) {
-            response.destroy(new Error('Audio source exceeded the 150MB session limit'));
-          }
-        });
-        response.pipe(file);
-        file.on('finish', () => {
-          file.close();
-          resolve(destPath);
-        });
-      });
-
-      // 60-second timeout to prevent hanging on stalled connections
-      req.setTimeout(60000, () => {
-        req.destroy();
-        file.close();
-        fs.unlink(destPath, () => {});
-        reject(new Error(`Download timed out after 60s: ${requestUrl.substring(0, 80)}`));
-      });
-
-      req.on('error', (err) => {
-        file.close();
-        fs.unlink(destPath, () => {});
-        reject(err);
-      });
-    };
-
-    doRequest(url, maxRedirects);
-  });
-}
+const { downloadAudio } = require('./safeMediaDownload');
+const { SAFE_AUDIO_INPUT_ARGS, SAFE_AUDIO_INPUT_OPTIONS } = require('./audioInputSafety');
 
 /**
  * Professional Audio Mixing
@@ -297,7 +179,9 @@ async function mixAudioProfessional(options, logger) {
       // Build FFmpeg command
       const cmd = ffmpeg()
         .input(vocalPath)
+        .inputOptions(SAFE_AUDIO_INPUT_OPTIONS)
         .input(beatPath)
+        .inputOptions(SAFE_AUDIO_INPUT_OPTIONS)
         .complexFilter(filterComplexString, finalFilters)
         .audioCodec('libmp3lame')
         .audioBitrate('320k') // High-quality MP3
@@ -560,7 +444,7 @@ async function mixMultipleStems(rawTracks, options = {}, logger) {
     await new Promise((resolve, reject) => {
       let command = ffmpeg();
       const timeout = setTimeout(() => { command.kill('SIGKILL'); reject(new Error('Producer render exceeded its three-minute processing budget')); }, 180000);
-      inputPaths.forEach((inputPath) => { command = command.input(inputPath); });
+      inputPaths.forEach((inputPath) => { command = command.input(inputPath).inputOptions(SAFE_AUDIO_INPUT_OPTIONS); });
       command
         .complexFilter(filterComplex, outputLabel)
         .audioCodec('libmp3lame')
@@ -607,7 +491,7 @@ async function mixMultipleStems(rawTracks, options = {}, logger) {
 function readProducerDuration(inputPath) {
   const { execFile } = require('child_process');
   return new Promise((resolve, reject) => {
-    execFile(ffmpegStatic, ['-hide_banner', '-i', inputPath, '-t', '0', '-f', 'null', '-'],
+    execFile(ffmpegStatic, ['-hide_banner', ...SAFE_AUDIO_INPUT_ARGS, '-i', inputPath, '-t', '0', '-f', 'null', '-'],
       { timeout: 15000, maxBuffer: 1024 * 1024, windowsHide: true }, (error, _stdout, stderr) => {
         const match = String(stderr || '').match(/Duration:\s*(\d+):(\d+):([\d.]+)/);
         const duration = match ? Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]) : 0;
@@ -686,7 +570,7 @@ function detectBpmFromFile(audioPath, logger) {
 
       // Get audio duration using ffmpeg-static (no ffprobe needed)
       execFile(ffmpegStatic, [
-        '-i', audioPath,
+        ...SAFE_AUDIO_INPUT_ARGS, '-i', audioPath,
         '-af', 'astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-',
         '-f', 'null', '-'
       ], { timeout: 30000, maxBuffer: 10 * 1024 * 1024 }, (error, _stdout, stderr) => {
@@ -704,7 +588,7 @@ function detectBpmFromFile(audioPath, logger) {
         // Use a separate call with volumedetect + astats to find onset peaks
         const analysisPath = audioPath + '.energy.txt';
         execFile(ffmpegStatic, [
-          '-i', audioPath,
+          ...SAFE_AUDIO_INPUT_ARGS, '-i', audioPath,
           '-af', `astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=${analysisPath}`,
           '-f', 'null', '-'
         ], { timeout: 30000 }, (error2) => {
@@ -797,8 +681,12 @@ function detectBpmFromFile(audioPath, logger) {
  * @returns {Promise<string>} Path to time-stretched audio
  */
 function tempoStretchVocal(vocalPath, vocalBpm, targetBpm, outputPath, logger) {
-  return new Promise((resolve, _reject) => {
-    if (!vocalBpm || !targetBpm || vocalBpm === targetBpm) {
+  return new Promise((resolve, reject) => {
+    if (![vocalBpm, targetBpm].every(value => Number.isFinite(Number(value)) && Number(value) > 0)) {
+      reject(new Error('Tempo processing requires usable vocal and beat BPM values'));
+      return;
+    }
+    if (Number(vocalBpm) === Number(targetBpm)) {
       resolve(vocalPath); // No stretch needed
       return;
     }
@@ -808,8 +696,7 @@ function tempoStretchVocal(vocalPath, vocalBpm, targetBpm, outputPath, logger) {
     // Only stretch if ratio is within a reasonable range (0.75x to 1.33x)
     // Beyond this, the audio would sound unnatural
     if (ratio < 0.75 || ratio > 1.33) {
-      if (logger) logger.info('Tempo ratio too extreme, skipping stretch', { ratio: ratio.toFixed(3), vocalBpm, targetBpm });
-      resolve(vocalPath);
+      reject(new Error('Requested tempo change is too extreme; the original vocal was preserved'));
       return;
     }
 
@@ -830,6 +717,7 @@ function tempoStretchVocal(vocalPath, vocalBpm, targetBpm, outputPath, logger) {
     filters.push(`atempo=${remaining.toFixed(4)}`);
 
     ffmpeg(vocalPath)
+      .inputOptions(SAFE_AUDIO_INPUT_OPTIONS)
       .audioFilters(filters.join(','))
       .audioCodec('libmp3lame')
       .audioBitrate('320k')
@@ -839,8 +727,8 @@ function tempoStretchVocal(vocalPath, vocalBpm, targetBpm, outputPath, logger) {
         resolve(outputPath);
       })
       .on('error', (err) => {
-        if (logger) logger.warn('Tempo stretch failed, using original', { error: err.message });
-        resolve(vocalPath); // Fallback to original
+        if (logger) logger.warn('Requested tempo stretch failed', { error: err.message });
+        reject(new Error(`Tempo processing failed: ${err.message}`));
       })
       .run();
   });
@@ -864,7 +752,7 @@ function detectDownbeatOffset(beatPath, bpm, logger) {
       // Use silencedetect to find the first non-silent moment (start of music)
       const analysisPath = beatPath + '.silence.txt';
       execFile(ffmpegStatic, [
-        '-i', beatPath,
+        ...SAFE_AUDIO_INPUT_ARGS, '-i', beatPath,
         '-af', `silencedetect=noise=-30dB:d=0.1`,
         '-f', 'null', '-'
       ], { timeout: 15000 }, (error, _stdout, stderr) => {
@@ -914,8 +802,12 @@ function detectDownbeatOffset(beatPath, bpm, logger) {
  * @returns {Promise<string>} Path to padded audio
  */
 function padVocalStart(vocalPath, paddingSeconds, outputPath, logger) {
-  return new Promise((resolve, _reject) => {
-    if (!paddingSeconds || paddingSeconds <= 0 || paddingSeconds > 10) {
+  return new Promise((resolve, reject) => {
+    if (!Number.isFinite(paddingSeconds) || paddingSeconds < 0 || paddingSeconds > 10) {
+      reject(new Error('Requested vocal padding must be between zero and ten seconds'));
+      return;
+    }
+    if (paddingSeconds === 0) {
       resolve(vocalPath);
       return;
     }
@@ -923,6 +815,7 @@ function padVocalStart(vocalPath, paddingSeconds, outputPath, logger) {
     if (logger) logger.info('Padding vocal start for downbeat alignment', { paddingSeconds: paddingSeconds.toFixed(3) });
 
     ffmpeg(vocalPath)
+      .inputOptions(SAFE_AUDIO_INPUT_OPTIONS)
       .audioFilters(`adelay=${Math.round(paddingSeconds * 1000)}|${Math.round(paddingSeconds * 1000)}`)
       .audioCodec('libmp3lame')
       .audioBitrate('320k')
@@ -932,18 +825,17 @@ function padVocalStart(vocalPath, paddingSeconds, outputPath, logger) {
         resolve(outputPath);
       })
       .on('error', (err) => {
-        if (logger) logger.warn('Vocal padding failed, using original', { error: err.message });
-        resolve(vocalPath);
+        if (logger) logger.warn('Requested vocal padding failed', { error: err.message });
+        reject(new Error(`Vocal padding failed: ${err.message}`));
       })
       .run();
   });
 }
 
 /**
- * Apply auto-tune effect to vocal audio using FFmpeg.
- * Uses a combination of effects to create the characteristic pitch-corrected sound.
- * NOT true per-note pitch correction — this is the aesthetic "auto-tune effect"
- * commonly heard in trap, R&B, and pop music.
+ * Apply optional cosmetic compression, EQ and doubling using FFmpeg.
+ * This is NOT pitch correction, tuning to a key, or rhythm alignment.
+ * Keep the historical function name for compatibility with existing callers.
  *
  * @param {string} vocalPath - Path to vocal audio
  * @param {string} genre - Musical genre (determines intensity of effect)
@@ -952,22 +844,22 @@ function padVocalStart(vocalPath, paddingSeconds, outputPath, logger) {
  * @returns {Promise<string>} Path to processed audio
  */
 function applyAutoTuneEffect(vocalPath, genre, outputPath, logger) {
-  return new Promise((resolve, _reject) => {
-    // Determine auto-tune intensity based on genre
+  return new Promise((resolve, reject) => {
+    // Determine vocal polish intensity based on genre
     const genreLower = (genre || '').toLowerCase();
 
-    // Skip auto-tune for spoken word, podcast, or explicit rap styles
+    // Skip vocal polish for spoken word, podcast, or explicit rap styles
     const skipGenres = ['podcast', 'spoken', 'audiobook', 'comedy', 'news'];
     if (skipGenres.some(g => genreLower.includes(g))) {
       resolve(vocalPath);
       return;
     }
 
-    // Heavy auto-tune: trap, R&B, pop, electronic
+    // Heavy vocal polish: trap, R&B, pop, electronic
     const heavyGenres = ['trap', 'r&b', 'rnb', 'pop', 'electronic', 'edm', 'future', 'cloud rap', 'auto'];
-    // Medium auto-tune: hip-hop, rap, alternative, indie
+    // Medium vocal polish: hip-hop, rap, alternative, indie
     const mediumGenres = ['hip-hop', 'hip hop', 'rap', 'alternative', 'indie', 'rock'];
-    // Light auto-tune: soul, jazz, country, folk (polish only)
+    // Light vocal polish: soul, jazz, country, folk (polish only)
     const lightGenres = ['soul', 'jazz', 'country', 'folk', 'acoustic', 'gospel', 'classical'];
 
     let intensity = 'medium'; // default
@@ -975,7 +867,7 @@ function applyAutoTuneEffect(vocalPath, genre, outputPath, logger) {
     else if (lightGenres.some(g => genreLower.includes(g))) intensity = 'light';
     else if (mediumGenres.some(g => genreLower.includes(g))) intensity = 'medium';
 
-    if (logger) logger.info('Applying auto-tune vocal effect', { genre, intensity });
+    if (logger) logger.info('Applying vocal polish vocal effect', { genre, intensity });
 
     // Build filter chain based on intensity
     const filters = [];
@@ -985,42 +877,43 @@ function applyAutoTuneEffect(vocalPath, genre, outputPath, logger) {
     filters.push('acompressor=threshold=-20dB:ratio=3:attack=5:release=50:makeup=2dB'); // Vocal compression
 
     if (intensity === 'heavy') {
-      // === HEAVY AUTO-TUNE (Travis Scott / T-Pain / Future style) ===
-      // Tight compression + sharp EQ + chorus for pitch "glue" + subtle vibrato modulation
+      // === HEAVY POLISH (compression, EQ, doubling) ===
+      // Tight compression + sharp EQ + chorus for doubling + subtle vibrato modulation
       filters.push('equalizer=f=1000:width_type=o:width=0.5:g=2');   // Nasal/forward vocal push
       filters.push('equalizer=f=3500:width_type=o:width=1:g=4');     // Extreme presence boost
       filters.push('equalizer=f=8000:width_type=o:width=2:g=2');     // Air/shimmer
-      filters.push('acompressor=threshold=-12dB:ratio=8:attack=1:release=30:makeup=4dB'); // Hard compression (squashes dynamics = auto-tune-like)
-      filters.push('chorus=0.5:0.9:50|60:0.4|0.32:0.25|0.4:2|1.3'); // Slight pitch doubling for that "corrected" shimmer
-      filters.push('vibrato=f=6.5:d=0.015');                         // Very subtle pitch wobble (mimics fast correction)
+      filters.push('acompressor=threshold=-12dB:ratio=8:attack=1:release=30:makeup=4dB'); // Hard compression (squashes dynamics = vocal polish-like)
+      filters.push('chorus=0.5:0.9:50|60:0.4|0.32:0.25|0.4:2|1.3'); // Slight pitch doubling for shimmer
+      filters.push('vibrato=f=6.5:d=0.015');                         // Very subtle pitch wobble (modulation, not pitch correction)
       filters.push('alimiter=limit=0.95:attack=2:release=20');       // Brick-wall limiter for consistent level
     } else if (intensity === 'medium') {
-      // === MEDIUM AUTO-TUNE (Drake / Kanye / modern hip-hop) ===
+      // === MEDIUM POLISH (moderate compression and doubling) ===
       filters.push('equalizer=f=3000:width_type=o:width=1.5:g=3');   // Presence
       filters.push('equalizer=f=6000:width_type=o:width=2:g=1.5');   // Air
       filters.push('acompressor=threshold=-15dB:ratio=4:attack=3:release=60:makeup=3dB'); // Moderate compression
       filters.push('chorus=0.6:0.9:40:0.3:0.3:2');                   // Subtle doubling
       filters.push('alimiter=limit=0.95:attack=3:release=40');
     } else {
-      // === LIGHT AUTO-TUNE (polish/warmth, no obvious effect) ===
+      // === LIGHT POLISH (polish/warmth, no obvious effect) ===
       filters.push('equalizer=f=2500:width_type=o:width=2:g=1.5');   // Gentle presence
       filters.push('equalizer=f=200:width_type=o:width=1:g=-1');     // Cut mud
       filters.push('acompressor=threshold=-18dB:ratio=2:attack=10:release=100:makeup=2dB'); // Gentle compression
     }
 
     ffmpeg(vocalPath)
+      .inputOptions(SAFE_AUDIO_INPUT_OPTIONS)
       .audioFilters(filters.join(','))
       .audioCodec('libmp3lame')
       .audioBitrate('320k')
       .audioFrequency(44100)
       .output(outputPath)
       .on('end', () => {
-        if (logger) logger.info('Auto-tune effect applied', { intensity });
+        if (logger) logger.info('Vocal polish effect applied', { intensity });
         resolve(outputPath);
       })
       .on('error', (err) => {
-        if (logger) logger.warn('Auto-tune effect failed, using original vocal', { error: err.message });
-        resolve(vocalPath); // Fallback to original
+        if (logger) logger.warn('Requested vocal polish failed', { error: err.message });
+        reject(new Error('Requested vocal polish failed: ' + err.message));
       })
       .run();
   });

@@ -91,6 +91,10 @@ const {
 } = require('./services/providerReliability');
 const { projectRevision, canonicalProjectSnapshot, nextProjectTimestampMs } = require('./services/projectRevision');
 const { generateMusicalVocal, separateSongStems, separateVocal } = require('./services/musicalVocalService');
+const { ownedAudioAsset, readOwnedAudio, approvedSingingReference, personalLyricsError } = require('./services/voiceReferences');
+const { mountSingingReferenceRoutes } = require('./services/singingReferenceRoutes');
+const { analyzeSongReferences } = require('./services/songReferenceAnalysis');
+const { readRemoteMedia } = require('./services/safeMediaDownload');
 const { analyzeMusicBeats } = require('./services/beatDetectionService');
 const {
   getVideoMetadata,
@@ -486,9 +490,7 @@ async function uploadToStorage(fileData, userId, fileName, mimeType = 'audio/mpe
   if (typeof fileData === 'string') {
     if (fileData.startsWith('http://') || fileData.startsWith('https://')) {
       // Download from URL
-      const dlRes = await fetch(fileData);
-      if (!dlRes.ok) throw new Error(`Failed to download from URL: ${dlRes.status}`);
-      buffer = Buffer.from(await dlRes.arrayBuffer());
+      buffer = await readRemoteMedia(fileData);
     } else if (fileData.startsWith('data:')) {
       // Handle data URLs (data:audio/mpeg;base64,...) — use regex to safely extract base64
       const match = fileData.match(/^data:[^;]+;base64,(.+)$/s);
@@ -502,7 +504,7 @@ async function uploadToStorage(fileData, userId, fileName, mimeType = 'audio/mpe
   // Create a unique file path: users/{userId}/assets/{timestamp}_{fileName}
   const timestamp = Date.now();
   const safeName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const storagePath = `users/${userId}/assets/${timestamp}_${safeName}`;
+  const storagePath = `users/${userId}/assets/${timestamp}_${crypto.randomUUID()}_${safeName}`;
 
   const file = bucket.file(storagePath);
   const downloadToken = crypto.randomUUID();
@@ -638,7 +640,7 @@ async function getOwnedVoiceRecord(userId, voiceId) {
   if (!db || !userId || !voiceId) return null;
 
   const snapshot = await db.collection('users').doc(userId)
-    .collection('voices')
+    .collection('voiceOwnership')
     .where('voiceId', '==', voiceId)
     .limit(1)
     .get();
@@ -653,15 +655,8 @@ async function userOwnsVoiceSample(userId, speakerUrl) {
   const db = getFirestoreDb();
   if (!db) return false;
 
-  const userRef = db.collection('users').doc(userId);
-  const [profile, assets] = await Promise.all([
-    userRef.get(),
-    userRef.collection('assets').where('url', '==', speakerUrl).limit(1).get()
-  ]);
-
-  // The profile fallback preserves already-created personal voices while new
-  // uploads are linked through the assets collection.
-  return (profile.exists && profile.data()?.voiceSampleUrl === speakerUrl) || !assets.empty;
+  try { await ownedAudioAsset(db, getStorageBucket(), userId, { url: speakerUrl }); return true; }
+  catch { return false; }
 }
 
 async function userOwnsVoiceAssets(userId, assetIds) {
@@ -1941,7 +1936,7 @@ app.get('/api/v2/voices', verifyFirebaseToken, requireAuth, async (req, res) => 
       const db = getFirestoreDb();
       if (db) {
         const owned = await db.collection('users').doc(req.user.uid)
-          .collection('voices').get();
+          .collection('voiceOwnership').get();
         owned.forEach((voice) => {
           if (voice.data()?.voiceId) ownedVoices.push(voice.data());
         });
@@ -1964,6 +1959,26 @@ app.get('/api/v2/voices', verifyFirebaseToken, requireAuth, async (req, res) => 
 // The user's personal voice state in one call: active clone + saved samples.
 // This is the single source of truth for the Voice Engine picker; the client
 // no longer reads users/{uid} or users/{uid}/voices from Firestore directly.
+mountSingingReferenceRoutes(app, {
+  auth: verifyFirebaseToken, requireAuth, limiter: generationLimiter,
+  getDb: getFirestoreDb, getBucket: getStorageBucket, upload: uploadToStorage,
+  isolate: async (url) => {
+    const key = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+    if (!key) throw Object.assign(new Error('Vocal separation is unavailable. Use an isolated singing recording or retry later'), { status: 503 });
+    const client = new Replicate({ auth: key });
+    return separateVocal(url, (model, input, operation) => runReplicateWithRateLimitRetry(client, model, { input }, operation));
+  },
+  readProviderAudio: async (url) => {
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'studio-reference-'));
+    const file = path.join(dir, 'vocal.mp3');
+    try {
+      await downloadAudio(url, file);
+      if (fs.statSync(file).size > 15 * 1024 * 1024) throw new Error('Prepared vocal is too large');
+      return fs.readFileSync(file);
+    } finally { if (fs.existsSync(file)) fs.unlinkSync(file); fs.rmdirSync(dir); }
+  },
+});
+
 app.get('/api/v2/voices/me', verifyFirebaseToken, requireAuth, async (req, res) => {
   try {
     const db = getFirestoreDb();
@@ -2011,6 +2026,7 @@ app.post('/api/v2/voices/samples', verifyFirebaseToken, requireAuth, async (req,
       return res.status(400).json({ error: 'A valid https sample URL is required' });
     }
     const userRef = db.collection('users').doc(req.user.uid);
+    await ownedAudioAsset(db, getStorageBucket(), req.user.uid, { url });
     const voiceDoc = { url, name, type: 'sample', createdAt: admin.firestore.FieldValue.serverTimestamp() };
     const [created] = await Promise.all([
       userRef.collection('voices').add(voiceDoc),
@@ -2018,7 +2034,7 @@ app.post('/api/v2/voices/samples', verifyFirebaseToken, requireAuth, async (req,
     ]);
     res.json({ id: created.id, name, url, type: 'sample', voiceId: null, provider: null, createdAt: new Date().toISOString() });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to save voice sample', details: safeErrorDetail(error) });
+    res.status(error.status || 500).json({ error: error.status ? error.message : 'Failed to save voice sample', details: safeErrorDetail(error) });
   }
 });
 
@@ -2052,6 +2068,7 @@ app.delete('/api/v2/voices/:voiceId', verifyFirebaseToken, requireAuth, async (r
       const db = getFirestoreDb();
       if (db) {
         await db.collection('users').doc(req.user.uid).collection('voices').doc(ownedVoice.id).delete();
+        await db.collection('users').doc(req.user.uid).collection('voiceOwnership').doc(ownedVoice.id).delete();
         const profileRef = db.collection('users').doc(req.user.uid);
         const profile = await profileRef.get();
         if (profile.exists && profile.data()?.clonedVoiceId === voiceId) {
@@ -3657,8 +3674,8 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
       });
     }
 
-    if (!Array.isArray(samples) || !Array.isArray(sampleUrls)) {
-      return res.status(400).json({ error: 'samples and sampleUrls must be arrays' });
+    if (!Array.isArray(samples) || !Array.isArray(sampleUrls) || !Array.isArray(sourceAssetIds)) {
+      return res.status(400).json({ error: 'samples, sampleUrls, and sourceAssetIds must be arrays' });
     }
     const totalSamples = samples.length + sampleUrls.length;
     if (totalSamples === 0) {
@@ -3669,79 +3686,24 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
       return res.status(400).json({ error: 'Maximum 3 audio samples allowed' });
     }
 
-    if (samples.length > 0 && (sourceAssetIds.length !== samples.length || !await userOwnsVoiceAssets(req.user.uid, sourceAssetIds))) {
+    if (sourceAssetIds.length !== samples.length || (samples.length > 0 && !await userOwnsVoiceAssets(req.user.uid, sourceAssetIds))) {
       return res.status(403).json({
         error: 'Voice samples must be uploaded to your private asset library before cloning'
       });
     }
 
-    // Saved voice samples (e.g. the profile's voiceSampleUrl or a library
-    // voice without a clone yet) are referenced by URL. They are only accepted
-    // when the URL is an audio asset in this user's own library, then fetched
-    // server-side so the client never has to re-upload the recording.
+    // Read the exact owned storage objects; never clone unrelated client-supplied base64.
     const urlSampleBuffers = [];
-    if (sampleUrls.length > 0) {
-      const db = getFirestoreDb();
-      if (!db) return res.status(503).json({ error: 'Asset library unavailable' });
-      const uniqueUrls = [...new Set(sampleUrls.filter((u) => typeof u === 'string' && /^https:\/\//i.test(u)))];
-      if (uniqueUrls.length !== sampleUrls.length) {
-        return res.status(400).json({ error: 'sampleUrls must be unique https URLs' });
-      }
-      for (const url of uniqueUrls) {
-        const owned = await db.collection('users').doc(req.user.uid).collection('assets')
-          .where('url', '==', url).limit(1).get();
-        const ownedDoc = owned.docs[0];
-        if (!ownedDoc || ownedDoc.data()?.assetType !== 'audio') {
-          return res.status(403).json({ error: 'Saved voice sample is not in your private asset library' });
-        }
-        const resp = await fetchWithRetry(url, {}, { timeoutMs: 30000 });
-        if (!resp.ok) {
-          return res.status(502).json({ error: `Could not download saved voice sample (HTTP ${resp.status})` });
-        }
-        const buffer = Buffer.from(await resp.arrayBuffer());
-        if (buffer.length > 10 * 1024 * 1024) {
-          return res.status(400).json({ error: 'Saved voice sample exceeds 10MB limit' });
-        }
-        urlSampleBuffers.push({ buffer, mimeType: resp.headers.get('content-type') || 'audio/mpeg' });
-      }
+    for (const selector of [...sourceAssetIds.map(assetId => ({ assetId })), ...sampleUrls.map(url => ({ url }))]) {
+      const source = await readOwnedAudio(getFirestoreDb(), getStorageBucket(), req.user.uid, selector);
+      if (source.bytes.length > 10 * 1024 * 1024) return res.status(400).json({ error: 'Voice samples must be no larger than 10MB' });
+      urlSampleBuffers.push({ buffer: source.bytes, mimeType: source.asset.mimeType || 'audio/mpeg' });
     }
-
-    // Build multipart form data for ElevenLabs IVC API using Node built-in FormData + Blob
     const formData = new FormData();
-    formData.append('name', voiceName);
-
-    for (let i = 0; i < samples.length; i++) {
-      const sample = samples[i];
-      // Handle base64 data URLs (data:audio/wav;base64,...) or raw base64
-      let base64Data = sample;
-      let mimeType = 'audio/wav';
-      if (typeof sample === 'string' && sample.startsWith('data:')) {
-        const match = sample.match(/^data:(audio\/[^;]+);base64,(.+)$/);
-        if (match) {
-          mimeType = match[1];
-          base64Data = match[2];
-        } else {
-          base64Data = sample.split(',')[1] || sample;
-        }
-      }
-
-      const buffer = Buffer.from(base64Data, 'base64');
-
-      // Validate size (10MB max per sample)
-      if (buffer.length > 10 * 1024 * 1024) {
-        return res.status(400).json({ error: `Sample ${i + 1} exceeds 10MB limit` });
-      }
-
-      const ext = mimeType.includes('wav') ? 'wav' : mimeType.includes('mpeg') ? 'mp3' : 'wav';
-      formData.append('files', new Blob([buffer], { type: mimeType }), `sample_${i + 1}.${ext}`);
-    }
-
+    formData.append('name', String(voiceName).slice(0, 120));
     urlSampleBuffers.forEach(({ buffer, mimeType }, i) => {
-      const ext = mimeType.includes('wav') ? 'wav'
-        : mimeType.includes('mp4') || mimeType.includes('m4a') || mimeType.includes('aac') ? 'm4a'
-        : mimeType.includes('webm') ? 'webm'
-        : 'mp3';
-      formData.append('files', new Blob([buffer], { type: mimeType }), `saved_sample_${i + 1}.${ext}`);
+      const ext = mimeType.includes('wav') ? 'wav' : mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'm4a' : 'mp3';
+      formData.append('files', new Blob([buffer], { type: mimeType }), 'sample_' + i + '.' + ext);
     });
 
     logger.info('Starting ElevenLabs IVC voice cloning', {
@@ -3796,6 +3758,7 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
 
       const docRef = await db.collection('users').doc(req.user.uid)
         .collection('voices').add(voiceDoc);
+      await db.collection('users').doc(req.user.uid).collection('voiceOwnership').doc(docRef.id).set(voiceDoc);
 
       // Also update the user's primary cloned voice
       await db.collection('users').doc(req.user.uid).update({
@@ -5219,11 +5182,21 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     // voices remain available through the normal studio path, but callers must
     // prove ownership before sending a personal voice ID or reference sample.
     const isPersonalVoice = requestsPersonalVoice(req.body);
+    let preparedPersonalVoice = null;
+    const musicalRequest = outputFormat === 'music' || /singer|rapper/.test(style) || !!backingTrackUrl;
     if (isPersonalVoice) {
       if (!req.user) {
         await refundCredits(req, 'personal vocal authentication required');
         return res.status(401).json({ error: 'Authentication required for a personal voice' });
       }
+      if (musicalRequest) {
+        try {
+          preparedPersonalVoice = await approvedSingingReference(getFirestoreDb(), getStorageBucket(), req.user.uid, req.body.personalReferenceId);
+        } catch (error) {
+          await refundCredits(req, 'personal singing reference not approved');
+          return res.status(error.status || 503).json({ error: error.message, code: 'PERSONAL_VOICE_UNAVAILABLE' });
+        }
+      } else {
       const requestedVoiceId = req.body.elevenLabsVoiceId;
       const ownedVoice = requestedVoiceId && await getOwnedVoiceRecord(req.user.uid, requestedVoiceId);
       if (!ownedVoice || ownedVoice.consent?.confirmed !== true) {
@@ -5233,6 +5206,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
       if (!await userOwnsVoiceSample(req.user.uid, speakerUrl)) {
         await refundCredits(req, 'personal voice sample ownership check failed');
         return res.status(403).json({ error: 'Personal voice sample is not in your private library' });
+      }
       }
     }
     
@@ -5388,6 +5362,27 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     // into ElevenLabs/Bark/Gemini speech.
     const strictMusicalQuality = requiresMusicalPerformance;
     let isolatedMusicalVocal = false;
+    const performanceId = crypto.randomUUID();
+    let refSongAnalysis = null;
+    const lyricsError = strictMusicalQuality && (isPersonalVoice ? personalLyricsError(cleanedPrompt)
+      : !cleanedPrompt.trim() || cleanedPrompt.length > 3500 ? 'Musical vocals require 1–3500 characters of lyrics. Shorten the lyrics and retry.' : null);
+    if (lyricsError) {
+      await refundCredits(req, 'song lyrics outside provider limits');
+      return res.status(422).json({ error: lyricsError, code: 'LYRICS_EXCERPT_REQUIRED' });
+    }
+    const references = req.body.songReferences ?? (referenceSongUrl ? [{ url: referenceSongUrl }] : []);
+    if (!Array.isArray(references) || references.length > 3) {
+      await refundCredits(req, 'invalid song references');
+      return res.status(400).json({ error: 'Choose up to three private song references' });
+    }
+    if (references.length) {
+      try {
+        refSongAnalysis = await analyzeSongReferences({ references, db: getFirestoreDb(), bucket: getStorageBucket(), uid: req.user?.uid, apiKey: process.env.GEMINI_API_KEY });
+      } catch (error) {
+        await refundCredits(req, 'song reference analysis failed');
+        return res.status(error.status || 503).json({ error: error.message, failureStage: 'reference-analysis' });
+      }
+    }
 
     // A musical performance plus stem extraction, never speech disguised as
     // singing or a full instrumental song labeled as a dry vocal. Do not use
@@ -5397,7 +5392,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
         const client = new Replicate({ auth: replicateKey });
         const generated = await generateMusicalVocal({
           lyrics: cleanedPrompt, style, genre, language, rapStyle, duration,
-          bpm: req.body.bpm, musicalDirection, mood, songStructure,
+          bpm: req.body.bpm, musicalDirection: [musicalDirection, refSongAnalysis ? `Reference qualities (secondary to the artist brief): ${Object.values(refSongAnalysis).join('. ')}` : ''].filter(Boolean).join('. '), mood, songStructure,
         }, (model, input, operation) => runReplicateWithRateLimitRetry(client, model, { input }, operation),
         stage => emit('vocals', stage));
         audioUrl = generated.audioUrl;
@@ -5433,96 +5428,6 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     if (wantProvider) logger.info('🔒 Preferred provider requested', { preferredProvider: wantProvider });
 
     // ═══════════════════════════════════════════════════════════════
-    // REFERENCE SONG ANALYSIS — Analyze uploaded reference for tone/warmth/depth/vibe
-    // Uses Gemini to extract sonic characteristics and style descriptors
-    // ═══════════════════════════════════════════════════════════════
-    let refSongAnalysis = null;
-    if (referenceSongUrl && process.env.GEMINI_API_KEY) {
-      try {
-        logger.info('🎵 Analyzing reference song for tone/vibe matching', { url: referenceSongUrl.substring(0, 60) });
-
-        // Fetch the reference audio
-        let audioBase64 = null;
-        let audioMimeType = 'audio/mpeg';
-        if (referenceSongUrl.startsWith('data:')) {
-          // Already base64
-          const match = referenceSongUrl.match(/^data:(audio\/[^;]+);base64,(.+)$/);
-          if (match) {
-            audioMimeType = match[1];
-            audioBase64 = match[2];
-          }
-        } else {
-          // Fetch from URL
-          const audioResp = await fetch(referenceSongUrl);
-          if (audioResp.ok) {
-            audioMimeType = audioResp.headers.get('content-type') || 'audio/mpeg';
-            const buf = await audioResp.arrayBuffer();
-            audioBase64 = Buffer.from(buf).toString('base64');
-          }
-        }
-
-        if (audioBase64) {
-          const geminiApiKey = process.env.GEMINI_API_KEY;
-          const analysisPrompt = `You are a professional music producer and audio engineer. Analyze this reference song/audio and extract its sonic characteristics. Return ONLY a JSON object with these fields:
-{
-  "tone": "warm/bright/dark/neutral/airy/gritty",
-  "warmth": "1-10 scale",
-  "depth": "1-10 scale (reverb, space, layering)",
-  "energy": "1-10 scale",
-  "tempo_feel": "slow/mid/uptempo/fast",
-  "vocal_style": "description of vocal delivery style (e.g. smooth R&B, aggressive rap, breathy pop, soulful, raspy, melodic)",
-  "mood": "primary mood (e.g. melancholic, euphoric, aggressive, dreamy, confident, intimate)",
-  "genre_tags": "comma-separated genre descriptors",
-  "production_style": "lo-fi/hi-fi/analog/digital/cinematic/minimal/lush",
-  "key_characteristics": "2-3 sentence description of the most distinctive sonic qualities that should be matched",
-  "suno_tags": "comma-separated tags optimized for Suno AI music generation to recreate this vibe",
-  "vocal_direction": "specific direction for a vocalist to match this reference's feel and delivery"
-}
-Return ONLY valid JSON, no markdown.`;
-
-          const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{
-                parts: [
-                  { text: analysisPrompt },
-                  { inlineData: { mimeType: audioMimeType, data: audioBase64 } }
-                ]
-              }],
-              generationConfig: {
-                temperature: 0.3,
-                maxOutputTokens: 1024
-              }
-            })
-          });
-
-          if (geminiResp.ok) {
-            const geminiData = await geminiResp.json();
-            const analysisText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            // Parse JSON from response (strip markdown fences if present)
-            const jsonStr = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-            try {
-              refSongAnalysis = JSON.parse(jsonStr);
-              logger.info('✅ Reference song analyzed', {
-                tone: refSongAnalysis.tone,
-                warmth: refSongAnalysis.warmth,
-                mood: refSongAnalysis.mood,
-                energy: refSongAnalysis.energy
-              });
-            } catch (parseErr) {
-              logger.warn('Failed to parse reference analysis JSON', { raw: analysisText.substring(0, 200) });
-            }
-          } else {
-            logger.warn('Gemini reference analysis failed', { status: geminiResp.status });
-          }
-        }
-      } catch (refErr) {
-        logger.warn('Reference song analysis error (non-fatal):', refErr.message);
-      }
-    }
-
-    // ═══════════════════════════════════════════════════════════════
     // ARTIST-FIRST ROUTING: Clone > ElevenLabs Curated > everything else
     // When the artist has cloned their voice, that's THE voice. Period.
     // When ElevenLabs is configured, use curated realistic voices — skip
@@ -5538,7 +5443,7 @@ Return ONLY valid JSON, no markdown.`;
     if (hasClonedVoice) {
       skipSunoForClone = true;
       skipBarkForClone = true;
-      logger.info('🎙️ ARTIST-FIRST: Cloned voice detected, routing directly to ElevenLabs IVC');
+      logger.info('Personal voice selected; provider remains locked to the requested speech or singing capability');
     } else if (elevenLabsAvailable && !wantProvider && !isSingingStyle && !isRapStyle) {
       // ElevenLabs is appropriate for speech/narration. It must not displace
       // true singing providers for singer or rapper workflows.
@@ -5551,20 +5456,23 @@ Return ONLY valid JSON, no markdown.`;
     // PRIORITY -1 (CLONED VOICE → REAL SUNG SONG): MiniMax Music
     // Zero-shot music generation. Uses the artist's uploaded voice SAMPLE
     // as a timbre reference and SINGS the lyrics as real music — this is
-    // NOT text-to-speech. This is the "upload a sample → full song in
-    // your voice, billboard quality on first go" path. Runs BEFORE every
+    // NOT text-to-speech. This is a short personal-voice audition, whose
+    // likeness and musical quality must be reviewed. Runs BEFORE every
     // TTS/Suno branch so a cloned voice never gets a spoken-word vocal.
     // Requirements: voice sample must be a fetchable URL and ≥15 seconds.
     // ═══════════════════════════════════════════════════════════════
     // A sound reference is a style input, never a voice identity input.  Using
     // it as a clone source could make an artist reference sound like a consented
     // personal voice sample. Keep the two paths deliberately separate.
-    const cloneVoiceSampleUrl = speakerUrl || null;
+    const cloneVoiceSampleUrl = preparedPersonalVoice?.url || null;
     const canMinimaxClone = replicateKey
-      && (style === 'cloned' || speakerUrl)
+      && isPersonalVoice
       && cloneVoiceSampleUrl
       && !/^data:/.test(cloneVoiceSampleUrl); // Replicate needs a fetchable URL, not a data URI
-    if (strictMusicalQuality && isPersonalVoice && !backingTrackUrl && !referenceSongUrl) {
+    const hasFetchableConditioning = [backingTrackUrl, referenceSongUrl].some(value => {
+      try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password; } catch { return false; }
+    });
+    if (strictMusicalQuality && isPersonalVoice && !hasFetchableConditioning) {
       await refundCredits(req, 'personal singing requires an instrumental or reference song');
       return res.status(422).json({
         error: 'Choose or generate a beat first',
@@ -5577,29 +5485,8 @@ Return ONLY valid JSON, no markdown.`;
         logger.info('🎤🎵 MiniMax Music — singing lyrics in cloned voice (zero-shot, no TTS)', { sample: cloneVoiceSampleUrl.substring(0, 60) });
         emit('vocals', 'minimax-starting');
 
-        // MiniMax Music generates up to ~60s; length scales with lyric content.
-        // Target a 30–60s sung clip: use the full ~400-char budget, and if the
-        // song is short, repeat the strongest section (hook) to reach the floor.
-        // Newlines separate lines; a blank line adds a pause.
-        const MM_LYRIC_MAX = 400;   // MiniMax hard input cap
-        const MM_LYRIC_FLOOR = 200; // ~30s of singing — pad up to this if shorter
-        let mmLyrics = cleanedPrompt
-          .replace(/\[([^\]]*)\]/g, '')   // strip [Verse]/[Chorus]/etc structure tags
-          .replace(/\n{3,}/g, '\n\n')      // collapse excessive blank lines
-          .split('\n')
-          .map(l => l.trim())
-          .filter(Boolean)
-          .join('\n')
-          .trim();
-        // Pad short lyrics toward the 30s floor by repeating them (keeps it in-voice
-        // and musical rather than returning a 10s fragment).
-        if (mmLyrics.length > 0 && mmLyrics.length < MM_LYRIC_FLOOR) {
-          const seed = mmLyrics;
-          while (mmLyrics.length < MM_LYRIC_FLOOR && (mmLyrics.length + seed.length + 2) <= MM_LYRIC_MAX) {
-            mmLyrics += `\n\n${seed}`;
-          }
-        }
-        mmLyrics = mmLyrics.substring(0, MM_LYRIC_MAX).trim();
+        // Use the approved excerpt verbatim. Never repeat or truncate lyrics to meet a duration target.
+        const mmLyrics = cleanedPrompt;
 
         const mmInput = {
           lyrics: mmLyrics,
@@ -5624,7 +5511,7 @@ Return ONLY valid JSON, no markdown.`;
             'Content-Type': 'application/json',
             'Prefer': 'wait'
           },
-          body: JSON.stringify({ input: mmInput })
+          body: JSON.stringify({ input: mmInput }), signal: AbortSignal.timeout(60000)
         });
 
         if (mmStart.ok) {
@@ -5634,7 +5521,7 @@ Return ONLY valid JSON, no markdown.`;
             await new Promise(r => setTimeout(r, 3000));
             emit('vocals', `minimax-poll-${i + 1}`);
             const st = await fetch(`https://api.replicate.com/v1/predictions/${mmPred.id}`, {
-              headers: { 'Authorization': `Bearer ${replicateKey}` }
+              headers: { 'Authorization': `Bearer ${replicateKey}` }, signal: AbortSignal.timeout(20000)
             });
             if (st.ok) mmPred = await st.json();
           }
@@ -5646,7 +5533,8 @@ Return ONLY valid JSON, no markdown.`;
               if (aud.ok) {
                 audioUrl = out;
                 coherentSongUrl = out;
-                coherentInstrumentalUrl = backingTrackUrl || null;
+                // The input beat is conditioning, not the accompaniment of this new performance.
+                coherentInstrumentalUrl = null;
                 provider = 'minimax-music-clone';
                 emit('vocals', 'minimax-complete');
                 logger.info('✅ MiniMax cloned-voice song generated (real singing)');
@@ -6847,7 +6735,9 @@ Do NOT include any other text.`
           (model, input, operation) => runReplicateWithRateLimitRetry(client, model, { input }, operation),
           stage => emit('vocals', stage));
         audioUrl = stems.vocalUrl;
-        coherentInstrumentalUrl = coherentInstrumentalUrl || stems.instrumentalUrl;
+        // A conditioning beat is not the accompaniment the model actually sang
+        // over. Remix only the two stems extracted from this exact performance.
+        coherentInstrumentalUrl = stems.instrumentalUrl;
         coherentSongUrl = coherentSongUrl || musicalPerformanceUrl;
         isolatedMusicalVocal = true;
       } catch (stemError) {
@@ -7149,6 +7039,8 @@ Do NOT include any other text.`
         isRealGeneration: true,
         isReleaseCandidate,
         performanceType,
+        performanceId: coherentSongUrl ? performanceId : null,
+        personalReferenceId: preparedPersonalVoice?.id || null,
         requiresHumanReview: true,
         actualDuration: null,
         requestedDuration: duration,
@@ -7157,7 +7049,7 @@ Do NOT include any other text.`
         isDurable: !req.user || (!!permanentUrl && (!coherentInstrumentalUrl || !!permanentInstrumentalUrl) && (!coherentSongUrl || !!permanentSongUrl)),
         referenceAnalysis: refSongAnalysis || null,
         message: refSongAnalysis 
-          ? `Professional vocal generated via ${provider} — matched to reference (${refSongAnalysis.tone} tone, ${refSongAnalysis.mood} mood)`
+          ? `Vocal generated via ${provider} with reference-informed direction; listen to confirm the result`
           : `Professional vocal generated via ${provider}`
       });
     } else {
@@ -7715,23 +7607,23 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
   try {
     const { vocalUrl, beatUrl, style = 'rapper', outputFormat = 'music', genre = '', vocalVolume, beatVolume,
             title, artist, coverArtUrl, exportFormat = 'mp3', preset: requestedPreset,
-            beatBpm, autoTune = true, tempoSync = true } = req.body;
+            beatBpm, vocalPolish = false, tempoSync = false } = req.body;
 
     if (!vocalUrl || !beatUrl) {
       return res.status(400).json({ error: 'Both vocalUrl and beatUrl are required' });
     }
 
-    logger.info('🎚️ Creating final mix', { style, outputFormat, genre, requestedPreset, beatBpm, autoTune, tempoSync });
+    logger.info('🎚️ Creating final mix', { style, outputFormat, genre, requestedPreset, beatBpm, vocalPolish, tempoSync });
 
     const { mixAudioFromUrls, getMixPreset, downloadAudio: dlAudio,
             detectBpmFromFile, tempoStretchVocal, detectDownbeatOffset, padVocalStart, applyAutoTuneEffect } = require('./services/audioMixingService');
 
     const tempDir = path.join(__dirname, 'temp');
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-    const ts = Date.now();
+    const ts = crypto.randomUUID();
     const outputPath = path.join(tempDir, `final_mix_${ts}.mp3`);
 
-    // ── BILLBOARD-READY PRE-PROCESSING PIPELINE ──
+    // Optional producer processing. Preserve the original stem timing by default.
     // 1. Download vocals + beat
     // 2. Auto-tune effect on vocals (genre-adaptive)
     // 3. Detect BPM of both tracks → tempo-stretch vocals to match beat
@@ -7742,19 +7634,22 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
     const tempFiles = []; // Track all temp files for cleanup
 
     try {
+      if (vocalPolish === true || tempoSync === true) {
       // Step 1: Download vocal to temp file for processing
       const rawVocalPath = path.join(tempDir, `vocal_raw_${ts}.mp3`);
       const beatLocalPath = path.join(tempDir, `beat_local_${ts}.mp3`);
-      await Promise.all([
+      tempFiles.push(rawVocalPath, beatLocalPath);
+      const downloads = await Promise.allSettled([
         dlAudio(vocalUrl, rawVocalPath),
         dlAudio(beatUrl, beatLocalPath)
       ]);
-      tempFiles.push(rawVocalPath, beatLocalPath);
+      const failedDownload = downloads.find(result => result.status === 'rejected');
+      if (failedDownload) throw failedDownload.reason;
 
       let currentVocalPath = rawVocalPath;
 
       // Step 2: Auto-tune effect (genre-adaptive)
-      if (autoTune !== false) {
+      if (vocalPolish === true) {
         const autoTunedPath = path.join(tempDir, `vocal_tuned_${ts}.mp3`);
         const result = await applyAutoTuneEffect(currentVocalPath, genre || style, autoTunedPath, logger);
         if (result !== currentVocalPath) {
@@ -7764,10 +7659,12 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
       }
 
       // Step 3: Tempo synchronization
-      if (tempoSync !== false) {
+      if (tempoSync === true) {
         const targetBpm = beatBpm || await detectBpmFromFile(beatLocalPath, logger);
+        if (!Number.isFinite(Number(targetBpm)) || Number(targetBpm) <= 0) throw new Error('Beat BPM could not be established; no timing change was applied');
         if (targetBpm) {
           const vocalBpm = await detectBpmFromFile(currentVocalPath, logger);
+          if (!vocalBpm) throw new Error('Vocal BPM could not be established; no timing change was applied');
           if (vocalBpm && vocalBpm !== targetBpm) {
             const stretchedPath = path.join(tempDir, `vocal_stretched_${ts}.mp3`);
             const result = await tempoStretchVocal(currentVocalPath, vocalBpm, targetBpm, stretchedPath, logger);
@@ -7793,10 +7690,11 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
       // Convert processed vocal back to data URL for the mixer
       const processedBuffer = fs.readFileSync(currentVocalPath);
       processedVocalUrl = `data:audio/mpeg;base64,${processedBuffer.toString('base64')}`;
-      logger.info('✅ Vocal pre-processing complete', { autoTune: autoTune !== false, tempoSync: tempoSync !== false });
+      logger.info('✅ Vocal pre-processing complete', { vocalPolish: vocalPolish === true, tempoSync: tempoSync === true });
+      }
     } catch (preErr) {
-      logger.warn('Vocal pre-processing failed, mixing with original vocal', { error: preErr.message });
-      // Continue with original vocal URL — non-fatal
+      // Do not claim an effect was applied when it failed.
+      throw new Error(`Requested vocal processing failed: ${preErr.message}`);
     } finally {
       // Clean up temp files from pre-processing
       for (const f of tempFiles) {
@@ -7842,7 +7740,7 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
         let coverArtPath = null;
         if (coverArtUrl) {
           try {
-            coverArtPath = path.join(tempDir, `cover_${Date.now()}.jpg`);
+            coverArtPath = path.join(tempDir, `cover_${ts}.jpg`);
             await downloadAudio(coverArtUrl, coverArtPath);
           } catch (coverErr) {
             logger.warn('Cover art download failed (continuing without)', coverErr.message);
@@ -7850,9 +7748,9 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
           }
         }
 
-        const ffmpegArgs = ['-i', mixResult.outputPath];
+        const ffmpegArgs = [...require('./services/audioInputSafety').SAFE_AUDIO_INPUT_ARGS, '-i', mixResult.outputPath];
         if (coverArtPath && fs.existsSync(coverArtPath)) {
-          ffmpegArgs.push('-i', coverArtPath);
+          ffmpegArgs.push('-protocol_whitelist', 'file,pipe', '-format_whitelist', 'png_pipe,jpeg_pipe,webp_pipe,image2', '-i', coverArtPath);
         }
         ffmpegArgs.push(
           '-map', '0:a',
@@ -7888,6 +7786,7 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
 
     // ── WAV EXPORT (optional) ──
     let wavUrl = null;
+    const mixWarnings = [];
     if (exportFormat === 'wav') {
       try {
         const ffmpegStatic = require('ffmpeg-static');
@@ -7910,7 +7809,7 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
           if (req.user) {
             const bucket = getStorageBucket();
             if (bucket) {
-              const wavFileName = `final_mix_${style}_${Date.now()}.wav`;
+              const wavFileName = `final_mix_${style}_${ts}.wav`;
               const wavResult = await uploadToStorage(wavBuffer, req.user.uid, wavFileName, 'audio/wav');
               wavUrl = wavResult.url;
               logger.info('✅ WAV export uploaded', { path: wavResult.path });
@@ -7920,6 +7819,7 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
         }
       } catch (wavErr) {
         logger.warn('WAV export failed (MP3 still available)', wavErr.message);
+        mixWarnings.push('The WAV export failed. Only the MP3 master is available; retry the stems export.');
       }
     }
 
@@ -7933,7 +7833,7 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
       const bucket = getStorageBucket();
       if (bucket) {
         try {
-          const fileName = `final_mix_${style}_${Date.now()}.mp3`;
+          const fileName = `final_mix_${style}_${ts}.mp3`;
           const result = await uploadToStorage(mixedAudioUrl, req.user.uid, fileName, 'audio/mpeg');
           permanentUrl = result.url;
         } catch (uploadErr) {
@@ -7953,6 +7853,8 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
     res.json({
       mixedAudioUrl: permanentUrl || mixedAudioUrl,
       wavUrl: wavUrl || null,
+      isDurable: !!permanentUrl,
+      warnings: [...mixWarnings, ...(!permanentUrl ? ['The master was rendered but not saved to cloud storage. Download it now and retry saving.'] : [])],
       provider: 'ffmpeg-professional',
       quality: mixResult.quality || 'automated-master',
       preset: presetName,
@@ -8829,6 +8731,8 @@ async function refundPendingVideoOp(op, reason) {
 // they crowd out the arrangement, groove and instrumentation instructions that
 // the model can actually follow.
 const BEAT_PRODUCTION_PROFILES = Object.freeze({
+  ...Object.fromEntries(Object.entries(require('./services/genreDirection').LATIN_PROFILES)
+    .map(([genre, profile]) => [genre, profile.instrumental])),
   'hip-hop': 'deep kick and controlled 808, swung hats, sparse melodic motif, strong two-bar pocket',
   trap: 'gliding 808, syncopated kick, crisp triplet hats, dark minor-key motif, dramatic drop',
   drill: 'sliding sub bass, bouncing hats, tense minor-key piano or strings, open vocal pocket',
@@ -9679,12 +9583,12 @@ function _buildZip(files) {
 }
 
 app.post('/api/export-stems-zip', verifyFirebaseToken, requireAuth, generationLimiter, async (req, res) => {
-  const { beatUrl, vocalsUrl, masterUrl, projectName = 'Studio Project', bpm = 90 } = req.body;
+  const { beatUrl, vocalsUrl, masterUrl, projectName = 'Studio Project', bpm = null } = req.body;
 
   const stemDefs = [
     { url: masterUrl, label: 'Master Mix' },
     { url: beatUrl,   label: 'Beat (Instrumental)' },
-    { url: vocalsUrl, label: 'Vocals (Dry)' }
+    { url: vocalsUrl, label: 'Vocals (Separated)' }
   ].filter(s => s.url);
 
   if (stemDefs.length === 0) {
@@ -9696,16 +9600,25 @@ app.post('/api/export-stems-zip', verifyFirebaseToken, requireAuth, generationLi
   const ffmpegLib = require('fluent-ffmpeg');
   ffmpegLib.setFfmpegPath(ffmpegStatic);
 
-  const tmpDir = path.join(os.tmpdir(), `stems_${Date.now()}`);
-  fs.mkdirSync(tmpDir, { recursive: true });
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-stems-'));
 
   const cleanup = () => {
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+    // This directory is exclusively owned by this request and contains only flat files.
+    try {
+      for (const file of fs.readdirSync(tmpDir, { withFileTypes: true })) {
+        if (file.isFile()) fs.unlinkSync(path.join(tmpDir, file.name));
+      }
+      fs.rmdirSync(tmpDir);
+    } catch {}
   };
 
   try {
     const zipFiles = [];
-    const safe = (s) => s.replace(/[^a-zA-Z0-9 ._-]/g, '_').substring(0, 60);
+    const manifest = { version: 1, exportedAt: new Date().toISOString(), bpm: bpm || null,
+      timing: 'Original source timing retained; alignment is not independently certified.',
+      format: '24-bit PCM WAV, 44.1 kHz stereo',
+      fidelity: 'WAV conversion does not restore information lost in a compressed source.', files: [] };
+    const safe = (s) => String(s).replace(/[^a-zA-Z0-9 ._-]/g, '_').substring(0, 60) || 'Studio Project';
 
     for (const [stemIndex, stem] of stemDefs.entries()) {
       try {
@@ -9719,6 +9632,7 @@ app.post('/api/export-stems-zip', verifyFirebaseToken, requireAuth, generationLi
 
         await new Promise((resolve, reject) => {
           ffmpegLib(inPath)
+            .inputOptions(require('./services/audioInputSafety').SAFE_AUDIO_INPUT_OPTIONS)
             .audioCodec('pcm_s24le')
             .audioFrequency(44100)
             .audioChannels(2)
@@ -9730,12 +9644,18 @@ app.post('/api/export-stems-zip', verifyFirebaseToken, requireAuth, generationLi
         try { fs.unlinkSync(inPath); } catch {}
 
         zipFiles.push({ name: outName, data: fs.readFileSync(outPath) });
+        manifest.files.push({ name: outName, role: stem.label, sourceUrl: stem.url, status: 'exported' });
         logger.info(`✅ Stem converted: ${stem.label}`);
       } catch (stemErr) {
         logger.warn(`Stem conversion failed: ${stem.label}`, { error: stemErr.message });
+        manifest.files.push({ role: stem.label, status: 'failed' });
       }
     }
 
+    if (manifest.files.some(file => file.status === 'failed')) {
+      return res.status(422).json({ error: 'The complete export could not be prepared. No partial ZIP was downloaded.',
+        code: 'INCOMPLETE_EXPORT', failedFiles: manifest.files.filter(file => file.status === 'failed').map(file => file.role) });
+    }
     if (zipFiles.length === 0) {
       return res.status(422).json({ error: 'All stem conversions failed — check that audio URLs are accessible' });
     }
@@ -9743,7 +9663,7 @@ app.post('/api/export-stems-zip', verifyFirebaseToken, requireAuth, generationLi
     // README with DAW import instructions
     const readme = [
       `Project: ${projectName}`,
-      `BPM: ${bpm}`,
+      `BPM (project setting, not independently measured): ${bpm || 'Unknown'}`,
       `Exported: ${new Date().toISOString()}`,
       ``,
       `Files (24-bit PCM WAV, 44.1 kHz stereo):`,
@@ -9756,9 +9676,12 @@ app.post('/api/export-stems-zip', verifyFirebaseToken, requireAuth, generationLi
       `  GarageBand — Drag onto an empty track`,
       `  FL Studio  — Drag into the Channel Rack or Playlist`,
       ``,
-      `All stems are sync-aligned from bar 1. Set your DAW BPM to ${bpm}.`,
+      manifest.timing,
+      manifest.fidelity,
+      'Audition the sources together before editing. Do not layer the master over its component stems.',
     ].join('\n');
     zipFiles.push({ name: 'README.txt', data: Buffer.from(readme, 'utf8') });
+    zipFiles.push({ name: 'manifest.json', data: Buffer.from(JSON.stringify(manifest, null, 2), 'utf8') });
 
     const zipBuf = _buildZip(zipFiles);
     const zipName = `${safe(projectName)} - Stems Pack.zip`;

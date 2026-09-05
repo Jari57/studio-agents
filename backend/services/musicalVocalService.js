@@ -2,6 +2,7 @@
 // https://replicate.com/cjwbw/demucs/versions/25a173108cff36ef9f80f854c162d01df9e6528be175794b81158fa03836d953
 const SONG_MODEL = 'minimax/music-2.6';
 const STEM_MODEL = 'cjwbw/demucs:25a173108cff36ef9f80f854c162d01df9e6528be175794b81158fa03836d953';
+const { latinGenreProfile } = require('./genreDirection');
 
 function outputUrl(value) {
   const output = Array.isArray(value) ? value[0] : value;
@@ -44,11 +45,13 @@ async function generateMusicalVocal({ lyrics, style, genre, language, rapStyle, 
     throw error;
   }
   const tempo = Number(bpm);
+  const latinProfile = latinGenreProfile(genre);
   const direction = [genre, style, rapStyle, mood, songStructure,
-    typeof musicalDirection === 'string' ? musicalDirection.trim() : '',
     `Language: ${language || 'English'}`,
     Number.isFinite(tempo) && tempo >= 40 && tempo <= 240 ? `${tempo} BPM` : '',
-    `Create one complete, coherent song performance. Make the lead vocal the primary focus: clearly intelligible, present, melodic, rhythmically locked to the instrumental, and emotionally performed. Use supportive harmonies that never mask the lead. Keep the instrumental beneath the vocal with space in the midrange. Original vocalist, melodic or rhythmic delivery appropriate to the genre, and an arrangement written around the supplied lyrics. Perform the supplied lyrics; no spoken introduction. Target approximately ${duration || 120} seconds.`
+    `Create one complete, coherent song performance. Make the lead vocal the primary focus: clearly intelligible, present, melodic, rhythmically locked to the instrumental, and emotionally performed. Use supportive harmonies that never mask the lead. Keep the instrumental beneath the vocal with space in the midrange. Original vocalist, melodic or rhythmic delivery appropriate to the genre, and an arrangement written around the supplied lyrics. Perform the supplied lyrics; no spoken introduction. Target approximately ${duration || 120} seconds.`,
+    latinProfile ? `${latinProfile.instrumental}. Vocal arrangement: ${latinProfile.vocal}` : '',
+    typeof musicalDirection === 'string' ? musicalDirection.trim() : '',
   ].filter(Boolean).join('. ').slice(0, 2000);
   emit('generating-musical-performance');
   let song;

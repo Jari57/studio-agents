@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/static-components, react-hooks/set-state-in-effect */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Play, Pause, Square, SkipBack, Mic, Music
@@ -75,15 +74,16 @@ export default function RealtimePreviewMixer({
     setBeatError(null);
     setVocalError(null);
     setInitError(null);
+    setDuration(0); setCurrentTime(0); setIsPlaying(false);
     try {
       if (beatSrc) {
         const beatAudio = new Audio();
         beatAudio.preload = 'auto';
         beatAudio.src = beatSrc;
-        beatAudio.volume = beatVolume;
+        applyVolume(beatAudio, beatVolume, beatMuted, beatSolo, vocalSolo);
         beatAudioRef.current = beatAudio;
-        beatAudio.addEventListener('canplaythrough', () => { setBeatLoaded(true); setBeatError(null); }, { once: true });
-        beatAudio.addEventListener('loadedmetadata', () => setDuration(prev => Math.max(prev, beatAudio.duration)));
+        beatAudio.addEventListener('canplaythrough', () => { if (beatAudioRef.current === beatAudio) { setBeatLoaded(true); setBeatError(null); } }, { once: true });
+        beatAudio.addEventListener('loadedmetadata', () => { if (beatAudioRef.current === beatAudio && Number.isFinite(beatAudio.duration)) setDuration(prev => Math.max(prev, beatAudio.duration)); });
         beatAudio.addEventListener('error', () => {
           if (beatAudioRef.current !== beatAudio) return;
           console.warn('[Mixer] Beat audio load error');
@@ -97,10 +97,10 @@ export default function RealtimePreviewMixer({
         const vocalAudio = new Audio();
         vocalAudio.preload = 'auto';
         vocalAudio.src = vocalSrc;
-        vocalAudio.volume = vocalVolume;
+        applyVolume(vocalAudio, vocalVolume, vocalMuted, vocalSolo, beatSolo);
         vocalAudioRef.current = vocalAudio;
-        vocalAudio.addEventListener('canplaythrough', () => { setVocalLoaded(true); setVocalError(null); }, { once: true });
-        vocalAudio.addEventListener('loadedmetadata', () => setDuration(prev => Math.max(prev, vocalAudio.duration)));
+        vocalAudio.addEventListener('canplaythrough', () => { if (vocalAudioRef.current === vocalAudio) { setVocalLoaded(true); setVocalError(null); } }, { once: true });
+        vocalAudio.addEventListener('loadedmetadata', () => { if (vocalAudioRef.current === vocalAudio && Number.isFinite(vocalAudio.duration)) setDuration(prev => Math.max(prev, vocalAudio.duration)); });
         vocalAudio.addEventListener('error', () => {
           if (vocalAudioRef.current !== vocalAudio) return;
           console.warn('[Mixer] Vocal audio load error');
@@ -111,7 +111,7 @@ export default function RealtimePreviewMixer({
       }
       isInitializedRef.current = true;
     } catch (err) { console.error('[Mixer] Init error:', err); setInitError(err.message); }
-  }, [beatSrc, vocalSrc, beatVolume, vocalVolume]);
+  }, [beatSrc, vocalSrc, beatVolume, vocalVolume, beatMuted, vocalMuted, beatSolo, vocalSolo, applyVolume]);
 
   const disposeAudio = useCallback(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -156,12 +156,19 @@ export default function RealtimePreviewMixer({
 
   const play = async () => {
     try {
+      setInitError(null);
       const promises = [];
-      if (beatAudioRef.current && beatLoaded) promises.push(beatAudioRef.current.play().catch(() => {}));
-      if (vocalAudioRef.current && vocalLoaded) promises.push(vocalAudioRef.current.play().catch(() => {}));
+      if (beatAudioRef.current && beatLoaded) promises.push(beatAudioRef.current.play());
+      if (vocalAudioRef.current && vocalLoaded) promises.push(vocalAudioRef.current.play());
+      if (!promises.length) throw new Error('No playable channel is loaded');
       await Promise.all(promises);
       setIsPlaying(true);
-    } catch (err) { console.error('[Mixer] Play error:', err); }
+    } catch (_err) {
+      beatAudioRef.current?.pause();
+      vocalAudioRef.current?.pause();
+      setIsPlaying(false);
+      setInitError('Playback failed. Use the individual take players or retry after reloading the audio.');
+    }
   };
 
   const pause = () => {
@@ -200,7 +207,8 @@ export default function RealtimePreviewMixer({
 
   if (initError) return (
     <div style={{ padding: '12px 16px', borderRadius: '10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', marginTop: '8px', fontSize: '0.78rem', color: "var(--studio-muted)" }} role="status">
-      ⚠️ Preview mixer unavailable — {initError}. Your final mix will still be created server-side.
+      Stem audition unavailable — {initError}. This is not a completed mix.
+      <button type="button" onClick={() => { disposeAudio(); initAudio(); }}>Retry playback</button>
     </div>
   );
 
@@ -268,6 +276,7 @@ export default function RealtimePreviewMixer({
               transition: 'all 0.15s'
             }}
             title={`Solo ${label}`}
+            aria-label={`Solo ${label} for audition only`} aria-pressed={solo}
           >S</button>
           <button
             onClick={onMute}
@@ -279,6 +288,7 @@ export default function RealtimePreviewMixer({
               transition: 'all 0.15s'
             }}
             title={`Mute ${label}`}
+            aria-label={`Mute ${label} for audition only`} aria-pressed={muted}
           >M</button>
         </div>
       </div>

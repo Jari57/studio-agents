@@ -74,7 +74,7 @@ function voiceRoute({ providerStatus = 200, dbAvailable = true } = {}) {
     getFirestoreDb: () => dbAvailable ? { collection(name) {
       assert.equal(name, 'users');
       return { doc(uid) { paths.push(uid); return { collection(child) {
-        assert.equal(child, 'voices');
+        assert.equal(child, 'voiceOwnership');
         return { get: async () => ({ forEach: fn => fn({ data: () => ({ voiceId: 'mine', consent: { confirmed: true } }) }) }) };
       } }; } };
     } } : null,

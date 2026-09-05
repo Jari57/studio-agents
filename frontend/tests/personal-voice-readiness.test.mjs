@@ -26,49 +26,33 @@ test('stale ID, missing consent, failed/checking provider and another-account ca
   ]) assert.equal(personalVoiceReadiness({ ...baseline, ...update }).available, false);
 });
 
-test('stale and invalid personal voices recover to Studio without erasing transient selections', () => {
-  for (const state of ['missing', 'consent']) {
-    assert.deepEqual(resolvePersonalVoiceSelection({
-      voiceSource: 'personal', voiceStyle: 'cloned', readiness: { state, available: false },
-    }), { voiceSource: 'studio', voiceStyle: 'singer', recovered: true, blocked: false });
+test('unavailable personal voices block without changing the selected identity', () => {
+  for (const state of ['missing', 'consent', 'checking', 'unavailable']) {
+    assert.deepEqual(resolvePersonalVoiceSelection({ voiceSource: 'personal', voiceStyle: 'cloned', readiness: { state, available: false } }),
+      { voiceSource: 'personal', voiceStyle: 'cloned', recovered: false, blocked: true });
   }
-  for (const state of ['checking', 'unavailable']) {
-    assert.deepEqual(resolvePersonalVoiceSelection({
-      voiceSource: 'personal', voiceStyle: 'cloned', readiness: { state, available: false },
-    }), { voiceSource: 'personal', voiceStyle: 'cloned', recovered: false, blocked: true });
-  }
-  const stale = personalVoiceReadiness({ ...baseline, voices: [] });
-  assert.match(stale.detail, /Studio voice will be selected automatically/);
-  assert.doesNotMatch(stale.detail, /Check again or select another voice/);
+  assert.match(personalVoiceReadiness({ ...baseline, voices: [] }).detail, /explicitly choose/);
 });
 
-test('actual vocal handler blocks unresolved checks but recovers a stale personal voice', () => {
-  const start = source.indexOf('    const verifiedPersonalVoice = personalVoiceReadiness(');
-  const end = source.indexOf('    setGeneratingMedia(', start);
-  const guard = new Function('personalVoiceReadiness', 'resolvePersonalVoiceSelection', 'clonedVoiceId', 'elVoices', 'voiceCatalogCheck', 'auth', 'voiceSource', 'setShowAssets', 'toast', 'voiceStyle', source.slice(start, end) + '\nreturn "allowed";');
-  for (const status of ['loaded', 'error']) {
-    const notices = [];
-    const result = guard(personalVoiceReadiness, resolvePersonalVoiceSelection, baseline.voiceId, [verified], { status, ownerUid: 'artist' }, { currentUser: { uid: 'artist' } }, 'personal', () => {}, { error: message => notices.push(message) }, 'cloned');
-    assert.equal(result, status === 'loaded' ? 'allowed' : undefined);
-    assert.equal(notices.length, status === 'loaded' ? 0 : 1);
-  }
-  assert.equal(guard(personalVoiceReadiness, resolvePersonalVoiceSelection, 'stale', [], { status: 'loaded', ownerUid: 'artist' }, { currentUser: { uid: 'artist' } }, 'personal', () => {}, { error() {} }, 'cloned'), 'allowed');
+test('actual vocal preflight blocks unavailable identity before generation', () => {
+  const start = source.indexOf('    const verifiedPersonalVoice = personalVoiceStatus;');
+  const end = source.indexOf('    if (voiceSource ===', start);
+  assert.ok(start > 0 && end > start);
+  const guard = new Function('personalVoiceStatus', 'resolvePersonalVoiceSelection', 'voiceSource', 'voiceStyle', 'setShowAssets', 'toast', source.slice(start, end) + '\nreturn "allowed";');
+  for (const available of [true, false]) assert.equal(guard({ available, state: available ? 'available' : 'missing', detail: 'Check voice' }, resolvePersonalVoiceSelection, 'personal', 'cloned', () => {}, { error() {} }), available ? 'allowed' : undefined);
 });
 
-test('actual full-run preflight blocks paid personal-vocal pipeline but allows artwork and text drafts', () => {
-  const start = source.indexOf('    const requestedVoiceStatus = personalVoiceReadiness(');
+test('actual full-run preflight blocks paid personal singing, not artwork or completed recovery', () => {
+  const start = source.indexOf('    const requestedVoiceStatus = personalVoiceStatus;');
   const end = source.indexOf("    // Track whether we're starting fresh", start);
-  const guard = new Function('personalVoiceReadiness', 'resolvePersonalVoiceSelection', 'productionScope', 'clonedVoiceId', 'elVoices', 'voiceCatalogCheck', 'auth', 'voiceSource', 'requestedAgents', 'includeVocals', 'resumeJob', 'mediaUrlsRef', 'setShowAssets', 'toast', 'voiceStyle', source.slice(start, end) + '\nreturn "allowed";');
+  assert.ok(start > 0 && end > start);
+  const guard = new Function('personalVoiceStatus', 'resolvePersonalVoiceSelection', 'productionScope', 'voiceSource', 'voiceStyle', 'requestedAgents', 'includeVocals', 'resumeJob', 'mediaUrlsRef', 'setShowAssets', 'toast', source.slice(start, end) + '\nreturn "allowed";');
   for (const [selection, vocals, resume, media, expected] of [
     [{ lyrics: true, audio: true }, true, null, {}, undefined],
     [{ visual: true }, true, null, {}, 'allowed'],
     [{ lyrics: true }, false, null, {}, 'allowed'],
-    [{ lyrics: true, visual: true }, true, {}, { vocals: 'saved.wav' }, 'allowed'],
-  ]) {
-    const result = guard(personalVoiceReadiness, resolvePersonalVoiceSelection, productionScope, 'stale', [], { status: 'error', ownerUid: 'artist' }, { currentUser: { uid: 'artist' } }, 'personal', selection, vocals, resume, { current: media }, () => {}, { error() {} }, 'cloned');
-    assert.equal(result, expected);
-  }
-  assert.equal(guard(personalVoiceReadiness, resolvePersonalVoiceSelection, productionScope, 'stale', [], { status: 'loaded', ownerUid: 'artist' }, { currentUser: { uid: 'artist' } }, 'personal', { lyrics: true, audio: true }, true, null, { current: {} }, () => {}, { error() {} }, 'cloned'), 'allowed');
+    [{ lyrics: true }, true, {}, { vocals: 'saved.wav' }, 'allowed'],
+  ]) assert.equal(guard({ available: false, state: 'missing', detail: 'Check voice' }, resolvePersonalVoiceSelection, productionScope, 'personal', 'cloned', selection, vocals, resume, { current: media }, () => {}, { error() {} }), expected);
 });
 
 test('unavailable saved voice offers an explicit Studio voice recovery path', () => {
@@ -76,13 +60,10 @@ test('unavailable saved voice offers an explicit Studio voice recovery path', ()
   assert.match(source, /setVoiceSource\('studio'\);[\s\S]*?setVoiceStyle\('singer'\);[\s\S]*?setElevenLabsVoiceId\(''\);/);
 });
 
-test('conclusively unavailable saved voice is cleared before generation UX', () => {
-  assert.match(source, /resolvePersonalVoiceSelection\(\{ voiceSource, voiceStyle, readiness: personalVoiceStatus \}\)/);
-  assert.match(source, /setClonedVoiceId\(null\);[\s\S]*?clonedVoiceId: null/);
-  assert.match(source, /Saved voice is unavailable\. Studio voice selected so generation can continue\./);
-  assert.match(source, /activeVoiceSource === 'personal'[\s\S]*?isPersonalVoice: activeVoiceSource === 'personal'/);
-  assert.match(source, /resolvedVoiceSelection\.recovered \? '' : elevenLabsVoiceId/);
-  assert.match(source, /: \(resolvedVoiceSelection\.recovered \? null : \(generationProviders\.vocals \|\| null\)\)/);
+test('a missing personal voice never clears the profile or silently substitutes a studio singer', () => {
+  assert.doesNotMatch(source, /voice-studio-auto-recovery|Saved voice is unavailable\. Studio voice selected/);
+  assert.match(source, /personalVoiceStatus = outputFormat === 'music' \? singingVoiceReadiness/);
+  assert.match(source, /personalReferenceId: activeVoiceSource === 'personal' && requiresSungPerformance/);
 });
 
 test('actual clone guard requires explicit consent even when invoked outside its disabled button', async () => {

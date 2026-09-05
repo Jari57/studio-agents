@@ -39,8 +39,9 @@ import { BEAT_GENERATION_ENDPOINT, beatGenerationRequest } from '../utils/beatGe
 import { requireGeneratedMedia, amoOutputIdentity } from '../utils/productionIntegrity.mjs';
 import SectionErrorBoundary from './studio/SectionErrorBoundary';
 import { saveProjectChoices } from '../utils/saveProjectChoices.mjs';
-import { producerRenderSignature } from '../utils/producerSession.mjs';
+import { producerRenderSignature, initialProducerSession } from '../utils/producerSession.mjs';
 import { projectWizardHint } from '../utils/projectWizard.mjs';
+import { LATIN_SONG_GENRES, detectLatinGenre } from '../utils/latinGenres.mjs';
 import { studioCreationCounts } from '../utils/studioCreationCounts.mjs';
 import { createProjectSaveQueue, mergeGeneratedProject, applySavedProjectRevision, replaceUploadedMedia, hasUnpersistedMedia, requireDurableSaveResult, projectSyncSignature, cloudProjectSnapshot, prepareProjectConflictRebase } from '../utils/projectPersistence.mjs';
 import { shouldUseNativeIAP } from '../utils/nativePlatform';
@@ -1666,69 +1667,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     };
   }, [sessionPlaying, sessionTracks.audio?.audioUrl, sessionTracks.vocal?.audioUrl, sessionTracks.visual?.videoUrl, sessionTracks.visualOffset]);
 
-  // Auto-populate session mixer when it opens or project changes — sync backing track + project assets
+  // Use selected stems and actual project metadata; keep previous masters in the library.
   useEffect(() => {
-    if (!showStudioSession) return;
-    const assets = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
+    if (!showStudioSession || !selectedProject) return;
+    setSessionTracks(prev => initialProducerSession(selectedProject, prev));
+  }, [showStudioSession, selectedProject]);
 
-    setSessionTracks(prev => {
-      const savedSession = selectedProject?.sessionState;
-      if (savedSession?.tracks?.length && prev.projectId !== selectedProject?.id) {
-        return { ...prev, ...savedSession, projectId: selectedProject.id };
-      }
-
-      const updates = { ...prev, projectId: selectedProject?.id };
-      // Auto-load backing track as the audio track (refresh on project change)
-      if (backingTrack && (!prev.audio || prev.audio.audioUrl !== backingTrack.audioUrl)) {
-        updates.audio = { title: backingTrack.title, audioUrl: backingTrack.audioUrl, bpm: backingTrack.bpm };
-        if (backingTrack.bpm) updates.bpm = backingTrack.bpm;
-      } else if (!backingTrack && !prev.audio) {
-        // Try to load first audio asset from project
-        const audioAsset = assets.find(a => a?.audioUrl && (a?.type === 'audio' || a?.agent?.includes('Beat')));
-        if (audioAsset) updates.audio = audioAsset;
-      }
-      // Auto-load first vocal if no vocal track set or project changed
-      if (!prev.vocal) {
-        const vocal = assets.find(a => a.type === 'vocal' || a.type === 'synthesis' || (a.type === 'audio' && a.audioUrl && a.agent?.toLowerCase().includes('vocal')));
-        if (vocal) updates.vocal = vocal;
-      }
-      // Auto-load first video/image if no visual track set
-      if (!prev.visual) {
-        const visual = assets.find(a => a.videoUrl || a.imageUrl);
-        if (visual) updates.visual = visual;
-      }
-      if (!Array.isArray(prev.tracks) || prev.tracks.length === 0 || prev.projectId !== selectedProject?.id) {
-        const initialAssets = [];
-        const addUnique = (asset, role) => {
-          if (!asset?.audioUrl || initialAssets.some((item) => item.url === asset.audioUrl)) return;
-          initialAssets.push({
-            id: `lane-${asset.id || generateId()}`,
-            assetId: asset.id || null,
-            name: asset.title || asset.agent || (role === 'vocal' ? 'Vocal layer' : 'Beat layer'),
-            url: asset.audioUrl,
-            role,
-            source: 'studio',
-            volume: role === 'vocal' ? 0.9 : 0.72,
-            pan: 0,
-            offset: 0,
-            trimStart: 0,
-            trimEnd: null,
-            fadeIn: 0,
-            fadeOut: 0,
-            muted: false,
-            solo: false,
-          });
-        };
-        addUnique(backingTrack, 'beat');
-        assets.filter((asset) => asset?.audioUrl).slice(0, 4).forEach((asset) => {
-          const descriptor = `${asset.type || ''} ${asset.agent || ''} ${asset.title || ''}`.toLowerCase();
-          addUnique(asset, descriptor.includes('vocal') || descriptor.includes('singer') || descriptor.includes('rapper') ? 'vocal' : descriptor.includes('beat') ? 'beat' : 'instrument');
-        });
-        updates.tracks = initialAssets;
-      }
-      return updates;
-    });
-  }, [showStudioSession, selectedProject?.id, backingTrack]);
   
   // Persist helpSearch
   useEffect(() => {
@@ -3973,7 +3917,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         const validGenres = [
           'hip-hop', 'trap', 'drill', 'modern hip-hop', 'boom bap', '90s boom bap',
           'r&b', 'soul', 'pop', 'rock', 'electronic', 'edm', 'lo-fi', 'lofi',
-          'afrobeat', 'afro-pop', 'amapiano', 'reggaeton', 'latin', 'latin trap',
+          'afrobeat', 'afro-pop', 'amapiano', 'reggaeton', 'salsa', 'bachata', 'dembow', 'latin', 'latin trap',
           'k-pop', 'j-pop', 'phonk', 'dancehall', 'country', 'jazz', 'classical',
           'gospel', 'reggae', 'metal', 'punk', 'funk', 'disco', 'synthwave',
           'indie', 'acoustic', 'bollywood', 'cumbia'
@@ -4860,8 +4804,14 @@ const fetchUserCredits = useCallback(async (uid) => {
         'latin-trap': /\blatin\s*trap\b/,
         'k-pop': /\bk[- ]?pop\b/,
       };
-      let detectedGenre = heroGenre || voiceSettings.genre || 'hip-hop';
+      const latinGenre = detectLatinGenre(prompt);
+      let detectedGenre = latinGenre?.id || heroGenre || voiceSettings.genre || 'hip-hop';
+      if (latinGenre) {
+        setHeroGenre(latinGenre.id);
+        setVoiceSettings(prev => ({ ...prev, genre: latinGenre.id }));
+      }
       for (const [genre, pattern] of Object.entries(genreKeywords)) {
+        if (latinGenre) break;
         if (pattern.test(promptLower)) {
           detectedGenre = genre;
           if (genre !== heroGenre) {
@@ -6760,6 +6710,7 @@ ABSOLUTE RULES (violating any = failure):
                       </optgroup>
                       <optgroup label="Latin">
                         <option value="reggaeton">Reggaeton</option>
+                        {LATIN_SONG_GENRES.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
                         <option value="latin">Latin</option>
                         <option value="cumbia">Cumbia</option>
                       </optgroup>
@@ -8484,6 +8435,7 @@ ABSOLUTE RULES (violating any = failure):
                           </optgroup>
                           <optgroup label="Latin">
                             <option value="reggaeton">Reggaeton</option>
+                            {LATIN_SONG_GENRES.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
                             <option value="latin">Latin</option>
                             <option value="cumbia">Cumbia</option>
                           </optgroup>
@@ -11844,6 +11796,8 @@ ABSOLUTE RULES (violating any = failure):
             <button 
               className="action-button secondary haptic-press" 
               onClick={() => setShowNotifications(!showNotifications)}
+              aria-label="Notifications"
+              aria-expanded={showNotifications}
               style={{ position: 'relative' }}
             >
               <Bell size={20} />

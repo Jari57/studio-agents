@@ -6,6 +6,8 @@ import React, { Suspense } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as icons from 'lucide-react';
 import ts from 'typescript';
+import { deliveryReadiness } from '../src/utils/deliveryReadiness.mjs';
+import { authoritativeMaster, mixStateSignature } from '../src/utils/songSession.mjs';
 
 // Render the real presentational component without loading Firebase, providers,
 // or the parent orchestrator. No generation requests or browser are involved.
@@ -19,6 +21,7 @@ const { outputText } = ts.transpileModule(source.slice(start, end), {
 });
 const Hub = runInNewContext(`${outputText}\nProductionControlHub`, {
   React,
+  deliveryReadiness, authoritativeMaster, mixStateSignature,
   Suspense,
   ...icons,
   VideoIcon: icons.Video,
@@ -105,6 +108,7 @@ test('advanced brief focus and collapsed selected progress match the expanded hu
   assert.match(source, /<ProductionControlHub[\s\S]*?selectedAgents=\{selectedAgents\}/);
   const hubCall = source.indexOf('<ProductionControlHub');
   const badge = source.slice(source.lastIndexOf('Production Control Hub', hubCall), hubCall);
-  assert.match(badge, /selectedAgents\[key\][\s\S]*selected ready/);
+  assert.match(badge, /currentDelivery\.completed[\s\S]*currentDelivery\.selected\.length[\s\S]*selected ready/);
+  assert.match(source, /const currentDelivery = deliveryReadiness\(outputs, mediaUrls, selectedAgents/);
   assert.doesNotMatch(badge, /\}\/4 ready/);
 });

@@ -1,5 +1,6 @@
 // Identifies the audio-affecting settings of a saved render. This is not an
 // authorization token; the server still validates every track and setting.
+import { restoreProjectOutputs } from './projectRestore.mjs';
 export function producerRenderSignature(session = {}) {
   const fields = ['id', 'url', 'role', 'volume', 'pan', 'offset', 'trimStart', 'trimEnd', 'fadeIn', 'fadeOut', 'muted', 'solo'];
   return JSON.stringify({
@@ -53,4 +54,29 @@ export function producerSessionIssues(session = {}) {
     }
     return [];
   });
+}
+
+// Restore a deliberate session, or begin with only the selected performance.
+// Historical masters remain in the library rather than becoming extra layers.
+export function initialProducerSession(project = {}, previous = {}) {
+  if (previous.projectId === project.id && Array.isArray(previous.tracks)) return previous;
+  if (Array.isArray(project.sessionState?.tracks)) return { ...project.sessionState, projectId: project.id };
+  const assets = (project.assets || []).filter(Boolean);
+  const { media, outputs } = restoreProjectOutputs(project);
+  const vocalUrl = media.vocals || media.lyricsVocal;
+  const beatUrl = media.audio;
+  const tracks = [];
+  const add = (url, role) => {
+    if (!url || tracks.some(track => track.url === url)) return;
+    const asset = assets.find(asset => asset.audioUrl === url);
+    tracks.push({ id: `lane-${role}-${asset?.id || 'current'}`, assetId: asset?.id || null, url, role,
+      name: role === 'vocal' ? 'Current vocal' : 'Current accompaniment', source: 'studio',
+      volume: role === 'vocal' ? 0.95 : 0.48, pan: 0, offset: 0, trimStart: 0, trimEnd: null,
+      fadeIn: 0, fadeOut: 0, muted: false, solo: false });
+  };
+  add(beatUrl, 'beat'); add(vocalUrl, 'vocal');
+  return { projectId: project.id, tracks, bpm: Number(project.bpm || project.settings?.bpm) || null,
+    key: project.key || project.settings?.key || '',
+    lyrics: outputs.lyrics || '',
+    autoDuck: true, lufsTarget: -14 };
 }

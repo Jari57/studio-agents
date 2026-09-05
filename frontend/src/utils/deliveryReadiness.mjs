@@ -1,0 +1,9 @@
+export function deliveryReadiness(outputs = {}, media = {}, selectedAgents = {}, includeVocals = false) {
+  const selected = ['lyrics', 'audio', 'visual', 'video'].filter(key => selectedAgents[key]);
+  if (includeVocals && selectedAgents.lyrics) selected.push('vocals');
+  if (includeVocals && selectedAgents.lyrics && selectedAgents.audio) selected.push('master');
+  const ready = { lyrics: Boolean(outputs.lyrics?.trim()), audio: Boolean(media.audio), visual: Boolean(media.image), video: Boolean(media.video),
+    vocals: Boolean(media.vocals || media.lyricsVocal), master: Boolean(media.mixedAudio) };
+  const completed = selected.filter(key => ready[key]).length;
+  return { selected, ready, completed, complete: selected.length > 0 && completed === selected.length };
+}

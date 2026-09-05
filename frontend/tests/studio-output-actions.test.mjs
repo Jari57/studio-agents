@@ -6,11 +6,12 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as icons from 'lucide-react';
 import ts from 'typescript';
+import { deliveryReadiness } from '../src/utils/deliveryReadiness.mjs';
 
 const source = readFileSync(new URL('../src/components/StudioOutputActions.jsx', import.meta.url), 'utf8');
 const body = source.replace(/^import .*;\s*$/gm, '').replace('export default function', 'function');
 const { outputText } = ts.transpileModule(body, {compilerOptions:{jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022},fileName:'StudioOutputActions.jsx'});
-const Actions = runInNewContext(`${outputText}\nStudioOutputActions`, { React, ...icons });
+const Actions = runInNewContext(`${outputText}\nStudioOutputActions`, { React, ...icons, deliveryReadiness });
 
 test('mobile output actions retain all controls in equal shrinkable columns with touch targets', () => {
   const html = renderToStaticMarkup(React.createElement(Actions, {
