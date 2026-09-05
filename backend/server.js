@@ -5403,7 +5403,9 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
           lyrics: cleanedPrompt, style, genre, language, rapStyle, duration,
           bpm: req.body.bpm, musicalDirection: [musicalDirection, refSongAnalysis ? `Reference qualities (secondary to the artist brief): ${Object.values(refSongAnalysis).join('. ')}` : ''].filter(Boolean).join('. '), mood, songStructure,
         }, (model, input, operation) => runReplicateWithRateLimitRetry(client, model, { input }, operation),
-        stage => emit('vocals', stage));
+        stage => emit('vocals', stage), {
+          checkpoint: req.user ? async song => (await uploadToStorage(song, req.user.uid, `song_master_${performanceId}.mp3`, 'audio/mpeg')).url : undefined,
+        });
         audioUrl = generated.audioUrl;
         coherentInstrumentalUrl = generated.instrumentalUrl;
         coherentSongUrl = generated.songUrl;
@@ -5417,6 +5419,10 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
           error: 'Musical vocal generation unavailable',
           details: vocalError.status === 422 ? vocalError.message : [401, 402, 403].includes(vocalError.status) ? 'The musical provider needs account, billing, or model-access attention. No substitute was saved. Your StudioAgents credits were refunded.' : failureStage === 'separation' ? 'The musical performance was generated, but isolating its vocal did not finish. No full-song substitute was saved. Your StudioAgents credits were refunded.' : failureStage === 'download' ? 'The vocal was generated, but its audio could not be retrieved. No substitute was saved. Your StudioAgents credits were refunded.' : 'The musical performance did not finish. No speech substitute was saved. Your StudioAgents credits were refunded.',
           failureStage,
+          ...(vocalError.stage === 'separation' && vocalError.songUrl && req.user ? {
+            recoveredMasterUrl: vocalError.songUrl,
+            recoveryMessage: 'Your song is saved. Separate vocal and beat tracks are unavailable; do not regenerate the song to recover the master.',
+          } : {}),
           code: vocalError.code === 'PROVIDER_TIMEOUT' ? 'VOCAL_PROVIDER_TIMEOUT' : 'VOCAL_PROVIDER_FAILED',
           isSystemCreditIssue: [401, 402, 403].includes(vocalError.status),
         });
@@ -6736,7 +6742,13 @@ Do NOT include any other text.`
     // Legacy musical providers return full songs too. Extract the vocal before
     // exposing it to any mixer; a failed separator must not double the backing.
     if (audioUrl && ['suno', 'minimax-music-clone'].includes(provider)) {
+      let savedMasterUrl = null;
       try {
+        if (req.user) {
+          emit('vocals', 'saving-musical-performance');
+          savedMasterUrl = (await uploadToStorage(audioUrl, req.user.uid, `song_master_${performanceId}.mp3`, 'audio/mpeg')).url;
+          coherentSongUrl = savedMasterUrl;
+        }
         if (!replicateKey) throw new Error('Vocal stem extraction is not configured');
         const client = new Replicate({ auth: replicateKey });
         const musicalPerformanceUrl = audioUrl;
@@ -6752,7 +6764,11 @@ Do NOT include any other text.`
       } catch (stemError) {
         logger.warn('Vocal stem extraction failed', { code: stemError.code || null });
         await refundCredits(req, 'musical vocal stem extraction failed');
-        return res.status(503).json({ error: 'Vocal stem extraction unavailable', details: 'The provider returned a full song, but its vocal stem could not be extracted. Nothing was saved or mixed. Your StudioAgents credits were refunded.' });
+        return res.status(503).json({ error: 'Vocal stem extraction unavailable',
+          details: savedMasterUrl ? 'Your song was saved, but separate vocal and beat tracks are unavailable. Your StudioAgents credits were refunded.' : 'Vocal processing failed before a recoverable master was saved. Your StudioAgents credits were refunded.',
+          ...(savedMasterUrl ? { recoveredMasterUrl: savedMasterUrl, recoveryMessage: 'Your song is saved. Do not regenerate it to recover the master.' } : {}),
+          failureStage: savedMasterUrl ? 'separation' : 'checkpoint',
+        });
       }
     }
 

@@ -38,7 +38,9 @@ async function separateVocal(audio, run, emit = () => {}) {
   return (await separateSongStems(audio, run, emit)).vocalUrl;
 }
 
-async function generateMusicalVocal({ lyrics, style, genre, language, rapStyle, duration, bpm, musicalDirection, mood, songStructure }, run, emit = () => {}) {
+// Recovery is supplied by the trusted caller, never by an unchecked client URL.
+// checkpoint must durably save the master before expensive separation begins.
+async function generateMusicalVocal({ lyrics, style, genre, language, rapStyle, duration, bpm, musicalDirection, mood, songStructure }, run, emit = () => {}, recovery = {}) {
   if (typeof lyrics !== 'string' || !lyrics.trim() || lyrics.length > 3500) {
     const error = new Error('Musical vocals require 1–3500 characters of lyrics. Shorten the lyrics and retry.');
     error.status = 422;
@@ -56,7 +58,7 @@ async function generateMusicalVocal({ lyrics, style, genre, language, rapStyle, 
   emit('generating-musical-performance');
   let song;
   try {
-    song = outputUrl(await run(SONG_MODEL, {
+    song = recovery.songUrl ? outputUrl(recovery.songUrl) : outputUrl(await run(SONG_MODEL, {
       prompt: direction, lyrics: lyrics.trim(), is_instrumental: false, lyrics_optimizer: false,
       audio_format: 'mp3', sample_rate: 44100, bitrate: 256000,
     }, 'MiniMax vocal generation'));
@@ -64,7 +66,24 @@ async function generateMusicalVocal({ lyrics, style, genre, language, rapStyle, 
     error.stage = 'performance';
     throw error;
   }
-  const stems = await separateSongStems(song, run, emit);
+  try {
+    if (!recovery.songUrl && recovery.checkpoint) {
+      emit('saving-musical-performance');
+      song = outputUrl(await recovery.checkpoint(song));
+    }
+  } catch (error) {
+    error.stage = 'checkpoint';
+    error.songUrl = song;
+    throw error;
+  }
+  let stems;
+  try {
+    stems = await separateSongStems(song, run, emit);
+  } catch (error) {
+    // Preserve the real master, without presenting it as an isolated vocal.
+    error.songUrl = song;
+    throw error;
+  }
   return {
     audioUrl: stems.vocalUrl,
     instrumentalUrl: stems.instrumentalUrl,

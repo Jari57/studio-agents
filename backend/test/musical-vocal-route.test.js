@@ -21,6 +21,7 @@ async function request(body, failStem = false, options = {}) {
     logger: { info() {}, warn() {}, error() {} },
     requestsPersonalVoice, generateMusicalVocal, separateSongStems, separateVocal, Buffer,
     crypto: require('node:crypto'), URL, AbortSignal,
+    uploadToStorage: async url => ({ url, path: 'users/test-owner/assets/master.mp3' }),
     approvedSingingReference: options.personal ? async () => ({ id: 'approved', url: 'https://example.test/approved.wav' }) : approvedSingingReference,
     personalLyricsError, getFirestoreDb: () => null, getStorageBucket: () => null,
     analyzeSongReferences: async () => { events.push('reference-analysis'); return { key_characteristics: 'warm guitar' }; },
@@ -70,6 +71,7 @@ test('production vocal handler refunds a missing stem and never returns a full s
   assert.equal(response.refunds, 1);
   assert.equal(response.result.audioUrl, undefined);
   assert.equal(response.result.failureStage, 'separation');
+  assert.equal(response.result.recoveredMasterUrl, 'https://example.test/song.mp3');
   assert.match(response.result.details, /performance was generated/);
 });
 test('false personal flag cannot bypass private voice ownership inside the handler', async () => {

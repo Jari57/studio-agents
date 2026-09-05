@@ -4678,6 +4678,15 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       }
 
       const resolvedAudioUrl = data.audioUrl || data.output;
+      if (!response.ok && data.recoveredMasterUrl) {
+        // A complete song is recoverable, but must never be labeled a dry vocal
+        // or combined with an unrelated beat. Keep the stage failed honestly.
+        setMediaUrls(prev => ({ ...prev, mixedAudio: data.recoveredMasterUrl }));
+        mediaUrlsRef.current = { ...mediaUrlsRef.current, mixedAudio: data.recoveredMasterUrl };
+        mediaDurabilityRef.current.mixedAudio = true;
+        toast.error('Song saved: listen or download it in the mixing section. Separate stems failed; avoid regenerating the song.', { duration: 15000 });
+        throw new Error(data.recoveryMessage || 'Song saved; stem separation failed.');
+      }
       if (response.ok && resolvedAudioUrl) {
         const performance = data.instrumentalUrl && data.mixedAudioUrl ? { id: data.performanceId || crypto.randomUUID(), vocalUrl: resolvedAudioUrl,
           instrumentalUrl: data.instrumentalUrl, masterUrl: data.mixedAudioUrl } : null;

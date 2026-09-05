@@ -64,3 +64,38 @@ test('one separation call preserves both sides of the same performance', async (
     instrumentalUrl: 'https://example.test/instrumental.mp3',
   });
 });
+
+test('master checkpoint runs before separation and survives separation failure', async () => {
+  const events = [];
+  await assert.rejects(generateMusicalVocal(brief, async model => {
+    events.push(model);
+    if (model === SONG_MODEL) return 'https://example.test/temporary.mp3';
+    throw new Error('separator timeout');
+  }, () => {}, { checkpoint: async song => {
+    assert.equal(song, 'https://example.test/temporary.mp3');
+    events.push('saved');
+    return 'https://example.test/saved.mp3';
+  } }), { stage: 'separation', songUrl: 'https://example.test/saved.mp3' });
+  assert.deepEqual(events, [SONG_MODEL, 'saved', STEM_MODEL]);
+});
+
+test('trusted saved-master recovery invokes only separation', async () => {
+  const calls = [];
+  const result = await generateMusicalVocal(brief, async (model, input) => {
+    calls.push(model);
+    assert.equal(input.audio, 'https://example.test/saved.mp3');
+    return { vocals: 'https://example.test/vocal.mp3', other: 'https://example.test/beat.mp3' };
+  }, () => {}, { songUrl: 'https://example.test/saved.mp3' });
+  assert.deepEqual(calls, [STEM_MODEL]);
+  assert.equal(result.songUrl, 'https://example.test/saved.mp3');
+});
+
+test('checkpoint failure stops before separation and preserves temporary master', async () => {
+  const calls = [];
+  await assert.rejects(generateMusicalVocal(brief, async model => {
+    calls.push(model);
+    return 'https://example.test/temporary.mp3';
+  }, () => {}, { checkpoint: async () => { throw new Error('storage unavailable'); } }),
+  { stage: 'checkpoint', songUrl: 'https://example.test/temporary.mp3' });
+  assert.deepEqual(calls, [SONG_MODEL]);
+});
