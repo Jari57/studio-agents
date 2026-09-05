@@ -20,6 +20,8 @@ COPY backend .
 # patch-provider-routing.mjs is a verifier: provider routing lives in source.
 COPY scripts/verify-video-reliability.mjs /app/scripts/verify-video-reliability.mjs
 COPY scripts/patch-provider-routing.mjs /app/scripts/patch-provider-routing.mjs
+# Cross-layer contract tests read the frontend sources without executing them.
+COPY frontend/src /app/frontend/src
 RUN node --test test/*.test.js \
   && node scripts/apply-credit-reservation-hardening.js \
   && node scripts/apply-account-deletion-hardening.js \
