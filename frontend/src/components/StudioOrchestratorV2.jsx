@@ -22,7 +22,7 @@ import StudioOnboarding from './StudioOnboarding';
 import StudioOutputActions from './StudioOutputActions';
 import './StudioOrchestratorTheme.css';
 import { productionJobMatchesProject } from '../utils/productionRecovery.mjs';
-import { quickProductionPlan, songDirectionBrief, recoveryOfferVisible, quickSongJourney } from '../utils/quickSongFlow.mjs';
+import { quickProductionPlan, quickBriefPreferences, songLyricStructure, musicalStageLabel, songDirectionBrief, recoveryOfferVisible, quickSongJourney } from '../utils/quickSongFlow.mjs';
 import { LATIN_SONG_GENRES, LATIN_GENRE_PRESETS, detectLatinGenre } from '../utils/latinGenres.mjs';
 import { collectProjectExport, downloadVerifiedMedia } from '../utils/projectExport.mjs';
 import { songSessionState, songStateSignature, mixStateSignature, authoritativeMaster } from '../utils/songSession.mjs';
@@ -2456,6 +2456,7 @@ export default function StudioOrchestratorV2({
   // Industrial Strength State Preservation (Fixes closure issues in auto-triggering)
   const outputsRef = useRef(outputs);
   const pipelineStepsRef = useRef([]); // Ref mirror so finally-block reads latest pipeline steps
+  const pipelineSessionIdRef = useRef(null);
   const productionJobIdRef = useRef(null);
   const productionRunKeyRef = useRef(null);
   const productionJobRevisionRef = useRef(0);
@@ -3197,6 +3198,7 @@ export default function StudioOrchestratorV2({
 
   const getPaidStepHeaders = useCallback(async (stepId) => {
     const headers = await getHeaders();
+    if (pipelineSessionIdRef.current) headers['x-pipeline-session'] = pipelineSessionIdRef.current;
     const runId = productionJobIdRef.current || productionRunKeyRef.current || crypto.randomUUID();
     // Include the current durable job revision so duplicate submissions inside
     // one attempt collapse, while an explicit recovery attempt can run again
@@ -3644,12 +3646,18 @@ export default function StudioOrchestratorV2({
       
       // SSE pipeline session for real-time progress from backend
       const pipelineSessionId = crypto.randomUUID();
+      pipelineSessionIdRef.current = pipelineSessionId;
       headers['x-pipeline-session'] = pipelineSessionId;
       try {
         eventSource = new EventSource(`${BACKEND_URL}/api/pipeline-events/${pipelineSessionId}`);
         eventSource.addEventListener('step', (e) => {
           try {
             const { step, status } = JSON.parse(e.data);
+            const musicalLabel = step === 'vocals' ? musicalStageLabel(status) : null;
+            if (musicalLabel) {
+              setPipelineSteps(prev => prev.map(s => s.id === step ? { ...s, label: musicalLabel } : s));
+              toast.loading(musicalLabel, { id: 'gen-vocals' });
+            }
             // Update pipeline step label with backend progress info
             if (status.startsWith('suno-poll-')) {
               const pollNum = parseInt(status.split('-')[2]);
@@ -3716,7 +3724,7 @@ Include: camera angles, text overlays, transition types, music cues, and engagem
         ${contextLyrics ? `LYRICS CONTEXT — use these to match the emotional arc, tempo, and vibe:\n"${String(contextLyrics).substring(0, 1500)}"` : ''}
         ${slot === 'lyrics' ? `LYRICS AGENT INSTRUCTIONS:
 Write ONLY the lyrics with clear section labels: [Verse 1], [Pre-Chorus], [Chorus], [Verse 2], [Bridge], [Outro].
-SONG STRUCTURE: ${songStructure === 'single' ? 'SHORT FORMAT — 1 Verse + 1 Chorus + 1 Verse (radio single, ~2 minutes)' : songStructure === 'extended' ? 'EXTENDED FORMAT — 3 Verses + 2 Choruses + Bridge + Outro (full album track, ~4 minutes)' : 'FULL TRACK — 2 Verses + Chorus + Bridge + Final Chorus (standard release, ~3 minutes)'}
+SONG STRUCTURE: ${songLyricStructure(duration, songStructure)}
 LANGUAGE: ${language} — ALL lyrics MUST be written entirely in ${language}. Every word, every line.${language !== 'English' ? ` Do NOT write in English. The song is in ${language}.` : ''}
 REQUIREMENTS:
 - START your response with [Verse 1] or [Intro] — no preamble, no title, no description
@@ -4114,6 +4122,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     } finally {
       // Close SSE connection
       if (eventSource) { try { eventSource.close(); } catch {} }
+      pipelineSessionIdRef.current = null;
       setIsGenerating(false);
       setGeneratingSlots({ lyrics: false, audio: false, visual: false, video: false });
       // Reset media generation guards so retries aren't blocked
@@ -4163,6 +4172,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     setQuickGenre(runGenre);
     applyGenrePreset(runGenre);
     if (validExplicitBpm) setProjectBpm(validExplicitBpm);
+    const briefPreferences = quickBriefPreferences(songIdea, ALL_LANGUAGES);
+    if (briefPreferences.language) setLanguage(briefPreferences.language);
+    if (plan.includeVocals && briefPreferences.duration) {
+      setDuration(briefPreferences.duration);
+      setUseBars(false);
+    }
 
     const generationOptions = {
       agentSelection,
@@ -6800,6 +6815,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     ...orderedStages.map(key => ({ id: key, label: stageLabels[key], complete: currentDelivery.ready[key] }))
   ];
   const quickJourney = quickSongJourney({ outcome: quickOutcome, idea: songIdea, lyrics: outputs.lyrics, media: mediaUrls });
+  const quickBriefSettings = quickBriefPreferences(songIdea, ALL_LANGUAGES);
   const journeyStages = quickMode ? quickJourney.stages : advancedJourneyStages;
   const nextJourneyStage = quickMode ? quickJourney.next : journeyStages.find((stage) => !stage.complete)?.id || 'finish';
   const journeyMessage = quickJourney.message;
@@ -7168,6 +7184,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 )}
               </button>
               <p className="quick-song-explanation">
+                Lyrics: {quickBriefSettings.language || language}{quickBriefSettings.language ? ' (from your brief)' : ''}.{' '}
+                {quickOutcome !== 'song-draft' && <>Target: approximately {quickBriefSettings.duration || GENRE_PRESETS[quickGenre]?.duration || duration} seconds; performance length may vary.{' '}</>}
                 {LATIN_SONG_GENRES.find(({ label }) => label === quickGenre)?.hint && <>
                   {LATIN_SONG_GENRES.find(({ label }) => label === quickGenre).hint} Tempo and lyric language are adjustable in Advanced.{' '}
                 </>}

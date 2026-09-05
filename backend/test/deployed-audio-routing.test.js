@@ -192,7 +192,7 @@ function providerHarness(status = 'succeeded', configuredTimeout) {
   return { calls, run: context.runReplicateWithRateLimitRetry };
 }
 
-for (const [operation, seconds] of [['MiniMax vocal generation', '150s'], ['MiniMax beat generation', '150s'], ['Musical vocal stem separation', '180s']]) {
+for (const [operation, seconds] of [['MiniMax vocal generation', '300s'], ['MiniMax beat generation', '150s'], ['Musical vocal stem separation', '180s']]) {
   test(`deployed ${operation} has an explicit ${seconds} total budget`, async () => {
     const { calls, run } = providerHarness();
     await run(null, 'owner/model', { input: {} }, operation);
@@ -209,6 +209,6 @@ test('an explicitly configured smaller provider budget remains respected', async
 
 test('aborted provider prediction is terminal without polling or duplicate creation', async () => {
   const { calls, run } = providerHarness('aborted');
-  await assert.rejects(run(null, 'owner/model', { input: {} }, 'Musical vocal stem separation'), { code: 'PROVIDER_FAILED' });
+  await assert.rejects(run(null, 'owner/model', { input: {} }, 'Musical vocal stem separation'), { code: 'PROVIDER_TIMEOUT' });
   assert.equal(calls.length, 1);
 });

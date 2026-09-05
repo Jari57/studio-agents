@@ -12,6 +12,41 @@ export function quickProductionPlan(outcome = 'song') {
 }
 
 // Keep the supplied direction as a brief, not a second AI-generated dependency.
+export function quickBriefPreferences(brief, languages = []) {
+  const text = String(brief || '');
+  const requested = languages.filter(language => {
+    const name = language.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const patterns = [
+      `\\b(?:sing|sung|write|written|lyrics?|vocals?|song)(?:\\s+\\w+){0,2}\\s+in\\s+${name}\\b`,
+      `\\b${name}(?:[-\\s]+(?:salsa|bachata|dembow|trap|pop|rap|original|language|lead|melodic)){0,3}[-\\s]+(?:song|lyrics?|vocals?|singing)\\b`,
+      `\\blanguage\\s*:\\s*${name}\\b`,
+    ];
+    return patterns.some(pattern => {
+      const match = new RegExp(pattern, 'i').exec(text);
+      return match && !/\b(?:not|no|never|avoid|without|don['’]t)\b/i.test(text.slice(Math.max(0, match.index - 12), match.index) + match[0]);
+    });
+  });
+  // Ambiguous multilingual direction stays visible in the brief; do not guess.
+  const language = requested.length === 1 ? requested[0] : null;
+  const durationMatch = text.match(/\b(\d+(?:\.\d+)?|one|two|three)\s*[- ]?\s*(seconds?|secs?|minutes?|mins?)\b/i);
+  const number = durationMatch ? ({ one: 1, two: 2, three: 3 }[durationMatch[1].toLowerCase()] || Number(durationMatch[1])) : null;
+  const seconds = number && number * (/^m/i.test(durationMatch[2]) ? 60 : 1);
+  return { language, duration: seconds >= 30 && seconds <= 300 ? Math.round(seconds) : null };
+}
+
+export function songLyricStructure(duration, structure = 'full') {
+  const seconds = Number(duration) || 150;
+  if (seconds <= 75) return `SHORT SONG — target approximately ${seconds} seconds: one short verse, one chorus and a brief ending. About ${Math.round(seconds * 1.3)} words maximum; leave room for musical phrasing. Do not add repeated verses or a long bridge.`;
+  return `${structure === 'extended' ? 'EXTENDED' : structure === 'single' ? 'SINGLE' : 'FULL'} SONG — target approximately ${seconds} seconds. Scale verses and chorus repeats to that duration, leaving space for the instrumental. About ${Math.round(seconds * 1.5)} words maximum.`;
+}
+
+export function musicalStageLabel(status) {
+  if (status === 'generating-musical-performance' || status === 'minimax-starting') return 'Creating the sung performance and its accompaniment';
+  if (status === 'separating-vocal') return 'Separating matching vocal and instrumental stems';
+  if (/^minimax-poll(?:ing|-\d+)$/.test(String(status))) return 'Waiting for the musical performance — your job is still running';
+  return null;
+}
+
 export function songDirectionBrief({ idea, genre, bpm, language, duration }) {
   return [
     'Song direction (from your brief):', String(idea || '').trim(),

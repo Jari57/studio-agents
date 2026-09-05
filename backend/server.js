@@ -781,12 +781,16 @@ async function runReplicateWithRateLimitRetry(_replicate, model, options, operat
 
   const configuredTimeoutMs = Number(process.env.REPLICATE_GENERATION_TIMEOUT_MS);
   const isStemSeparation = /vocal stem separation/i.test(operationName);
+  const isFullSong = /MiniMax vocal generation/i.test(operationName);
   // Separation is a separate queued GPU job. Production evidence showed a
   // 50-second cold start consuming most of its old 90-second total budget.
-  const defaultTimeoutMs = isStemSeparation ? 180000 : /MiniMax (beat|vocal) generation/i.test(operationName) ? 150000 : 90000;
+  // The live full-song test was aborted by our own Cancel-After at 150s.
+  // Allow the combined sung performance its own finite window; do not widen
+  // standalone beat/image budgets or silently purchase a second prediction.
+  const defaultTimeoutMs = isFullSong ? 300000 : isStemSeparation ? 180000 : /MiniMax beat generation/i.test(operationName) ? 150000 : 90000;
   const timeoutMs = Math.max(
     30000,
-    Math.min(configuredTimeoutMs || defaultTimeoutMs, isStemSeparation ? 180000 : 150000)
+    Math.min(configuredTimeoutMs || defaultTimeoutMs, isFullSong ? 300000 : isStemSeparation ? 180000 : 150000)
   );
   const maxCreateAttempts = 2;
   let lastError = null;
@@ -878,7 +882,7 @@ async function runReplicateWithRateLimitRetry(_replicate, model, options, operat
 
       const providerError = String(prediction?.error || prediction?.logs || prediction?.status || 'unknown failure').slice(0, 700);
       const failed = new Error(`Replicate ${operationName} failed: ${providerError}`);
-      failed.code = 'PROVIDER_FAILED';
+      failed.code = prediction.status === 'aborted' ? 'PROVIDER_TIMEOUT' : 'PROVIDER_FAILED';
       throw failed;
     } catch (error) {
       lastError = error;
@@ -12729,13 +12733,11 @@ const server = app.listen(PORT, HOST, () => {
   });
   logger.info(`🚀 Uplink Ready at http://${HOST}:${PORT}`);
 
-  // API key health-check summary
-  const sunoKey = process.env.SUNO_API_KEY;
-  if (sunoKey) {
-    logger.info(`🎵 Suno API key configured (${sunoKey.substring(0, 8)}...)`);
-  } else {
-    logger.warn('🎵 SUNO_API_KEY not set — singing/rapping will fall back to Bark/ElevenLabs');
-  }
+  // Musical performances never fall back to a spoken voice. Do not log keys.
+  logger.info('🎵 Song engine: MiniMax coherent performance; standalone beats: Stability', {
+    replicateConfigured: Boolean(process.env.REPLICATE_API_TOKEN || process.env.REPLICATE_API_KEY),
+    stabilityConfigured: Boolean(process.env.STABILITY_API_KEY),
+  });
 });
 
 // Increase timeout for long-running video generation (10 minutes)
