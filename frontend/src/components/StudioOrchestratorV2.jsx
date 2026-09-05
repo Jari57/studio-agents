@@ -4523,6 +4523,32 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     }
   };
 
+  const stemRetryPending = useRef(false);
+  const handleRetryStems = async () => {
+    const masterUrl = mediaUrlsRef.current.recoveredMaster;
+    if (!masterUrl || stemRetryPending.current) return;
+    stemRetryPending.current = true;
+    setGeneratingMedia(prev => ({ ...prev, vocals: true }));
+    const owner = auth.currentUser?.uid;
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/retry-song-stems`, {
+        method: 'POST', headers: await getHeaders(), body: JSON.stringify({ masterUrl }), signal: createTimeoutSignal(300000),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.audioUrl || !data.instrumentalUrl) throw new Error(data.error || 'Stem recovery failed. Your song remains saved.');
+      if (auth.currentUser?.uid !== owner || mediaUrlsRef.current.recoveredMaster !== masterUrl) return;
+      const updated = { vocals: data.audioUrl, lyricsVocal: data.audioUrl, audio: data.instrumentalUrl, mixedAudio: data.mixedAudioUrl, recoveredMaster: null };
+      mediaUrlsRef.current = { ...mediaUrlsRef.current, ...updated };
+      setMediaUrls(prev => ({ ...prev, ...updated }));
+      const performance = { id: crypto.randomUUID(), vocalUrl: data.audioUrl, instrumentalUrl: data.instrumentalUrl, masterUrl: data.mixedAudioUrl };
+      setActivePerformance(performance);
+      currentSongSessionRef.current = { ...currentSongSessionRef.current, performance, renderedMixSignature: 'provider-original' };
+      setRenderedMixSignature('provider-original');
+      toast.success('Matched stems recovered. Listen, then save your project.');
+    } catch (error) { toast.error(error.message || 'Recovery failed. Your song remains saved.'); }
+    finally { stemRetryPending.current = false; setGeneratingMedia(prev => ({ ...prev, vocals: false })); }
+  };
+
   const handleGenerateVocals = async (directInput = null) => {
     // PREVENT DUPLICATE CALLS
     if (generatingMedia.vocals) return;
@@ -4681,8 +4707,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       if (!response.ok && data.recoveredMasterUrl) {
         // A complete song is recoverable, but must never be labeled a dry vocal
         // or combined with an unrelated beat. Keep the stage failed honestly.
-        setMediaUrls(prev => ({ ...prev, mixedAudio: data.recoveredMasterUrl }));
-        mediaUrlsRef.current = { ...mediaUrlsRef.current, mixedAudio: data.recoveredMasterUrl };
+        setMediaUrls(prev => ({ ...prev, mixedAudio: data.recoveredMasterUrl, recoveredMaster: data.recoveredMasterUrl }));
+        mediaUrlsRef.current = { ...mediaUrlsRef.current, mixedAudio: data.recoveredMasterUrl, recoveredMaster: data.recoveredMasterUrl };
         mediaDurabilityRef.current.mixedAudio = true;
         toast.error('Song saved: listen or download it in the mixing section. Separate stems failed; avoid regenerating the song.', { duration: 15000 });
         throw new Error(data.recoveryMessage || 'Song saved; stem separation failed.');
@@ -10950,6 +10976,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 )}
               </button>
 
+              {mediaUrls.recoveredMaster && (
+                <button type="button" onClick={handleRetryStems} disabled={generatingMedia.vocals}
+                  style={{ padding: '14px', borderRadius: '12px', background: 'var(--studio-accent-soft, #f0ded2)', color: 'var(--studio-text, #252525)', border: '1px solid var(--studio-border, #d8d5c9)' }}>
+                  {generatingMedia.vocals ? 'Recovering stems…' : 'Retry stems only — reuse saved song'}
+                </button>
+              )}
               {(mediaUrls.mixedAudio || finalMixPreview?.mixedAudioUrl) && (
                 <button
                   onClick={handleDownloadMasterMix}

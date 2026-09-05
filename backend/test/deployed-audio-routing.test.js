@@ -176,7 +176,7 @@ test('legacy beat providers are gone: BEAT_FALLBACK_PROVIDERS has no effect', as
   }
 });
 
-function providerHarness(status = 'succeeded', configuredTimeout) {
+function providerHarness(status = 'succeeded', configuredTimeout, createError) {
   const calls = [];
   const context = {
     process: { env: { REPLICATE_API_TOKEN: 'fixture-only', REPLICATE_GENERATION_TIMEOUT_MS: configuredTimeout } },
@@ -184,6 +184,7 @@ function providerHarness(status = 'succeeded', configuredTimeout) {
     setTimeout: callback => callback(), Date,
     fetchWithTimeout: async (url, options) => {
       calls.push({ url, options });
+      if (createError) throw createError;
       return { ok: true, status: 200, text: async () => JSON.stringify({ id: 'fixture', status, output: status === 'succeeded' ? 'fixture-output' : null }) };
     },
   };
@@ -210,5 +211,11 @@ test('an explicitly configured smaller provider budget remains respected', async
 test('aborted provider prediction is terminal without polling or duplicate creation', async () => {
   const { calls, run } = providerHarness('aborted');
   await assert.rejects(run(null, 'owner/model', { input: {} }, 'Musical vocal stem separation'), { code: 'PROVIDER_TIMEOUT' });
+  assert.equal(calls.length, 1);
+});
+
+test('a lost create response never silently starts another paid prediction', async () => {
+  const { calls, run } = providerHarness('succeeded', undefined, new Error('network timeout after POST'));
+  await assert.rejects(run(null, 'owner/model', { input: {} }, 'Musical vocal stem separation'), /network timeout/);
   assert.equal(calls.length, 1);
 });

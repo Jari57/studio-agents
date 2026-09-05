@@ -899,9 +899,10 @@ async function runReplicateWithRateLimitRetry(_replicate, model, options, operat
       // Once a paid prediction started, do not silently create a duplicate. A
       // provider failure or our deadline is final for this provider attempt.
       if (predictionStarted || error?.code === 'PROVIDER_TIMEOUT' || error?.code === 'PROVIDER_FAILED') throw error;
-      const retryable = error?.status === 429 || error?.status >= 500 || /network|fetch|timeout|rate.?limit/i.test(message);
-      if (!retryable || attempt === maxCreateAttempts) throw error;
-      await new Promise(resolve => setTimeout(resolve, 1500 * attempt));
+      // A lost create response does not prove the paid job was never accepted.
+      // Only the explicit 429 branch above may retry creation. Never repeat an
+      // ambiguous POST after a timeout, network error, or provider 5xx.
+      throw error;
     }
   }
 
@@ -5162,6 +5163,13 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
 // PRIORITY 3: Bark for expressive spoken word with emotion
 // ═══════════════════════════════════════════════════════════════════
 // Vocal/speech generation charges 2 credits
+app.post('/api/retry-song-stems', verifyFirebaseToken, requireAuth, generationLimiter,
+  require('./services/retrySongStems').createStemRetry({
+    getBucket: getStorageBucket,
+    separate: master => separateSongStems(master, (model, input, operation) => runReplicateWithRateLimitRetry(null, model, { input }, operation)),
+    upload: uploadToStorage,
+  }));
+
 app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoice, requireAuthOrFreeLimit, checkCreditsFor('vocal'), generationLimiter, async (req, res) => {
   try {
     const {
