@@ -25,9 +25,7 @@ test.describe('Mobile Responsiveness', () => {
     const cta = page.locator('button, a').filter({ hasText: /Get Started|Start Free|Try Now|Sign In|Enter/i }).first();
     const isVisible = await cta.isVisible({ timeout: 5000 }).catch(() => false);
     
-    // Either there's a CTA or we're on a login-protected view - both acceptable
-    console.log(`Mobile CTA visible: ${isVisible}`);
-    expect(true).toBe(true); // Non-blocking - logged for visibility
+    expect(isVisible, 'A primary mobile entry action must be visible').toBe(true);
   });
 
   test('Landing page adapts to mobile viewport', async ({ page }) => {
@@ -40,7 +38,7 @@ test.describe('Mobile Responsiveness', () => {
     // Check for main content area
     const mainContent = page.locator('main, .landing, [class*="landing"], [class*="hero"]').first();
     const hasMainContent = await mainContent.isVisible({ timeout: 3000 }).catch(() => false);
-    console.log(`Mobile main content visible: ${hasMainContent}`);
+    expect(hasMainContent, 'Mobile main content must be visible').toBe(true);
   });
 
   test('Mobile navigation is accessible', async ({ page }) => {
@@ -50,7 +48,7 @@ test.describe('Mobile Responsiveness', () => {
     // Check for hamburger menu or nav elements
     const navElement = page.locator('nav, header, .mobile-nav, [class*="nav"]').first();
     const hasNav = await navElement.isVisible({ timeout: 3000 }).catch(() => false);
-    console.log(`Mobile nav visible: ${hasNav}`);
+    expect(hasNav, 'Mobile navigation must be visible').toBe(true);
     
     // Page should be functional
     await expect(page.locator('body')).toBeVisible();
