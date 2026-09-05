@@ -13,6 +13,7 @@ export default function SongReferencesPanel({ backendUrl, getHeaders, currentUid
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const pending = useRef(false);
+  const recordingInput = useRef(null);
   const lifecycle = useRef(0);
   const callbackRef = useRef(onLibraryChange);
   callbackRef.current = onLibraryChange;
@@ -55,7 +56,9 @@ export default function SongReferencesPanel({ backendUrl, getHeaders, currentUid
     const operation = { generation };
     pending.current = operation; setBusy(label); setError('');
     try { await action(() => lifecycle.current === generation && currentUid() === accountId); }
-    catch (e) { if (lifecycle.current === generation) setError(e.message); }
+    catch (e) { if (lifecycle.current === generation) setError(e.name === 'TimeoutError' || e.name === 'AbortError'
+      ? 'The request timed out. Processing may still be running on the server. Check your reference library before retrying; do not submit repeated auditions.'
+      : e.message); }
     finally { if (pending.current === operation) pending.current = null; if (lifecycle.current === generation) setBusy(''); }
   }
 
@@ -80,13 +83,15 @@ export default function SongReferencesPanel({ backendUrl, getHeaders, currentUid
   }
 
   function prepare() {
+    setPrepared(null); setListened(false);
     work('Preparing your vocal audition…', async isCurrent => {
       if (!consent) throw new Error('Confirm ownership or the singer’s explicit permission first.');
       if (!file) throw new Error('Choose a singing recording.');
-      if (!Number.isFinite(Number(start)) || Number(start) < 0 || Number(length) < 16 || Number(length) > 45) throw new Error('Choose a valid start and a 16–45 second excerpt.');
+      if (!Number.isFinite(Number(start)) || Number(start) < 0 || !Number.isFinite(Number(length)) || Number(length) < 16 || Number(length) > 45) throw new Error('Choose a valid start and a 16–45 second excerpt.');
       const asset = await upload(file);
       if (!isCurrent()) return;
       const result = await request('/api/v2/singing-references/prepare', { assetId: asset.assetId, sourceKind, startSeconds: Number(start), durationSeconds: Number(length), consentConfirmed: true, name: file.name });
+      if (!result.reference?.id || !result.reference?.url) throw new Error('Preparation returned no playable audition. Your voice has not been approved.');
       if (isCurrent()) { setPrepared(result.reference); setListened(false); }
     });
   }
@@ -118,11 +123,17 @@ export default function SongReferencesPanel({ backendUrl, getHeaders, currentUid
         <label>Lyrics for this audition (1–400 characters)<textarea value={lyricsExcerpt} onChange={e => onLyricsExcerptChange(e.target.value)} rows={4} aria-describedby="personal-lyrics-capacity" /></label>
         <p id="personal-lyrics-capacity">{lyricsExcerpt.length}/400 characters. Choose the exact verse or hook to perform. We will not truncate or repeat it.</p>
         <details><summary>Prepare a new singing reference</summary>
-          <label>Recording<input type="file" accept="audio/*" disabled={!!busy} onChange={e => { setFile(e.target.files?.[0] || null); setPrepared(null); setListened(false); setConsent(false); }} /></label>
+          <label>Recording<input ref={recordingInput} type="file" accept="audio/*" disabled={!!busy} onChange={e => { setFile(e.target.files?.[0] || null); setPrepared(null); setListened(false); setConsent(false); }} /></label>
           <label>Recording contains<select value={sourceKind} onChange={e => { setSourceKind(e.target.value); setPrepared(null); setListened(false); }} disabled={!!busy}><option value="song">Song with one singer and instruments</option><option value="isolated-vocal">Only the singer’s vocal</option></select></label>
           <div className="song-reference-excerpt"><label>Start (seconds)<input type="number" min="0" max="1200" value={start} onChange={e => { setStart(e.target.value); setPrepared(null); setListened(false); }} disabled={!!busy} /></label><label>Length (seconds)<input type="number" min="16" max="45" value={length} onChange={e => { setLength(e.target.value); setPrepared(null); setListened(false); }} disabled={!!busy} /></label></div>
           <label className="song-reference-confirm"><input type="checkbox" checked={consent} onChange={e => { setConsent(e.target.checked); if (!e.target.checked) { setPrepared(null); setListened(false); } }} disabled={!!busy} />I own this singing voice or have the singer’s explicit permission to clone it.</label>
-          <button type="button" onClick={prepare} disabled={!!busy || !file || !consent}>Prepare audition</button>
+          <p id="audition-next-step" role="status">{busy || (!file ? 'Choose a recording here first. A style reference above does not select a voice recording.' : !consent ? 'Confirm voice ownership or permission above to enable preparation.' : prepared ? 'Audition ready. Listen below, then approve it.' : 'Ready to prepare your vocal excerpt.')}</p>
+          <button type="button" onClick={prepare} aria-describedby="audition-next-step" disabled={!!busy || !file || !consent}>{busy ? 'Working…' : 'Prepare audition'}</button>
+          <button type="button" disabled={!!busy} onClick={() => {
+            setFile(null); setPrepared(null); setListened(false); setConsent(false); setError(''); setStart(0); setLength(30);
+            if (recordingInput.current) recordingInput.current.value = '';
+          }}>Reset audition form</button>
+          {error && <p role="alert">{error}</p>}
         </details>
         {prepared && <div className="song-reference-audition"><strong>Listen before using this voice</strong><audio controls src={prepared.url} preload="metadata" /><p>Check for one clear singer, correct excerpt, noise and separation artifacts. Audio checks do not verify identity or artistic quality.</p>
           <label className="song-reference-confirm"><input type="checkbox" checked={listened} onChange={e => setListened(e.target.checked)} />I listened: this excerpt contains only the permitted singer and is suitable for my audition.</label>
