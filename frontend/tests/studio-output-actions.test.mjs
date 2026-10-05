@@ -37,3 +37,15 @@ test('orchestrator footer delegates existing export and save actions without rem
   const parent = readFileSync(new URL('../src/components/StudioOrchestratorV2.jsx', import.meta.url),'utf8');
   assert.match(parent, /<StudioOutputActions[\s\S]*?onExport=\{handleExportAll\}[\s\S]*?onStems=\{handleDownloadStemsPack\}[\s\S]*?setShowCreateProject\(true\)/);
 });
+
+test('empty projects disable output actions; artwork alone never enables a stems export', () => {
+  const empty = renderToStaticMarkup(React.createElement(Actions, {}));
+  assert.equal((empty.match(/disabled=""/g) || []).length, 3);
+  assert.match(empty, /Create or load an output first/);
+  const art = renderToStaticMarkup(React.createElement(Actions, { mediaUrls: { image: 'cover.png' } }));
+  assert.equal((art.match(/disabled=""/g) || []).length, 1);
+  assert.match(art, /Create or load an audio track first/);
+  const audio = renderToStaticMarkup(React.createElement(Actions, { mediaUrls: { vocals: 'voice.wav' } }));
+  assert.doesNotMatch(audio, /disabled=""/);
+  assert.match(audio, /does not separate new stems/);
+});

@@ -90,6 +90,7 @@ export async function getProducts() {
  * completed platform purchase only; it does not make a balance claim.
  */
 export async function purchaseProduct(productKey, userId) {
+  if (!userId || typeof userId !== 'string') return { success: false, error: 'Sign in before purchasing.' };
   const productId = PRODUCT_IDS[productKey];
   if (!productId) return { success: false, error: `Unknown product: ${productKey}` };
 
@@ -124,15 +125,17 @@ export async function purchaseProduct(productKey, userId) {
 }
 
 /** Restore native purchases; required for restored subscriptions and devices. */
-export async function restorePurchases() {
-  if (!await initStoreKit()) return [];
+export async function restorePurchases(userId) {
+  if (!userId || typeof userId !== 'string') throw new Error('Sign in before restoring purchases.');
+  if (!await initStoreKit()) throw new Error('In-app purchases are not available in this build.');
 
   try {
+    await _purchases.logIn({ appUserID: userId });
     const { customerInfo } = await _purchases.restorePurchases();
     return Object.keys(customerInfo?.entitlements?.active || {});
   } catch (err) {
     console.warn('[Purchases] Restore failed:', err?.message || err);
-    return [];
+    throw new Error('Purchases could not be restored. Please try again.');
   }
 }
 
