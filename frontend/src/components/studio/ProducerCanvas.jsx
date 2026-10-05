@@ -7,7 +7,7 @@ import {
 
 import './ProducerCanvas.css';
 import ProducerControl from './ProducerControl';
-import { producerRenderSignature, producerAudioLibrary, inferProducerRole, producerSessionIssues } from '../../utils/producerSession.mjs';
+import { producerRenderSignature, producerAudioLibrary, inferProducerRole, producerSessionIssues, producerSavedMixes, isMasterAsset } from '../../utils/producerSession.mjs';
 
 const ROLE_META = {
   beat: { label: 'Beat', color: 'var(--studio-sage)', icon: Disc3 },
@@ -137,7 +137,7 @@ export default function ProducerCanvas({
     const urls = new Set(tracks.map((track) => track.url));
     return audioAssets.filter((asset) => !urls.has(asset.audioUrl));
   }, [audioAssets, tracks]);
-  const savedMixes = useMemo(() => (project?.assets || []).filter(asset => asset?.type === 'Master' && asset?.audioUrl), [project?.assets]);
+  const savedMixes = useMemo(() => producerSavedMixes(project), [project]);
   const selectedMix = savedMixes.find(asset => asset.id === selectedMixId) || savedMixes[0];
   const signature = producerRenderSignature(session);
   const matchesCurrent = selectedMix?.metadata?.renderSignature === signature;
@@ -264,9 +264,9 @@ export default function ProducerCanvas({
               </div>
               <input type="search" aria-label="Search your audio library" placeholder={libraryScope === 'all' ? 'Find audio across your projects…' : 'Find audio in this project…'} value={librarySearch} onChange={event => setLibrarySearch(event.target.value)} />
               {unusedAssets.length ? unusedAssets.map((asset) => (
-                <button disabled={rendering || uploading || tracks.length >= 12} key={asset.audioUrl} onClick={() => onAddAsset(asset, inferProducerRole(asset))}>
-                  <span><Play size={13} fill="currentColor" /></span>
-                  <div><strong>{asset.title || asset.agent || 'Audio asset'}</strong><small>{ROLE_META[inferProducerRole(asset)].label} · {asset.projectName}</small></div>
+                <button disabled={rendering || uploading || tracks.length >= 12} key={asset.audioUrl} aria-label={`Add ${asset.title || asset.agent || 'audio asset'} as a track`} onClick={() => onAddAsset(asset, inferProducerRole(asset))}>
+                  <span><Music2 size={13} /></span>
+                  <div><strong>{asset.title || asset.agent || 'Audio asset'}</strong><small>{isMasterAsset(asset) ? 'Master mix · may already include vocals' : ROLE_META[inferProducerRole(asset)].label} · {asset.projectName}</small></div>
                   <Plus size={15} />
                 </button>
               )) : <p className="producer-panel-empty">{libraryScope === 'all' ? 'No matching unused audio. Search another project or upload a stem.' : 'No unused audio in this project yet. Switch to "All projects" or upload a stem.'}</p>}
@@ -276,7 +276,7 @@ export default function ProducerCanvas({
 
           <section className="producer-panel producer-lyrics-panel">
             <div className="producer-panel-title static"><span><FileText size={16} /> Lyrics & arrangement notes</span></div>
-            <textarea disabled={rendering || uploading} value={session?.lyricsDraft || ''} onChange={(event) => patchSession({ lyricsDraft: event.target.value })} placeholder={'[Intro]\n\n[Verse 1]\nWrite or paste lyrics here…'} />
+            <textarea aria-label="Lyrics and arrangement notes" disabled={rendering || uploading} value={session?.lyricsDraft ?? session?.lyrics ?? ''} onChange={(event) => patchSession({ lyricsDraft: event.target.value })} placeholder={'[Intro]\n\n[Verse 1]\nWrite or paste lyrics here…'} />
             <label className="producer-lyrics-upload"><Upload size={14} /> Import TXT, MD or LRC
               <input type="file" disabled={rendering || uploading} accept=".txt,.md,.lrc,text/plain" onChange={(event) => {
                 const file = event.target.files?.[0];

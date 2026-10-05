@@ -45,3 +45,23 @@ export function mixStateSignature(media = {}, state = {}) {
 export function authoritativeMaster(media = {}, preview) {
   return media.mixedAudio || (typeof preview === 'object' && preview?.mixedAudioUrl) || null;
 }
+
+// Apply only after a successful source replacement. Explicit null prevents
+// restoring a historical master that no longer matches the current stems.
+export function replacedSongSource(source, data, performanceId) {
+  if (source === 'audio') return {
+    media: { audio: data.audioUrl, mixedAudio: null },
+    performance: null, renderedMixSignature: '',
+  };
+  const vocalUrl = data.audioUrl || data.output;
+  const masterUrl = data.mixedAudioUrl || (data.wasMixed ? vocalUrl : null);
+  const performance = data.instrumentalUrl && data.mixedAudioUrl ? {
+    id: data.performanceId || performanceId, vocalUrl,
+    instrumentalUrl: data.instrumentalUrl, masterUrl: data.mixedAudioUrl,
+  } : null;
+  return {
+    media: { vocals: vocalUrl, lyricsVocal: vocalUrl, mixedAudio: masterUrl,
+      ...(data.instrumentalUrl ? { audio: data.instrumentalUrl } : {}) },
+    performance, renderedMixSignature: masterUrl ? 'provider-original' : '',
+  };
+}

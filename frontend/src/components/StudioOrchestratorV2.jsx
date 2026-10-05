@@ -25,7 +25,7 @@ import { productionJobMatchesProject } from '../utils/productionRecovery.mjs';
 import { quickProductionPlan, quickBriefPreferences, songLyricStructure, musicalStageLabel, songDirectionBrief, recoveryOfferVisible, quickSongJourney } from '../utils/quickSongFlow.mjs';
 import { LATIN_SONG_GENRES, LATIN_GENRE_PRESETS, detectLatinGenre } from '../utils/latinGenres.mjs';
 import { collectProjectExport, downloadVerifiedMedia } from '../utils/projectExport.mjs';
-import { songSessionState, songStateSignature, mixStateSignature, authoritativeMaster } from '../utils/songSession.mjs';
+import { songSessionState, songStateSignature, mixStateSignature, authoritativeMaster, replacedSongSource } from '../utils/songSession.mjs';
 import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, artworkDirectionRequest, confirmProjectSave as confirmCloudProjectSave, currentRunLyrics } from '../utils/productionIntegrity.mjs';
 import { restoreProductionConfig, withProductionConfig, mergeProductionAssets } from '../utils/productionProjectConfig.mjs';
 import { generationFailureMessage } from '../utils/generationErrors.mjs';
@@ -3416,6 +3416,9 @@ export default function StudioOrchestratorV2({
 
   // Clear all outputs and generate fresh
   const clearAndGenerate = useCallback(() => {
+    setActivePerformance(null);
+    setRenderedMixSignature('');
+    currentSongSessionRef.current = { ...currentSongSessionRef.current, performance: null, renderedMixSignature: '' };
     outputsRef.current = { lyrics: null, audio: null, visual: null, video: null };
     mediaUrlsRef.current = { audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null };
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
@@ -3447,6 +3450,9 @@ export default function StudioOrchestratorV2({
     setShowRegenerateConfirm(false);
     setShowSaveConfirm(false);
     // After saving, clear outputs for fresh generation
+    setActivePerformance(null);
+    setRenderedMixSignature('');
+    currentSongSessionRef.current = { ...currentSongSessionRef.current, performance: null, renderedMixSignature: '' };
     outputsRef.current = { lyrics: null, audio: null, visual: null, video: null };
     mediaUrlsRef.current = { audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null };
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
@@ -3523,6 +3529,9 @@ export default function StudioOrchestratorV2({
       // If already saved, silently clear old outputs before generating new
       // NOTE: Do NOT clear DNA URLs — they are persistent user reference files
       if (hasContent && isSaved) {
+        setActivePerformance(null);
+        setRenderedMixSignature('');
+        currentSongSessionRef.current = { ...currentSongSessionRef.current, performance: null, renderedMixSignature: '' };
         outputsRef.current = { lyrics: null, audio: null, visual: null, video: null };
         mediaUrlsRef.current = { audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null };
         setOutputs({ lyrics: null, audio: null, visual: null, video: null });
@@ -4392,8 +4401,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         if (finalUrl) {
           lastAudioErrorRef.current = '';
           mediaDurabilityRef.current.audio = data.isDurable !== false;
-          setMediaUrls(prev => ({ ...prev, audio: finalUrl }));
-          mediaUrlsRef.current = { ...mediaUrlsRef.current, audio: finalUrl }; // Sync ref for pipeline reads
+          const replacement = replacedSongSource('audio', { audioUrl: finalUrl });
+          setActivePerformance(null);
+          setRenderedMixSignature('');
+          setFinalMixPreview(null);
+          currentSongSessionRef.current = { ...currentSongSessionRef.current, performance: null, renderedMixSignature: '' };
+          setMediaUrls(prev => ({ ...prev, ...replacement.media }));
+          mediaUrlsRef.current = { ...mediaUrlsRef.current, ...replacement.media };
           setGenerationProviders(prev => ({ ...prev, audio: data.source || data.provider || 'ai' }));
           
           // Ensure outputs.audio is set so the asset is included in the project save
@@ -4448,7 +4462,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               await confirmProjectSave(saveFunc, {
                 ...existingProject,
                 assets: [audioAsset, ...(existingProject.assets || [])],
-                mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, { audio: finalUrl }),
+                mediaUrls: { ...existingProject.mediaUrls, ...mediaUrlsRef.current },
                 updatedAt: new Date().toISOString()
               });
               setIsSaved(true);
@@ -4679,26 +4693,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       const resolvedAudioUrl = data.audioUrl || data.output;
       if (response.ok && resolvedAudioUrl) {
-        const performance = data.instrumentalUrl && data.mixedAudioUrl ? { id: data.performanceId || crypto.randomUUID(), vocalUrl: resolvedAudioUrl,
-          instrumentalUrl: data.instrumentalUrl, masterUrl: data.mixedAudioUrl } : null;
-        if (performance) {
-          setActivePerformance(performance);
-          currentSongSessionRef.current = { ...currentSongSessionRef.current, performance, renderedMixSignature: 'provider-original' };
-          setRenderedMixSignature('provider-original');
-        }
+        const replacement = replacedSongSource('vocals', data, crypto.randomUUID());
+        const { performance } = replacement;
+        setActivePerformance(performance);
+        setFinalMixPreview(null);
+        currentSongSessionRef.current = { ...currentSongSessionRef.current, performance, renderedMixSignature: replacement.renderedMixSignature };
+        setRenderedMixSignature(replacement.renderedMixSignature);
         mediaDurabilityRef.current.vocals = data.isDurable !== false;
         // A coherent song response contains all three views of one performance:
         // dry vocal, matched instrumental, and the provider master. Replace an
         // independently generated beat with the matched stem so later editing
         // cannot accidentally recombine unrelated music.
-        const vocalUpdate = {
-          vocals: resolvedAudioUrl,
-          lyricsVocal: resolvedAudioUrl,
-          ...(data.instrumentalUrl ? { audio: data.instrumentalUrl } : {}),
-          ...(data.mixedAudioUrl
-            ? { mixedAudio: data.mixedAudioUrl }
-            : (data.wasMixed ? { mixedAudio: resolvedAudioUrl } : {}))
-        };
+        const vocalUpdate = replacement.media;
         setMediaUrls(prev => ({ ...prev, ...vocalUpdate }));
         mediaUrlsRef.current = { ...mediaUrlsRef.current, ...vocalUpdate }; // Sync ref for pipeline reads
         setGenerationProviders(prev => ({ ...prev, vocals: data.provider || 'ai' }));
@@ -4764,7 +4770,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 { id: `${performance.id}-beat`, type: 'beat', title: 'Matching accompaniment', audioUrl: performance.instrumentalUrl, metadata: { role: 'beat', performanceId: performance.id } },
                 { id: `${performance.id}-master`, type: 'master', title: 'Original song master', audioUrl: performance.masterUrl, metadata: { role: 'master', performanceId: performance.id } },
               ] : []), ...(existingProject.assets || [])],
-              mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, vocalUpdate),
+              mediaUrls: { ...existingProject.mediaUrls, ...mediaUrlsRef.current },
               updatedAt: new Date().toISOString()
             });
             setIsSaved(true);
@@ -6613,6 +6619,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     if (slot === 'lyrics') {
       setMediaUrls(prev => ({ ...prev, vocals: null, lyricsVocal: null, mixedAudio: null }));
       mediaUrlsRef.current = { ...mediaUrlsRef.current, vocals: null, lyricsVocal: null, mixedAudio: null };
+    }
+    if (slot === 'audio' || slot === 'lyrics') {
+      setFinalMixPreview(null);
+      setActivePerformance(null);
+      setRenderedMixSignature('');
+      currentSongSessionRef.current = { ...currentSongSessionRef.current, performance: null, renderedMixSignature: '' };
+      setMediaUrls(prev => ({ ...prev, mixedAudio: null }));
+      mediaUrlsRef.current = { ...mediaUrlsRef.current, mixedAudio: null };
     }
     toast.success('Deleted');
   };

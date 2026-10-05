@@ -1,4 +1,6 @@
 const owns = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+export const isMasterAsset = asset => [asset?.type, asset?.metadata?.role]
+  .some(value => /^(master|mix)$/i.test(String(value || '').trim()));
 const timestamp = asset => {
   const value = asset.createdAt || asset.timestamp || asset.updatedAt;
   if (typeof value?.toMillis === 'function') return value.toMillis();
@@ -26,7 +28,7 @@ export function restoreProjectOutputs(project = {}) {
         put(media, 'vocals', asset.audioUrl); put(media, 'lyricsVocal', asset.audioUrl);
       }
     }
-    if (['master', 'mix'].includes(asset.type)) put(media, 'mixedAudio', asset.audioUrl);
+    if (isMasterAsset(asset)) put(media, 'mixedAudio', asset.audioUrl);
     if (['image', 'cover', 'visual'].includes(asset.type)) {
       put(media, 'image', asset.imageUrl || asset.url); put(outputs, 'visual', asset.content);
     }
