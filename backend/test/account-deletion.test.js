@@ -169,7 +169,8 @@ test('registers one authenticated DELETE endpoint', () => {
 test('the production server includes the complete deletion route before its 404 handler', () => {
   const server = fs.readFileSync(path.resolve(__dirname, '..', 'server.js'), 'utf8');
   const registration = server.indexOf('registerAccountDeletionRoute(app');
-  const api404 = server.indexOf("app.use('/api'");
+  // Authentication/ownership middleware also mounts at /api; locate the terminal handler.
+  const api404 = server.indexOf("app.use('/api', (req, res) => {");
 
   assert.ok(registration > -1);
   assert.ok(api404 > registration);
