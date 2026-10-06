@@ -46,6 +46,8 @@ import { studioCreationCounts } from '../utils/studioCreationCounts.mjs';
 import { createProjectSaveQueue, mergeGeneratedProject, applySavedProjectRevision, replaceUploadedMedia, hasUnpersistedMedia, requireDurableSaveResult, projectSyncSignature, cloudProjectSnapshot, prepareProjectConflictRebase } from '../utils/projectPersistence.mjs';
 import { shouldUseNativeIAP } from '../utils/nativePlatform';
 import { purchaseProduct, restorePurchases } from '../utils/storeKit';
+import AccountBoundary from './AccountBoundary';
+import { accountStorage } from '../utils/accountStorage.mjs';
 
 // Dev-only logger — no-ops in production builds (tree-shaken by Vite/terser)
 const __DEV__ = import.meta.env.DEV;
@@ -403,13 +405,14 @@ const pruneLargeProjectData = (projects) => {
   });
 };
 
-function StudioView({ onBack, startWizard, startOrchestrator, startTour, initialPlan, initialTab }) {
+function StudioView({ onBack, startWizard, startOrchestrator, startTour, initialPlan, initialTab, accountId }) {
+  const localStorage = useMemo(() => accountStorage(window.localStorage, accountId, () => auth?.currentUser?.uid), [accountId]);
   // ---------------------------------------------------------------------------
   // (key) CORE STATE & REFS (Hoisted for TDZ safety)
   // ---------------------------------------------------------------------------
   
   // --- AUTH & USER ---
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => auth?.currentUser || null);
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('studio_user_id'));
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('studio_guest_mode') === 'true');
   const [authChecking, setAuthChecking] = useState(true);
@@ -441,7 +444,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [authPassword, setAuthPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [userCredits, setUserCredits] = useState(3);
-  const [userPlan, setUserPlan] = useState(() => localStorage.getItem('studio_user_plan') || 'Free');
+  const [userPlan, setUserPlan] = useState('Free');
   const [freeGenerationsUsed, setFreeGenerationsUsed] = useState(() => {
     const uid = localStorage.getItem('studio_user_id') || 'guest';
     const val = parseInt(localStorage.getItem(`studio_free_gens_${uid}`) || '0');
@@ -2776,8 +2779,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
   // --- FIREBASE AUTH LISTENER ---
   useEffect(() => {
+    let active = true;
+    const isCurrentAccount = () => active && (auth?.currentUser?.uid || null) === accountId;
     if (auth) {
       const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+        if ((currentUser?.uid || null) !== accountId) return;
         if (currentUser) {
           // Lock password-based accounts that haven't verified their email.
           // Google/Social accounts are usually pre-verified by the provider.
@@ -2787,6 +2793,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
             // in another tab/device after this session was established.
             try {
               await currentUser.reload();
+              if (!isCurrentAccount()) return;
             } catch (reloadErr) {
               devWarn('Could not reload user before verification check:', reloadErr);
             }
@@ -2815,6 +2822,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           let token = null;
           try {
             token = await currentUser.getIdToken();
+            if (!isCurrentAccount()) return;
             setUserToken(token);
           } catch (tokenErr) {
             devWarn("Error getting user token:", tokenErr);
@@ -2834,6 +2842,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
               clearTimeout(adminTimeout);
               if (adminRes.ok) {
                 const adminData = await adminRes.json();
+                if (!isCurrentAccount()) return;
                 adminStatus = adminData.isAdmin === true;
                 devLog('[Auth] Admin status response:', adminData);
               } else {
@@ -2845,6 +2854,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           } else {
             devWarn('[Auth] No token available -skipping admin check');
           }
+          if (!isCurrentAccount()) return;
           setIsAdmin(adminStatus);
           if (adminStatus) {
             devLog('Admin access granted:', currentUser.email);
@@ -2858,6 +2868,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
             try {
               const userRef = doc(db, 'users', currentUser.uid);
               const userDoc = await getDoc(userRef);
+              if (!isCurrentAccount()) return;
               if (userDoc.exists()) {
                 const userData = userDoc.data();
                 const credits = userData.credits || 0;
@@ -2920,12 +2931,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           // This ensures projects load even if Firestore client getDoc fails.
           try {
             let cloudProjects = await loadProjectsFromCloud(currentUser.uid, currentUser, token);
+            if (!isCurrentAccount()) return;
 
             // If cloud load errored (null) or empty with no token, retry once after delay
             if ((!cloudProjects || cloudProjects.length === 0) && !token) {
               devLog('[Auth] No projects and no token -retrying after 2s...');
               await new Promise(r => setTimeout(r, 2000));
+              if (!isCurrentAccount()) return;
               cloudProjects = await loadProjectsFromCloud(currentUser.uid, currentUser);
+              if (!isCurrentAccount()) return;
             }
 
             // If cloud errored (null), fall back to local storage
@@ -3046,7 +3060,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           }
         }
       });
-      return () => unsubscribe();
+      return () => { active = false; unsubscribe(); };
     } else {
       // No auth service - mark auth check as complete
       setAuthChecking(false);
@@ -15097,13 +15111,19 @@ ABSOLUTE RULES (violating any = failure):
                   style={{ width: '100%', padding: '8px', background: 'none', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.8rem' }}
                   onClick={async () => {
                     const toastId = toast.loading('Restoring purchases...');
-                    const txns = await restorePurchases();
-                    toast.dismiss(toastId);
-                    if (txns.length > 0) {
-                      toast.success(`Restored ${txns.length} purchase(s)`);
-                      if (user) fetchUserCredits(user.uid);
-                    } else {
-                      toast('No previous purchases found');
+                    try {
+                      const txns = await restorePurchases(user?.uid);
+                      if (auth.currentUser?.uid !== user?.uid) return;
+                      if (txns.length > 0) {
+                        toast.success('Store purchases found. Checking your account entitlements.');
+                        if (user) fetchUserCredits(user.uid);
+                      } else {
+                        toast('No previous purchases found for this store account');
+                      }
+                    } catch (error) {
+                      toast.error(error.message || 'Could not restore purchases');
+                    } finally {
+                      toast.dismiss(toastId);
                     }
                   }}
                 >
@@ -17557,4 +17577,6 @@ ABSOLUTE RULES (violating any = failure):
   );
 }
 
-export default StudioView;
+export default function AccountScopedStudio(props) {
+  return <AccountBoundary>{uid => <StudioView key={uid || 'guest'} {...props} accountId={uid} />}</AccountBoundary>;
+}

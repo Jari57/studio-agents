@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { replacedSongSource } from '../src/utils/songSession.mjs';
 
 const orchestrator = readFileSync(new URL('../src/components/StudioOrchestratorV2.jsx', import.meta.url), 'utf8');
 const studio = readFileSync(new URL('../src/components/StudioView.jsx', import.meta.url), 'utf8');
@@ -8,8 +9,10 @@ const studio = readFileSync(new URL('../src/components/StudioView.jsx', import.m
 test('full studio-voice songs render one performance instead of unrelated beat and vocal jobs', () => {
   assert.match(orchestrator, /const coherentSongRun = requestedScope\.finalMix/);
   assert.match(orchestrator, /currentSelectedAgents\.audio && !coherentSongRun/);
-  assert.match(orchestrator, /data\.instrumentalUrl \? \{ audio: data\.instrumentalUrl \}/);
-  assert.match(orchestrator, /data\.mixedAudioUrl/);
+  assert.match(orchestrator, /replacedSongSource\('vocals', data/);
+  const replacement = replacedSongSource('vocals', { audioUrl: 'vocal', instrumentalUrl: 'matched-beat', mixedAudioUrl: 'song' }, 'take');
+  assert.equal(replacement.media.audio, 'matched-beat');
+  assert.equal(replacement.media.mixedAudio, 'song');
 });
 
 test('the frontend never selects a speech provider for personal singing', () => {

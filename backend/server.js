@@ -276,19 +276,10 @@ function getFirebaseApp() {
 // ADMIN ACCOUNTS CONFIGURATION
 // =============================================================================
 // Prefer ADMIN_EMAILS env var (comma-separated) set in Railway/production.
-// Falls back to the hardcoded list so local dev and existing deployments keep working.
-const _hardcodedAdmins = [
-  'jari@studioagents.ai',
-  'jari57@gmail.com',
-  'demo@studioagents.ai',
-  'test@studioagents.ai',
-  'support@studioagents.ai',
-  'dev@studioagents.ai',
-  'info@studioagentsai.com'
-];
-const ADMIN_EMAILS = process.env.ADMIN_EMAILS
-  ? process.env.ADMIN_EMAILS.split(',').map(e => e.trim()).filter(Boolean)
-  : _hardcodedAdmins;
+// No implicit administrators. Configure the verified creator identity in the
+// server environment before deployment; demo/support addresses grant nothing.
+const { configuredAdminEmails, isVerifiedAdmin } = require('./services/adminIdentity');
+const ADMIN_EMAILS = configuredAdminEmails(process.env.ADMIN_EMAILS);
 
 // Demo accounts with pre-loaded credits for testing
 const DEMO_ACCOUNTS = {
@@ -590,6 +581,8 @@ const productionJobs = createProductionJobService({
 
 // Firebase Auth Middleware - Verifies JWT tokens
 const verifyFirebaseToken = async (req, res, next) => {
+  if (req.studioAuthChecked) return next();
+  req.studioAuthChecked = true;
   if (!firebaseInitialized) {
     // Firebase not configured - allow request but mark as unauthenticated
     req.user = null;
@@ -608,6 +601,7 @@ const verifyFirebaseToken = async (req, res, next) => {
     req.user = {
       uid: decodedToken.uid,
       email: decodedToken.email,
+      emailVerified: decodedToken.email_verified === true,
     };
     logger.debug('🔐 Authenticated user:', { uid: decodedToken.uid });
   } catch (error) {
@@ -678,7 +672,7 @@ const requireAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
-  if (!req.user.email || !ADMIN_EMAILS.includes(req.user.email.toLowerCase())) {
+  if (!isVerifiedAdmin(req.user, ADMIN_EMAILS)) {
     logger.warn(`🚫 Admin access denied for: ${req.user.email}`);
     return res.status(403).json({ error: 'Admin access required' });
   }
@@ -689,7 +683,7 @@ const requireAdmin = (req, res, next) => {
 
 // Check if user is admin (doesn't block, just sets flag)
 const _checkAdmin = (req, res, next) => {
-  if (req.user && req.user.email && ADMIN_EMAILS.includes(req.user.email.toLowerCase())) {
+  if (isVerifiedAdmin(req.user, ADMIN_EMAILS)) {
     req.user.isAdmin = true;
   }
   next();
@@ -701,6 +695,19 @@ const _checkAdmin = (req, res, next) => {
 // =============================================================================
 
 // Factory function to create credit check middleware with specific cost
+const { assertPrivateMediaOwnership } = require('./services/privateMediaBoundary');
+// Run before paid route middleware so forbidden cross-account media is never
+// downloaded, processed or charged. Administrators get no ownership bypass.
+app.use('/api', verifyFirebaseToken, (req, res, next) => {
+  try {
+    const bucketNames = ['studioagents-app.firebasestorage.app', 'studioagents-app.appspot.com', getStorageBucket()?.name].filter(Boolean);
+    assertPrivateMediaOwnership(req.body, req.user?.uid, bucketNames);
+    assertPrivateMediaOwnership(req.query, req.user?.uid, bucketNames);
+    next();
+  } catch (error) {
+    res.status(error.status || 403).json({ error: error.message });
+  }
+});
 const { createCreditReservationService } = require('./services/creditReservation');
 const {
   checkCreditsFor,
@@ -715,7 +722,7 @@ const {
   getCreditCost,
   shouldSkip: (req, featureType) => {
     if (!req.user) return 'anonymous-free-limit';
-    if (ADMIN_EMAILS.includes((req.user.email || '').toLowerCase())) return 'admin';
+    if (isVerifiedAdmin(req.user, ADMIN_EMAILS)) return 'admin';
     if (featureType === 'text' && req.body?.isBrainPhase === true) return 'brain-phase';
     return false;
   },
@@ -2343,7 +2350,7 @@ app.get('/api/admin/status', verifyFirebaseToken, (req, res) => {
     return res.json({ isAdmin: false, authenticated: false });
   }
   
-  const isAdmin = ADMIN_EMAILS.includes(req.user.email?.toLowerCase());
+  const isAdmin = isVerifiedAdmin(req.user, ADMIN_EMAILS);
   const isDemoAccount = DEMO_ACCOUNTS[req.user.email?.toLowerCase()];
   
   res.json({ 
@@ -3174,7 +3181,7 @@ app.delete('/api/user/generations/:id', verifyFirebaseToken, async (req, res) =>
 
 // GET /api/user/admin-status - Check if authenticated user is an admin (server-side verification)
 app.get('/api/user/admin-status', verifyFirebaseToken, requireAuth, (req, res) => {
-  const isAdmin = ADMIN_EMAILS.includes(req.user.email?.toLowerCase());
+  const isAdmin = isVerifiedAdmin(req.user, ADMIN_EMAILS);
   res.json({ isAdmin });
 });
 
@@ -3351,7 +3358,7 @@ app.get('/api/user/credits', verifyFirebaseToken, async (req, res) => {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  if (ADMIN_EMAILS.includes((req.user.email || '').toLowerCase())) {
+  if (isVerifiedAdmin(req.user, ADMIN_EMAILS)) {
     return res.json({
       credits: null,
       unlimited: true,

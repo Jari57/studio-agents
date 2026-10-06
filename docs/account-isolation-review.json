@@ -1,0 +1,42 @@
+{
+  "score": 3,
+  "summary": "Source-level review only; not production security certification. Browser identity boundaries, private-media request checks and verified administrator configuration have been repaired in the pending release. Existing owner-scoped Firestore/Storage rules were inspected, not deployed or emulator-tested in this pass. Live cross-account tests and the remaining findings below are release gates.",
+  "findings": [
+    {
+      "check": "Authority Source",
+      "severity": "major",
+      "issue": "Previous hardcoded admin fallback included creator and demo/support addresses and did not require verified email. Fixed in pending code.",
+      "recommendation": "Before deploying, confirm the server-only ADMIN_EMAILS configuration contains only intended verified administrator identities. No personal email belongs in frontend code. Check existing server-owned entitlements for historically elevated demo accounts."
+    },
+    {
+      "check": "Account isolation",
+      "severity": "critical",
+      "issue": "Previous shared browser keys, stale project state and token refresh could cross login boundaries. Fixed in pending code with versioned account storage, an auth-gated keyed studio and identity-bound orchestrator requests.",
+      "recommendation": "Run two disposable accounts through sign-in, sign-out, account switch and interrupted generation in separate tabs and on an iPhone. Legacy local keys are not automatically migrated; recover any unsynced legacy work only after ownership is established."
+    },
+    {
+      "check": "Private media",
+      "severity": "major",
+      "issue": "PWA caching previously included private media. New workers cache public app assets only and replace old caches. API request checks now reject other users' known private Studio storage paths, but previously issued bearer download links remain a separate exposure surface.",
+      "recommendation": "Verify deployed workers and Storage rules. Audit existing share/download links; plan token revocation or authenticated delivery without breaking legitimate media playback. Do not claim that a copied legacy download token has been revoked by this patch."
+    },
+    {
+      "check": "Authority Source",
+      "severity": "moderate",
+      "issue": "Investor-request rules match email without requiring a verified email; authenticated create permits arbitrary fields.",
+      "recommendation": "Use authenticated UID ownership, verified email where needed, bounded fields and migration-aware rules tests before deployment."
+    },
+    {
+      "check": "Type Safety and Resource Exhaustion",
+      "severity": "minor",
+      "issue": "Owner-scoped profile/project/voice writes lack complete field type and size validation; temporary Storage read permission depends on write-only request.resource.size.",
+      "recommendation": "Validate create and update symmetrically and split Storage read/delete from upload size checks; confirm the target database and existing payload contracts before changing deployed rules."
+    },
+    {
+      "check": "Entitlements",
+      "severity": "major",
+      "issue": "Restore Purchases previously used the last SDK identity and treated failure as no purchases. Fixed in pending code; provider-side receipt-transfer policy and webhook ownership still need a live configuration audit.",
+      "recommendation": "Test two distinct app accounts with sandbox purchases. Configure and verify intended RevenueCat transfer behavior and server-only entitlement grants."
+    }
+  ]
+}

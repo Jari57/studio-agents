@@ -3,6 +3,8 @@ import { deliveryReadiness } from '../utils/deliveryReadiness.mjs';
 
 export default function StudioOutputActions({ outputs = {}, mediaUrls = {}, selectedAgents = {}, includeVocals = false, isMobile, onExport, onStems, onSave }) {
   const { selected, completed: ready } = deliveryReadiness(outputs, mediaUrls, selectedAgents, includeVocals);
+  const hasContent = Object.values(outputs).some(Boolean) || Object.values(mediaUrls).some(Boolean);
+  const hasAudio = Boolean(mediaUrls.audio || mediaUrls.vocals || mediaUrls.lyricsVocal || mediaUrls.mixedAudio);
   const buttonStyle = {
     minWidth: 0, minHeight: 48, padding: isMobile ? '10px 6px' : '12px 18px',
     borderRadius: 12, border: '1px solid var(--studio-border, #d8d5c9)',
@@ -25,13 +27,13 @@ export default function StudioOutputActions({ outputs = {}, mediaUrls = {}, sele
         {ready}/{selected.length} selected outputs ready · {new Set(Object.values(mediaUrls).filter(Boolean)).size} media files · Listen before release
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: isMobile ? 8 : 12, minWidth: 0 }}>
-        <button aria-label="Export All (.zip)" onClick={onExport} style={buttonStyle}>
+        <button aria-label="Export All (.zip)" onClick={onExport} disabled={!hasContent} title={hasContent ? 'Download generated outputs' : 'Create or load an output first'} style={buttonStyle}>
           <Download size={16} aria-hidden="true" /><span>Export All (.zip)</span>
         </button>
-        <button aria-label="Stems Pack (WAV)" onClick={onStems} style={{ ...buttonStyle, background: 'var(--studio-surface-alt, #e4e8dc)', color: 'var(--studio-sage, #566954)' }} title="Download audio stems as WAV files">
+        <button aria-label="Stems Pack (WAV)" onClick={onStems} disabled={!hasAudio} style={{ ...buttonStyle, background: 'var(--studio-surface-alt, #e4e8dc)', color: 'var(--studio-sage, #566954)' }} title={hasAudio ? 'Download existing audio tracks as WAV files; does not separate new stems' : 'Create or load an audio track first'}>
           <Download size={16} aria-hidden="true" /><span>Stems Pack (WAV)</span>
         </button>
-        <button aria-label="Save to Project" onClick={onSave} style={{ ...buttonStyle, background: 'var(--studio-accent, #a34229)', color: 'var(--studio-on-accent, #fffaf0)', borderColor: 'var(--studio-accent, #a34229)', fontWeight: 700 }}>
+        <button aria-label="Save to Project" onClick={onSave} disabled={!hasContent} title={hasContent ? 'Save these outputs to your project' : 'Create or load an output first'} style={{ ...buttonStyle, background: 'var(--studio-accent, #a34229)', color: 'var(--studio-on-accent, #fffaf0)', borderColor: 'var(--studio-accent, #a34229)', fontWeight: 700 }}>
           <FolderPlus size={18} aria-hidden="true" /><span>Save to Project</span>
         </button>
       </div>

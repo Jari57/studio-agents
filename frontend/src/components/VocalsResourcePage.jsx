@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import {
-  ArrowLeft, Mic, Mic2, Upload, Volume2, Headphones,
-  Zap, Shield, Sparkles, Target, ChevronRight, CheckCircle,
-  Layers, Brain, Globe, Music, Play, Star, HelpCircle,
-  Lightbulb, Eye, RefreshCw, Lock, Award, TrendingUp,
-  Settings, Sliders, Radio, Wand2, Users, Heart, Waves
+  ArrowLeft, Mic, Mic2, Upload, Headphones,
+  Zap, Sparkles, ChevronRight, CheckCircle,
+  Layers, Brain, Music, HelpCircle,
+  Lightbulb, Eye, TrendingUp,
+  Sliders, Radio, Wand2, Users, Heart, Waves
 } from 'lucide-react';
 
 // ============================================================
@@ -99,7 +99,7 @@ const VOICE_CLONING_STEPS = [
   {
     step: 1,
     title: 'Record Your Voice Sample',
-    description: 'Record a clear clip of at least 15 seconds of your natural singing, speaking, or rapping voice. Minimal background noise, consistent volume. A longer, cleaner sample produces a better sung clone.',
+    description: 'Record a clear clip of at least 15 seconds with minimal background noise and consistent volume. Speech voice activation and personal singing use different routes; an activated speech voice does not guarantee singing support.',
     icon: Mic,
     tip: 'Speak naturally — don\'t perform. The AI captures your vocal timbre, not your performance style.'
   },
@@ -133,7 +133,7 @@ const EMOTIONAL_TAGS = [
   { tag: '[Breathy]', description: 'Intimate, close-mic feel for R&B, lo-fi, and atmospheric tracks', color: PINK },
   { tag: '[Operatic]', description: 'Dramatic, powerful vocals with classical influence', color: ACCENT },
   { tag: '[Ad-lib]', description: 'Background flair — ad-libs, shouts, harmonics between verses', color: EMERALD },
-  { tag: '[Harmony]', description: 'Generates backing harmony vocals to layer with lead', color: INDIGO },
+  { tag: '[Harmony]', description: 'Requests a harmony texture; it does not create a separate harmony stem automatically', color: INDIGO },
   { tag: '[Whispering]', description: 'Ultra-soft delivery for ASMR, intros, and atmospheric moments', color: 'var(--studio-muted)' },
   { tag: '[Electronic]', description: 'Robotic, processed sound — Daft Punk, vocoder, autotune effects', color: CYAN },
   { tag: '[Grit]', description: 'Raw, unpolished texture for punk, grunge, and underground hip-hop', color: ORANGE }
@@ -148,12 +148,12 @@ const VOICE_SETTINGS_TABLE = [
 
 const PROVIDER_CHAIN = [
   {
-    name: 'Suno API',
+    name: 'MiniMax + stem separation',
     priority: 1,
     color: PINK,
-    description: 'Optional provider for musical singing when a working Suno integration is configured. Availability is checked at runtime; Studio Agents must not imply this route is available when the provider rejects a request.',
-    bestFor: 'Musical singing when configured and healthy',
-    model: 'Provider-selected model',
+    description: 'Studio singing and rap generate one musical performance, then separate its vocal and matching accompaniment. Keep those stems together for a coherent mix. If generation or separation fails, the musical route reports an error instead of substituting speech.',
+    bestFor: 'Studio singing and rap with matched stems',
+    model: 'MiniMax Music 2.6 + Demucs',
     icon: Music
   },
   {
@@ -321,7 +321,7 @@ export default function VocalsResourcePage({ onBack }) {
             { label: 'Voice Styles', value: '20+' },
             { label: 'Rap Styles', value: '8' },
             { label: 'Languages', value: '29+' },
-            { label: 'Output Quality', value: '192kbps' }
+            { label: 'Output Quality', value: 'Preview first' }
           ].map(stat => (
             <div key={stat.label} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '1.8rem', fontWeight: '800', color: ACCENT }}>{stat.value}</div>
@@ -346,10 +346,10 @@ export default function VocalsResourcePage({ onBack }) {
             fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: '800',
             fontFamily: 'Georgia, serif', marginBottom: '12px'
           }}>
-            Every Voice, Every Style
+            Speech Voice Preset Reference
           </h2>
           <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
-            Hand-curated ElevenLabs voices mapped by style, delivery, and genre. Each voice is tuned with custom stability, similarity, and style parameters.
+            These legacy ElevenLabs presets describe speech voices. Studio singing and rap use musical generation instead, so these named voices and tuning values do not determine a musical performance.
           </p>
         </div>
 
@@ -465,7 +465,7 @@ export default function VocalsResourcePage({ onBack }) {
               borderRadius: '100px', padding: '6px 16px', marginBottom: '16px',
               fontSize: '0.8rem', color: PINK, fontWeight: '700', letterSpacing: '0.1em'
             }}>
-              <Heart size={14} /> SUNO-STYLE TAGS
+              <Heart size={14} /> PERFORMANCE DIRECTION
             </div>
             <h2 style={{
               fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: '800',
@@ -530,7 +530,7 @@ export default function VocalsResourcePage({ onBack }) {
               <span style={{ color: ORANGE }}> [Raspy]</span> and I wear mine like armor
             </code>
             <p style={{ fontSize: '0.85rem', color: 'var(--studio-muted)', marginTop: '12px', marginBottom: 0 }}>
-              → Generates a soulful lead vocal with raw texture, background ad-libs, harmonic backing, and a gritty bridge delivery.
+              → Requests those qualities. Tag interpretation varies by provider; audition the result. Separate backing-vocal layers require separate assets in the mixer.
             </p>
           </div>
         </div>
@@ -632,7 +632,7 @@ export default function VocalsResourcePage({ onBack }) {
               Multi-Provider Voice Engine
             </h2>
             <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
-              Three AI providers in a priority chain ensure your vocals are always generated at the highest possible quality.
+              Different routes serve musical performances, speech, and personal voices. Availability depends on provider configuration. Audition every result before release; speech is not a substitute for singing.
             </p>
           </div>
 
@@ -664,7 +664,7 @@ export default function VocalsResourcePage({ onBack }) {
                     borderRadius: '100px', background: `color-mix(in srgb, ${provider.color} 8%, transparent)`, color: provider.color,
                     letterSpacing: '0.08em'
                   }}>
-                    PRIORITY {provider.priority}
+                    ROUTE {provider.priority}
                   </div>
                   <div style={{
                     width: '48px', height: '48px', borderRadius: '14px',
@@ -713,7 +713,7 @@ export default function VocalsResourcePage({ onBack }) {
             Per-Style Voice Parameters
           </h2>
           <p style={{ color: 'var(--studio-muted)', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto' }}>
-            Every voice style uses custom-tuned ElevenLabs parameters. These aren't defaults — they're the product of extensive testing for each use case.
+            Legacy speech-route tuning reference. These values do not apply to MiniMax singing or rap and do not guarantee the quality of an individual take.
           </p>
         </div>
 
@@ -948,7 +948,7 @@ export default function VocalsResourcePage({ onBack }) {
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
-              onClick={() => { window.location.hash = '#/studio/agents'; }}
+              onClick={() => { window.location.hash = '#/studio/vocal-arch'; }}
               style={{
                 padding: '14px 36px', borderRadius: '100px', border: 'none',
                 background: 'var(--studio-accent)',

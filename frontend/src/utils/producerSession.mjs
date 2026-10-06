@@ -1,6 +1,16 @@
 // Identifies the audio-affecting settings of a saved render. This is not an
 // authorization token; the server still validates every track and setting.
-import { restoreProjectOutputs } from './projectRestore.mjs';
+import { restoreProjectOutputs, isMasterAsset, newestProjectAssets } from './projectRestore.mjs';
+export { isMasterAsset } from './projectRestore.mjs';
+
+export function producerSavedMixes(project = {}) {
+  const seen = new Set();
+  return newestProjectAssets(project.assets).filter(asset => {
+    if (!asset.audioUrl || !isMasterAsset(asset) || seen.has(asset.audioUrl)) return false;
+    seen.add(asset.audioUrl);
+    return true;
+  }).map(asset => ({ ...asset, id: String(asset.id || asset.audioUrl) }));
+}
 export function producerRenderSignature(session = {}) {
   const fields = ['id', 'url', 'role', 'volume', 'pan', 'offset', 'trimStart', 'trimEnd', 'fadeIn', 'fadeOut', 'muted', 'solo'];
   return JSON.stringify({
@@ -29,7 +39,7 @@ export function producerAudioLibrary(project, projects = [], search = '') {
 export function inferProducerRole(asset) {
   // A completed mix may mention vocals in its project/title but is not a dry
   // vocal stem. Keep it out of the vocal sidechain unless explicitly reassigned.
-  if (/^(master|mix)$/i.test(asset?.type || '')) return 'instrument';
+  if (isMasterAsset(asset)) return 'instrument';
   if (['beat', 'instrument', 'vocal', 'harmony', 'adlib', 'fx'].includes(asset?.metadata?.role)) return asset.metadata.role;
   const text = `${asset?.metadata?.role || ''} ${asset?.type || ''} ${asset?.agent || ''} ${asset?.title || ''}`.toLowerCase();
   if (/harmon(?:y|ies)/.test(text)) return 'harmony';
@@ -77,6 +87,6 @@ export function initialProducerSession(project = {}, previous = {}) {
   add(beatUrl, 'beat'); add(vocalUrl, 'vocal');
   return { projectId: project.id, tracks, bpm: Number(project.bpm || project.settings?.bpm) || null,
     key: project.key || project.settings?.key || '',
-    lyrics: outputs.lyrics || '',
+    lyricsDraft: outputs.lyrics || '',
     autoDuck: true, lufsTarget: -14 };
 }

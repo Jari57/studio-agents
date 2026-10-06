@@ -1,7 +1,7 @@
 // Service Worker for Studio Agents PWA
 // CACHE_NAME is replaced at build time by vite.config.js (swVersionPlugin).
 // In dev the literal placeholder string is used (no caching impact since SW only activates in production).
-const CACHE_NAME = '__BUILD_VERSION__';
+const CACHE_NAME = 'studio-public-v2-__BUILD_VERSION__';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -47,6 +47,14 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests, API calls, and non-HTTP(S) protocols
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  // Only public app-shell resources belong in the shared browser cache.
+  // Never retain signed media URLs, uploads, API results or other origins.
+  const publicAsset = ['/', '/index.html', '/manifest.json'].includes(url.pathname)
+    || /^\/assets\/[^/]+\.(?:js|css|woff2?)$/.test(url.pathname)
+    || /^\/icons\/[^/]+\.(?:png|svg|ico)$/.test(url.pathname);
+  if (url.origin !== self.location.origin || url.search || !publicAsset
+      || event.request.headers.has('Authorization')) return;
   if (event.request.url.includes('/api/')) return;
   if (!event.request.url.startsWith('http')) return; // Skip chrome-extension://, etc.
   
@@ -60,11 +68,9 @@ self.addEventListener('fetch', (event) => {
     fetch(event.request)
       .then((response) => {
         // Clone and cache successful responses
-        if (response.status === 200) {
+        if (response.status === 200 && !/private|no-store/i.test(response.headers.get('Cache-Control') || '')) {
           const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
+          event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone)));
         }
         return response;
       })
@@ -76,7 +82,7 @@ self.addEventListener('fetch', (event) => {
           }
           // Return offline page for navigation requests
           if (event.request.mode === 'navigate') {
-            return caches.match('/');
+            return caches.match('/').then(shell => shell || new Response('You are offline. Reconnect to open Studio.', { status: 503 }));
           }
           return new Response('Offline', { status: 503 });
         });

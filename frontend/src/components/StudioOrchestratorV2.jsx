@@ -1,5 +1,5 @@
 /* eslint-disable no-use-before-define */
-import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { 
   Sparkles, Mic, MicOff, FileText, Video as VideoIcon, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
@@ -25,7 +25,8 @@ import { productionJobMatchesProject } from '../utils/productionRecovery.mjs';
 import { quickProductionPlan, quickBriefPreferences, songLyricStructure, musicalStageLabel, songDirectionBrief, recoveryOfferVisible, quickSongJourney } from '../utils/quickSongFlow.mjs';
 import { LATIN_SONG_GENRES, LATIN_GENRE_PRESETS, detectLatinGenre } from '../utils/latinGenres.mjs';
 import { collectProjectExport, downloadVerifiedMedia } from '../utils/projectExport.mjs';
-import { songSessionState, songStateSignature, mixStateSignature, authoritativeMaster } from '../utils/songSession.mjs';
+import { songSessionState, songStateSignature, mixStateSignature, authoritativeMaster, replacedSongSource } from '../utils/songSession.mjs';
+import { accountStorage, accountRequestHeaders } from '../utils/accountStorage.mjs';
 import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, artworkDirectionRequest, confirmProjectSave as confirmCloudProjectSave, currentRunLyrics } from '../utils/productionIntegrity.mjs';
 import { restoreProductionConfig, withProductionConfig, mergeProductionAssets } from '../utils/productionProjectConfig.mjs';
 import { generationFailureMessage } from '../utils/generationErrors.mjs';
@@ -2240,13 +2241,14 @@ export default function StudioOrchestratorV2({
   onCreateProject,
   onSaveToProject,
   onGoToHub = null,
-  authToken = null,
   existingProject = null,
   projects = [],
   onSwitchProject = null,
   userPlan = 'Free',
   creatorMode = 'artist'
 }) {
+  const [storageOwner] = useState(() => auth?.currentUser?.uid || null);
+  const localStorage = useMemo(() => accountStorage(window.localStorage, storageOwner, () => auth?.currentUser?.uid), [storageOwner]);
   const currentMode = getCreatorMode(creatorMode);
   // 📱 Device responsiveness
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
@@ -2470,6 +2472,7 @@ export default function StudioOrchestratorV2({
   // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
   const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
   const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
+  const hasMixSources = Boolean(safeMediaUrls.audio && (safeMediaUrls.vocals || safeMediaUrls.lyricsVocal));
 
   // ESC key handler — closes topmost modal (highest z-index first)
   useEffect(() => {
@@ -3177,24 +3180,10 @@ export default function StudioOrchestratorV2({
     }
   };
 
-  // Get auth headers - wrapped in useCallback to avoid stale closure on authToken prop
+  // Never borrow a newly signed-in user's credentials for an older session.
   const getHeaders = useCallback(async () => {
-    const headers = { 'Content-Type': 'application/json' };
-    try {
-      const firebaseUser = auth?.currentUser;
-      if (firebaseUser) {
-        const freshToken = await firebaseUser.getIdToken();
-        headers['Authorization'] = `Bearer ${freshToken}`;
-      } else if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-    } catch {
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-    }
-    return headers;
-  }, [authToken]);
+    return accountRequestHeaders(auth, storageOwner);
+  }, [storageOwner]);
 
   const getPaidStepHeaders = useCallback(async (stepId) => {
     const headers = await getHeaders();
@@ -3416,6 +3405,9 @@ export default function StudioOrchestratorV2({
 
   // Clear all outputs and generate fresh
   const clearAndGenerate = useCallback(() => {
+    setActivePerformance(null);
+    setRenderedMixSignature('');
+    currentSongSessionRef.current = { ...currentSongSessionRef.current, performance: null, renderedMixSignature: '' };
     outputsRef.current = { lyrics: null, audio: null, visual: null, video: null };
     mediaUrlsRef.current = { audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null };
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
@@ -3447,6 +3439,9 @@ export default function StudioOrchestratorV2({
     setShowRegenerateConfirm(false);
     setShowSaveConfirm(false);
     // After saving, clear outputs for fresh generation
+    setActivePerformance(null);
+    setRenderedMixSignature('');
+    currentSongSessionRef.current = { ...currentSongSessionRef.current, performance: null, renderedMixSignature: '' };
     outputsRef.current = { lyrics: null, audio: null, visual: null, video: null };
     mediaUrlsRef.current = { audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null };
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
@@ -3523,6 +3518,9 @@ export default function StudioOrchestratorV2({
       // If already saved, silently clear old outputs before generating new
       // NOTE: Do NOT clear DNA URLs — they are persistent user reference files
       if (hasContent && isSaved) {
+        setActivePerformance(null);
+        setRenderedMixSignature('');
+        currentSongSessionRef.current = { ...currentSongSessionRef.current, performance: null, renderedMixSignature: '' };
         outputsRef.current = { lyrics: null, audio: null, visual: null, video: null };
         mediaUrlsRef.current = { audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null };
         setOutputs({ lyrics: null, audio: null, visual: null, video: null });
@@ -4392,8 +4390,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         if (finalUrl) {
           lastAudioErrorRef.current = '';
           mediaDurabilityRef.current.audio = data.isDurable !== false;
-          setMediaUrls(prev => ({ ...prev, audio: finalUrl }));
-          mediaUrlsRef.current = { ...mediaUrlsRef.current, audio: finalUrl }; // Sync ref for pipeline reads
+          const replacement = replacedSongSource('audio', { audioUrl: finalUrl });
+          setActivePerformance(null);
+          setRenderedMixSignature('');
+          setFinalMixPreview(null);
+          currentSongSessionRef.current = { ...currentSongSessionRef.current, performance: null, renderedMixSignature: '' };
+          setMediaUrls(prev => ({ ...prev, ...replacement.media }));
+          mediaUrlsRef.current = { ...mediaUrlsRef.current, ...replacement.media };
           setGenerationProviders(prev => ({ ...prev, audio: data.source || data.provider || 'ai' }));
           
           // Ensure outputs.audio is set so the asset is included in the project save
@@ -4448,7 +4451,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               await confirmProjectSave(saveFunc, {
                 ...existingProject,
                 assets: [audioAsset, ...(existingProject.assets || [])],
-                mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, { audio: finalUrl }),
+                mediaUrls: { ...existingProject.mediaUrls, ...mediaUrlsRef.current },
                 updatedAt: new Date().toISOString()
               });
               setIsSaved(true);
@@ -4679,26 +4682,18 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       const resolvedAudioUrl = data.audioUrl || data.output;
       if (response.ok && resolvedAudioUrl) {
-        const performance = data.instrumentalUrl && data.mixedAudioUrl ? { id: data.performanceId || crypto.randomUUID(), vocalUrl: resolvedAudioUrl,
-          instrumentalUrl: data.instrumentalUrl, masterUrl: data.mixedAudioUrl } : null;
-        if (performance) {
-          setActivePerformance(performance);
-          currentSongSessionRef.current = { ...currentSongSessionRef.current, performance, renderedMixSignature: 'provider-original' };
-          setRenderedMixSignature('provider-original');
-        }
+        const replacement = replacedSongSource('vocals', data, crypto.randomUUID());
+        const { performance } = replacement;
+        setActivePerformance(performance);
+        setFinalMixPreview(null);
+        currentSongSessionRef.current = { ...currentSongSessionRef.current, performance, renderedMixSignature: replacement.renderedMixSignature };
+        setRenderedMixSignature(replacement.renderedMixSignature);
         mediaDurabilityRef.current.vocals = data.isDurable !== false;
         // A coherent song response contains all three views of one performance:
         // dry vocal, matched instrumental, and the provider master. Replace an
         // independently generated beat with the matched stem so later editing
         // cannot accidentally recombine unrelated music.
-        const vocalUpdate = {
-          vocals: resolvedAudioUrl,
-          lyricsVocal: resolvedAudioUrl,
-          ...(data.instrumentalUrl ? { audio: data.instrumentalUrl } : {}),
-          ...(data.mixedAudioUrl
-            ? { mixedAudio: data.mixedAudioUrl }
-            : (data.wasMixed ? { mixedAudio: resolvedAudioUrl } : {}))
-        };
+        const vocalUpdate = replacement.media;
         setMediaUrls(prev => ({ ...prev, ...vocalUpdate }));
         mediaUrlsRef.current = { ...mediaUrlsRef.current, ...vocalUpdate }; // Sync ref for pipeline reads
         setGenerationProviders(prev => ({ ...prev, vocals: data.provider || 'ai' }));
@@ -4764,7 +4759,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 { id: `${performance.id}-beat`, type: 'beat', title: 'Matching accompaniment', audioUrl: performance.instrumentalUrl, metadata: { role: 'beat', performanceId: performance.id } },
                 { id: `${performance.id}-master`, type: 'master', title: 'Original song master', audioUrl: performance.masterUrl, metadata: { role: 'master', performanceId: performance.id } },
               ] : []), ...(existingProject.assets || [])],
-              mediaUrls: mergeCurrentMedia(existingProject.mediaUrls, vocalUpdate),
+              mediaUrls: { ...existingProject.mediaUrls, ...mediaUrlsRef.current },
               updatedAt: new Date().toISOString()
             });
             setIsSaved(true);
@@ -5125,7 +5120,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         toast.success('Artist image uploaded!', { id: loadingId });
 
         // Persist to Firestore
-        if (auth.currentUser?.uid && db) {
+        if (storageOwner && auth.currentUser?.uid === storageOwner && db) {
           try {
             const userRef = doc(db, 'users', auth.currentUser.uid);
             await updateDoc(userRef, {
@@ -5184,7 +5179,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         toast.success('Reference audio uploaded!', { id: loadingId });
 
         // Persist to Firestore
-        if (auth.currentUser?.uid && db) {
+        if (storageOwner && auth.currentUser?.uid === storageOwner && db) {
           try {
             const userRef = doc(db, 'users', auth.currentUser.uid);
             await updateDoc(userRef, {
@@ -5291,7 +5286,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             if (slot === 'lyrics') setLyricsDnaUrl(url);
 
             // Industrial Strength Persistence: Save to User Profile
-            if (auth.currentUser?.uid && db) {
+            if (storageOwner && auth.currentUser?.uid === storageOwner && db) {
               try {
                 const userRef = doc(db, 'users', auth.currentUser.uid);
                 await updateDoc(userRef, {
@@ -5334,7 +5329,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     setVisualDnaUrl(url);
     setVideoDnaUrl(url);
     toast.success('Image saved as Visual DNA reference!');
-    if (auth.currentUser?.uid && db) {
+    if (storageOwner && auth.currentUser?.uid === storageOwner && db) {
       try {
         const userRef = doc(db, 'users', auth.currentUser.uid);
         await updateDoc(userRef, {
@@ -5347,7 +5342,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         devWarn('[Orchestrator] Failed to persist visual DNA:', err);
       }
     }
-  }, [mediaUrls.image]);
+  }, [mediaUrls.image, storageOwner]);
 
   // Extract frame from video as fallback for image
   const extractFrameFromVideo = (videoUrl) => {
@@ -6613,6 +6608,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     if (slot === 'lyrics') {
       setMediaUrls(prev => ({ ...prev, vocals: null, lyricsVocal: null, mixedAudio: null }));
       mediaUrlsRef.current = { ...mediaUrlsRef.current, vocals: null, lyricsVocal: null, mixedAudio: null };
+    }
+    if (slot === 'audio' || slot === 'lyrics') {
+      setFinalMixPreview(null);
+      setActivePerformance(null);
+      setRenderedMixSignature('');
+      currentSongSessionRef.current = { ...currentSongSessionRef.current, performance: null, renderedMixSignature: '' };
+      setMediaUrls(prev => ({ ...prev, mixedAudio: null }));
+      mediaUrlsRef.current = { ...mediaUrlsRef.current, mixedAudio: null };
     }
     toast.success('Deleted');
   };
@@ -8799,9 +8802,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
               {/* Copy Lyrics Button */}
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(outputs.lyrics);
-                  toast.success('Lyrics copied!');
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(outputs.lyrics);
+                    toast.success('Lyrics copied!');
+                  } catch {
+                    toast.error('Clipboard access was blocked. Select the lyrics and copy them manually.');
+                  }
                 }}
                 style={{
                   padding: '10px 16px',
@@ -9100,7 +9107,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       onClick={() => {
                         setVisualDnaUrl(null);
                         setVideoDnaUrl(null);
-                        if (auth.currentUser?.uid && db) {
+                        if (storageOwner && auth.currentUser?.uid === storageOwner && db) {
                           updateDoc(doc(db, 'users', auth.currentUser.uid), { visualDnaUrl: null, videoDnaUrl: null }).catch(() => {});
                         }
                       }}
@@ -9452,7 +9459,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         if (slot.key === 'audio') { setAudioDnaUrl(null); clearFields.audioDnaUrl = null; }
                         if (slot.key === 'video') { setVideoDnaUrl(null); clearFields.videoDnaUrl = null; }
                         if (slot.key === 'lyrics') { setLyricsDnaUrl(null); clearFields.lyricsDnaUrl = null; }
-                        if (auth.currentUser?.uid && db && Object.keys(clearFields).length) {
+                        if (storageOwner && auth.currentUser?.uid === storageOwner && db && Object.keys(clearFields).length) {
                           updateDoc(doc(db, 'users', auth.currentUser.uid), clearFields).catch(() => toast.error('Style reference may reappear — check your connection', { duration: 3000 }));
                         }
                       }}
@@ -9686,7 +9693,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       if (slot.key === 'audio') { setAudioDnaUrl(null); clearFields.audioDnaUrl = null; }
                       if (slot.key === 'video') { setVideoDnaUrl(null); clearFields.videoDnaUrl = null; }
                       if (slot.key === 'lyrics') { setLyricsDnaUrl(null); clearFields.lyricsDnaUrl = null; }
-                      if (auth.currentUser?.uid && db && Object.keys(clearFields).length) {
+                      if (storageOwner && auth.currentUser?.uid === storageOwner && db && Object.keys(clearFields).length) {
                         updateDoc(doc(db, 'users', auth.currentUser.uid), clearFields).catch(() => toast.error('Style reference may reappear — check your connection', { duration: 3000 }));
                       }
                     }}
@@ -10000,9 +10007,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: '0 0 8px', fontSize: '1.1rem' }}>Delete Voice</h3>
+            <h3 style={{ margin: '0 0 8px', fontSize: '1.1rem' }}>Remove Saved Voice Entry</h3>
             <p style={{ margin: '0 0 20px', color: "var(--studio-muted, #646c64)", fontSize: '0.9rem' }}>
-              Remove <strong>{deleteVoiceTarget.name || 'this voice'}</strong> from your library? This cannot be undone.
+              Remove <strong>{deleteVoiceTarget.name || 'this voice'}</strong> from this saved library? This removes the entry only, not the uploaded file or a provider voice clone.
             </p>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
@@ -10018,13 +10025,14 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               <button
                 onClick={async () => {
                   try {
+                    if (!storageOwner || auth.currentUser?.uid !== storageOwner) throw new Error('Your account changed. Reopen your voice library.');
                     await deleteDoc(doc(db, 'users', auth.currentUser?.uid, 'voices', deleteVoiceTarget.id));
                     setSavedVoices(prev => prev.filter(v => v.id !== deleteVoiceTarget.id));
                     if (voiceSampleUrl === deleteVoiceTarget.url) {
                       setVoiceSampleUrl(null);
                       setVoiceStyle('rapper');
                     }
-                    toast.success('Voice deleted');
+                    toast.success('Saved voice entry removed. Uploaded files and provider clones are unchanged.');
                   } catch (err) {
                     console.error('[DeleteVoice] Error:', err);
                     toast.error('Failed to delete voice');
@@ -10907,25 +10915,26 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   setShowPreviewModal(false);
                   handleCreateFinalMix();
                 }}
-                disabled={creatingFinalMix || !Object.values(safeOutputs).some(Boolean)}
+                disabled={creatingFinalMix || !hasMixSources}
+                title={hasMixSources ? 'Render vocals and accompaniment together' : 'Generate or load both vocals and accompaniment first'}
                 style={{
                   flex: 1,
                   minWidth: '140px',
                   padding: '14px',
                   borderRadius: '12px',
-                  background: (creatingFinalMix || !Object.values(safeOutputs).some(Boolean)) 
+                  background: (creatingFinalMix || !hasMixSources)
                     ? "var(--studio-surface-alt, #e4e8dc)"
                     : "var(--studio-surface-alt, #e4e8dc)",
                   border: "1px solid var(--studio-border, #d8d5c9)",
                   color: "var(--studio-sage, #566954)",
                   fontWeight: '600',
-                  cursor: (creatingFinalMix || !Object.values(safeOutputs).some(Boolean)) ? 'not-allowed' : 'pointer',
+                  cursor: (creatingFinalMix || !hasMixSources) ? 'not-allowed' : 'pointer',
                   fontSize: '0.95rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  opacity: !Object.values(safeOutputs).some(Boolean) ? 0.5 : 1
+                  opacity: !hasMixSources ? 0.5 : 1
                 }}
               >
                 {creatingFinalMix ? (
