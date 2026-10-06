@@ -4,6 +4,8 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend .
+# Frontend privacy checks validate both deployed service-worker copies.
+COPY backend/public/sw.js /app/backend/public/sw.js
 RUN npm run build
 
 FROM node:22-alpine AS backend-builder
