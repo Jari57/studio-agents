@@ -2,6 +2,19 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { configuredAdminEmails, isVerifiedAdmin } = require('../services/adminIdentity');
 const { assertPrivateMediaOwnership } = require('../services/privateMediaBoundary');
+const fs = require('node:fs');
+const path = require('node:path');
+
+test('production ownership guard mounts after app initialization and parsing, before private routes', () => {
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const guard = server.indexOf("app.use('/api', verifyFirebaseToken");
+  const appInitialization = server.indexOf('const app = express()');
+  const bodyParser = server.indexOf("app.use(express.json(");
+  const firstPrivateRoute = server.indexOf("app.post('/api/v2/voices/samples'");
+  assert.ok(appInitialization >= 0 && guard > appInitialization, 'guard must not access app in its temporal dead zone');
+  assert.ok(bodyParser >= 0 && guard > bodyParser, 'guard must inspect parsed JSON media references');
+  assert.ok(firstPrivateRoute > guard, 'guard must run before paid/private route processing');
+});
 
 test('administrator exemption requires explicit configuration and a verified identity', () => {
   const emails = configuredAdminEmails(' Owner@Example.test, ');
