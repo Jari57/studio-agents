@@ -696,18 +696,6 @@ const _checkAdmin = (req, res, next) => {
 
 // Factory function to create credit check middleware with specific cost
 const { assertPrivateMediaOwnership } = require('./services/privateMediaBoundary');
-// Run before paid route middleware so forbidden cross-account media is never
-// downloaded, processed or charged. Administrators get no ownership bypass.
-app.use('/api', verifyFirebaseToken, (req, res, next) => {
-  try {
-    const bucketNames = ['studioagents-app.firebasestorage.app', 'studioagents-app.appspot.com', getStorageBucket()?.name].filter(Boolean);
-    assertPrivateMediaOwnership(req.body, req.user?.uid, bucketNames);
-    assertPrivateMediaOwnership(req.query, req.user?.uid, bucketNames);
-    next();
-  } catch (error) {
-    res.status(error.status || 403).json({ error: error.message });
-  }
-});
 const { createCreditReservationService } = require('./services/creditReservation');
 const {
   checkCreditsFor,
@@ -1147,6 +1135,19 @@ app.use((err, req, res, next) => {
 });
 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Parse request bodies before checking ownership; mount before any paid route.
+// Administrators get no ownership bypass.
+app.use('/api', verifyFirebaseToken, (req, res, next) => {
+  try {
+    const bucketNames = ['studioagents-app.firebasestorage.app', 'studioagents-app.appspot.com', getStorageBucket()?.name].filter(Boolean);
+    assertPrivateMediaOwnership(req.body, req.user?.uid, bucketNames);
+    assertPrivateMediaOwnership(req.query, req.user?.uid, bucketNames);
+    next();
+  } catch (error) {
+    res.status(error.status || 403).json({ error: error.message });
+  }
+});
 
 // Serve static frontend build copied into backend/public (Railway release)
 const staticDir = path.join(__dirname, 'public');
