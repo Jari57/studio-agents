@@ -8,6 +8,10 @@ import {
 import { UsersIcon, Twitter, Instagram, VideoIcon, ImageIcon } from 'lucide-react';
 import { BACKEND_URL } from '../../constants';
 import { BEAT_GENERATION_ENDPOINT, beatGenerationRequest } from '../../utils/beatGenerationRequest.mjs';
+import { auth } from '../../firebase';
+import { accountRequestHeaders } from '../../utils/accountStorage.mjs';
+import { restoreProjectOutputs } from '../../utils/projectRestore.mjs';
+import { vocalGenerationRequest, requestVocalGeneration, vocalTakeAsset, projectWithVocalTake } from '../../utils/vocalGeneration.mjs';
 
 const createRequestId = (prefix) => `${prefix}-${typeof crypto?.randomUUID === 'function'
   ? crypto.randomUUID()
@@ -69,6 +73,12 @@ export default function CanvasView({
   const [canvasCarouselIndex, setCanvasCarouselIndex] = useState(0);
   const [viewMode, setViewMode] = useState('carousel'); // 'carousel' | 'grid'
   const [regeneratingAssetId, setRegeneratingAssetId] = useState(null);
+  const regenerationInFlightRef = useRef(false);
+  const canvasGenerationEpochRef = useRef(0);
+  useEffect(() => {
+    canvasGenerationEpochRef.current += 1;
+    return () => { canvasGenerationEpochRef.current += 1; };
+  }, [selectedProject?.id]);
   const [editingAssetId, setEditingAssetId] = useState(null);
   const [editDraft, setEditDraft] = useState('');
   const carouselTouchStartX = useRef(null);
@@ -238,7 +248,9 @@ export default function CanvasView({
 
   // ── INLINE REGENERATION ──
   const handleRegenerateAsset = useCallback(async (asset) => {
-    if (regeneratingAssetId) return;
+    if (regenerationInFlightRef.current) return;
+    regenerationInFlightRef.current = true;
+    const generationEpoch = canvasGenerationEpochRef.current;
     const assetType = (asset.type || '').toLowerCase();
     setRegeneratingAssetId(asset.id);
 
@@ -365,48 +377,35 @@ export default function CanvasView({
         toast.success('New artwork version created!');
 
       } else if (assetType === 'vocal' || assetType === 'synthesis') {
-        // Vocal regeneration — needs lyrics context
         const lyricsAsset = (selectedProject.assets || []).find(a => ['text', 'lyrics', 'script'].includes((a.type || '').toLowerCase()));
-        const beatAsset = (selectedProject.assets || []).find(a => (a.type || '').toLowerCase() === 'audio');
-        
-        toast.loading('Generating new vocals...', { id: 'regen-vocal' });
-        const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
-          method: 'POST',
-          headers: { ...headers, 'Idempotency-Key': `${regenerationId}-vocal` },
-          body: JSON.stringify({
-            prompt: lyricsAsset?.content || asset.content || projectName,
-            voice: asset.settings?.voiceId || 'rapper-male-1',
-            style: asset.settings?.style || 'rapper',
-            genre: 'hip-hop',
-            duration: 30,
-            backingTrackUrl: beatAsset?.audioUrl || null,
-            quality: 'premium',
-            agentId: 'vocal-arch',
-          })
+        const { media } = restoreProjectOutputs(selectedProject);
+        const settings = { ...selectedProject.settings, ...selectedProject.songSession, ...asset.settings };
+        const request = vocalGenerationRequest({
+          ...settings, prompt: asset.content || lyricsAsset?.content || '',
+          style: settings.voiceStyle || settings.style || 'rapper',
+          voiceSource: settings.voiceSource,
+          duration: settings.duration || selectedProject.settings?.duration || 120,
+          backingTrackUrl: media.audio || null,
+          isPersonalVoice: settings.isPersonalVoice === true || settings.voiceSource === 'personal' || settings.style === 'cloned',
         });
-        if (!response.ok) {
-          const errorPayload = await response.json().catch(() => ({}));
-          throw new Error(errorPayload.details || errorPayload.error || `Vocal generation failed (${response.status})`);
-        }
-        const data = await response.json();
-        toast.dismiss('regen-vocal');
-        const generatedVocalUrl = data.audioUrl || (typeof data.output === 'string' && /^(https?:|data:audio)/.test(data.output) ? data.output : null);
-        if (!generatedVocalUrl) throw new Error('The vocal provider completed without returning playable audio.');
-
+        const ownerUid = auth.currentUser?.uid;
+        const vocalHeaders = await accountRequestHeaders(auth, ownerUid);
+        toast.loading('Creating a new vocal performance…', { id: 'regen-vocal' });
+        const data = await requestVocalGeneration(BACKEND_URL, {
+          request, headers: { ...vocalHeaders, 'Idempotency-Key': `${regenerationId}-vocal` },
+        });
+        if (auth.currentUser?.uid !== ownerUid || canvasGenerationEpochRef.current !== generationEpoch) return;
         const versionCount = (selectedProject.assets || []).filter(a => ['vocal', 'synthesis'].includes((a.type || '').toLowerCase())).length;
-        const newAsset = {
-          ...asset,
-          id: `vocal-${Date.now()}`,
-          audioUrl: generatedVocalUrl,
-          storagePath: data.storagePath || data.audioStoragePath || null,
-          provider: data.provider || data.source || null,
+        const newAsset = vocalTakeAsset(data, {
+          id: `vocal-${crypto.randomUUID()}`, content: request.prompt, settings: { ...settings, ...request },
           title: `${asset.title?.replace(/ \(Take \d+\)/, '') || 'Vocals'} (Take ${versionCount + 1})`,
-          version: versionCount + 1,
-          date: 'Just now',
-          createdAt: new Date().toISOString()
-        };
-        updateProjectAssets([newAsset, ...(selectedProject.assets || [])]);
-        toast.success('New vocal take created!');
+        });
+        const updated = projectWithVocalTake(selectedProject, newAsset);
+        setSelectedProject(updated);
+        setProjects(prev => Array.isArray(prev) ? prev.map(p => p?.id === updated.id ? projectWithVocalTake(p, newAsset) : p) : [updated]);
+        toast.dismiss('regen-vocal');
+        if (data.isDurable === false) toast.error('Vocal created but cloud storage failed. Download it before leaving.');
+        else toast.success('New vocal take added with its matching accompaniment and master.');
 
       } else if (assetType === 'video') {
         // Video regeneration — use image + audio
@@ -473,9 +472,10 @@ export default function CanvasView({
       toast.dismiss('regen-vocal');
       toast.dismiss('regen-video');
     } finally {
+      regenerationInFlightRef.current = false;
       setRegeneratingAssetId(null);
     }
-  }, [regeneratingAssetId, selectedProject, getHeaders, updateProjectAssets, toast]);
+  }, [selectedProject, getHeaders, updateProjectAssets, toast, setSelectedProject, setProjects]);
 
   // ── INLINE TEXT EDIT (save in place) ──
   const handleSaveInlineEdit = useCallback((asset) => {

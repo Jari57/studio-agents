@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { replacedSongSource } from '../src/utils/songSession.mjs';
+import { vocalGenerationRequest } from '../src/utils/vocalGeneration.mjs';
 
 const orchestrator = readFileSync(new URL('../src/components/StudioOrchestratorV2.jsx', import.meta.url), 'utf8');
 const studio = readFileSync(new URL('../src/components/StudioView.jsx', import.meta.url), 'utf8');
@@ -16,14 +17,19 @@ test('full studio-voice songs render one performance instead of unrelated beat a
 });
 
 test('the frontend never selects a speech provider for personal singing', () => {
-  assert.doesNotMatch(studio, /preferredProvider: personalVoiceSelected \? 'elevenlabs-clone'/);
-  assert.match(studio, /preferredProvider: personalVoiceSelected \? 'minimax-music'/);
+  const payload = vocalGenerationRequest({ prompt: 'full song', style: 'cloned', isPersonalVoice: true,
+    personalLyricsExcerpt: 'Approved lyrics', personalReferenceId: 'approved', elevenLabsVoiceId: 'speech-only' });
+  assert.equal(payload.preferredProvider, 'minimax-music');
+  assert.equal(payload.elevenLabsVoiceId, null);
 });
 
 test('a stale ElevenLabs catalog selection cannot leak into a musical take', () => {
-  assert.match(orchestrator, /const requiresSungPerformance = \['singer', 'singer-female', 'rapper', 'rapper-female'\]/);
-  assert.match(orchestrator, /requiresSungPerformance \? null : \(activeElevenLabsVoiceId \|\| null\)/);
-  assert.match(orchestrator, /requiresSungPerformance\s*\? \(activeVoiceSource === 'personal' \? 'minimax-music' : null\)/);
+  for (const style of ['singer', 'singer-female', 'rapper-melodic']) {
+    const payload = vocalGenerationRequest({ prompt: 'Sing this lyric', style,
+      elevenLabsVoiceId: 'old-catalog-voice', preferredProvider: 'elevenlabs-premium' });
+    assert.equal(payload.elevenLabsVoiceId, null);
+    assert.equal(payload.preferredProvider, null);
+  }
 });
 
 test('personal singing sends the selected instrumental through the frontend contract', () => {

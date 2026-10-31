@@ -17,7 +17,7 @@ async function request(body, failStem = false, options = {}) {
   vm.runInNewContext(route, {
     app: { post: (...args) => { handler = args.at(-1); } },
     verifyFirebaseToken() {}, requireAuthForPersonalVoice() {}, requireAuthOrFreeLimit() {}, generationLimiter() {}, checkCreditsFor: () => () => {},
-    process: { env: { REPLICATE_API_KEY: 'test-only' } },
+    process: { env: options.env || { REPLICATE_API_KEY: 'test-only' } },
     logger: { info() {}, warn() {}, error() {} },
     requestsPersonalVoice, generateMusicalVocal, separateSongStems, separateVocal, Buffer,
     crypto: require('node:crypto'), URL, AbortSignal,
@@ -25,7 +25,7 @@ async function request(body, failStem = false, options = {}) {
     personalLyricsError, getFirestoreDb: () => null, getStorageBucket: () => null,
     analyzeSongReferences: async () => { events.push('reference-analysis'); return { key_characteristics: 'warm guitar' }; },
     fetch: async (url, init) => {
-      if (String(url).includes('/music-01/')) { events.push('personal-performance'); inputs.push(JSON.parse(init.body).input); return { ok: true, json: async () => ({ status: 'succeeded', output: 'https://example.test/new-personal-song.mp3' }) }; }
+      if (String(url).includes('/music-01/')) { events.push('personal-performance'); inputs.push(JSON.parse(init.body).input); return options.failPersonal ? { ok: false, status: 503, text: async () => 'Unavailable' } : { ok: true, json: async () => ({ status: 'succeeded', output: 'https://example.test/new-personal-song.mp3' }) }; }
       return { ok: true };
     },
     Replicate: class {},
@@ -63,6 +63,43 @@ test('production vocal handler returns one coherent master and its matched stems
   assert.equal(response.result.requiresHumanReview, true);
   assert.equal(response.models.length, 2);
   assert.equal(response.refunds, 0);
+});
+
+test('missing singing configuration refunds without invoking legacy singing or speech fallbacks', async () => {
+  const response = await request({}, false, { env: { SUNO_API_KEY: 'legacy-test-only', ELEVENLABS_API_KEY: 'speech-test-only' } });
+  assert.equal(response.status, 503);
+  assert.equal(response.result.code, 'VOCAL_PROVIDER_UNAVAILABLE');
+  assert.equal(response.refunds, 1);
+  assert.equal(response.models.length, 0);
+});
+
+test('failed personal singing preserves the requested identity and never creates a speech clone', async () => {
+  const response = await request({ isPersonalVoice: true, personalReferenceId: 'approved',
+    backingTrackUrl: 'https://example.test/beat.mp3' }, false, { personal: true, failPersonal: true });
+  assert.equal(response.status, 503);
+  assert.equal(response.refunds, 1);
+  assert.equal(response.result.code, 'VOCAL_PROVIDER_FAILED');
+  assert.deepEqual(response.events, ['personal-performance']);
+});
+
+test('shared frontend request traverses the real route, saves all stems, and reopens a clean producer session', async () => {
+  const { vocalGenerationRequest, requestVocalGeneration, vocalTakeAsset, projectWithVocalTake } = await import('../../frontend/src/utils/vocalGeneration.mjs');
+  const { initialProducerSession } = await import('../../frontend/src/utils/producerSession.mjs');
+  const payload = vocalGenerationRequest({ prompt: 'Original opening stanza\n[Chorus]\nKeep the original opening stanza',
+    style: 'singer-female', genre: 'soul', language: 'Spanish', duration: 120 });
+  let calls = 0;
+  const data = await requestVocalGeneration('https://local.test', { request: payload, headers: {}, fetchImpl: async (_url, init) => {
+    calls++;
+    const response = await request(JSON.parse(init.body));
+    return { ok: response.status === 200, status: response.status, json: async () => response.result };
+  } });
+  const take = vocalTakeAsset(data, { id: 'new-take', content: payload.prompt, settings: payload });
+  const project = projectWithVocalTake({ id: 'synthetic-project', assets: [] }, take);
+  const session = initialProducerSession(JSON.parse(JSON.stringify(project)));
+  assert.equal(calls, 1);
+  assert.deepEqual(project.assets.map(asset => asset.type), ['vocal', 'beat', 'master']);
+  assert.equal(session.lyricsDraft, payload.prompt);
+  assert.deepEqual(session.tracks.map(track => track.url), ['https://example.test/instrumental.mp3', 'https://example.test/vocal.mp3']);
 });
 test('production vocal handler refunds a missing stem and never returns a full song', async () => {
   const response = await request({}, true);

@@ -27,7 +27,8 @@ export function producerAudioLibrary(project, projects = [], search = '') {
   return [project, ...projects.filter(item => item?.id !== project?.id)]
     .filter(Boolean)
     .flatMap(item => (item.assets || []).filter(asset => asset?.audioUrl).map(asset => ({
-      ...asset, projectName: item.name || item.title || 'Untitled project',
+      ...asset, audioUrl: asset.type === 'vocal' ? asset.vocalUrl || asset.audioUrl : asset.audioUrl,
+      projectName: item.name || item.title || 'Untitled project',
     })))
     .filter(asset => {
       if (seen.has(asset.audioUrl)) return false;
@@ -70,7 +71,11 @@ export function producerSessionIssues(session = {}) {
 // Historical masters remain in the library rather than becoming extra layers.
 export function initialProducerSession(project = {}, previous = {}) {
   if (previous.projectId === project.id && Array.isArray(previous.tracks)) return previous;
-  if (Array.isArray(project.sessionState?.tracks)) return { ...project.sessionState, projectId: project.id };
+  if (Array.isArray(project.sessionState?.tracks)) return { ...project.sessionState, projectId: project.id,
+    tracks: project.sessionState.tracks.map(track => {
+      const legacy = track.role === 'vocal' && (project.assets || []).find(asset => asset.type === 'vocal' && asset.vocalUrl && asset.audioUrl === track.url);
+      return legacy ? { ...track, url: legacy.vocalUrl } : track;
+    }) };
   const assets = (project.assets || []).filter(Boolean);
   const { media, outputs } = restoreProjectOutputs(project);
   const vocalUrl = media.vocals || media.lyricsVocal;

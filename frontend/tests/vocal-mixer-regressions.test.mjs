@@ -63,7 +63,7 @@ test('successful generation paths clear the preview fallback and persist explici
     assert.match(block, /currentSongSessionRef.current =/);
     assert.match(block, /mediaUrlsRef.current =/);
   }
-  assert.equal((source.match(/mediaUrls: \{ \.\.\.existingProject.mediaUrls, \.\.\.mediaUrlsRef.current \}/g) || []).length, 2);
+  assert.match(source, /projectWithVocalTake\(existingProject, vocalAsset\)/);
 });
 
 test('mixer renders playable historical masters, honest add-track controls and recovered lyrics', () => {

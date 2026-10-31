@@ -35,11 +35,11 @@ test('unavailable personal voices block without changing the selected identity',
 });
 
 test('actual vocal preflight blocks unavailable identity before generation', () => {
-  const start = source.indexOf('    const verifiedPersonalVoice = personalVoiceStatus;');
-  const end = source.indexOf('    if (voiceSource ===', start);
+  const start = source.indexOf('    const selection = resolvePersonalVoiceSelection(', source.indexOf('const handleGenerateVocals'));
+  const end = source.indexOf('    try {', start);
   assert.ok(start > 0 && end > start);
   const guard = new Function('personalVoiceStatus', 'resolvePersonalVoiceSelection', 'voiceSource', 'voiceStyle', 'setShowAssets', 'toast', source.slice(start, end) + '\nreturn "allowed";');
-  for (const available of [true, false]) assert.equal(guard({ available, state: available ? 'available' : 'missing', detail: 'Check voice' }, resolvePersonalVoiceSelection, 'personal', 'cloned', () => {}, { error() {} }), available ? 'allowed' : undefined);
+  for (const available of [true, false]) assert.equal(guard({ available, state: available ? 'available' : 'missing', detail: 'Check voice' }, resolvePersonalVoiceSelection, 'personal', 'cloned', () => {}, { error() {} }), available ? 'allowed' : false);
 });
 
 test('actual full-run preflight blocks paid personal singing, not artwork or completed recovery', () => {
@@ -63,7 +63,7 @@ test('unavailable saved voice offers an explicit Studio voice recovery path', ()
 test('a missing personal voice never clears the profile or silently substitutes a studio singer', () => {
   assert.doesNotMatch(source, /voice-studio-auto-recovery|Saved voice is unavailable\. Studio voice selected/);
   assert.match(source, /personalVoiceStatus = outputFormat === 'music' \? singingVoiceReadiness/);
-  assert.match(source, /personalReferenceId: activeVoiceSource === 'personal' && requiresSungPerformance/);
+  assert.match(source, /mood, songStructure, personalLyricsExcerpt, personalReferenceId/);
 });
 
 test('actual clone guard requires explicit consent even when invoked outside its disabled button', async () => {
