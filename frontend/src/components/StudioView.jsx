@@ -47,7 +47,8 @@ import { createProjectSaveQueue, mergeGeneratedProject, applySavedProjectRevisio
 import { shouldUseNativeIAP } from '../utils/nativePlatform';
 import { purchaseProduct, restorePurchases } from '../utils/storeKit';
 import AccountBoundary from './AccountBoundary';
-import { accountStorage } from '../utils/accountStorage.mjs';
+import { accountStorage, accountRequestHeaders } from '../utils/accountStorage.mjs';
+import { vocalGenerationRequest, requestVocalGeneration, vocalTakeAsset, projectWithVocalTake } from '../utils/vocalGeneration.mjs';
 
 // Dev-only logger — no-ops in production builds (tree-shaken by Vite/terser)
 const __DEV__ = import.meta.env.DEV;
@@ -2636,7 +2637,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
             (asset.url && existing.url === asset.url) ||
             (asset.videoUrl && existing.videoUrl === asset.videoUrl) ||
             (asset.imageUrl && existing.imageUrl === asset.imageUrl) ||
-            (existing.content && asset.content && existing.type === asset.type && existing.agent === asset.agent && existing.content.substring(0, 200) === asset.content.substring(0, 200))
+            (!asset.audioUrl && !existing.audioUrl && existing.content && asset.content && existing.type === asset.type && existing.agent === asset.agent && existing.content.substring(0, 200) === asset.content.substring(0, 200))
           );
           
           if (isDuplicate) {
@@ -2647,7 +2648,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           }
           
           devLog('[SaveAsset] Adding new asset to project:', projectId, asset.id);
-          const updatedProject = {
+          const updatedProject = asset.type === 'vocal' && (asset.vocalUrl || asset.instrumentalUrl)
+            ? projectWithVocalTake(p, asset) : {
             ...p,
             assets: [asset, ...existingAssets],
             progress: Math.min(100, (p.progress || 0) + 10),
@@ -2709,7 +2711,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       return;
     }
 
-    const newProject = {
+    const projectDraft = {
       id: generateId(),
       name: projectName,
       category: 'pro',
@@ -2720,6 +2722,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+    const newProject = asset.type === 'vocal' && (asset.vocalUrl || asset.instrumentalUrl)
+      ? projectWithVocalTake(projectDraft, asset)
+      : { ...projectDraft, assets: [asset] };
     
     toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
 
@@ -4092,151 +4097,53 @@ const fetchUserCredits = useCallback(async (uid) => {
     handleTextToVoiceRef.current = handleTextToVoice;
   }, [handleTextToVoice]);
 
-  // Create AI Vocal from text using Uberduck TTS API (NOT browser TTS)
+
+  // Agent previews use the same vocal request and stem contract as the orchestrator.
+  const vocalCreationInFlightRef = useRef(false);
   const handleCreateAIVocal = async (textContent, sourceAgent = 'Ghostwriter') => {
-    if (!textContent || textContent.trim().length === 0) {
-      toast.error('No text content to vocalize');
-      return;
-    }
-
-    const personalVoiceSelected = voiceSettings.style === 'cloned';
-    if (personalVoiceSelected && (!user || !elevenLabsVoiceId)) {
-      const failureMessage = !user
-        ? 'Sign in to use a private personal voice.'
-        : 'Your saved voice sample is not an activated personal voice yet. Open Voice Settings and create it again.';
-      toast.error(failureMessage, { duration: 8000 });
-      if (!user) setShowLoginModal(true);
-      return;
-    }
-
-    // Capture project context immediately to prevent race conditions during long AI wait
+    if (vocalCreationInFlightRef.current) return null;
     const targetProjectSnapshot = selectedProject;
-
-    setIsCreatingVocal(true);
-    const toastId = toast.loading('Creating AI vocal (~60s)...');
-
+    const targetPreview = previewItem;
+    const targetAgentId = selectedAgent?.id;
+    let toastId;
     try {
-      // Build headers with auth token if logged in
-      const headers = { 'Content-Type': 'application/json' };
-      if (isLoggedIn && auth?.currentUser) {
-        try {
-          const token = await auth.currentUser.getIdToken();
-          headers['Authorization'] = `Bearer ${token}`;
-        } catch (err) {
-          devWarn('Could not get auth token:', err);
-        }
-      }
-
-      // Strip AI preamble — keep only singable lyrics before trimming
-      const rawVocalText = textContent;
-      let cleanedVocalText = textContent;
-      
-      // DEEP CLEANING: Strip everything before the first actual song structure tag.
-      const firstTagIndex = cleanedVocalText.search(/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro|Section)\b/i);
-      if (firstTagIndex !== -1) {
-        cleanedVocalText = cleanedVocalText.substring(firstTagIndex);
-      }
-
-      cleanedVocalText = cleanedVocalText
-        // Strip common AI preamble lines when no structure tags
-        .replace(/^(Sure[,!]?|Okay[,!)?|Alright!?|Certainly!?|Here('s| is| are)[^\n]*|I'?ve (written|created|generated)[^\n]*|Let me [^\n]*|Below [^\n]*|These (lyrics|are)[^\n]*|This song[^\n]*|Title:[^\n]*|Genre:[^\n]*|Style:[^\n]*|Tempo:[^\n]*|Key:[^\n]*|Mood:[^\n]*|Artist:[^\n]*|About:[^\n]*|Description:[^\n]*|I hope you enjoy[^\n]*)\n+/gim, '')
-        .trim();
-        
-      if (cleanedVocalText.length < 30) cleanedVocalText = rawVocalText.trim();
-      const textToSpeak = cleanedVocalText.substring(0, 1500);
-
-      devLog('[handleCreateAIVocal] Generating REAL AI vocal via Suno/Bark for:', textToSpeak.substring(0, 50) + '...');
-
-      const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          prompt: textToSpeak,
-          voice: voiceSettings.voiceName || 'rapper-male-1',
-          style: voiceSettings.style || 'rapper',
-          rapStyle: voiceSettings.rapStyle || 'aggressive',
-          genre: voiceSettings.genre || 'hip-hop',
-          language: voiceSettings.language || 'English',
-          duration: voiceSettings.duration || 30,
-          bpm: voiceSettings.bpm || 90,
-          speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl,
-          backingTrackUrl: audioDnaUrl || backingTrack?.audioUrl || null,
-          audioId: referencedAudioId || undefined,
-          elevenLabsVoiceId: elevenLabsVoiceId,
-          referenceSongUrl: referenceSongUrl || null,
-          quality: ['rapper', 'rapper-female', 'singer', 'singer-female', 'cloned'].some(kind => (voiceSettings.style || '').includes(kind)) ? 'premium' : 'standard',
-          isPersonalVoice: personalVoiceSelected,
-          // Personal singing uses MiniMax Music with both the consented voice
-          // sample and selected instrumental. ElevenLabs remains a narration
-          // provider; forcing it here is what produced speech over a beat.
-          preferredProvider: personalVoiceSelected ? 'minimax-music' : null,
-          musicalDirection: backingTrack?.title || selectedProject?.name || sourceAgent,
-          mood: voiceSettings.mood || null,
-          songStructure: voiceSettings.structure || 'full song'
-        })
+      const request = vocalGenerationRequest({
+        prompt: textContent, ...voiceSettings,
+        voice: voiceSettings.voiceName,
+        isPersonalVoice: voiceSettings.style === 'cloned',
+        personalReferenceId: voiceSettings.personalReferenceId,
+        personalLyricsExcerpt: voiceSettings.personalLyricsExcerpt,
+        speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl,
+        elevenLabsVoiceId, backingTrackUrl: audioDnaUrl || backingTrack?.audioUrl || null,
+        referenceSongUrl: referenceSongUrl || null,
+        musicalDirection: backingTrack?.title || targetProjectSnapshot?.name || sourceAgent,
       });
-
-      const data = await response.json();
-
-      if (response.ok && data.audioUrl) {
-        const playbackUrl = data.mixedAudioUrl || data.audioUrl;
-        // Instead of creating a NEW item, ADD the audio to the EXISTING preview item
-        // This consolidates lyrics + vocal into ONE card
-        if (previewItem) {
-          const consolidatedItem = {
-            ...previewItem,
-            audioUrl: playbackUrl,
-            vocalUrl: data.audioUrl,
-            instrumentalUrl: data.instrumentalUrl || null,
-            mixedAudioUrl: data.mixedAudioUrl || null,
-            mimeType: data.mimeType || 'audio/wav',
-            type: 'vocal', // Upgrade type to vocal (has both text + audio)
-            vocalSnippet: `🎤 AI Vocal created from lyrics`,
-            projectSnapshot: targetProjectSnapshot, // Preserve context
-            updatedAt: new Date().toISOString()
-          };
-
-          // Update the preview with consolidated item
-          setPreviewItem(consolidatedItem);
-          
-          // Also update agent previews cache
-          if (selectedAgent?.id) {
-            setAgentPreviews(prev => ({ ...prev, [selectedAgent.id]: consolidatedItem }));
-          }
-          
-          toast.success('AI vocal added to your creation!', { id: toastId });
-          return consolidatedItem;
-        } else {
-          // Fallback: Create standalone vocal item if no preview exists
-          const vocalItem = {
-            id: generateId(),
-            title: `AI Vocal - ${sourceAgent}`,
-            agent: sourceAgent,
-            type: 'vocal',
-            audioUrl: playbackUrl,
-            vocalUrl: data.audioUrl,
-            instrumentalUrl: data.instrumentalUrl || null,
-            mixedAudioUrl: data.mixedAudioUrl || null,
-            mimeType: data.mimeType || 'audio/wav',
-            snippet: `🎤 AI Vocal: "${textToSpeak.substring(0, 50)}..."`,
-            projectSnapshot: targetProjectSnapshot, // Preserve context
-            createdAt: new Date().toISOString()
-          };
-
-          safeOpenGenerationPreview(vocalItem);
-          toast.success('AI vocal created!', { id: toastId });
-          return vocalItem;
-        }
-      } else if (data.error || data.details) {
-        throw new Error(data.details || data.error);
-      } else {
-        throw new Error('No audio URL returned');
-      }
+      vocalCreationInFlightRef.current = true;
+      const headers = await accountRequestHeaders(auth, accountId);
+      setIsCreatingVocal(true);
+      toastId = toast.loading('Creating your vocal performance and matching stems…');
+      const data = await requestVocalGeneration(BACKEND_URL, { request, headers });
+      if (auth.currentUser?.uid !== accountId) return null;
+      const vocalItem = {
+        ...targetPreview,
+        ...vocalTakeAsset(data, {
+          id: generateId(), title: targetPreview?.title || `Vocal — ${sourceAgent}`,
+          content: request.prompt, settings: { ...voiceSettings, ...request },
+        }),
+        snippet: request.prompt, projectSnapshot: targetProjectSnapshot,
+      };
+      if (targetPreview) setPreviewItem(vocalItem);
+      else safeOpenGenerationPreview(vocalItem);
+      if (targetAgentId) setAgentPreviews(prev => ({ ...prev, [targetAgentId]: vocalItem }));
+      if (data.isDurable === false) toast.error('Vocal created, but cloud storage failed. Download it before closing.', { id: toastId });
+      else toast.success('Vocal ready. Save it with its matching accompaniment and master.', { id: toastId });
+      return vocalItem;
     } catch (error) {
-      devWarn('[handleCreateAIVocal] Error:', error);
-      toast.error(error.message || 'Failed to create AI vocal', { id: toastId });
+      devWarn('[Vocal creation]', error);
+      toast.error(error.message || 'Vocal generation failed', { ...(toastId ? { id: toastId } : {}) });
       return null;
     } finally {
+      vocalCreationInFlightRef.current = false;
       setIsCreatingVocal(false);
     }
   };
@@ -4604,7 +4511,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     const isMasterAgent = ['master', 'master-lab', 'mastering'].includes(agentId);
     const personalVoiceSelected = isSpeechAgent && voiceSettings.style === 'cloned';
 
-    if (personalVoiceSelected && (!user || !elevenLabsVoiceId)) {
+    if (personalVoiceSelected && !user) {
       const failureMessage = !user
         ? 'Sign in to use a private personal voice.'
         : 'Your saved voice sample is not an activated personal voice yet. Open Voice Settings and create it again.';
@@ -4941,6 +4848,7 @@ ABSOLUTE RULES (violating any = failure):
 
       // PHASE 2: EXECUTION - Call media generators with expanded description
       let response;
+      let vocalResult;
       let finalEndpoint = '/api/generate';
       let finalBody = brainData; // Default for text agents
 
@@ -5001,12 +4909,12 @@ ABSOLUTE RULES (violating any = failure):
         const vocalLyrics = (contextLyrics || expandedPrompt || prompt).trim();
         
         finalEndpoint = '/api/generate-speech';
-        finalBody = { 
+        finalBody = vocalGenerationRequest({
           prompt: vocalLyrics, 
           voice: voiceSettings.voiceName || 'rapper-male-1', 
           ...selectedVoiceInputs({ personalVoiceSelected, elevenLabsVoiceId, voiceSampleUrl, speakerUrl: voiceSettings.speakerUrl }),
           quality: 'premium', // FORCE PREMIUM for Vocal Lab
-          style: voiceSettings.style || 'rapper',
+          style: ['podcast', 'voiceover'].includes(agentId) && voiceSettings.style !== 'cloned' ? 'narrator' : voiceSettings.style || 'rapper',
           genre: voiceSettings.genre || 'hip-hop',
           rapStyle: voiceSettings.rapStyle || 'aggressive',
           language: voiceSettings.language || 'English',
@@ -5018,7 +4926,10 @@ ABSOLUTE RULES (violating any = failure):
           musicalDirection: expandedPrompt,
           mood: heroIntensity >= 7 ? 'high energy' : heroIntensity >= 4 ? 'driving' : 'restrained',
           songStructure: 'full song',
-        };
+          outputFormat: ['podcast', 'voiceover'].includes(agentId) ? 'podcast' : 'music',
+          personalReferenceId: voiceSettings.personalReferenceId,
+          personalLyricsExcerpt: voiceSettings.personalLyricsExcerpt,
+        });
       } else if (isMasterAgent) {
         // Mastering Lab -requires an existing audio asset to master
         const audioToMaster = audioDnaUrl || backingTrack?.audioUrl;
@@ -5055,7 +4966,13 @@ ABSOLUTE RULES (violating any = failure):
             headers,
             body: JSON.stringify(finalBody)
           };
-          if (isVideoAgent) {
+          if (isSpeechAgent) {
+            vocalResult = await requestVocalGeneration(BACKEND_URL, {
+              request: finalBody, headers: await accountRequestHeaders(auth, accountId),
+              onResponse: value => { response = value; },
+            });
+            if (auth.currentUser?.uid !== accountId) throw new Error('Your account changed. Reopen your workspace.');
+          } else if (isVideoAgent) {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 600000); // 10min timeout for synced video
             fetchOptions.signal = controller.signal;
@@ -5066,6 +4983,7 @@ ABSOLUTE RULES (violating any = failure):
           }
         } catch (mediaErr) {
           devWarn('[Studio] Execution Phase Failed:', mediaErr);
+          if (isSpeechAgent) throw mediaErr;
           if (mediaErr.name === 'AbortError') {
             throw new Error('Video generation request timed out. The server may be busy — please try again.');
           }
@@ -5078,7 +4996,9 @@ ABSOLUTE RULES (violating any = failure):
 
       // Safely parse JSON (Avoid re-parsing brainData if it's already read)
       let data;
-      if (finalEndpoint === '/api/generate') {
+      if (vocalResult) {
+        data = vocalResult;
+      } else if (finalEndpoint === '/api/generate') {
         data = brainData;
       } else {
         const contentType = response?.headers?.get('content-type');
@@ -5385,9 +5305,9 @@ ABSOLUTE RULES (violating any = failure):
 
         // Attach backing track if this was a sync generation
         if (isSpeechAgent && backingTrack) {
-           newItem.backingTrackUrl = backingTrack.audioUrl;
-           newItem.backingTrackTitle = backingTrack.title;
-           newItem.snippet = `🎤 Vocals synced to: "${backingTrack.title}"`;
+           newItem.backingTrackUrl = data.instrumentalUrl || backingTrack.audioUrl;
+           newItem.backingTrackTitle = data.instrumentalUrl ? 'Matching accompaniment' : backingTrack.title;
+           newItem.snippet = 'Vocal performance ready for review';
            newItem.type = 'vocal'; // Mark as vocal/song
            // Keep backingTrack set so user can re-generate without re-selecting
         }
@@ -5440,6 +5360,10 @@ ABSOLUTE RULES (violating any = failure):
       // Media agents fail closed. Text concepts, provider samples, image
       // fallbacks, synthesis parameters, and unknown blobs are not successful
       // audio/video/image creations.
+      if (isSpeechAgent) Object.assign(newItem, vocalTakeAsset(data, {
+        id: newItem.id, title: newItem.title, content: finalBody.prompt,
+        settings: { ...voiceSettings, ...finalBody },
+      }));
       if (isImageAgent && !newItem.imageUrl) {
         throw new Error('The image provider did not return a usable image. No result was saved and your credits should not be charged.');
       }
@@ -14080,7 +14004,7 @@ ABSOLUTE RULES (violating any = failure):
                   </button>
                 )}
                 
-                {/* Create AI Vocal - Uses Uberduck/Replicate rapper voices (not browser TTS) */}
+                {/* Create one musical performance with separately saved matching stems. */}
                 {!previewItem.audioUrl && !previewItem.imageUrl && !previewItem.videoUrl && (previewItem.snippet || previewItem.content) && (
                   <button 
                     onClick={() => {
@@ -14088,7 +14012,7 @@ ABSOLUTE RULES (violating any = failure):
                       handleCreateAIVocal(text, selectedAgent?.name || 'Ghostwriter');
                     }}
                     disabled={isCreatingVocal}
-                    title="Create AI vocal using rapper voices (Uberduck/Replicate)"
+                    title="Create a vocal with matching accompaniment and a separate song master"
                     style={{ 
                       flex: 1, 
                       padding: '0.75rem', 

@@ -27,6 +27,7 @@ import { LATIN_SONG_GENRES, LATIN_GENRE_PRESETS, detectLatinGenre } from '../uti
 import { collectProjectExport, downloadVerifiedMedia } from '../utils/projectExport.mjs';
 import { songSessionState, songStateSignature, mixStateSignature, authoritativeMaster, replacedSongSource } from '../utils/songSession.mjs';
 import { accountStorage, accountRequestHeaders } from '../utils/accountStorage.mjs';
+import { vocalGenerationRequest, requestVocalGeneration, vocalTakeAsset, projectWithVocalTake } from '../utils/vocalGeneration.mjs';
 import { productionScope, productionPrerequisiteError, unfinishedProductionSteps, mergeCurrentMedia, artworkRequestPrompt, artworkDirectionRequest, confirmProjectSave as confirmCloudProjectSave, currentRunLyrics } from '../utils/productionIntegrity.mjs';
 import { restoreProductionConfig, withProductionConfig, mergeProductionAssets } from '../utils/productionProjectConfig.mjs';
 import { generationFailureMessage } from '../utils/generationErrors.mjs';
@@ -4003,16 +4004,19 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       } else if (requestedScope.vocals && lyricsForVocals && (freshGeneration || !alreadyHasVocals)) {
         devLog('[Pipeline] Starting vocal generation with beat URL for mixing');
         updatePipelineStep('vocals', 'active');
-        await handleGenerateVocals(lyricsForVocals);
+        const vocalCreated = await handleGenerateVocals(lyricsForVocals);
         // Mark done only if vocals were actually produced (handleGenerateVocals returns early on auth fail)
-        if ((mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal) && mediaDurabilityRef.current.vocals !== false) {
+        if (vocalCreated && (mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal) && mediaDurabilityRef.current.vocals !== false) {
           updatePipelineStep('vocals', 'done');
+        } else if (!vocalCreated) {
+          updatePipelineStep('vocals', 'error', 'The new vocal take did not finish. Retry vocals before continuing.');
         } else if (mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal) {
           updatePipelineStep('vocals', 'error', 'The vocal was created but could not be saved to cloud storage. Download it now, then retry cloud save.');
         } else {
           updatePipelineStep('vocals', 'error');
         }
         devLog('[Pipeline] Vocals complete (dry)');
+        if (!vocalCreated) throw new Error('The new vocal take did not finish. Existing audio was preserved. Retry vocals before continuing.');
       }
 
       // ═══ FINAL MIX CHECK ═══
@@ -4526,275 +4530,73 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     }
   };
 
-  const handleGenerateVocals = async (directInput = null) => {
-    // PREVENT DUPLICATE CALLS
-    if (generatingMedia.vocals) return;
 
-    // Keep the active workflow step visible, including Quick Mode.
+  const vocalCreationInFlightRef = useRef(false);
+  const handleGenerateVocals = async (directInput = null) => {
+    if (vocalCreationInFlightRef.current) return false;
     expandSection('lyrics');
     expandSection('vocalEngine');
-
-    // AUTH GUARD: Require sign-in before generating vocals
-    if (!auth?.currentUser) {
-      toast.error('Please sign in to generate vocals');
-      return;
-    }
-
-    // Use directInput (only if string), outputsRef, or current outputs (fallback)
+    if (!auth?.currentUser) { toast.error('Please sign in to generate vocals'); return false; }
     const lyricsText = (typeof directInput === 'string' ? directInput : null) || outputsRef.current.lyrics || outputs.lyrics;
-
-    devLog('[handleGenerateVocals] Called, hasLyrics:', !!lyricsText);
-    if (!lyricsText) {
-      toast.error('Generate Lyrics & Hook DNA first', { id: 'orch-need-lyrics' });
-      return;
-    }
-
-    // Do not silently fall back to an anonymous voice. Personal voice is the
-    // default path; require the artist to finish the short consented setup or
-    // explicitly opt into a curated studio voice.
-    const verifiedPersonalVoice = personalVoiceStatus;
-    const resolvedVoiceSelection = resolvePersonalVoiceSelection({
-      voiceSource, voiceStyle, readiness: verifiedPersonalVoice,
-    });
-    if (resolvedVoiceSelection.blocked) {
+    const selection = resolvePersonalVoiceSelection({ voiceSource, voiceStyle, readiness: personalVoiceStatus });
+    if (selection.blocked) {
       setShowAssets(true);
-      toast.error(verifiedPersonalVoice.detail, { id: 'orch-voice-required' });
-      return;
+      toast.error(personalVoiceStatus.detail, { id: 'orch-voice-required' });
+      return false;
     }
-    if (voiceSource === 'personal' && outputFormat === 'music' && (!personalLyricsExcerpt.trim() || personalLyricsExcerpt.trim().length > 400)) {
-      toast.error('Choose the exact 1–400 character lyrics excerpt in Voice & optional references.'); return;
-    }
-    if (voiceSource !== 'personal' && lyricsText.length > 3500 && outputFormat === 'music') {
-      toast.error('This song exceeds the provider’s 3500-character lyric limit. Edit it before generating; nothing has been cut.'); return;
-    }
-    setGeneratingMedia(prev => ({ ...prev, vocals: true }));
-    toast.loading('Creating your musical performance and matching stems…', { id: 'gen-vocals' });
-    
     try {
-      const headers = await getPaidStepHeaders('vocals');
-
-      // Preserve the artist’s text; the server removes only recognized metadata.
-      const cleanLyrics = lyricsText.trim();
-
-      // Use the same voice mapping as handleGenerateLyricsVocal
-      const voiceMapping = {
-        'rapper': 'rapper-male-1',
-        'rapper-melodic': 'rapper-male-1',
-        'rapper-young': 'rapper-male-1',
-        'rapper-female': 'rapper-female-1',
-        'rapper-female-melodic': 'rapper-female-1',
-        'singer': 'singer-male',
-        'singer-pop': 'singer-male',
-        'singer-female': 'singer-female',
-        'singer-female-pop': 'singer-female',
-        'narrator': 'narrator',
-        'whisper': 'whisper',
-        'spoken': 'spoken'
-      };
-
-      const activeVoiceStyle = resolvedVoiceSelection.voiceStyle;
-      const activeVoiceSource = resolvedVoiceSelection.voiceSource;
-      const activeElevenLabsVoiceId = resolvedVoiceSelection.recovered ? '' : elevenLabsVoiceId;
-      const selectedVoice = voiceMapping[activeVoiceStyle] || 'rapper-male-1';
-
-      // Map expanded voice styles to backend style + rapStyle/genre params
-      let backendStyle = activeVoiceStyle;
-      let backendRapStyle = rapStyle;
-      if (activeVoiceStyle === 'rapper-melodic') {
-        backendStyle = 'rapper';
-        backendRapStyle = 'melodic';
-      } else if (activeVoiceStyle === 'rapper-young') {
-        backendStyle = 'rapper';
-        backendRapStyle = 'trap';
-      } else if (activeVoiceStyle === 'rapper-female-melodic') {
-        backendStyle = 'rapper-female';
-        backendRapStyle = 'melodic';
-      } else if (activeVoiceStyle === 'singer-pop') {
-        backendStyle = 'singer';
-      } else if (activeVoiceStyle === 'singer-female-pop') {
-        backendStyle = 'singer-female';
-      }
-
-      // A named ElevenLabs voice is a speech identity, not a singing engine.
-      // Never let an old catalog selection leak into a musical request and make
-      // every new take sound like the same stuck narrator. Personal singing is
-      // conditioned with the user's owned sample; Studio singing is generated
-      // as one coherent musical performance and then separated into stems.
-      const requiresSungPerformance = ['singer', 'singer-female', 'rapper', 'rapper-female'].includes(backendStyle)
-        || outputFormat === 'music'
-        || !!mediaUrlsRef.current.audio;
-
-      const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          prompt: activeVoiceSource === 'personal' && requiresSungPerformance ? personalLyricsExcerpt.trim() : cleanLyrics,
-          voice: selectedVoice,
-          style: backendStyle,
-          rapStyle: backendRapStyle,
-          genre: activeVoiceStyle === 'singer-pop' ? 'pop' : (activeVoiceStyle === 'singer-female-pop' ? 'pop' : (genre || style.toLowerCase().split('/')[0].trim())),
-          language: language || 'English',
-          duration: actualBeatDurationRef.current || duration || 30, // Align with actual beat length
-          bpm: projectBpm,
-          quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
-          outputFormat: outputFormat, // TV, Podcast, Social, Music (Righteous Quality)
-          musicalDirection: outputsRef.current.audio || outputs.audio || songIdea,
-          mood,
-          songStructure,
-           // A personal voice always wins when selected. Curated/provider IDs
-           // are only sent after the user explicitly chooses “Studio voice”.
-           speakerUrl: activeVoiceSource === 'personal' ? (voiceSampleUrl || null) : null,
-           personalReferenceId: activeVoiceSource === 'personal' && requiresSungPerformance ? personalReferenceId : null,
-           elevenLabsVoiceId: activeVoiceSource === 'personal'
-             ? (requiresSungPerformance ? null : (clonedVoiceId || null))
-             : (requiresSungPerformance ? null : (activeElevenLabsVoiceId || null)),
-          isPersonalVoice: activeVoiceSource === 'personal',
-          // Lock to the same provider that worked last time for voice consistency
-           preferredProvider: requiresSungPerformance
-             ? (activeVoiceSource === 'personal' ? 'minimax-music' : null)
-             : (resolvedVoiceSelection.recovered ? null : (generationProviders.vocals || null)),
-          // Pass voice sample as reference for tone/style analysis even when not cloning
-           referenceSongUrl: activeVoiceSource === 'studio' ? (referenceSongUrl || null) : null,
-           songReferences: songReferences.length ? songReferences.map(ref => ({ assetId: ref.assetId || undefined, url: ref.url })) : undefined,
-          // Advanced vocal synthesis parameters
-          pitchShift: !requiresSungPerformance && vocalPitchShift !== 0 ? vocalPitchShift : undefined,
-          speed: !requiresSungPerformance && vocalSpeed !== 1.0 ? vocalSpeed : undefined,
-          vibrato: !requiresSungPerformance && vocalVibrato > 0 ? vocalVibrato : undefined,
-          expression: !requiresSungPerformance && vocalExpression !== 'neutral' ? vocalExpression : undefined,
-          // Pass beat URL so backend mixes vocal+beat during generation (no extra credit cost)
-          backingTrackUrl: mediaUrlsRef.current.audio || null,
-          agentId: 'vocal-arch',
-        }),
-        // Replicate Bark singing can legitimately poll for up to 180 seconds.
-        // A shorter browser timeout abandoned the request while the backend
-        // continued and persisted the vocal, making the same job appear to
-        // fail first and work later.
-        signal: createTimeoutSignal(300000)
+      const request = vocalGenerationRequest({
+        prompt: lyricsText, style: selection.voiceStyle, voiceSource: selection.voiceSource,
+        rapStyle, genre: genre || style.toLowerCase().split('/')[0].trim(), language,
+        duration: actualBeatDurationRef.current || duration || 120, bpm: projectBpm,
+        quality: vocalQuality, outputFormat, musicalDirection: outputsRef.current.audio || outputs.audio || songIdea,
+        mood, songStructure, personalLyricsExcerpt, personalReferenceId,
+        speakerUrl: voiceSampleUrl, elevenLabsVoiceId: clonedVoiceId || elevenLabsVoiceId,
+        referenceSongUrl: selection.voiceSource === 'studio' ? referenceSongUrl || null : null,
+        songReferences: songReferences.map(ref => ({ ...(ref.assetId ? { assetId: ref.assetId } : {}), url: ref.url })),
+        backingTrackUrl: mediaUrlsRef.current.audio || null,
       });
-
-      let data;
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        throw new Error(`Invalid vocal response (${response.status})`);
+      vocalCreationInFlightRef.current = true;
+      setGeneratingMedia(prev => ({ ...prev, vocals: true }));
+      toast.loading('Creating your musical performance and matching stems…', { id: 'gen-vocals' });
+      const headers = await getPaidStepHeaders('vocals');
+      const data = await requestVocalGeneration(BACKEND_URL, { request, headers });
+      if (!mountedRef.current || auth.currentUser?.uid !== storageOwner) return false;
+      const replacement = replacedSongSource('vocals', data, crypto.randomUUID());
+      setActivePerformance(replacement.performance);
+      setFinalMixPreview(null);
+      currentSongSessionRef.current = { ...currentSongSessionRef.current,
+        performance: replacement.performance, renderedMixSignature: replacement.renderedMixSignature };
+      setRenderedMixSignature(replacement.renderedMixSignature);
+      mediaDurabilityRef.current.vocals = data.isDurable !== false;
+      mediaUrlsRef.current = { ...mediaUrlsRef.current, ...replacement.media };
+      setMediaUrls(prev => ({ ...prev, ...replacement.media }));
+      setGenerationProviders(prev => ({ ...prev, vocals: data.provider || 'ai',
+        ...(data.instrumentalUrl ? { audio: data.provider || 'ai' } : {}) }));
+      setOutputs(prev => ({ ...prev, vocals: request.prompt }));
+      let saved = data.isDurable !== false;
+      if (existingProject && (onSaveToProject || onCreateProject)) {
+        const vocalAsset = vocalTakeAsset(data, { id: `vocal-${crypto.randomUUID()}`,
+          content: request.prompt, settings: { ...request, voiceSource: selection.voiceSource,
+            voiceStyle: selection.voiceStyle, personalLyricsExcerpt } });
+        try {
+          const updated = projectWithVocalTake(existingProject, vocalAsset);
+          await confirmProjectSave(onSaveToProject || onCreateProject, updated);
+          setIsSaved(true);
+        } catch (saveError) {
+          saved = false; setIsSaved(false); mediaDurabilityRef.current.vocals = false;
+          toast.error(saveError.message || 'Vocal created but cloud save failed.', { id: 'orch-vocal-save' });
+        }
       }
-
-      const resolvedAudioUrl = data.audioUrl || data.output;
-      if (response.ok && resolvedAudioUrl) {
-        const replacement = replacedSongSource('vocals', data, crypto.randomUUID());
-        const { performance } = replacement;
-        setActivePerformance(performance);
-        setFinalMixPreview(null);
-        currentSongSessionRef.current = { ...currentSongSessionRef.current, performance, renderedMixSignature: replacement.renderedMixSignature };
-        setRenderedMixSignature(replacement.renderedMixSignature);
-        mediaDurabilityRef.current.vocals = data.isDurable !== false;
-        // A coherent song response contains all three views of one performance:
-        // dry vocal, matched instrumental, and the provider master. Replace an
-        // independently generated beat with the matched stem so later editing
-        // cannot accidentally recombine unrelated music.
-        const vocalUpdate = replacement.media;
-        setMediaUrls(prev => ({ ...prev, ...vocalUpdate }));
-        mediaUrlsRef.current = { ...mediaUrlsRef.current, ...vocalUpdate }; // Sync ref for pipeline reads
-        setGenerationProviders(prev => ({ ...prev, vocals: data.provider || 'ai' }));
-        if (data.instrumentalUrl) {
-          setGenerationProviders(prev => ({ ...prev, audio: data.provider || 'ai' }));
-        }
-        // If backend returned a persisted clonedVoiceId, save it so future generations skip re-cloning
-        if (data.clonedVoiceId && !clonedVoiceId) {
-          setClonedVoiceId(data.clonedVoiceId);
-          setElevenLabsVoiceId(data.clonedVoiceId);
-        }
-        // Pin the resolved ElevenLabs voice ID for consistency across re-generations
-        if (data.resolvedVoiceId && !clonedVoiceId) {
-          setElevenLabsVoiceId(data.resolvedVoiceId);
-          localStorage.setItem('studio_elevenlabs_voice_id', data.resolvedVoiceId);
-        }
-        // Ensure outputs.vocals is set so the asset is included in the project save
-        setOutputs(prev => ({ 
-          ...prev, 
-          vocals: prev.vocals || `AI Vocal Performance generated for "${songIdea || 'song'}"`
-        }));
-
-        // AUTO-SYNC TO EXISTING PROJECT: Add the vocal asset to the project library immediately
-        if (existingProject && (onSaveToProject || onCreateProject)) {
-          const saveFunc = onSaveToProject || onCreateProject;
-          
-          // Count existing versions to label this one
-          const vocalVersions = (existingProject.assets || []).filter(a => a.type === 'vocal').length;
-          const versionLabel = vocalVersions > 0 ? ` (Take ${vocalVersions + 1})` : '';
-
-          devLog(`[handleGenerateVocals] Auto-syncing vocals to project: ${existingProject.id} as version ${vocalVersions + 1}`);
-          
-          const vocalAsset = {
-            id: `vocal-${crypto.randomUUID()}`,
-            title: `Vocal Performance${versionLabel}`,
-            type: 'vocal',
-            agent: 'Ghostwriter',
-            content: activeVoiceSource === 'personal' && requiresSungPerformance ? personalLyricsExcerpt.trim() : cleanLyrics,
-            metadata: { role: 'vocal', performanceId: performance?.id || null },
-            audioUrl: resolvedAudioUrl,
-            storagePath: data.storagePath || data.audioStoragePath || null,
-            provider: data.provider || data.source || null,
-            mimeType: data.mimeType || 'audio/wav',
-            version: vocalVersions + 1,
-            settings: {
-              voice: selectedVoice,
-              voiceStyle: voiceStyle,
-              vocalQuality: vocalQuality,
-              outputFormat: outputFormat,
-              elevenLabsVoiceId: data.resolvedVoiceId || elevenLabsVoiceId || null,
-              voiceSampleUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
-              provider: data.provider || 'unknown',
-              resolvedVoiceId: data.resolvedVoiceId || null,
-              referencedAudioId: voiceStyle === 'cloned' ? voiceSampleUrl : null
-            },
-            createdAt: new Date().toISOString()
-          };
-          
-          try {
-            await confirmProjectSave(saveFunc, {
-              ...existingProject,
-              assets: [vocalAsset, ...(performance ? [
-                { id: `${performance.id}-beat`, type: 'beat', title: 'Matching accompaniment', audioUrl: performance.instrumentalUrl, metadata: { role: 'beat', performanceId: performance.id } },
-                { id: `${performance.id}-master`, type: 'master', title: 'Original song master', audioUrl: performance.masterUrl, metadata: { role: 'master', performanceId: performance.id } },
-              ] : []), ...(existingProject.assets || [])],
-              mediaUrls: { ...existingProject.mediaUrls, ...mediaUrlsRef.current },
-              updatedAt: new Date().toISOString()
-            });
-            setIsSaved(true);
-          } catch (saveErr) {
-            devWarn('[handleGenerateVocals] Background save failed:', saveErr);
-            setIsSaved(false);
-            mediaDurabilityRef.current.vocals = false;
-            toast.error(saveErr.message || 'Vocal created but cloud save failed.', { id: 'orch-vocal-save' });
-          }
-        }
-
-        const engineLabels = {
-          'suno': 'Suno AI Singing',
-          'bark-singing': 'Bark Singing Engine',
-          'elevenlabs-premium': 'ElevenLabs Premium',
-          'elevenlabs-clone': 'ElevenLabs Voice Clone',
-          'bark': 'Bark Speech',
-          'xtts-v2-clone': 'XTTS Voice Clone',
-          'gemini-tts': 'Gemini TTS',
-          'uberduck-tts': 'Uberduck TTS'
-        };
-        const engineName = engineLabels[data.provider] || data.provider || 'AI';
-        if (data.isDurable === false) {
-          toast.error('Vocal created, but cloud storage failed. Download it before closing this page.', { id: 'gen-vocals', duration: 9000 });
-        } else {
-          toast.success(`${data.qualityTier === 'release-candidate' ? 'Release-candidate vocals' : 'Vocal draft'} generated via ${engineName}`, { id: 'gen-vocals' });
-        }
-      } else {
-        const errData = data || {};
-        toast.error(errData.details || errData.error || 'Vocal generation failed', { id: 'gen-vocals' });
-      }
-    } catch (err) {
-      console.error('[Orchestrator] Vocal generation error:', err);
-      toast.error('Vocal generation failed', { id: 'gen-vocals' });
+      if (!saved) toast.error('Vocal created, but cloud save did not finish. Download it and retry saving.', { id: 'gen-vocals' });
+      else toast.success('Vocal ready with its matching accompaniment and master.', { id: 'gen-vocals' });
+      return saved;
+    } catch (error) {
+      console.error('[Orchestrator] Vocal generation error:', error);
+      toast.error(error.message || 'Vocal generation failed', { id: 'gen-vocals' });
+      return false;
     } finally {
+      vocalCreationInFlightRef.current = false;
       setGeneratingMedia(prev => ({ ...prev, vocals: false }));
     }
   };
@@ -8015,6 +7817,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             borderTop: "1px solid var(--studio-border, #d8d5c9)"
           }}>
             {/* ── Preview Section ── */}
+            {outputFormat === 'music' && <p style={{ margin: '0 0 16px', color: 'var(--studio-muted)', fontSize: '0.82rem', lineHeight: 1.6 }}>
+              Each new vocal comes with matching accompaniment and a song master. It becomes the current take; earlier takes stay in your library. Personal voice creates an audition of your approved lyrics excerpt.
+            </p>}
             <div style={{
               display: 'grid',
               gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',

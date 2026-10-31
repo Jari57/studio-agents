@@ -23,9 +23,16 @@ export function restoreProjectOutputs(project = {}) {
       put(media, 'audio', asset.audioUrl); put(outputs, 'audio', asset.content);
     }
     if (asset.type === 'vocal' || (asset.type === 'lyrics' && asset.audioUrl)) {
+      // Older previews stored the full song in audioUrl while retaining its dry
+      // stem in vocalUrl. Repair that pointer in memory without changing history.
+      if (asset.vocalUrl && asset.vocalUrl !== asset.audioUrl) {
+        if (media.vocals === asset.audioUrl) media.vocals = asset.vocalUrl;
+        if (media.lyricsVocal === asset.audioUrl) media.lyricsVocal = asset.vocalUrl;
+      }
       // Clearing either canonical vocal slot must not resurrect an older take through its alias.
       if (!owns(media, 'vocals') && !owns(media, 'lyricsVocal')) {
-        put(media, 'vocals', asset.audioUrl); put(media, 'lyricsVocal', asset.audioUrl);
+        put(media, 'vocals', asset.vocalUrl || asset.audioUrl); put(media, 'lyricsVocal', asset.vocalUrl || asset.audioUrl);
+        put(media, 'audio', asset.instrumentalUrl); put(media, 'mixedAudio', asset.mixedAudioUrl);
       }
     }
     if (isMasterAsset(asset)) put(media, 'mixedAudio', asset.audioUrl);

@@ -41,7 +41,8 @@ test('canvas media regeneration uses provider contracts and fails closed', () =>
   assert.match(canvas, /durationSeconds: asset\.settings\?\.duration \|\| 90/);
   assert.match(canvas, /isBrainPhase: true/);
   assert.match(canvas, /agentId: 'beat-arch'/);
-  assert.match(canvas, /agentId: 'vocal-arch'/);
+  assert.match(canvas, /vocalGenerationRequest\(/);
+  assert.match(canvas, /requestVocalGeneration\(/);
   assert.match(canvas, /Idempotency-Key/);
   assert.match(canvas, /without returning playable audio/);
   assert.match(canvas, /without returning a usable image/);
@@ -62,8 +63,8 @@ test('recoverable production steps identify and retain their real media', () => 
   assert.match(orchestrator, /getPaidStepHeaders\('final-mix'\)/);
   assert.match(orchestrator, /beatGenerationRequest\(/);
   assert.match(beatRequest, /agentId: 'beat-arch'/);
-  assert.match(orchestrator, /agentId: 'vocal-arch'/);
-  assert.match(orchestrator, /storagePath: data\.storagePath \|\| data\.audioStoragePath \|\| null/);
+  assert.match(orchestrator, /vocalTakeAsset\(data/);
+  assert.match(orchestrator, /projectWithVocalTake\(existingProject, vocalAsset\)/);
 });
 
 test('Gemini generation retries remain inside the customer request deadline', () => {

@@ -5363,7 +5363,6 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     let systemCreditIssue = false;
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
-    const sunoApiKey = process.env.SUNO_API_KEY;
 
     // Determine vocal style category for routing
     const isSingingStyle = style.includes('singer');
@@ -5376,6 +5375,11 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     let isolatedMusicalVocal = false;
     const performanceId = crypto.randomUUID();
     let refSongAnalysis = null;
+    if (strictMusicalQuality && !isPersonalVoice && !replicateKey) {
+      await refundCredits(req, 'musical vocal provider not configured');
+      return res.status(503).json({ error: 'Musical vocal generation unavailable',
+        code: 'VOCAL_PROVIDER_UNAVAILABLE', details: 'The singing provider is not configured. No substitute was created. Your StudioAgents credits were refunded.' });
+    }
     const lyricsError = strictMusicalQuality && (isPersonalVoice ? personalLyricsError(cleanedPrompt)
       : !cleanedPrompt.trim() || cleanedPrompt.length > 3500 ? 'Musical vocals require 1–3500 characters of lyrics. Shorten the lyrics and retry.' : null);
     if (lyricsError) {
@@ -5433,10 +5437,9 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     // identity-locked ElevenLabs clone.
     // Ignore any remembered speech provider for a musical request. Provider
     // stickiness is useful only inside the same capability class.
-    const supportedStrictPreference = preferredProvider === 'suno' ? 'suno' : null;
     const wantProvider = isPersonalVoice
       ? (strictMusicalQuality ? 'minimax-music' : 'elevenlabs-clone')
-      : (strictMusicalQuality ? supportedStrictPreference : (preferredProvider || null));
+      : (strictMusicalQuality ? null : (preferredProvider || null));
     if (wantProvider) logger.info('🔒 Preferred provider requested', { preferredProvider: wantProvider });
 
     // ═══════════════════════════════════════════════════════════════
@@ -5450,16 +5453,13 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
     
     // If artist has a clone OR ElevenLabs is available, skip Suno and Bark entirely
     // — jump straight to voice cloning / ElevenLabs curated voices
-    let skipSunoForClone = false;
     let skipBarkForClone = false;
     if (hasClonedVoice) {
-      skipSunoForClone = true;
       skipBarkForClone = true;
       logger.info('Personal voice selected; provider remains locked to the requested speech or singing capability');
     } else if (elevenLabsAvailable && !wantProvider && !isSingingStyle && !isRapStyle) {
       // ElevenLabs is appropriate for speech/narration. It must not displace
       // true singing providers for singer or rapper workflows.
-      skipSunoForClone = true;
       skipBarkForClone = true;
       logger.info('🎙️ ElevenLabs curated speech voice selected');
     }
@@ -5566,259 +5566,14 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthForPersonalVoic
       }
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 0: SUNO API — Real AI singing/rapping (when API key configured)
-    // Suno produces actual musical performances: singing, rapping, melodic delivery.
-    // Activated for: singers, rappers, and premium quality requests.
-    // ═══════════════════════════════════════════════════════════════
-    const useSunoForVocals = isSingingStyle || isRapStyle || req.body.quality === 'premium';
-    const skipSuno = skipSunoForClone || (wantProvider && wantProvider !== 'suno');
-    
-    // Check for "raspy" or "gritty" texture request in the prompt/style
-    const searchSpace = (cleanedPrompt + ' ' + (req.body.style || '') + ' ' + (req.body.genre || '')).toLowerCase();
-    const isRaspyRequested = searchSpace.includes('raspy') || searchSpace.includes('gritty') || searchSpace.includes('gravelly') || searchSpace.includes('rough');
-
-    if (sunoApiKey && !audioUrl && useSunoForVocals && !skipSuno) {
-      try {
-        logger.info('🎵 Using Suno API for real musical vocals', { style, genre, isRap: isRapStyle, isSinging: isSingingStyle, isRaspy: isRaspyRequested });
-        emit('vocals', 'suno-starting');
-
-        // Build Suno tags — adapt for singing vs rapping, enforce language
-        const vocalGender = style.includes('female') ? 'female vocals' : 'male vocals';
-        const rapStyle = req.body.rapStyle || '';
-        // Language enforcement: Suno uses tags to determine language
-        const langTag = (langCode !== 'en' && language !== 'English') ? `${language || langCode} language, sung in ${language || langCode},` : '';
-        let sunoTags;
-        // Rap style → delivery-specific Suno descriptors
-        const RAP_STYLE_TAGS = {
-          'aggressive': 'aggressive delivery, hard punchlines, menacing tone, 808 bass',
-          'melodic':    'melodic rap, auto-tune, emotional hooks, singing rapper',
-          'trap':       'trap flow, ad-libs, mumble rap, hi-hats, swag',
-          'drill':      'drill rap, dark energy, staccato flow, UK/NY drill',
-          'boom-bap':   'boom bap, old school, lyrical, storytelling, samples',
-          'fast':       'fast rap, technical flow, double time, syllable-dense',
-          'chill':      'chill rap, laid-back, conversational, lo-fi vibes',
-          'hype':       'hype rap, energetic, club banger, crowd control',
-        };
-        // Singer genre → delivery-specific Suno descriptors
-        const SINGER_GENRE_TAGS = {
-          'r&b':       'smooth R&B, vocal runs, melismatic, neo-soul, emotional',
-          'pop':       'pop production, bright hooks, radio-ready, catchy melody',
-          'soul':      'raw soul, gospel-influenced, powerhouse vocals, dynamic range',
-          'hip-hop':   'melodic hooks, trap singing, modern R&B, vocal ad-libs',
-          'country':   'country twang, heartfelt storytelling, acoustic warmth',
-          'rock':      'rock vocals, gritty, powerful belt, dynamic contrast',
-          'metal':     'metal screams, intense, aggressive power vocals',
-          'punk':      'punk energy, raw unpolished, attitude, distortion',
-          'jazz':      'jazz phrasing, improvisation, scat, warm swing feel',
-          'gospel':    'gospel choir, spiritual uplift, call and response, powerhouse',
-          'reggae':    'reggae flow, relaxed melody, Island vibe, laid-back hooks',
-          'dancehall': 'dancehall, patois flow, energetic, rhythmic chant',
-          'reggaeton': 'reggaeton, perreo, Latin urban, infectious hook',
-          'afrobeat':  'Afrobeats, polyrhythmic, joyful, groove-forward',
-          'electronic':'electronic vocals, processed, modern production, synth-driven',
-          'indie':     'indie folk, organic, authentic, warm lo-fi texture',
-          'acoustic':  'acoustic warmth, intimate, vulnerable, fingerpicked',
-          'funk':      'funk groove, punchy, call-response, rhythmic phrasing',
-          'default':   'melodic singing, expressive, emotionally resonant delivery',
-        };
-        if (isRapStyle) {
-          const rapDescriptors = RAP_STYLE_TAGS[rapStyle] || RAP_STYLE_TAGS['aggressive'];
-          sunoTags = `${langTag} ${genre || 'hip-hop'}, rap, ${rapStyle || 'aggressive'}, ${rapDescriptors}, ${vocalGender}, ${isRaspyRequested ? 'raspy delivery, gritty tone, ' : ''}${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
-        } else {
-          const singerDescriptors = SINGER_GENRE_TAGS[(genre || '').toLowerCase()] || SINGER_GENRE_TAGS['default'];
-          
-          // Dynamic texture detection for Suno
-          const textures = ['raspy', 'gritty', 'breathy', 'gravelly', 'raw', 'unpolished', 'distorted', 'whispered'];
-          const detectedTextures = textures.filter(t => searchSpace.includes(t)).join(', ');
-
-          sunoTags = `${langTag} ${genre}, ${singerDescriptors}, ${vocalGender}${detectedTextures ? ', ' + detectedTextures : ''}, emotionally expressive, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`.trim();
-        }
-        
-        // Use centralised cleanedPrompt — preamble already stripped at route entry
-        let sunoLyrics = cleanedPrompt.substring(0, 2999);
-        if (cleanedPrompt.length > 2999) {
-          logger.warn('⚠️ Suno lyrics truncated', { original: cleanedPrompt.length, truncated: 2999, lostChars: cleanedPrompt.length - 2999 });
-        }
-        
-        // Extract a real title from the lyrics (first non-empty line after cleaning, fallback to songIdea)
-        let sunoTitle = (sunoLyrics.replace(/\[(Verse|Chorus|Hook|Bridge|Pre-Chorus|Intro|Outro)\]/gi, '').split('\n').find(l => l.trim()) || req.body.title || 'Studio Track').substring(0, 80);
-        
-        if (refSongAnalysis) {
-          // Override tags with reference-derived characteristics
-          const refTags = refSongAnalysis.suno_tags || '';
-          const refMood = refSongAnalysis.mood || '';
-          const refTone = refSongAnalysis.tone || '';
-          const refGenreTags = refSongAnalysis.genre_tags || '';
-          sunoTags = `${langTag} ${refTags}, ${refGenreTags}, ${refMood}, ${refTone} tone, ${style.includes('female') ? 'female vocals' : 'male vocals'}, ${isRaspyRequested ? 'raspy, ' : ''}professional studio recording`.replace(/,\s*,/g, ',').replace(/^,\s*/, '').trim();
-          logger.info('🎵 Suno tags enhanced with reference analysis', { tags: sunoTags.substring(0, 100) });
-        }
-
-        // Use custom lyrics mode — Suno sings the user's actual lyrics acapella-style
-        const sunoResponse = await fetch('https://studio-api.suno.ai/api/external/generate/', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${sunoApiKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            prompt: sunoLyrics,
-            tags: sunoTags,
-            title: sunoTitle,
-            make_instrumental: false,
-            mv: 'chirp-v4'
-          })
-        });
-
-        if (sunoResponse.ok) {
-          const sunoData = await sunoResponse.json();
-          const clipId = sunoData.id || sunoData.clip_id || (sunoData.clips && sunoData.clips[0]?.id);
-          if (clipId) {
-            emit('vocals', 'suno-polling');
-            let sunoTimedOut = true;
-            for (let i = 0; i < 60 && !audioUrl; i++) {
-              await new Promise(r => setTimeout(r, 3000));
-              emit('vocals', `suno-poll-${i + 1}`);
-              const statusResp = await fetch(`https://studio-api.suno.ai/api/external/clips/?ids=${clipId}`, {
-                headers: { 'Authorization': `Bearer ${sunoApiKey}` }
-              });
-              if (statusResp.ok) {
-                const clips = await statusResp.json();
-                const clip = Array.isArray(clips) ? clips[0] : clips;
-                if (clip?.status === 'complete' && clip?.audio_url) {
-                  sunoTimedOut = false;
-                  const audioResponse = await fetch(clip.audio_url);
-                  if (audioResponse.ok) {
-                    const audioBuffer = await audioResponse.arrayBuffer();
-                    audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioBuffer).toString('base64')}`;
-                    provider = 'suno';
-                    emit('vocals', 'suno-complete');
-                    logger.info('✅ Suno singing vocal generated');
-                  }
-                  break;
-                } else if (clip?.status === 'error') {
-                  sunoTimedOut = false;
-                  logger.warn('Suno generation failed:', clip.error_message);
-                  break;
-                }
-              }
-            }
-            if (sunoTimedOut && !audioUrl) {
-              logger.error('⏱️ Suno polling timeout after 180s — falling through to next provider', { clipId });
-            }
-          }
-        } else {
-          if (sunoResponse.status === 402 || sunoResponse.status === 401) systemCreditIssue = true;
-          logger.warn('Suno API error', { status: sunoResponse.status });
-        }
-      } catch (sunoErr) {
-        logger.error('Suno API failed:', sunoErr.message);
-      }
+    if (strictMusicalQuality && isPersonalVoice && !audioUrl) {
+      await refundCredits(req, 'personal musical vocal generation failed');
+      return res.status(503).json({ error: 'Personal singing generation unavailable',
+        code: 'VOCAL_PROVIDER_FAILED', details: 'The approved personal singing performance did not finish. No speech or alternate voice was substituted. Your StudioAgents credits were refunded.' });
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 1 (SINGERS): Bark SINGING mode — produces actual melody
-    // Bark with music note markers generates pitched vocal melody, not flat TTS
-    // ═══════════════════════════════════════════════════════════════
-    const skipBarkSinging = strictMusicalQuality || skipBarkForClone || (wantProvider && wantProvider !== 'bark-singing');
-    if (replicateKey && !audioUrl && isSingingStyle && !skipBarkSinging) {
-      try {
-        logger.info('🎵 Using Bark SINGING mode', { style, langCode, genre });
-        let speakerHistory;
-        if (style.includes('female')) {
-          speakerHistory = `v2/${langCode}_speaker_9`;
-        } else {
-          speakerHistory = `v2/${langCode}_speaker_7`;
-        }
-        // Use centralised cleanedPrompt; strip remaining structure tags for Bark (it reads them literally)
-        const singingPrompt = cleanedPrompt
-          .replace(/\[(Verse|Chorus|Bridge|Pre-Chorus|Hook|Outro|Intro)\]/gi, '')
-          .replace(/\[([^\]]*)\]/g, '')
-          .replace(/\n{2,}/g, '\n')
-          .trim();
-        // Bark can only handle ~280 chars reliably before gibberish
-        // Use intelligent line-based chunking to keep complete lines
-        let truncatedSinging = '';
-        const singingLines = singingPrompt.split('\n').filter(l => l.trim());
-        for (const line of singingLines) {
-          if ((truncatedSinging + '\n' + line).length > 270) break;
-          truncatedSinging += (truncatedSinging ? '\n' : '') + line;
-        }
-        if (!truncatedSinging) truncatedSinging = singingPrompt.substring(0, 270);
-        const barkSingingPrompt = `\u266A ${truncatedSinging} \u266A`;
-        // Bark singing temps — LOCKED LOW for consistent cadence
-        let barkTextTemp = 0.45;
-        let barkWaveformTemp = 0.45;
-        if (refSongAnalysis) {
-          const energy = parseInt(refSongAnalysis.energy) || 5;
-          const warmth = parseInt(refSongAnalysis.warmth) || 5;
-          if (speakerUrl) {
-            // DNA EXACT-CLONE: Minimize variation for faithful voice reproduction
-            barkTextTemp = Math.max(0.25, Math.min(0.40, 0.28 + (energy * 0.012)));
-            barkWaveformTemp = Math.max(0.25, Math.min(0.40, 0.35 - (warmth * 0.01)));
-            logger.info('🧬 Bark DNA exact-clone temps', { barkTextTemp, barkWaveformTemp });
-          } else {
-            // Reference tuning but still tight — consistency > expressiveness
-            barkTextTemp = Math.max(0.35, Math.min(0.55, 0.38 + (energy * 0.017)));
-            barkWaveformTemp = Math.max(0.35, Math.min(0.55, 0.50 - (warmth * 0.015)));
-            logger.info('🎵 Bark temps tuned from reference', { barkTextTemp, barkWaveformTemp });
-          }
-        } else if (speakerUrl) {
-          // DNA without reference analysis: lock down temperatures for exact clone
-          barkTextTemp = 0.28;
-          barkWaveformTemp = 0.28;
-          logger.info('🧬 Bark DNA exact-clone mode (no ref analysis)', { barkTextTemp, barkWaveformTemp });
-        }
-        const response = await fetch('https://api.replicate.com/v1/models/suno-ai/bark/predictions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${replicateKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            input: {
-              prompt: barkSingingPrompt,
-              text_temp: barkTextTemp,
-              waveform_temp: barkWaveformTemp,
-              history_prompt: speakerHistory
-            }
-          })
-        });
-        if (response.ok) {
-          const prediction = await response.json();
-          let result = prediction;
-          for (let i = 0; i < 90 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
-            await new Promise(r => setTimeout(r, 2000));
-            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-              headers: { 'Authorization': `Bearer ${replicateKey}` }
-            });
-            if (statusResponse.ok) {
-              result = await statusResponse.json();
-              if (result.status === 'succeeded') {
-                let outputUrl = result.output;
-                if (Array.isArray(outputUrl)) outputUrl = outputUrl[0];
-                if (typeof outputUrl === 'object' && outputUrl?.audio_out) outputUrl = outputUrl.audio_out;
-                if (outputUrl && typeof outputUrl === 'string') {
-                  const audioResp = await fetch(outputUrl);
-                  if (audioResp.ok) {
-                    const audioBuf = await audioResp.arrayBuffer();
-                    audioUrl = `data:${audioResp.headers.get('content-type') || 'audio/wav'};base64,${Buffer.from(audioBuf).toString('base64')}`;
-                    provider = 'bark-singing';
-                    logger.info('✅ Bark SINGING vocal generated');
-                    break;
-                  }
-                }
-              } else if (result.status === 'failed') {
-                logger.warn('Bark singing failed, falling through to ElevenLabs');
-                break;
-              }
-            }
-          }
-        }
-      } catch (barkSingErr) {
-        logger.warn('Bark singing mode failed:', barkSingErr.message);
-      }
-    }
+    // Musical generation is handled above by the single performance/stem path.
+    // The remaining providers below are for speech and owned speech identities.
 
     // ═══════════════════════════════════════════════════════════════
     // CLONE QUALITY GATE — Auto-regenerate clones rated below 3.5/5
@@ -7039,6 +6794,10 @@ Do NOT include any other text.`
 
       res.json({
         audioUrl: permanentUrl || audioUrl,
+        vocalUrl: !wasMixed || isolatedMusicalVocal ? permanentUrl || audioUrl : null,
+        storagePath,
+        instrumentalStoragePath,
+        songStoragePath,
         instrumentalUrl: permanentInstrumentalUrl || coherentInstrumentalUrl || null,
         mixedAudioUrl: permanentSongUrl || coherentSongUrl || null,
         temporaryUrl: permanentUrl ? audioUrl : null,
