@@ -62,7 +62,9 @@ export function normalizeVocalResult(data = {}) {
 
 export async function requestVocalGeneration(backendUrl, { request, headers, signal, fetchImpl = fetch, onResponse }) {
   const response = await fetchImpl(`${backendUrl}${VOCAL_GENERATION_ENDPOINT}`, {
-    method: 'POST', headers, body: JSON.stringify(request),
+    method: 'POST', headers: { ...headers,
+      'Idempotency-Key': headers?.['Idempotency-Key'] || `vocal-${crypto.randomUUID()}` },
+    body: JSON.stringify(request),
     signal: signal || AbortSignal.timeout(VOCAL_REQUEST_TIMEOUT_MS),
   });
   onResponse?.(response);

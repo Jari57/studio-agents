@@ -4004,7 +4004,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       } else if (requestedScope.vocals && lyricsForVocals && (freshGeneration || !alreadyHasVocals)) {
         devLog('[Pipeline] Starting vocal generation with beat URL for mixing');
         updatePipelineStep('vocals', 'active');
-        const vocalCreated = await handleGenerateVocals(lyricsForVocals);
+        const vocalCreated = await handleGenerateVocals(lyricsForVocals, { useCheckpointKey: true });
         // Mark done only if vocals were actually produced (handleGenerateVocals returns early on auth fail)
         if (vocalCreated && (mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal) && mediaDurabilityRef.current.vocals !== false) {
           updatePipelineStep('vocals', 'done');
@@ -4257,7 +4257,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           // Re-generate vocals with updated lyrics (if beat audio available)
           try {
             toast.loading('Re-generating vocals with new lyrics...', { id: 'regen-lyrics' });
-            await handleGenerateVocals(data.output);
+            const regenerated = await handleGenerateVocals(data.output);
+            if (!regenerated) throw new Error('The new vocal take did not finish.');
             toast.success('Vocals regenerated with new lyrics!', { id: 'regen-lyrics' });
           } catch (vocalErr) {
             console.error('[Regenerate] Vocal regen after lyrics update failed:', vocalErr);
@@ -4532,7 +4533,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
 
   const vocalCreationInFlightRef = useRef(false);
-  const handleGenerateVocals = async (directInput = null) => {
+  const handleGenerateVocals = async (directInput = null, { useCheckpointKey = false } = {}) => {
     if (vocalCreationInFlightRef.current) return false;
     expandSection('lyrics');
     expandSection('vocalEngine');
@@ -4560,6 +4561,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       setGeneratingMedia(prev => ({ ...prev, vocals: true }));
       toast.loading('Creating your musical performance and matching stems…', { id: 'gen-vocals' });
       const headers = await getPaidStepHeaders('vocals');
+      // An explicit new take/retry is a new purchase attempt; resumable pipeline
+      // submissions retain their checkpoint key for duplicate-submit protection.
+      if (!useCheckpointKey) headers['Idempotency-Key'] = `vocal-take-${crypto.randomUUID()}`;
       const data = await requestVocalGeneration(BACKEND_URL, { request, headers });
       if (!mountedRef.current || auth.currentUser?.uid !== storageOwner) return false;
       const replacement = replacedSongSource('vocals', data, crypto.randomUUID());
@@ -7370,7 +7374,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                         if (step.id === 'beat-audio') {
                           retrySucceeded = await handleGenerateAudio(outputs.audio);
                         } else if (step.id === 'vocals') {
-                          await handleGenerateVocals(outputs.lyrics);
+                          retrySucceeded = await handleGenerateVocals(outputs.lyrics);
                         } else if (step.id === 'image') {
                           // The provider may have succeeded while cloud save failed.
                           // Recover that take without buying another image.
