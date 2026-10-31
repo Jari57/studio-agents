@@ -32,6 +32,8 @@ export function restoreProjectOutputs(project = {}) {
       // Clearing either canonical vocal slot must not resurrect an older take through its alias.
       if (!owns(media, 'vocals') && !owns(media, 'lyricsVocal')) {
         put(media, 'vocals', asset.vocalUrl || asset.audioUrl); put(media, 'lyricsVocal', asset.vocalUrl || asset.audioUrl);
+      }
+      if ((media.vocals || media.lyricsVocal) === (asset.vocalUrl || asset.audioUrl)) {
         put(media, 'audio', asset.instrumentalUrl); put(media, 'mixedAudio', asset.mixedAudioUrl);
       }
     }

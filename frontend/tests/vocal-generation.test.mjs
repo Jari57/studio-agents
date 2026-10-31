@@ -75,6 +75,7 @@ test('legacy mixed previews recover the dry stem in playback and mixer libraries
     assets: [{ id: 'legacy', type: 'vocal', audioUrl: result.mixedAudioUrl, vocalUrl: result.audioUrl,
     instrumentalUrl: result.instrumentalUrl, mixedAudioUrl: result.mixedAudioUrl }] };
   assert.equal(restoreProjectOutputs(project).media.vocals, result.audioUrl);
+  assert.equal(restoreProjectOutputs(project).media.audio, result.instrumentalUrl);
   assert.equal(producerAudioLibrary(project)[0].audioUrl, result.audioUrl);
   assert.equal(initialProducerSession(project).tracks[0].url, result.audioUrl);
 });
